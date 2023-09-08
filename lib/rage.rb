@@ -1,5 +1,13 @@
 # frozen_string_literal: true
+
+require "json"
+require "iodine"
+
 module Rage
+  def self.application
+    Application.new(__router)
+  end
+
   def self.routes
     Rage::Router::DSL.new(__router)
   end
@@ -18,6 +26,7 @@ module RageController
 end
 
 require_relative "rage/version"
+require_relative "rage/application"
 require_relative "rage/router/strategies/host"
 require_relative "rage/router/backend"
 require_relative "rage/router/constrainer"
