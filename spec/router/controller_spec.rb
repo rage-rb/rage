@@ -1,0 +1,85 @@
+# frozen_string_literal: true
+
+class BaseTestController < RageController::API
+end
+
+class TestController < BaseTestController
+  def index
+    "test_controller"
+  end
+end
+
+class TestPhotoTagsController < BaseTestController
+  def index
+    "test_photo_tags_controller"
+  end
+end
+
+module Api
+  module V1
+    class TestPhotosController < BaseTestController
+      def get_all
+        "api/test_photos_controller"
+      end
+    end
+  end
+end
+
+RSpec.describe Rage::Router::Backend do
+  it "correctly processes a string handler" do
+    expect(TestController).to receive(:__register_action).with(:index).and_return(:index)
+    router.on("GET", "/test", "test#index")
+
+    result, _ = perform_get_request("/test")
+    expect(result).to eq("test_controller")
+  end
+
+  it "correctly processes a string handler" do
+    expect(TestPhotoTagsController).to receive(:__register_action).with(:index).and_return(:index)
+    router.on("GET", "/test", "test_photo_tags#index")
+
+    result, _ = perform_get_request("/test")
+    expect(result).to eq("test_photo_tags_controller")
+  end
+
+  it "correctly processes a string handler" do
+    expect(Api::V1::TestPhotosController).to receive(:__register_action).with(:get_all).and_return(:get_all)
+    router.on("GET", "/test", "api/v1/test_photos#get_all")
+
+    result, _ = perform_get_request("/test")
+    expect(result).to eq("api/test_photos_controller")
+  end
+
+  it "uses the registered action" do
+    expect(TestController).to receive(:__register_action).with(:index).and_return(:registered_index)
+    router.on("GET", "/test", "test#index")
+
+    expect { perform_get_request("/test") }.to raise_error(NoMethodError, /undefined method `registered_index'/)
+  end
+
+  it "raises an error in case the controller doesn't exist" do
+    expect {
+      router.on("GET", "/test", "unknown#index")
+    }.to raise_error("Routing error: could not find the UnknownController class")
+  end
+
+  it "raises an error in case an action doesn't exist" do
+    expect(TestController).to receive(:__register_action).with(:unknown).and_call_original
+
+    expect {
+      router.on("GET", "/test", "test#unknown")
+    }.to raise_error("The action 'unknown' could not be found for TestController")
+  end
+
+  it "verifies string handler format" do
+    expect {
+      router.on("GET", "/test", "test")
+    }.to raise_error("Invalid route handler format, expected to match the 'controller#action' pattern")
+  end
+
+  it "verifies lambda handler format" do
+    expect {
+      router.on("GET", "/test", Object)
+    }.to raise_error("Non-string route handler should respond to `call`")
+  end
+end

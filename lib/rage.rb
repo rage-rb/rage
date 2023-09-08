@@ -14,6 +14,9 @@ module Rage
   end
 end
 
+module RageController
+end
+
 require_relative "rage/version"
 require_relative "rage/router/strategies/host"
 require_relative "rage/router/backend"
@@ -21,3 +24,5 @@ require_relative "rage/router/constrainer"
 require_relative "rage/router/dsl"
 require_relative "rage/router/handler_storage"
 require_relative "rage/router/node"
+
+require_relative "rage/controller/api"
