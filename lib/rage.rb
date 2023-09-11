@@ -27,6 +27,9 @@ end
 
 require_relative "rage/version"
 require_relative "rage/application"
+require_relative "rage/fiber"
+require_relative "rage/fiber_scheduler"
+
 require_relative "rage/router/strategies/host"
 require_relative "rage/router/backend"
 require_relative "rage/router/constrainer"
