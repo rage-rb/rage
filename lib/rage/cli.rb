@@ -15,6 +15,17 @@ module Rage
       NewAppGenerator.start([path])
     end
 
+    desc "s", "Start the app server."
+    def server
+      app = ::Rack::Builder.parse_file("config.ru")
+      app = app[0] if app.is_a?(Array)
+
+      ::Iodine.listen service: :http, handler: app
+      ::Iodine.threads = 1
+      ::Iodine.start
+    end
+  end
+
   class NewAppGenerator < Thor::Group
     include Thor::Actions
 
