@@ -78,7 +78,7 @@ RSpec.describe RageController::API do
 
     it "correctly runs before actions" do
       expect(verifier).to receive(:setup).once
-      expect(run_action(klass, :index)).to eq([200, {}, ["hi"]])
+      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi"]])
     end
   end
 
@@ -89,14 +89,14 @@ RSpec.describe RageController::API do
       expect(verifier).to receive(:continue_action).once
       expect(verifier).not_to receive(:stop_action)
 
-      expect(run_action(klass, :index)).to eq([200, {}, ["hi from index"]])
+      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from index"]])
     end
 
     it "correctly runs before actions" do
       expect(verifier).not_to receive(:continue_action)
       expect(verifier).to receive(:stop_action).once
 
-      expect(run_action(klass, :show)).to eq([403, {}, []])
+      expect(run_action(klass, :show)).to match([403, instance_of(Hash), []])
     end
   end
 
@@ -108,7 +108,7 @@ RSpec.describe RageController::API do
       expect(verifier).to receive(:setup_2).once
       expect(verifier).not_to receive(:setup_3)
 
-      expect(run_action(klass, :index)).to eq([200, {}, ["hi from index"]])
+      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from index"]])
     end
 
     it "correctly runs before actions" do
@@ -116,7 +116,7 @@ RSpec.describe RageController::API do
       expect(verifier).to receive(:setup_2).once
       expect(verifier).to receive(:setup_3).once
 
-      expect(run_action(klass, :show)).to eq([200, {}, ["hi from show"]])
+      expect(run_action(klass, :show)).to match([200, instance_of(Hash), ["hi from show"]])
     end
   end
 end

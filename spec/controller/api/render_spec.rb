@@ -30,28 +30,29 @@ end
 
 RSpec.describe RageController::API do
   let(:klass) { ControllerApiRenderSpec::TestController }
+  let(:json_header) { { "content-type" => "application/json; charset=utf-8" } }
 
   it "correctly renders json" do
-    expect(run_action(klass, :render_json)).to eq([200, {}, ["{\"message\":\"hello world\"}"]])
+    expect(run_action(klass, :render_json)).to eq([200, json_header, ["{\"message\":\"hello world\"}"]])
   end
 
   it "correctly heads a symbol status" do
-    expect(run_action(klass, :head_symbol)).to eq([201, {}, []])
+    expect(run_action(klass, :head_symbol)).to eq([201, json_header, []])
   end
 
   it "correctly heads an integer status" do
-    expect(run_action(klass, :head_int)).to eq([402, {}, []])
+    expect(run_action(klass, :head_int)).to eq([402, json_header, []])
   end
 
   it "correctly renders json with status" do
-    expect(run_action(klass, :render_json_with_status)).to eq([201, {}, ["{\"message\":\"hello world\"}"]])
+    expect(run_action(klass, :render_json_with_status)).to eq([201, json_header, ["{\"message\":\"hello world\"}"]])
   end
 
   it "correctly renders text with status" do
-    expect(run_action(klass, :render_plain_with_status)).to eq([304, {}, ["hi"]])
+    expect(run_action(klass, :render_plain_with_status)).to eq([304, { "content-type" => "text/plain; charset=utf-8" }, ["hi"]])
   end
 
   it "correctly renders status" do
-    expect(run_action(klass, :render_status)).to eq([202, {}, []])
+    expect(run_action(klass, :render_status)).to eq([202, json_header, []])
   end
 end
