@@ -2,6 +2,7 @@
 
 require "rage"
 require_relative "support/request_helper"
+require_relative "support/controller_helper"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
@@ -15,4 +16,5 @@ RSpec.configure do |config|
   end
 
   config.include RequestHelper
+  config.include ControllerHelper
 end
