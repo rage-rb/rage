@@ -15,6 +15,10 @@ RSpec.configure do |config|
     c.syntax = :expect
   end
 
+  config.before(:suite) do
+    Iodine.patch_rack
+  end
+
   config.include RequestHelper
   config.include ControllerHelper
 end

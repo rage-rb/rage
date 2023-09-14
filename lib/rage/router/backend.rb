@@ -209,7 +209,7 @@ class Rage::Router::Backend
 
       if current_node.kind == Rage::Router::Node::WILDCARD
         param = origin_path[path_index, origin_path.length - path_index]
-        param = URI.decode_www_form_component(param) # TODO: should this be conditional?
+        param = Rack::Utils.unescape(param) if param.include?("%")
 
         url_params << param
         path_index = path_len
@@ -221,7 +221,7 @@ class Rage::Router::Backend
         param_end_index = path_len unless param_end_index
 
         param = origin_path.slice(path_index, param_end_index - path_index)
-        param = URI.decode_www_form_component(param) # TODO: should this be conditional?
+        param = Rack::Utils.unescape(param) if param.include?("%")
 
         url_params << param
         path_index = param_end_index
