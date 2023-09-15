@@ -16,7 +16,7 @@ This framework results from reflecting on [Ruby's declining popularity](https://
 
 Install the gem:
 ```
-$ gem install rage
+$ gem install rage-rb
 ```
 
 Create a new app:

@@ -3,7 +3,7 @@
 require_relative "lib/rage/version"
 
 Gem::Specification.new do |spec|
-  spec.name = "rage"
+  spec.name = "rage-rb"
   spec.version = Rage::VERSION
   spec.authors = ["Roman Samoilov"]
   spec.email = ["rsamoi@icloud.com"]
