@@ -26,7 +26,6 @@ end
 module RageController
 end
 
-require_relative "rage/version"
 require_relative "rage/application"
 require_relative "rage/fiber"
 require_relative "rage/fiber_scheduler"
