@@ -1,12 +1,15 @@
 # Rage
 
+[![Gem Version](https://badge.fury.io/rb/rage-rb.svg)](https://badge.fury.io/rb/rage-rb)
+![Tests](https://github.com/rage-rb/rage/actions/workflows/main.yml/badge.svg)
+
 Inspired by [Deno](https://deno.com) and built on top of [Iodine](https://github.com/rage-rb/iodine), this is a Ruby web framework that is based on the following design principles:
 
 * **Rails compatible API** - Rails' API is clean, straightforward, and simply makes sense. I believe it was one of the reasons why Rails was so successful in the past.
 
 * **High performance** - some think performance is not a major metric for a framework, but I don't believe it's true. Poor performance is a risk, and in today's world, companies refuse to use risky technologies.
 
-* **API-only** - the only technology we should use to create web UI is JavaScript. I recommend checking out [Vite](https://vitejs.dev) if you don't know where to start.
+* **API-only** - the only technology we should be using to create web UI is JavaScript. I recommend checking out [Vite](https://vitejs.dev) if you don't know where to start.
 
 * **Acceptance of modern Ruby** - the framework includes a fiber scheduler, which means your code never blocks while waiting on IO.
 
@@ -64,7 +67,7 @@ end
 ```
 ![Time to complete 100 requests](https://github.com/rage-rb/rage/assets/2270393/007044e9-efe0-4675-9cab-8a4868154118)
 
-## Milestones
+## Upcoming releases
 
 Version | Changes
 ------- |------------
