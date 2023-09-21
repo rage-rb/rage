@@ -12,6 +12,10 @@ RSpec.describe Rage::FiberScheduler do
     Fiber.set_scheduler(described_class.new)
   end
 
+  after :all do
+    Fiber.set_scheduler(nil)
+  end
+
   it "correctly performs long http GET" do
     within_reactor do
       num = rand
