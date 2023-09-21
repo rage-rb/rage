@@ -56,7 +56,7 @@ RSpec.describe Rage::FiberScheduler do
       str = 500_000.times.map { rand(1..100) }.join
       File.write("test", str)
 
-      -> { expect(File.read("test")).to eq(str + "1") }
+      -> { expect(File.read("test")).to eq(str) }
     end
 
     File.unlink("test")
