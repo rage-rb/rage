@@ -24,4 +24,7 @@ jobs:
         ruby-version: ${{ matrix.ruby }}
         bundler-cache: true
     - name: Run the default task
+      env:
+        TEST_HTTP_URL: ${{ secrets.TEST_HTTP_URL }}
+        TEST_PG_URL: ${{ secrets.TEST_PG_URL }}
       run: bundle exec rake
