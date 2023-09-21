@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
   spec.summary = "Fast web framework compatible with Rails."
   spec.homepage = "https://github.com/rage-rb/rage"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.0.0"
+  spec.required_ruby_version = ">= 3.1.0"
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/rage-rb/rage"
@@ -27,7 +27,7 @@ Gem::Specification.new do |spec|
   spec.executables = ["rage"]
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "thor"
+  spec.add_dependency "thor", "~> 1.0"
   spec.add_dependency "rack", "~> 2.0"
   spec.add_dependency "rage-iodine", "~> 1.0"
 end
