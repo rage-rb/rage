@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "resolv"
+
 class Rage::FiberScheduler
   def io_wait(io, events, timeout = nil)
     f = Fiber.current
