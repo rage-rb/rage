@@ -2,6 +2,10 @@
 
 class RageController::API
   class << self
+    # used by the router to register a new action;
+    # registering means defining a new method which calls the action, makes additional calls (e.g. before actions) and
+    # sends a correct response down to the server;
+    # returns the name of the newly defined method;
     def __register_action(action)
       raise "The action '#{action}' could not be found for #{self}" unless method_defined?(action)
 
@@ -33,7 +37,14 @@ class RageController::API
       RUBY
     end
 
-    # Register a new `before_action` hook.
+    # pass the variable down to the child; the child will continue to use it until changes need to be made;
+    # only then the object will be copied; the frozen state communicates that the object is shared with the parent;
+    attr_writer :__before_actions
+    def inherited(klass)
+      klass.__before_actions = @__before_actions.freeze
+    end
+
+    # Register a new `before_action` hook. Calls with the same `action_name` will overwrite the previous ones.
     #
     # @param action_name [String] the name of the callback to add
     # @param only [Symbol, Array<Symbol>] restrict the callback to run only for specific actions
@@ -44,11 +55,47 @@ class RageController::API
     #     ...
     #   end
     def before_action(action_name, only: nil, except: nil)
-      (@__before_actions ||= []) << {
-        name: action_name,
-        only: only && Array(only),
-        except: except && Array(except)
-      }
+      if @__before_actions && @__before_actions.frozen?
+        @__before_actions = @__before_actions.dup
+      end
+
+      action = { name: action_name, only: only && Array(only), except: except && Array(except) }
+      if @__before_actions.nil?
+        @__before_actions = [action]
+      elsif i = @__before_actions.find_index { |a| a[:name] == action_name }
+        @__before_actions[i] = action
+      else
+        @__before_actions << action
+      end
+    end
+
+    # Prevent a `before_action` hook from running.
+    #
+    # @param action_name [String] the name of the callback to skip
+    # @param only [Symbol, Array<Symbol>] restrict the callback to be skipped only for specific actions
+    # @param except [Symbol, Array<Symbol>] restrict the callback to be skipped for all actions except specified
+    # @example
+    #   skip_before_action :find_photo, only: :create
+    def skip_before_action(action_name, only: nil, except: nil)
+      i = @__before_actions&.find_index { |a| a[:name] == action_name }
+      raise "The following action was specified to be skipped but cannot be found: #{self}##{action_name}" unless i
+
+      @__before_actions = @__before_actions.dup if @__before_actions.frozen?
+
+      if only.nil? && except.nil?
+        @__before_actions.delete_at(i)
+        return
+      end
+
+      action = @__before_actions[i].dup
+      if only
+        action[:except] ? action[:except] |= Array(only) : action[:except] = Array(only)
+      end
+      if except
+        action[:only] = Array(except)
+      end
+
+      @__before_actions[i] = action
     end
   end # class << self
 
@@ -81,7 +128,7 @@ class RageController::API
       @__body << if json
         json.is_a?(String) ? json : json.to_json
       else
-        set_header("content-type", "text/plain; charset=utf-8")
+        __set_header("content-type", "text/plain; charset=utf-8")
         plain
       end
 
@@ -116,7 +163,8 @@ class RageController::API
 
   private
 
-  def set_header(key, value)
+  # copy-on-write implementation for the headers object
+  def __set_header(key, value)
     @__headers = @__headers.dup if DEFAULT_HEADERS.equal?(@__headers)
     @__headers[key] = value
   end

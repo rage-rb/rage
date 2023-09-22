@@ -64,6 +64,48 @@ module ControllerApiBeforeActionsSpec
       verifier.setup_3
     end
   end
+
+  class TestController4 < TestController
+    before_action :setup_4
+
+    def index
+      render plain: "hi from index"
+    end
+
+    private def setup_4
+      verifier.setup_4
+    end
+  end
+
+  class TestController5 < TestController
+    before_action :setup, only: :show
+
+    def index
+      render plain: "hi from index"
+    end
+
+    def show
+      render plain: "hi from show"
+    end
+  end
+
+  class TestController6Base < RageController::API
+    def index
+      render plain: "hi from base"
+    end
+  end
+
+  class TestController6 < TestController6Base
+    before_action :setup_6
+
+    def index
+      render plain: "hi from child"
+    end
+
+    private def setup_6
+      verifier.setup_6
+    end
+  end
 end
 
 RSpec.describe RageController::API do
@@ -117,6 +159,58 @@ RSpec.describe RageController::API do
       expect(verifier).to receive(:setup_3).once
 
       expect(run_action(klass, :show)).to match([200, instance_of(Hash), ["hi from show"]])
+    end
+  end
+
+  context "case 4" do
+    let(:klass) { ControllerApiBeforeActionsSpec::TestController4 }
+    let(:base_klass) { ControllerApiBeforeActionsSpec::TestController }
+
+    it "correctly runs before actions" do
+      expect(verifier).to receive(:setup).once
+      expect(verifier).to receive(:setup_4).once
+      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from index"]])
+    end
+
+    it "correctly runs before actions" do
+      expect(verifier).to receive(:setup).once
+      expect(verifier).not_to receive(:setup_4)
+      expect(run_action(base_klass, :index)).to match([200, instance_of(Hash), ["hi"]])
+    end
+  end
+
+  context "case 5" do
+    let(:klass) { ControllerApiBeforeActionsSpec::TestController5 }
+    let(:base_klass) { ControllerApiBeforeActionsSpec::TestController }
+
+    it "correctly runs before actions" do
+      expect(verifier).not_to receive(:setup)
+      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from index"]])
+    end
+
+    it "correctly runs before actions" do
+      expect(verifier).to receive(:setup).once
+      expect(run_action(klass, :show)).to match([200, instance_of(Hash), ["hi from show"]])
+    end
+
+    it "correctly runs before actions" do
+      expect(verifier).to receive(:setup).once
+      expect(run_action(base_klass, :index)).to match([200, instance_of(Hash), ["hi"]])
+    end
+  end
+
+  context "case 6" do
+    let(:klass) { ControllerApiBeforeActionsSpec::TestController6 }
+    let(:base_klass) { ControllerApiBeforeActionsSpec::TestController6Base }
+
+    it "correctly runs before actions" do
+      expect(verifier).to receive(:setup_6).once
+      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from child"]])
+    end
+
+    it "correctly runs before actions" do
+      expect(verifier).not_to receive(:setup_6)
+      expect(run_action(base_klass, :index)).to match([200, instance_of(Hash), ["hi from base"]])
     end
   end
 end
