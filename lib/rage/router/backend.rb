@@ -21,8 +21,8 @@ class Rage::Router::Backend
       path_full = path.sub(OPTIONAL_PARAM_REGEXP, "/#{$1}")
       path_optional = path.sub(OPTIONAL_PARAM_REGEXP, "")
 
-      on(method, path_full, handler)
-      on(method, path_optional, handler)
+      on(method, path_full, handler, constraints: constraints)
+      on(method, path_optional, handler, constraints: constraints)
       return
     end
 
