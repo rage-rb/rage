@@ -27,21 +27,76 @@ class RageController::API
         ""
       end
 
+      rescue_handlers_chunk = if @__rescue_handlers
+        lines = @__rescue_handlers.map do |klasses, handler|
+          <<-RUBY
+          rescue #{klasses.join(", ")} => __e
+            #{handler}(__e)
+            [@__status, @__headers, @__body]
+          RUBY
+        end
+
+        lines.join("\n")
+      else
+        ""
+      end
+
       class_eval <<-RUBY
         def __run_#{action}
           #{before_actions_chunk}
           #{action}
 
           [@__status, @__headers, @__body]
+
+          #{rescue_handlers_chunk}
         end
       RUBY
     end
 
     # pass the variable down to the child; the child will continue to use it until changes need to be made;
     # only then the object will be copied; the frozen state communicates that the object is shared with the parent;
-    attr_writer :__before_actions
+    attr_writer :__before_actions, :__rescue_handlers
     def inherited(klass)
       klass.__before_actions = @__before_actions.freeze
+      klass.__rescue_handlers = @__rescue_handlers.freeze
+    end
+
+    ############
+    #
+    # PUBLIC API
+    #
+    ############
+
+    # Register a global exception handler. Handlers are inherited and matched from bottom to top.
+    #
+    # @param klasses [Class, Array<Class>] exception classes to watch on
+    # @param with [Symbol] the name of a handler method. The method must take one argument, which is the raised exception. Alternatively, you can pass a block, which must also take one argument.
+    # @example
+    #   rescue_from User::NotAuthorized, with: :deny_access
+    #   def deny_access(exception)
+    #     head :forbidden
+    #   end
+    # @example
+    #   rescue_from User::NotAuthorized do |_|
+    #     head :forbidden
+    #   end
+    def rescue_from(*klasses, with: nil, &block)
+      unless with
+        if block_given?
+          name = ("a".."z").to_a.sample(15).join
+          with = define_method("__#{name}", &block)
+        else
+          raise "No handler provided. Pass the `with` keyword argument or provide a block."
+        end
+      end
+
+      if @__rescue_handlers.nil?
+        @__rescue_handlers = []
+      elsif @__rescue_handlers.frozen?
+        @__rescue_handlers = @__rescue_handlers.dup
+      end
+
+      @__rescue_handlers.unshift([klasses, with])
     end
 
     # Register a new `before_action` hook. Calls with the same `action_name` will overwrite the previous ones.
