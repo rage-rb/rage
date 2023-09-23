@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "thor"
-require "iodine"
-require "rack"
+require "rage"
 
 module Rage
   class CLI < Thor
@@ -20,8 +19,10 @@ module Rage
       app = ::Rack::Builder.parse_file("config.ru")
       app = app[0] if app.is_a?(Array)
 
-      ::Iodine.listen service: :http, handler: app
-      ::Iodine.threads = 1
+      ::Iodine.listen service: :http, handler: app, port: Rage.config.port
+      ::Iodine.threads = Rage.config.threads_count
+      ::Iodine.workers = Rage.config.workers_count
+
       ::Iodine.start
     end
   end

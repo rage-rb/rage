@@ -1,4 +1,6 @@
 require "bundler/setup"
-Bundler.require(:default)
+
+require "rage"
+Bundler.require(*Rage.groups)
 
 require "rage/setup"

@@ -2,7 +2,9 @@
 
 class Rage::Application
   def initialize(router)
-    Fiber.set_scheduler(Rage::FiberScheduler.new)
+    Iodine.on_state(:on_start)  do
+      Fiber.set_scheduler(Rage::FiberScheduler.new)
+    end
     @router = router
   end
 

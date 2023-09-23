@@ -17,6 +17,22 @@ module Rage
     @__router ||= Rage::Router::Backend.new
   end
 
+  def self.config
+    @config ||= Rage::Configuration.new
+  end
+
+  def self.configure
+    yield(config)
+  end
+
+  def self.env
+    @__env ||= ENV["RAGE_ENV"] || ENV["RAILS_ENV"] || ENV["RACK_ENV"] || "development"
+  end
+
+  def self.groups
+    [:default, Rage.env.to_sym]
+  end
+
   module Router
     module Strategies
     end
@@ -29,6 +45,7 @@ end
 require_relative "rage/application"
 require_relative "rage/fiber"
 require_relative "rage/fiber_scheduler"
+require_relative "rage/configuration"
 
 require_relative "rage/router/strategies/host"
 require_relative "rage/router/backend"
