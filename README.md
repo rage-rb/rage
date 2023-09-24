@@ -1,3 +1,5 @@
+<p align="center"><img height="200" src="https://github.com/rage-rb/rage/assets/2270393/d0f0834f-50e4-4b1b-a564-1f241c4ec149" /></p>
+
 # Rage
 
 [![Gem Version](https://badge.fury.io/rb/rage-rb.svg)](https://badge.fury.io/rb/rage-rb)
@@ -12,8 +14,6 @@ Inspired by [Deno](https://deno.com) and built on top of [Iodine](https://github
 * **API-only** - the only technology we should be using to create web UI is JavaScript. I recommend checking out [Vite](https://vitejs.dev) if you don't know where to start.
 
 * **Acceptance of modern Ruby** - the framework includes a fiber scheduler, which means your code never blocks while waiting on IO.
-
-This framework results from reflecting on [Ruby's declining popularity](https://survey.stackoverflow.co/2023/#most-popular-technologies-language) and attempting to answer why this is happening and what we, as a community, could be doing differently.
 
 ## Installation
 
@@ -39,6 +39,72 @@ $ rage s
 ```
 
 Start coding!
+
+## Getting Started
+
+This gem is designed to be a drop-in replacement for Rails in API mode. Public API is mostly expected to match Rails, however, sometimes it's a little bit more strict.
+
+Check out in-depth API docs for more information:
+
+- [Controller API](https://rubydoc.info/github/rage-rb/rage/master/RageController/API)
+- [Routing API](https://rubydoc.info/github/rage-rb/rage/master/Rage/Router/DSL/Handler)
+- [Fiber API](https://rubydoc.info/github/rage-rb/rage/master/Fiber)
+
+Also, see the [changelog](https://github.com/rage-rb/rage/blob/master/CHANGELOG.md) and [upcoming-releases](https://github.com/rage-rb/rage#upcoming-releases) for currently supported and planned features.
+
+### Example
+
+A sample controller could look like this:
+
+```ruby
+class PagesController < RageController::API
+  rescue_from SocketError do |_|
+    render json: { message: "error" }, status: 500
+  end
+
+  before_action :set_metadata
+
+  def show
+    page = Net::HTTP.get(URI("https://httpbin.org/json"))
+    render json: { page: page, metadata: @metadata }
+  end
+
+  private
+
+  def set_metadata
+    @metadata = { format: "json", time: Time.now.to_i }
+  end
+end
+```
+
+Apart from `RageController::API` as a parent class, this is mostly a regular Rails controller. However, the main difference is under the hood - Rage runs every request in a separate fiber. During the call to `Net::HTTP.get`, the fiber is automatically paused, enabling the server to process other requests. Once the HTTP request is finished, the fiber will be resumed, potentially allowing to process hundreds of requests simultaneously.
+
+To make this controller work, we would also need to update `config/routes.rb`. In this case, the file would look the following way:
+
+```ruby
+Rage.routes.draw do
+  get "page", to: "pages#show"
+end
+```
+
+:information_source: **Note**: Rage will automatically pause a fiber and continue to process other fibers on HTTP, PostgreSQL, and MySQL calls. Calls to `Thread.join` and `Ractor.join` will also automatically pause the current fiber.
+
+Additionally, `Fiber.await` can be used to run several requests in parallel:
+
+```ruby
+class PagesController < RageController::API
+  def index
+    pages = Fiber.await(
+      Fiber.schedule { Net::HTTP.get(URI("https://httpbin.org/json")) },
+      Fiber.schedule { Net::HTTP.get(URI("https://httpbin.org/html")) },
+    )
+
+    render json: { pages: pages }
+  end
+end
+```
+
+:information_source: **Note**: When using `Fiber.await`, it is important to wrap any instance of IO into a fiber using `Fiber.schedule`.
 
 ## Benchmarks
 
