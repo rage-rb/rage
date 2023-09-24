@@ -29,4 +29,5 @@ jobs:
       env:
         TEST_HTTP_URL: ${{ secrets.TEST_HTTP_URL }}
         TEST_PG_URL: ${{ secrets.TEST_PG_URL }}
+        TEST_MYSQL_URL: ${{ secrets.TEST_MYSQL_URL }}
       run: bundle exec rake

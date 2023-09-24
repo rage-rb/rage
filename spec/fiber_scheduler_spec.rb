@@ -3,10 +3,12 @@
 require "net/http"
 require "digest"
 require "pg"
+require "mysql2"
 
 RSpec.describe Rage::FiberScheduler do
   TEST_HTTP_URL = ENV.fetch("TEST_HTTP_URL")
   TEST_PG_URL = ENV.fetch("TEST_PG_URL")
+  TEST_MYSQL_URL = ENV.fetch("TEST_MYSQL_URL")
 
   before :all do
     Fiber.set_scheduler(described_class.new)
@@ -60,46 +62,102 @@ RSpec.describe Rage::FiberScheduler do
     end
   end
 
-  it "correctly performs a DB request" do
-    within_reactor do
-      conn = PG.connect(TEST_PG_URL)
-      result = conn.exec("SELECT count(*) FROM tags").to_a
-      -> { expect(result.first["count"]).to eq("1000") }
-    end
-  end
+  context "with Postgres" do
+    let(:conn) { PG.connect(TEST_PG_URL) }
 
-  it "correctly performs a long DB request" do
-    within_reactor do
-      num = rand
-      conn = PG.connect(TEST_PG_URL)
-      result = conn.exec("SELECT pg_sleep(2), #{num} as num")
-      -> { expect(result.first["num"]).to eq(num.to_s) }
-    end
-  end
+    after { conn.close }
 
-  it "correctly performs multiple DB requests" do
-    within_reactor do
-      results = []
-      ids = [120, 9, 445, 12, 991]
-      conn = PG.connect(TEST_PG_URL)
-
-      ids.each do |id|
-        results << conn.exec("SELECT * FROM tags WHERE id = #{id}").to_a.first
+    it "correctly performs a DB request" do
+      within_reactor do
+        result = conn.exec("SELECT count(*) FROM tags").to_a
+        -> { expect(result.first["count"]).to eq("1000") }
       end
+    end
 
-      -> { expect(results.map { |r| r["id"].to_i }).to match(ids) }
+    it "correctly performs a long DB request" do
+      within_reactor do
+        num = rand
+        result = conn.exec("SELECT pg_sleep(2), #{num} as num")
+        -> { expect(result.first["num"]).to eq(num.to_s) }
+      end
+    end
+
+    it "correctly performs multiple DB requests" do
+      within_reactor do
+        results = []
+        ids = [120, 9, 445, 12, 991]
+
+        ids.each do |id|
+          results << conn.exec("SELECT * FROM tags WHERE id = #{id}").to_a.first
+        end
+
+        -> { expect(results.map { |r| r["id"].to_i }).to match(ids) }
+      end
+    end
+
+    it "correctly writes to the DB" do
+      within_reactor do
+        char = ("A".."Z").to_a.sample
+        str = char * 50_000
+
+        conn.exec("UPDATE tags SET token = '#{str}' WHERE id = 999")
+        result = conn.exec("SELECT * FROM tags WHERE id = 999").to_a
+        -> { expect(result.first["token"]).to eq(str) }
+      end
     end
   end
 
-  it "correctly writes to the DB" do
-    within_reactor do
-      char = ("A".."Z").to_a.sample
-      str = char * 50_000
-      conn = PG.connect(TEST_PG_URL)
+  context "with MySQL" do
+    let(:uri) { URI(TEST_MYSQL_URL) }
+    let(:conn) do
+      Mysql2::Client.new(
+        host: uri.host,
+        port: uri.port,
+        username: uri.user,
+        password: uri.password,
+        database: uri.path[1..-1]
+      )
+    end
 
-      conn.exec("UPDATE tags SET token = '#{str}' WHERE id = 999")
-      result = conn.exec("SELECT * FROM tags WHERE id = 999").to_a
-      -> { expect(result.first["token"]).to eq(str) }
+    after { conn.close }
+
+    it "correctly performs a DB request" do
+      within_reactor do
+        result = conn.query("SELECT count(*) as count FROM tags")
+        -> { expect(result.first["count"]).to eq(1000) }
+      end
+    end
+
+    it "correctly performs a long DB request" do
+      within_reactor do
+        num = rand
+        result = conn.query("SELECT sleep(2), #{num} as num")
+        -> { expect(result.first["num"]).to eq(num) }
+      end
+    end
+
+    it "correctly performs multiple DB requests" do
+      within_reactor do
+        results = []
+        ids = [120, 9, 445, 12, 991]
+
+        ids.each do |id|
+          results << conn.query("SELECT * FROM tags WHERE id = #{id}").first
+        end
+
+        -> { expect(results.map { |r| r["id"] }).to match(ids) }
+      end
+    end
+
+    it "correctly writes to the DB" do
+      within_reactor do
+        char = ("A".."Z").to_a.sample
+        str = char * 50_000
+
+        conn.query("UPDATE tags SET token = '#{str}' WHERE id = 999")
+        result = conn.query("SELECT * FROM tags WHERE id = 999")
+        -> { expect(result.first["token"]).to eq(str) }
+      end
     end
   end
 
