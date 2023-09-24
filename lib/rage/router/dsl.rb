@@ -10,6 +10,7 @@ class Rage::Router::DSL
   end
 
   class Handler
+    # @private
     def initialize(router)
       @router = router
 

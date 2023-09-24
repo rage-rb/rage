@@ -2,6 +2,7 @@
 
 class RageController::API
   class << self
+    # @private
     # used by the router to register a new action;
     # registering means defining a new method which calls the action, makes additional calls (e.g. before actions) and
     # sends a correct response down to the server;
@@ -53,9 +54,12 @@ class RageController::API
       RUBY
     end
 
+    # @private
+    attr_writer :__before_actions, :__rescue_handlers
+
+    # @private
     # pass the variable down to the child; the child will continue to use it until changes need to be made;
     # only then the object will be copied; the frozen state communicates that the object is shared with the parent;
-    attr_writer :__before_actions, :__rescue_handlers
     def inherited(klass)
       klass.__before_actions = @__before_actions.freeze
       klass.__rescue_handlers = @__rescue_handlers.freeze
@@ -73,6 +77,7 @@ class RageController::API
     # @param with [Symbol] the name of a handler method. The method must take one argument, which is the raised exception. Alternatively, you can pass a block, which must also take one argument.
     # @example
     #   rescue_from User::NotAuthorized, with: :deny_access
+    #
     #   def deny_access(exception)
     #     head :forbidden
     #   end
@@ -80,6 +85,7 @@ class RageController::API
     #   rescue_from User::NotAuthorized do |_|
     #     head :forbidden
     #   end
+    # @note Unlike Rails, the handler must always take an argument. Use `_` if you don't care about the actual exception.
     def rescue_from(*klasses, with: nil, &block)
       unless with
         if block_given?
@@ -106,8 +112,9 @@ class RageController::API
     # @param except [Symbol, Array<Symbol>] restrict the callback to run for all actions except specified
     # @example
     #   before_action :find_photo, only: :show
+    #
     #   def find_photo
-    #     ...
+    #     Photo.first
     #   end
     def before_action(action_name, only: nil, except: nil)
       if @__before_actions && @__before_actions.frozen?
@@ -154,8 +161,10 @@ class RageController::API
     end
   end # class << self
 
+  # @private
   DEFAULT_HEADERS = { "content-type" => "application/json; charset=utf-8" }.freeze
 
+  # @private
   def initialize(env, params)
     @__env = env
     @__params = params
@@ -174,7 +183,7 @@ class RageController::API
   #   render status: :ok
   # @example
   #   render plain: "hello world", status: 201
-  # @note `render` doesn't terminate execution of the action, so if you want to exit an action after rendering, you need to do something like 'render(...) and return'
+  # @note `render` doesn't terminate execution of the action, so if you want to exit an action after rendering, you need to do something like `render(...) and return`.
   def render(json: nil, plain: nil, status: nil)
     raise "Render was called multiple times in this action" if @__rendered
     @__rendered = true
