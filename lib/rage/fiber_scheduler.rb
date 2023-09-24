@@ -3,6 +3,10 @@
 require "resolv"
 
 class Rage::FiberScheduler
+  def initialize
+    @root_fiber = Fiber.current
+  end
+
   def io_wait(io, events, timeout = nil)
     f = Fiber.current
     ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil || 0) { f.resume }
@@ -86,8 +90,14 @@ class Rage::FiberScheduler
   end
 
   def fiber(&block)
+    f = Fiber.current
+    inner_schedule = f != @root_fiber
+
     fiber = Fiber.new(blocking: false) do
       Fiber.current.__set_result(block.call)
+    ensure
+      # send a message for `Fiber.await` to work
+      Iodine.publish("await:#{f.object_id}", "") if inner_schedule
     end
     fiber.resume
 
