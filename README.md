@@ -57,6 +57,8 @@ Also, see the [changelog](https://github.com/rage-rb/rage/blob/master/CHANGELOG.
 A sample controller could look like this:
 
 ```ruby
+require "net/http"
+
 class PagesController < RageController::API
   rescue_from SocketError do |_|
     render json: { message: "error" }, status: 500
@@ -92,6 +94,8 @@ end
 Additionally, `Fiber.await` can be used to run several requests in parallel:
 
 ```ruby
+require "net/http"
+
 class PagesController < RageController::API
   def index
     pages = Fiber.await(
