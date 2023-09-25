@@ -123,6 +123,10 @@ class Rage::Router::DSL
         path = path.delete_suffix("/") if path.end_with?("/")
       end
 
+      if path == "/" && @path_prefixes.any?
+        path = ""
+      end
+
       path_prefix = @path_prefixes.any? ? "/#{@path_prefixes.join("/")}" : nil
       module_prefix = @module_prefixes.any? ? "#{@module_prefixes.join("/")}/" : nil
 

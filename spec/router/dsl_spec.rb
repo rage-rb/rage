@@ -111,4 +111,18 @@ RSpec.describe Rage::Router::DSL do
       }.to raise_error("only 'module' and 'path' options are accepted")
     end
   end
+
+  context "with root helper inside a scope" do
+    it "correctly adds handlers" do
+      expect(router).to receive(:on).with("GET", "/api/v1/internal", "api/test#index", { constraints: {} })
+
+      dsl.draw do
+        scope path: "api/v1" do
+          scope path: "internal", module: "api" do
+            root to: "test#index"
+          end
+        end
+      end
+    end
+  end
 end
