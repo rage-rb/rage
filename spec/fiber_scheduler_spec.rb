@@ -130,7 +130,7 @@ RSpec.describe Rage::FiberScheduler do
 
     it "correctly performs a long DB request" do
       within_reactor do
-        num = rand
+        num = rand(1000)
         result = conn.query("SELECT sleep(2), #{num} as num")
         -> { expect(result.first["num"]).to eq(num) }
       end
