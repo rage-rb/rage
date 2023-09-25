@@ -82,4 +82,18 @@ RSpec.describe Rage::Router::Backend do
       router.on("GET", "/photos", ->(_) {})
     }.to raise_error("Method 'GET' already declared for route '/photos' with constraints '{}'")
   end
+
+  it "correctly processes root urls" do
+    router.on("GET", "/", ->(_) { "root" })
+
+    result, _ = perform_get_request("/".dup) # dup to unfreeze
+    expect(result).to eq("root")
+  end
+
+  it "ignores slashes at the end of the path" do
+    router.on("GET", "/photos", ->(_) { "photos" })
+
+    result, _ = perform_get_request("/photos/".dup) # dup to unfreeze
+    expect(result).to eq("photos")
+  end
 end

@@ -166,6 +166,7 @@ class Rage::Router::Backend
 
   def find(env, derived_constraints)
     method, path = env["REQUEST_METHOD"], env["PATH_INFO"]
+    path.delete_suffix!("/") if path.end_with?("/") && path.length > 1
 
     current_node = @trees[method]
     return nil unless current_node
