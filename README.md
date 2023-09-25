@@ -7,11 +7,11 @@
 
 Inspired by [Deno](https://deno.com) and built on top of [Iodine](https://github.com/rage-rb/iodine), this is a Ruby web framework that is based on the following design principles:
 
-* **Rails compatible API** - Rails' API is clean, straightforward, and simply makes sense. I believe it was one of the reasons why Rails was so successful in the past.
+* **Rails compatible API** - Rails' API is clean, straightforward, and simply makes sense. It was one of the reasons why Rails was so successful in the past.
 
-* **High performance** - some think performance is not a major metric for a framework, but I don't believe it's true. Poor performance is a risk, and in today's world, companies refuse to use risky technologies.
+* **High performance** - some think performance is not a major metric for a framework, but it's not true. Poor performance is a risk, and in today's world, companies refuse to use risky technologies.
 
-* **API-only** - the only technology we should be using to create web UI is JavaScript. I recommend checking out [Vite](https://vitejs.dev) if you don't know where to start.
+* **API-only** - the only technology we should be using to create web UI is JavaScript. Check out [Vite](https://vitejs.dev) if you don't know where to start.
 
 * **Acceptance of modern Ruby** - the framework includes a fiber scheduler, which means your code never blocks while waiting on IO.
 
@@ -121,7 +121,7 @@ class ArticlesController < ApplicationController
   end
 end
 ```
-![Requests per second](https://github.com/rage-rb/rage/assets/2270393/7d9f408c-7cec-4cc0-a509-66c9dedc1d0a)
+![Requests per second](https://github.com/rage-rb/rage/assets/2270393/6c221903-e265-4c94-80e1-041f266c8f47)
 
 #### waiting on IO
 
