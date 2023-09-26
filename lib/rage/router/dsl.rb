@@ -16,6 +16,7 @@ class Rage::Router::DSL
 
       @path_prefixes = []
       @module_prefixes = []
+      @defaults = []
     end
 
     # Register a new GET route.
@@ -23,10 +24,13 @@ class Rage::Router::DSL
     # @param path [String] the path for the route handler
     # @param to [String] the route handler in the format of "controller#action"
     # @param constraints [Hash] a hash of constraints for the route
+    # @param defaults [Hash] a hash of default parameters for the route
     # @example
     #   get "/photos/:id", to: "photos#show", constraints: { host: /myhost/ }
-    def get(path, to:, constraints: nil)
-      __on("GET", path, to, constraints)
+    # @example
+    #   get "/photos(/:id)", to: "photos#show", defaults: { id: "-1" }
+    def get(path, to:, constraints: nil, defaults: nil)
+      __on("GET", path, to, constraints, defaults)
     end
 
     # Register a new POST route.
@@ -34,10 +38,13 @@ class Rage::Router::DSL
     # @param path [String] the path for the route handler
     # @param to [String] the route handler in the format of "controller#action"
     # @param constraints [Hash] a hash of constraints for the route
+    # @param defaults [Hash] a hash of default parameters for the route
     # @example
     #   post "/photos", to: "photos#create", constraints: { host: /myhost/ }
-    def post(path, to:, constraints: nil)
-      __on("POST", path, to, constraints)
+    # @example
+    #   post "/photos", to: "photos#create", defaults: { format: "jpg" }
+    def post(path, to:, constraints: nil, defaults: nil)
+      __on("POST", path, to, constraints, defaults)
     end
 
     # Register a new PUT route.
@@ -45,10 +52,13 @@ class Rage::Router::DSL
     # @param path [String] the path for the route handler
     # @param to [String] the route handler in the format of "controller#action"
     # @param constraints [Hash] a hash of constraints for the route
+    # @param defaults [Hash] a hash of default parameters for the route
     # @example
     #   put "/photos/:id", to: "photos#update", constraints: { host: /myhost/ }
-    def put(path, to:, constraints: nil)
-      __on("PUT", path, to, constraints)
+    # @example
+    #   put "/photos(/:id)", to: "photos#update", defaults: { id: "-1" }
+    def put(path, to:, constraints: nil, defaults: nil)
+      __on("PUT", path, to, constraints, defaults)
     end
 
     # Register a new PATCH route.
@@ -56,10 +66,13 @@ class Rage::Router::DSL
     # @param path [String] the path for the route handler
     # @param to [String] the route handler in the format of "controller#action"
     # @param constraints [Hash] a hash of constraints for the route
+    # @param defaults [Hash] a hash of default parameters for the route
     # @example
     #   patch "/photos/:id", to: "photos#update", constraints: { host: /myhost/ }
-    def patch(path, to:, constraints: nil)
-      __on("PATCH", path, to, constraints)
+    # @example
+    #   patch "/photos(/:id)", to: "photos#update", defaults: { id: "-1" }
+    def patch(path, to:, constraints: nil, defaults: nil)
+      __on("PATCH", path, to, constraints, defaults)
     end
 
     # Register a new DELETE route.
@@ -67,10 +80,13 @@ class Rage::Router::DSL
     # @param path [String] the path for the route handler
     # @param to [String] the route handler in the format of "controller#action"
     # @param constraints [Hash] a hash of constraints for the route
+    # @param defaults [Hash] a hash of default parameters for the route
     # @example
     #   delete "/photos/:id", to: "photos#destroy", constraints: { host: /myhost/ }
-    def delete(path, to:, constraints: nil)
-      __on("DELETE", path, to, constraints)
+    # @example
+    #   delete "/photos(/:id)", to: "photos#destroy", defaults: { id: "-1" }
+    def delete(path, to:, constraints: nil, defaults: nil)
+      __on("DELETE", path, to, constraints, defaults)
     end
 
     # Register a new route pointing to '/'.
@@ -79,7 +95,7 @@ class Rage::Router::DSL
     # @example
     #   root to: "photos#index"
     def root(to:)
-      __on("GET", "/", to, nil)
+      __on("GET", "/", to, nil, nil)
     end
 
     # Scopes a set of routes to the given default options.
@@ -115,9 +131,22 @@ class Rage::Router::DSL
       @module_prefixes.pop if opts[:module]
     end
 
+    # Specify default parameters for a set of routes.
+    #
+    # @param defaults [Hash] a hash of default parameters
+    # @example
+    #   defaults id: "-1", format: "jpg" do
+    #     get "photos/(:id)", to: "photos#index"
+    #   end
+    def defaults(defaults, &block)
+      @defaults << defaults
+      instance_eval &block
+      @defaults.pop
+    end
+
     private
 
-    def __on(method, path, to, constraints)
+    def __on(method, path, to, constraints, defaults)
       if path != "/"
         path = "/#{path}" unless path.start_with?("/")
         path = path.delete_suffix("/") if path.end_with?("/")
@@ -129,11 +158,12 @@ class Rage::Router::DSL
 
       path_prefix = @path_prefixes.any? ? "/#{@path_prefixes.join("/")}" : nil
       module_prefix = @module_prefixes.any? ? "#{@module_prefixes.join("/")}/" : nil
+      defaults = (defaults ? @defaults + [defaults] : @defaults).reduce(&:merge)
 
       if to.is_a?(String)
-        @router.on(method, "#{path_prefix}#{path}", "#{module_prefix}#{to}", constraints: constraints || {})
+        @router.on(method, "#{path_prefix}#{path}", "#{module_prefix}#{to}", constraints: constraints || {}, defaults: defaults)
       else
-        @router.on(method, "#{path_prefix}#{path}", to, constraints: constraints || {})
+        @router.on(method, "#{path_prefix}#{path}", to, constraints: constraints || {}, defaults: defaults)
       end
     end
   end

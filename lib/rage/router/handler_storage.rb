@@ -22,7 +22,7 @@ class Rage::Router::HandlerStorage
       params: params,
       constraints: constraints,
       handler: route[:handler],
-      create_params_object: compile_create_params_object(params)
+      create_params_object: compile_create_params_object(params, route[:defaults])
     }
 
     constraints_keys = constraints.keys
@@ -47,11 +47,17 @@ class Rage::Router::HandlerStorage
 
   private
 
-  def compile_create_params_object(param_keys)
+  def compile_create_params_object(param_keys, defaults)
     lines = []
 
     param_keys.each_with_index do |key, i|
       lines << "'#{key}' => param_values[#{i}]"
+    end
+
+    if defaults
+      defaults.except(*param_keys.map(&:to_sym)).each do |key, value|
+        lines << "'#{key}' => '#{value}'"
+      end
     end
 
     eval "->(param_values) { { #{lines.join(',')} } }"

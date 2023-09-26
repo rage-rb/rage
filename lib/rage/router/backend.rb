@@ -12,7 +12,7 @@ class Rage::Router::Backend
     @constrainer = Rage::Router::Constrainer.new({})
   end
 
-  def on(method, path, handler, constraints: {})
+  def on(method, path, handler, constraints: {}, defaults: nil)
     raise "Path could not be empty" if path&.empty?
 
     if match_index = (path =~ OPTIONAL_PARAM_REGEXP)
@@ -21,8 +21,8 @@ class Rage::Router::Backend
       path_full = path.sub(OPTIONAL_PARAM_REGEXP, "/#{$1}")
       path_optional = path.sub(OPTIONAL_PARAM_REGEXP, "")
 
-      on(method, path_full, handler, constraints: constraints)
-      on(method, path_optional, handler, constraints: constraints)
+      on(method, path_full, handler, constraints: constraints, defaults: defaults)
+      on(method, path_optional, handler, constraints: constraints, defaults: defaults)
       return
     end
 
@@ -42,7 +42,7 @@ class Rage::Router::Backend
       handler = ->(env, _params) { orig_handler.call(env) }
     end
 
-    __on(method, path, handler, constraints)
+    __on(method, path, handler, constraints, defaults)
   end
 
   def lookup(env)
@@ -52,7 +52,7 @@ class Rage::Router::Backend
 
   private
 
-  def __on(method, path, handler, constraints)
+  def __on(method, path, handler, constraints, defaults)
     @constrainer.validate_constraints(constraints)
     # Let the constrainer know if any constraints are being used now
     @constrainer.note_usage(constraints)
@@ -159,7 +159,7 @@ class Rage::Router::Backend
       end
     end
 
-    route = { method: method, path: path, pattern: pattern, params: params, constraints: constraints, handler: handler }
+    route = { method: method, path: path, pattern: pattern, params: params, constraints: constraints, handler: handler, defaults: defaults }
     @routes << route
     current_node.add_route(route, @constrainer)
   end
