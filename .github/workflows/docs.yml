@@ -37,10 +37,12 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.2.2
+          ruby-version: ruby
           bundler-cache: true
       - name: Generate documentation
-        run: yardoc
+        run: |
+          gem install yard --no-document
+          yardoc
       - name: Setup Pages
         uses: actions/configure-pages@v3
       - name: Upload artifact
