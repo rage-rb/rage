@@ -193,7 +193,7 @@ class RageController::API
         json.is_a?(String) ? json : json.to_json
       else
         __set_header("content-type", "text/plain; charset=utf-8")
-        plain
+        plain.to_s
       end
 
       @__status = 200

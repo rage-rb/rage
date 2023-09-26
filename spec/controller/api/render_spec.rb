@@ -22,6 +22,10 @@ module ControllerApiRenderSpec
       render plain: "hi", status: 304
     end
 
+    def render_plain_with_object
+      render plain: %w(hi)
+    end
+
     def render_status
       render status: 202
     end
@@ -50,6 +54,10 @@ RSpec.describe RageController::API do
 
   it "correctly renders text with status" do
     expect(run_action(klass, :render_plain_with_status)).to eq([304, { "content-type" => "text/plain; charset=utf-8" }, ["hi"]])
+  end
+
+  it "converts objects to string when rendering text" do
+    expect(run_action(klass, :render_plain_with_object)).to eq([200, { "content-type" => "text/plain; charset=utf-8" }, [%w(hi).to_s]])
   end
 
   it "correctly renders status" do
