@@ -6,9 +6,13 @@ require "pg"
 require "mysql2"
 
 RSpec.describe Rage::FiberScheduler do
-  TEST_HTTP_URL = ENV.fetch("TEST_HTTP_URL")
-  TEST_PG_URL = ENV.fetch("TEST_PG_URL")
-  TEST_MYSQL_URL = ENV.fetch("TEST_MYSQL_URL")
+  TEST_HTTP_URL = ENV["TEST_HTTP_URL"]
+  TEST_PG_URL = ENV["TEST_PG_URL"]
+  TEST_MYSQL_URL = ENV["TEST_MYSQL_URL"]
+
+  before :all do
+    skip("skipping fiber tests locally") unless ENV["ENABLE_FIBER_TESTS"]
+  end
 
   before :all do
     Fiber.set_scheduler(described_class.new)

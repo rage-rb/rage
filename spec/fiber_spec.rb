@@ -5,6 +5,10 @@ require "benchmark"
 
 RSpec.describe Fiber do
   before :all do
+    skip("skipping fiber tests locally") unless ENV["ENABLE_FIBER_TESTS"]
+  end
+
+  before :all do
     Fiber.set_scheduler(Rage::FiberScheduler.new)
   end
 
