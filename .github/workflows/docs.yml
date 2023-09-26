@@ -38,7 +38,6 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ruby
-          bundler-cache: true
       - name: Generate documentation
         run: |
           gem install yard --no-document

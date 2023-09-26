@@ -83,7 +83,7 @@ class RageController::API
     #   end
     # @example
     #   rescue_from User::NotAuthorized do |_|
-    #     head 400
+    #     head 401
     #   end
     # @note Unlike Rails, the handler must always take an argument. Use `_` if you don't care about the actual exception.
     def rescue_from(*klasses, with: nil, &block)
