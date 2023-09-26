@@ -1,1 +1,1 @@
---exclude lib/rage/templates --markup markdown --no-private
+--exclude lib/rage/templates --markup markdown --no-private -o doc
