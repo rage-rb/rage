@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+## [0.2.0] - 2023-09-27
+
+### Added
+
+- Gem configuration by env.
+- Add `skip_before_action`.
+- Add `rescue_from`.
+- Add `Fiber.await`.
+- Support the `defaults` route option.
+
+### Fixed
+
+- Ignore trailing slashes in the URLs.
+- Support constraints in routes with optional params.
+- Make the `root` routes helper work correctly with scopes.
+- Convert objects to string when rendering text.
+
 ## [0.1.0] - 2023-09-15
 
 - Initial release
