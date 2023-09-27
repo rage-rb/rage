@@ -1,4 +1,4 @@
-<p align="center"><img height="200" src="https://github.com/rage-rb/rage/assets/2270393/d0f0834f-50e4-4b1b-a564-1f241c4ec149" /></p>
+<p align="center"><img height="200" src="https://github.com/rage-rb/rage/assets/2270393/9d06e0a4-5c20-49c7-b51d-e16ce8f1e1b7" /></p>
 
 # Rage
 
@@ -141,7 +141,7 @@ end
 
 Version | Changes
 ------- |------------
-0.2 | Gem configuration by env.<br>Add `skip_before_action`.<br>Add `rescue_from`.<br>Router updates:<br>&emsp;• make the `root` helper work correctly with `scope`;<br>&emsp;• support the `defaults` option;
+0.2 :white_check_mark: | ~~Gem configuration by env.<br>Add `skip_before_action`.<br>Add `rescue_from`.<br>Router updates:<br>&emsp;• make the `root` helper work correctly with `scope`;<br>&emsp;• support the `defaults` option;~~
 0.3 | CLI updates:<br>&emsp;• `routes` task;<br>&emsp;• `console` task;<br>Support the `:if` and `:unless` options in `before_action`.<br>Allow to set response headers.
 0.4 | Expose the `params` object.<br>Support header authentication with `authenticate_with_http_token`.<br>Router updates:<br>&emsp;• add the `resources` route helper;<br>&emsp;• add the `namespace` route helper;<br>&emsp;• support regexp constraints;
 0.5 | Implement Iodine-based equivalent of `ActionController::Live`.<br>Use `ActionDispatch::RemoteIp`.
