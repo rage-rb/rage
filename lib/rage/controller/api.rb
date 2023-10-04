@@ -116,7 +116,19 @@ class RageController::API
     #   def find_photo
     #     Photo.first
     #   end
-    def before_action(action_name, only: nil, except: nil)
+    # @example
+    #
+    #   before_action do
+    #     print("Who am i")
+    #   end
+    def before_action(action_name = nil, only: nil, except: nil, &block)
+      if block_given?
+        name = ('a'..'z').to_a.sample(15).join
+        action_name = define_method("__#{name}", &block)
+      elsif action_name.nil?
+        raise "No handler provided. Pass the `action_name` keyword argument or provide a block."
+      end
+
       if @__before_actions && @__before_actions.frozen?
         @__before_actions = @__before_actions.dup
       end
