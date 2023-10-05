@@ -3,6 +3,8 @@
 require "uri"
 
 class Rage::Router::Backend
+  attr_reader :routes
+
   OPTIONAL_PARAM_REGEXP = /\/?\(\/?(:\w+)\/?\)/
   STRING_HANDLER_REGEXP = /^([a-z0-9_\/]+)#([a-z_]+)$/
 
@@ -13,6 +15,7 @@ class Rage::Router::Backend
   end
 
   def on(method, path, handler, constraints: {}, defaults: nil)
+    raw_handler = handler
     raise "Path could not be empty" if path&.empty?
 
     if match_index = (path =~ OPTIONAL_PARAM_REGEXP)
@@ -42,7 +45,7 @@ class Rage::Router::Backend
       handler = ->(env, _params) { orig_handler.call(env) }
     end
 
-    __on(method, path, handler, constraints, defaults)
+    __on(method, path, handler, raw_handler, constraints, defaults)
   end
 
   def lookup(env)
@@ -159,7 +162,7 @@ class Rage::Router::Backend
       end
     end
 
-    route = { method: method, path: path, pattern: pattern, params: params, constraints: constraints, handler: handler, defaults: defaults }
+    route = { method: method, path: path, pattern: pattern, params: params, constraints: constraints, handler: handler, raw_handler: raw_handler, defaults: defaults }
     @routes << route
     current_node.add_route(route, @constrainer)
   end
