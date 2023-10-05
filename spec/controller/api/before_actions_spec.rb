@@ -109,11 +109,22 @@ module ControllerApiBeforeActionsSpec
 
   class TestController7 < RageController::API
     before_action do
-      print("Hello Rage")
+      setup_1
+      setup_2
     end
 
     def index
-      render plain: "hi from child"
+      render plain: "hi from index"
+    end
+
+    private
+
+    def setup_1
+      verifier.setup_1
+    end
+
+    def setup_2
+      verifier.setup_2
     end
   end
 end
@@ -224,11 +235,13 @@ RSpec.describe RageController::API do
     end
   end
 
-  context 'case 7' do
+  context "case 7" do
     let(:klass) { ControllerApiBeforeActionsSpec::TestController7 }
 
-    it 'executes the block as a method and adds it to before actions' do
-      expect { run_action(klass, :index) }.to output("Hello Rage").to_stdout
+    it "correctly runs before actions" do
+      expect(verifier).to receive(:setup_1).once
+      expect(verifier).to receive(:setup_2).once
+      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from index"]])
     end
   end
 
