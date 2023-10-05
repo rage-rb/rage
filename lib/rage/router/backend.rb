@@ -55,7 +55,7 @@ class Rage::Router::Backend
 
   private
 
-  def __on(method, path, handler, constraints, defaults)
+  def __on(method, path, handler, raw_handler, constraints, defaults)
     @constrainer.validate_constraints(constraints)
     # Let the constrainer know if any constraints are being used now
     @constrainer.note_usage(constraints)
