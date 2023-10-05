@@ -238,7 +238,7 @@ RSpec.describe RageController::API do
         Class.new(RageController::API) {
           before_action only: [:index]
         }
-      end.to raise_error("No handler provided. Pass the `action_name` keyword argument or provide a block.")
+      end.to raise_error("No handler provided. Pass the `action_name` parameter or provide a block.")
     end
   end
 end
