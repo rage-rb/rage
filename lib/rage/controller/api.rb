@@ -128,8 +128,8 @@ class RageController::API
 
     # Register a new `before_action` hook. Calls with the same `action_name` will overwrite the previous ones.
     #
+    # @param action_name [String, nil] the name of the callback to add
     # @param [Hash] opts action options
-    # @option opts [Symbol] :action_name the name of the callback to add
     # @option opts [Symbol, Array<Symbol>] :only restrict the callback to run only for specific actions
     # @option opts [Symbol, Array<Symbol>] :except restrict the callback to run for all actions except specified
     # @option opts [Symbol, Proc] :if only run the callback if the condition is true
@@ -144,9 +144,19 @@ class RageController::API
     #   before_action :require_user, unless: :logged_in?
     # @example
     #   before_action :set_locale, if: -> { params[:locale] != "en-US" }
+    # @example
+    #   before_action do
+    #     Photo.first
+    #   end
     # @note The `if` option takes precedence over `except`, and the `only` option takes precedence over `if`.
-    def before_action(action_name, opts = nil)
-      _only, _except, _if, _unless = opts&.values_at(:only, :except, :if, :unless)
+    def before_action(action_name = nil, **opts, &block)
+      if block_given?
+        action_name = define_tmp_method(block)
+      elsif action_name.nil?
+        raise "No handler provided. Pass the `action_name` parameter or provide a block."
+      end
+
+       _only, _except, _if, _unless = opts.values_at(:only, :except, :if, :unless)
 
       if @__before_actions && @__before_actions.frozen?
         @__before_actions = @__before_actions.dup
