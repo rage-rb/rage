@@ -127,6 +127,22 @@ module ControllerApiBeforeActionsSpec
       verifier.setup_2
     end
   end
+
+  class TestController8 < TestController7
+    before_action do
+      setup_3
+    end
+
+    def index
+      render plain: "hi from index"
+    end
+
+    private
+
+    def setup_3
+      verifier.setup_3
+    end
+  end
 end
 
 RSpec.describe RageController::API do
@@ -245,13 +261,22 @@ RSpec.describe RageController::API do
     end
   end
 
+  it 'raises an error if the action name is missing and a block is not pass' do
+    expect do
+      Class.new(RageController::API) {
+        before_action only: [:index]
+      }
+    end.to raise_error("No handler provided. Pass the `action_name` parameter or provide a block.")
+  end
+
   context 'case 8' do
-    it 'raises an error if the action name is missing and a block is not pass' do
-      expect do
-        Class.new(RageController::API) {
-          before_action only: [:index]
-        }
-      end.to raise_error("No handler provided. Pass the `action_name` parameter or provide a block.")
+    let(:klass) { ControllerApiBeforeActionsSpec::TestController8 }
+
+    it "correctly runs before actions" do
+      expect(verifier).to receive(:setup_1).once
+      expect(verifier).to receive(:setup_2).once
+      expect(verifier).to receive(:setup_3).once
+      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from index"]])
     end
   end
 end
