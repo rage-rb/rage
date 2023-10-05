@@ -1,7 +1,23 @@
 Iodine.patch_rack
 
-project_root = Pathname.new(".").expand_path
+require_relative "#{Rage.root}/config/environments/#{Rage.env}"
 
-require_relative "#{project_root}/config/environments/#{Rage.env}"
-Dir["#{project_root}/app/**/*.rb"].each { |path| require_relative path }
-require_relative "#{project_root}/config/routes"
+
+# load application files
+app, bad = Dir["#{Rage.root}/app/**/*.rb"], []
+
+loop do
+  path = app.shift
+  break if path.nil?
+
+  require_relative path
+
+# push the file to the end of the list in case it depends on another file that was not yet required;
+# re-raise if only errored out files are left
+rescue NameError
+  raise if (app - bad).empty?
+  app << path
+  bad << path
+end
+
+require_relative "#{Rage.root}/config/routes"
