@@ -126,7 +126,7 @@ class RageController::API
         name = ('a'..'z').to_a.sample(15).join
         action_name = define_method("__#{name}", &block)
       elsif action_name.nil?
-        raise "No handler provided. Pass the `action_name` keyword argument or provide a block."
+        raise "No handler provided. Pass the `action_name` parameter or provide a block."
       end
 
       if @__before_actions && @__before_actions.frozen?
