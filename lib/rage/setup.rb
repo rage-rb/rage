@@ -12,7 +12,7 @@ loop do
 
   require_relative path
 
-# push the file to the end of the list in case it depends on another file that was not yet required;
+# push the file to the end of the list in case it depends on another file that has not yet been required;
 # re-raise if only errored out files are left
 rescue NameError
   raise if (app - bad).empty?
