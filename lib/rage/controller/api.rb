@@ -204,7 +204,7 @@ class RageController::API
       @__body << if json
         json.is_a?(String) ? json : json.to_json
       else
-        __set_header("content-type", "text/plain; charset=utf-8")
+        headers["content-type"] = "text/plain; charset=utf-8"
         plain.to_s
       end
 
@@ -237,11 +237,13 @@ class RageController::API
     end
   end
 
-  private
-
-  # copy-on-write implementation for the headers object
-  def __set_header(key, value)
-    @__headers = @__headers.dup if DEFAULT_HEADERS.equal?(@__headers)
-    @__headers[key] = value
+  # Set response headers.
+  #
+  # @example
+  #   headers["Content-Type"] = "application/pdf"
+  def headers
+    # copy-on-write implementation for the headers object
+    @__headers = {}.merge!(@__headers) if DEFAULT_HEADERS.equal?(@__headers)
+    @__headers
   end
 end
