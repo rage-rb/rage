@@ -26,6 +26,7 @@ module Rage
     end
 
     desc 'routes', 'List all routes.'
+    option :grep, aliases: "-g", desc: "Filter routes by pattern"
     def routes
       # the result would be something like this:
       # Action    Verb  Path  Controller#Action
@@ -37,6 +38,14 @@ module Rage
       routes = Rage.__router.routes
 
       return puts 'Action    Verb  Path  Controller#Action' if routes.empty?
+
+      pattern = options[:grep]
+
+      if pattern
+        routes = routes.select do |route|
+          route[:path].match?(pattern) || route[:raw_handler].to_s.match?(pattern) || route[:method].match?(pattern)
+        end
+      end
 
       # construct a table
       table = []
