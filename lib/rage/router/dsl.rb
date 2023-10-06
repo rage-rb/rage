@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class Rage::Router::DSL
-  attr_reader :router
-
   def initialize(router)
     @router = router
   end
