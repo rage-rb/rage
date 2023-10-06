@@ -165,8 +165,8 @@ class RageController::API
       action = {
         name: action_name,
         only: _only && Array(_only),
-        except: _except && !_if && Array(_except), # `if` takes precedence over `except`
-        if: !_only && _if, # `only` takes precedence over `if`
+        except: _except && Array(_except),
+        if: _if,
         unless: _unless
       }
       

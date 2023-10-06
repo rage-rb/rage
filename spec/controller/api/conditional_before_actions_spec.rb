@@ -49,7 +49,11 @@ module ControllerApiConditionalBeforeActionsSpec
     before_action :setup, only: :index, if: -> { false }
 
     def index
-      render plain: "hi"
+      render plain: "hi from index"
+    end
+
+    def show
+      render plain: "hi from show"
     end
 
     private
@@ -63,7 +67,11 @@ module ControllerApiConditionalBeforeActionsSpec
     before_action :setup, except: :index, if: -> { true }
 
     def index
-      render plain: "hi"
+      render plain: "hi from index"
+    end
+
+    def show
+      render plain: "hi from show"
     end
 
     private
@@ -179,18 +187,28 @@ RSpec.describe RageController::API do
   context "case 4" do
     let(:klass) { ControllerApiConditionalBeforeActionsSpec::TestController4 }
 
-    it "favoures `only` over `if`" do
-      expect(verifier).to receive(:setup).once
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi"]])
+    it "correctly runs before actions" do
+      expect(verifier).not_to receive(:setup)
+      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from index"]])
+    end
+
+    it "correctly runs before actions" do
+      expect(verifier).not_to receive(:setup)
+      expect(run_action(klass, :show)).to match([200, instance_of(Hash), ["hi from show"]])
     end
   end
 
   context "case 5" do
     let(:klass) { ControllerApiConditionalBeforeActionsSpec::TestController5 }
 
-    it "favoures `if` over `except`" do
+    it "correctly runs before actions" do
+      expect(verifier).not_to receive(:setup)
+      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from index"]])
+    end
+
+    it "correctly runs before actions" do
       expect(verifier).to receive(:setup).once
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi"]])
+      expect(run_action(klass, :show)).to match([200, instance_of(Hash), ["hi from show"]])
     end
   end
 
