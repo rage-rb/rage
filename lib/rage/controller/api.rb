@@ -122,10 +122,6 @@ class RageController::API
       @__rescue_handlers.unshift([klasses, with])
     end
 
-    # @param [Hash] opts scope options.
-    # @option opts [String] :module module option
-    # @option opts [String] :path path option
-
     # Register a new `before_action` hook. Calls with the same `action_name` will overwrite the previous ones.
     #
     # @param action_name [String, nil] the name of the callback to add
@@ -146,9 +142,11 @@ class RageController::API
     #   before_action :set_locale, if: -> { params[:locale] != "en-US" }
     # @example
     #   before_action do
-    #     Photo.first
+    #     unless logged_in? # would be `controller.send(:logged_in?)` in Rails
+    #       head :unauthorized
+    #     end
     #   end
-    # @note The `if` option takes precedence over `except`, and the `only` option takes precedence over `if`.
+    # @note The block form doesn't receive an argument and is executed on the controller level as if it was a regular method.
     def before_action(action_name = nil, **opts, &block)
       if block_given?
         action_name = define_tmp_method(block)
