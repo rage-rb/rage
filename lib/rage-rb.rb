@@ -3,6 +3,7 @@
 require "rack"
 require "json"
 require "iodine"
+require "pathname"
 
 module Rage
   def self.application
@@ -31,6 +32,10 @@ module Rage
 
   def self.groups
     [:default, Rage.env.to_sym]
+  end
+
+  def self.root
+    @root ||= Pathname.new(".").expand_path
   end
 
   module Router

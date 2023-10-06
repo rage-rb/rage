@@ -2,6 +2,7 @@
 
 require "thor"
 require "rage"
+require "irb"
 
 module Rage
   class CLI < Thor
@@ -25,6 +26,12 @@ module Rage
 
       ::Iodine.start
     end
+
+    desc "c", "Start the app console."
+    def console
+      ARGV.clear
+      IRB.start
+    end
   end
 
   class NewAppGenerator < Thor::Group
@@ -41,7 +48,7 @@ module Rage
     end
 
     def copy_files
-      Dir.glob("*", base: self.class.source_root).each do |template|
+      Dir.glob(%w(* .irbrc), base: self.class.source_root).each do |template|
         *template_path_parts, template_name = template.split("-")
         template(template, "#{path}/#{template_path_parts.join("/")}/#{template_name}")
       end
