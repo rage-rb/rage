@@ -37,8 +37,6 @@ module Rage
 
       routes = Rage.__router.routes
 
-      return puts 'Action    Verb  Path  Controller#Action' if routes.empty?
-
       pattern = options[:grep]
 
       if pattern
@@ -47,6 +45,8 @@ module Rage
         end
       end
 
+      return puts 'Action    Verb  Path  Controller#Action' if routes.empty?
+  
       # construct a table
       table = []
 
