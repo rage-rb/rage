@@ -11,7 +11,7 @@ RSpec.describe Rage::FiberScheduler do
   TEST_MYSQL_URL = ENV["TEST_MYSQL_URL"]
 
   before :all do
-    skip("skipping fiber tests locally") unless ENV["ENABLE_FIBER_TESTS"]
+    skip("skipping fiber tests") unless ENV["ENABLE_FIBER_TESTS"] == "true"
   end
 
   before :all do

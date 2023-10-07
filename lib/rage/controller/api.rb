@@ -12,13 +12,21 @@ class RageController::API
 
       before_actions_chunk = if @__before_actions
         filtered_before_actions = @__before_actions.select do |h|
-          (h[:only].nil? || h[:only].include?(action)) &&
-            (h[:except].nil? || !h[:except].include?(action))
+          (!h[:only] || h[:only].include?(action)) &&
+            (!h[:except] || !h[:except].include?(action))
         end
 
         lines = filtered_before_actions.map do |h|
+          condition = if h[:if] && h[:unless]
+            "if #{h[:if]} && !#{h[:unless]}"
+          elsif h[:if]
+            "if #{h[:if]}"
+          elsif h[:unless]
+            "unless #{h[:unless]}"
+          end
+
           <<-RUBY
-            #{h[:name]}
+            #{h[:name]} #{condition}
             return [@__status, @__headers, @__body] if @__rendered
           RUBY
         end
@@ -65,6 +73,16 @@ class RageController::API
       klass.__rescue_handlers = @__rescue_handlers.freeze
     end
 
+    # @private
+    @@__tmp_name_seed = ("a".."i").to_a.permutation
+
+    # @private
+    # define temporary method based on a block
+    def define_tmp_method(block)
+      name = @@__tmp_name_seed.next.join
+      define_method("__rage_tmp_#{name}", block)
+    end
+
     ############
     #
     # PUBLIC API
@@ -89,8 +107,7 @@ class RageController::API
     def rescue_from(*klasses, with: nil, &block)
       unless with
         if block_given?
-          name = ("a".."z").to_a.sample(15).join
-          with = define_method("__#{name}", &block)
+          with = define_tmp_method(block)
         else
           raise "No handler provided. Pass the `with` keyword argument or provide a block."
         end
@@ -107,21 +124,53 @@ class RageController::API
 
     # Register a new `before_action` hook. Calls with the same `action_name` will overwrite the previous ones.
     #
-    # @param action_name [String] the name of the callback to add
-    # @param only [Symbol, Array<Symbol>] restrict the callback to run only for specific actions
-    # @param except [Symbol, Array<Symbol>] restrict the callback to run for all actions except specified
+    # @param action_name [String, nil] the name of the callback to add
+    # @param [Hash] opts action options
+    # @option opts [Symbol, Array<Symbol>] :only restrict the callback to run only for specific actions
+    # @option opts [Symbol, Array<Symbol>] :except restrict the callback to run for all actions except specified
+    # @option opts [Symbol, Proc] :if only run the callback if the condition is true
+    # @option opts [Symbol, Proc] :unless only run the callback if the condition is false
     # @example
     #   before_action :find_photo, only: :show
     #
     #   def find_photo
     #     Photo.first
     #   end
-    def before_action(action_name, only: nil, except: nil)
+    # @example
+    #   before_action :require_user, unless: :logged_in?
+    # @example
+    #   before_action :set_locale, if: -> { params[:locale] != "en-US" }
+    # @example
+    #   before_action do
+    #     unless logged_in? # would be `controller.send(:logged_in?)` in Rails
+    #       head :unauthorized
+    #     end
+    #   end
+    # @note The block form doesn't receive an argument and is executed on the controller level as if it was a regular method.
+    def before_action(action_name = nil, **opts, &block)
+      if block_given?
+        action_name = define_tmp_method(block)
+      elsif action_name.nil?
+        raise "No handler provided. Pass the `action_name` parameter or provide a block."
+      end
+
+       _only, _except, _if, _unless = opts.values_at(:only, :except, :if, :unless)
+
       if @__before_actions && @__before_actions.frozen?
         @__before_actions = @__before_actions.dup
       end
 
-      action = { name: action_name, only: only && Array(only), except: except && Array(except) }
+      action = {
+        name: action_name,
+        only: _only && Array(_only),
+        except: _except && Array(_except),
+        if: _if,
+        unless: _unless
+      }
+      
+      action[:if] = define_tmp_method(action[:if]) if action[:if].is_a?(Proc)
+      action[:unless] = define_tmp_method(action[:unless]) if action[:unless].is_a?(Proc)
+
       if @__before_actions.nil?
         @__before_actions = [action]
       elsif i = @__before_actions.find_index { |a| a[:name] == action_name }
@@ -192,7 +241,7 @@ class RageController::API
       @__body << if json
         json.is_a?(String) ? json : json.to_json
       else
-        __set_header("content-type", "text/plain; charset=utf-8")
+        headers["content-type"] = "text/plain; charset=utf-8"
         plain.to_s
       end
 
@@ -225,11 +274,13 @@ class RageController::API
     end
   end
 
-  private
-
-  # copy-on-write implementation for the headers object
-  def __set_header(key, value)
-    @__headers = @__headers.dup if DEFAULT_HEADERS.equal?(@__headers)
-    @__headers[key] = value
+  # Set response headers.
+  #
+  # @example
+  #   headers["Content-Type"] = "application/pdf"
+  def headers
+    # copy-on-write implementation for the headers object
+    @__headers = {}.merge!(@__headers) if DEFAULT_HEADERS.equal?(@__headers)
+    @__headers
   end
 end

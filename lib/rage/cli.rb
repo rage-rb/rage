@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 require "thor"
 require "rage"
+require "irb"
 
 module Rage
   class CLI < Thor
@@ -83,6 +84,12 @@ module Rage
       end
     end
 
+    desc "c", "Start the app console."
+    def console
+      ARGV.clear
+      IRB.start
+    end
+
     private
 
     def require_file_by_path(file)
@@ -103,7 +110,7 @@ module Rage
     end
 
     def copy_files
-      Dir.glob("*", base: self.class.source_root).each do |template|
+      Dir.glob(%w(* .irbrc), base: self.class.source_root).each do |template|
         *template_path_parts, template_name = template.split("-")
         template(template, "#{path}/#{template_path_parts.join("/")}/#{template_name}")
       end

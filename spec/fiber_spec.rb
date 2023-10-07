@@ -5,7 +5,7 @@ require "benchmark"
 
 RSpec.describe Fiber do
   before :all do
-    skip("skipping fiber tests locally") unless ENV["ENABLE_FIBER_TESTS"]
+    skip("skipping fiber tests") unless ENV["ENABLE_FIBER_TESTS"] == "true"
   end
 
   before :all do
