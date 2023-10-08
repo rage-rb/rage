@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [0.3.0] - 2023-10-08
+
+### Added
+
+- CLI `routes` task.
+- CLI `console` task.
+- `:if` and `:unless` options in `before_action`.
+- Allow to set response headers.
+- Block version of `before_action`.
+
 ## [0.2.0] - 2023-09-27
 
 ### Added

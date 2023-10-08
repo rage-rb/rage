@@ -142,7 +142,7 @@ end
 Version | Changes
 ------- |------------
 0.2 :white_check_mark: | ~~Gem configuration by env.<br>Add `skip_before_action`.<br>Add `rescue_from`.<br>Router updates:<br>&emsp;• make the `root` helper work correctly with `scope`;<br>&emsp;• support the `defaults` option;~~
-0.3 | CLI updates:<br>&emsp;• `routes` task;<br>&emsp;• `console` task;<br>Support the `:if` and `:unless` options in `before_action`.<br>Allow to set response headers.
+0.3 :white_check_mark: | ~~CLI updates:<br>&emsp;• `routes` task;<br>&emsp;• `console` task;<br>Support the `:if` and `:unless` options in `before_action`.<br>Allow to set response headers.~~
 0.4 | Expose the `params` object.<br>Support header authentication with `authenticate_with_http_token`.<br>Router updates:<br>&emsp;• add the `resources` route helper;<br>&emsp;• add the `namespace` route helper;<br>&emsp;• support regexp constraints;
 0.5 | Implement Iodine-based equivalent of `ActionController::Live`.<br>Use `ActionDispatch::RemoteIp`.
 0.6 | Expose the `cookies` object.<br>Expose the `send_data` and `send_file` methods.<br>Support conditional get with `etag` and `last_modified`.
