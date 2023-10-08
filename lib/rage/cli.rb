@@ -34,7 +34,7 @@ module Rage
       # index     GET   /     application#index
 
       # load config/application.rb
-      require_file_by_path('config/application.rb')
+      environment
 
       routes = Rage.__router.routes
 
@@ -86,14 +86,15 @@ module Rage
 
     desc "c", "Start the app console."
     def console
+      environment
       ARGV.clear
       IRB.start
     end
 
     private
 
-    def require_file_by_path(file)
-      require File.expand_path(file, Dir.pwd)
+    def environment
+      require File.expand_path("config/application.rb", Dir.pwd)
     end
   end
 
@@ -110,7 +111,7 @@ module Rage
     end
 
     def copy_files
-      Dir.glob(%w(* .irbrc), base: self.class.source_root).each do |template|
+      Dir.glob("*", base: self.class.source_root).each do |template|
         *template_path_parts, template_name = template.split("-")
         template(template, "#{path}/#{template_path_parts.join("/")}/#{template_name}")
       end
