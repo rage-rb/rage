@@ -109,14 +109,20 @@ class Rage::Router::DSL
     # @example
     #   match "/photos/:id", to: "photos#show", via: :all
     def match(path, to:, constraints: {}, defaults: nil, via: nil)
-      via = [via].flatten.reject(&:empty?).map(&:to_s)
+      # via is either empty, or an array of strings
+      via = [via].flatten.compact.reject(&:empty?).map(&:to_s)
       constraints = constraints.merge(via: via)
+
       if via.any? && !via.include?('all')
         via.flatten.each do |method|
           __on(method.upcase, path, to, constraints, defaults)
         end
       else
-        __on('*', path, to, constraints, defaults)
+        # if via is 'all' or empty, then we get all possible methods except 'all' and add them
+        allowed_methods = Rage::Router::Strategies::Via::ALLOWED_VIA_METHODS - ["all"]
+        allowed_methods.each do |method|
+          __on(method.upcase, path, to, constraints, defaults)
+        end
       end
     end
 
