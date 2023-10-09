@@ -98,6 +98,28 @@ class Rage::Router::DSL
       __on("GET", "/", to, nil, nil)
     end
 
+        #  Register a new route that accepts any HTTP method.
+    # @param path [String] the path for the route handler
+    # @param to [String] the route handler in the format of "controller#action"
+    # @param constraints [Hash] a hash of constraints for the route
+    # @param defaults [Hash] a hash of default parameters for the route
+    # @param via [Array<String>] an array of HTTP methods to accept
+    # @example
+    #   match "/photos/:id", to: "photos#show", via: ["get", "post"]
+    # @example
+    #   match "/photos/:id", to: "photos#show", via: :all
+    def match(path, to:, constraints: {}, defaults: nil, via: nil)
+      via = [via].flatten.reject(&:empty?).map(&:to_s)
+      constraints = constraints.merge(via: via)
+      if via.any? && !via.include?('all')
+        via.flatten.each do |method|
+          __on(method.upcase, path, to, constraints, defaults)
+        end
+      else
+        __on('*', path, to, constraints, defaults)
+      end
+    end
+
     # Scopes a set of routes to the given default options.
     #
     # @param [Hash] opts scope options.

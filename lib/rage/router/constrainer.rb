@@ -7,7 +7,8 @@ class Rage::Router::Constrainer
 
   def initialize(custom_strategies)
     @strategies = {
-      host: Rage::Router::Strategies::Host.new
+      host: Rage::Router::Strategies::Host.new,
+      via: Rage::Router::Strategies::Via.new,
     }
 
     @strategies_in_use = Set.new
@@ -72,6 +73,8 @@ class Rage::Router::Constrainer
       if !strategy.custom?
         if key == :host
           lines << "   host: env['HTTP_HOST'.freeze],"
+        elsif key == :via
+          # TODO: implement this
         else
           raise 'unknown non-custom strategy for compiling constraint derivation function'
         end
