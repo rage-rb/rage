@@ -3,7 +3,7 @@
 class Rage::Router::Strategies::Via
   attr_reader :name, :must_match_when_derived
 
-  ALLOWED_VIA_METHODS = %w[get post put patch delete options all].freeze
+  ALLOWED_VIA_METHODS = %w[get post put patch delete all].freeze
 
   def initialize
     @name = "via"
