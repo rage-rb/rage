@@ -186,4 +186,39 @@ RSpec.describe Rage::Router::DSL do
       end
     end
   end
+
+  context "with the match helper" do
+    it "correctly adds handlers" do
+      expect(router).to receive(:on).with("GET", "/test", "test#index", constraints: {via: ["get", "post"]}, defaults: nil)
+      expect(router).to receive(:on).with("POST", "/test", "test#index", constraints: {via: ["get", "post"]}, defaults: nil)
+
+      dsl.draw do
+        match "/test", to: "test#index", via: [:get, :post]
+      end
+    end
+
+    it "correctly adds handlers on via: :all" do
+      expect(router).to receive(:on).with("GET", "/test", "test#index", constraints: {via: ["all"]}, defaults: nil)
+      expect(router).to receive(:on).with("POST", "/test", "test#index", constraints: {via: ["all"]}, defaults: nil)
+      expect(router).to receive(:on).with("PUT", "/test", "test#index", constraints: {via: ["all"]}, defaults: nil)
+      expect(router).to receive(:on).with("PATCH", "/test", "test#index", constraints: {via: ["all"]}, defaults: nil)
+      expect(router).to receive(:on).with("DELETE", "/test", "test#index", constraints: {via: ["all"]}, defaults: nil)
+
+      dsl.draw do
+        match "/test", to: "test#index", via: :all
+      end
+    end
+
+    it "correctly routes to all when no via is specified" do
+      expect(router).to receive(:on).with("GET", "/test", "test#index", constraints: {via: []}, defaults: nil)
+      expect(router).to receive(:on).with("POST", "/test", "test#index", constraints: {via: []}, defaults: nil)
+      expect(router).to receive(:on).with("PUT", "/test", "test#index", constraints: {via: []}, defaults: nil)
+      expect(router).to receive(:on).with("PATCH", "/test", "test#index", constraints: {via: []}, defaults: nil)
+      expect(router).to receive(:on).with("DELETE", "/test", "test#index", constraints: {via: []}, defaults: nil)
+
+      dsl.draw do
+        match "/test", to: "test#index"
+      end
+    end
+  end
 end
