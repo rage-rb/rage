@@ -98,7 +98,7 @@ class Rage::Router::DSL
       __on("GET", "/", to, nil, nil)
     end
 
-        #  Register a new route that accepts any HTTP method.
+    #  Register a new route that accepts any HTTP method.
     # @param path [String] the path for the route handler
     # @param to [String] the route handler in the format of "controller#action"
     # @param constraints [Hash] a hash of constraints for the route
