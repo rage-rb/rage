@@ -53,7 +53,6 @@ require_relative "rage/fiber_scheduler"
 require_relative "rage/configuration"
 
 require_relative "rage/router/strategies/host"
-require_relative "rage/router/strategies/via"
 require_relative "rage/router/backend"
 require_relative "rage/router/constrainer"
 require_relative "rage/router/dsl"

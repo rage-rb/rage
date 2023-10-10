@@ -189,8 +189,8 @@ RSpec.describe Rage::Router::DSL do
 
   context "with the match helper" do
     it "correctly adds handlers" do
-      expect(router).to receive(:on).with("GET", "/test", "test#index", constraints: {via: ["get", "post"]}, defaults: nil)
-      expect(router).to receive(:on).with("POST", "/test", "test#index", constraints: {via: ["get", "post"]}, defaults: nil)
+      expect(router).to receive(:on).with("GET", "/test", "test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("POST", "/test", "test#index", constraints: {}, defaults: nil)
 
       dsl.draw do
         match "/test", to: "test#index", via: [:get, :post]
@@ -198,11 +198,11 @@ RSpec.describe Rage::Router::DSL do
     end
 
     it "correctly adds handlers on via: :all" do
-      expect(router).to receive(:on).with("GET", "/test", "test#index", constraints: {via: ["all"]}, defaults: nil)
-      expect(router).to receive(:on).with("POST", "/test", "test#index", constraints: {via: ["all"]}, defaults: nil)
-      expect(router).to receive(:on).with("PUT", "/test", "test#index", constraints: {via: ["all"]}, defaults: nil)
-      expect(router).to receive(:on).with("PATCH", "/test", "test#index", constraints: {via: ["all"]}, defaults: nil)
-      expect(router).to receive(:on).with("DELETE", "/test", "test#index", constraints: {via: ["all"]}, defaults: nil)
+      expect(router).to receive(:on).with("GET", "/test", "test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("POST", "/test", "test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("PUT", "/test", "test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("PATCH", "/test", "test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("DELETE", "/test", "test#index", constraints: {}, defaults: nil)
 
       dsl.draw do
         match "/test", to: "test#index", via: :all
@@ -210,11 +210,11 @@ RSpec.describe Rage::Router::DSL do
     end
 
     it "correctly routes to all when no via is specified" do
-      expect(router).to receive(:on).with("GET", "/test", "test#index", constraints: {via: []}, defaults: nil)
-      expect(router).to receive(:on).with("POST", "/test", "test#index", constraints: {via: []}, defaults: nil)
-      expect(router).to receive(:on).with("PUT", "/test", "test#index", constraints: {via: []}, defaults: nil)
-      expect(router).to receive(:on).with("PATCH", "/test", "test#index", constraints: {via: []}, defaults: nil)
-      expect(router).to receive(:on).with("DELETE", "/test", "test#index", constraints: {via: []}, defaults: nil)
+      expect(router).to receive(:on).with("GET", "/test", "test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("POST", "/test", "test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("PUT", "/test", "test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("PATCH", "/test", "test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("DELETE", "/test", "test#index", constraints: {}, defaults: nil)
 
       dsl.draw do
         match "/test", to: "test#index"

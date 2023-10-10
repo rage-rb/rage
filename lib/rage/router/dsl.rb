@@ -103,7 +103,7 @@ class Rage::Router::DSL
     # @param to [String] the route handler in the format of "controller#action"
     # @param constraints [Hash] a hash of constraints for the route
     # @param defaults [Hash] a hash of default parameters for the route
-    # @param via [Array<String>] an array of HTTP methods to accept
+    # @param via [Symbol, Array<Symbol>] an array of HTTP methods to accept
     # @example
     #   match "/photos/:id", to: "photos#show", via: ["get", "post"]
     # @example
@@ -111,17 +111,16 @@ class Rage::Router::DSL
     def match(path, to:, constraints: {}, defaults: nil, via: nil)
       # via is either empty, or an array of strings
       via = [via].flatten.compact.reject(&:empty?).map(&:to_s)
-      constraints = constraints.merge(via: via)
 
       if via.any? && !via.include?('all')
         via.flatten.each do |method|
-          __on(method.upcase, path, to, constraints, defaults)
+          send(method.downcase, path, to: to, constraints: constraints, defaults: defaults)
         end
       else
         # if via is 'all' or empty, then we get all possible methods except 'all' and add them
-        allowed_methods = Rage::Router::Strategies::Via::ALLOWED_VIA_METHODS - ["all"]
+        allowed_methods = %w[get post put patch delete]
         allowed_methods.each do |method|
-          __on(method.upcase, path, to, constraints, defaults)
+          send(method.downcase, path, to: to, constraints: constraints, defaults: defaults)
         end
       end
     end
