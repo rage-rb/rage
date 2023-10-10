@@ -214,11 +214,13 @@ class RageController::API
   DEFAULT_HEADERS = { "content-type" => "application/json; charset=utf-8" }.freeze
 
   # @private
+  attr_reader :request
   def initialize(env, params)
     @__env = env
     @__params = params
     @__status, @__headers, @__body = 204, DEFAULT_HEADERS, []
     @__rendered = false
+    @request = Request.new(env)
   end
 
   # Send a response to the client.
@@ -282,5 +284,34 @@ class RageController::API
     # copy-on-write implementation for the headers object
     @__headers = {}.merge!(@__headers) if DEFAULT_HEADERS.equal?(@__headers)
     @__headers
+  end
+
+  class Request
+    # Get the request headers.
+    # @example
+    #  request.headers["Content-Type"] # => "application/json"
+    # or request.headers["HTTP_CONTENT_TYPE"] # => "application/json"
+    attr_reader :headers
+
+    def initialize(env)
+      @env = env
+      @headers = extract_headers(env)
+    end
+
+    private
+
+    def extract_headers(env)
+      headers_hash = {}
+
+      env.each do |key, value|
+        if key.start_with?('HTTP_')
+          original_name = key.sub('HTTP_', '').split('_').map(&:capitalize).join('-')
+          headers_hash[original_name] = value
+          headers_hash[key] = value
+        end
+      end
+
+      headers_hash
+    end
   end
 end
