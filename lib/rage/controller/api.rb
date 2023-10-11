@@ -220,7 +220,10 @@ class RageController::API
     @__params = params
     @__status, @__headers, @__body = 204, DEFAULT_HEADERS, []
     @__rendered = false
-    @request = Request.new(env)
+  end
+
+  def request
+    @request ||= Request.new(@__env)
   end
 
   # Send a response to the client.
@@ -287,6 +290,7 @@ class RageController::API
   end
 
   class Request
+    SPECIAL_HEADERS = %w[CONTENT_TYPE CONTENT_LENGTH].freeze
     # Get the request headers.
     # @example
     #  request.headers["Content-Type"] # => "application/json"
@@ -295,23 +299,31 @@ class RageController::API
 
     def initialize(env)
       @env = env
-      @headers = extract_headers(env)
     end
 
-    private
+    def headers
+      @headers ||= Headers.new(@env)
+    end
 
-    def extract_headers(env)
-      headers_hash = {}
-
-      env.each do |key, value|
-        if key.start_with?('HTTP_')
-          original_name = key.sub('HTTP_', '').split('_').map(&:capitalize).join('-')
-          headers_hash[original_name] = value
-          headers_hash[key] = value
-        end
+    class Headers
+      def initialize(env)
+        @env = env
+        @headers = {}
       end
 
-      headers_hash
+      def [](requested_header)
+        requested_header = requested_header.upcase.tr('-', '_')
+
+        if requested_header.start_with?("HTTP_")
+          @env[requested_header]
+        else
+          normalized_name = "HTTP_" + requested_header
+          if SPECIAL_HEADERS.include?(requested_header)
+            normalized_name = requested_header
+          end
+          @env[normalized_name]
+        end
+      end
     end
   end
 end

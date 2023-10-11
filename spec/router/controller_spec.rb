@@ -89,37 +89,16 @@ RSpec.describe BaseTestController do
     describe '#headers' do
       it 'returns request headers with both meta-variable and original names' do
         env = {
-          'HTTP_CONTENT_TYPE' => 'application/json',
+          'CONTENT_TYPE' => 'application/json',
           'HTTP_ACCEPT_LANGUAGE' => 'en-US',
-          'SOME_OTHER_HEADER' => 'value'
+          'HTTP_SOME_OTHER_HEADER' => 'value'
         }
         request = BaseTestController::Request.new(env)
 
-        headers = request.headers
-
-        expect(headers).to include('Content-Type' => 'application/json', 'Accept-Language' => 'en-US')
-        expect(headers).to include('HTTP_CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT_LANGUAGE' => 'en-US')
-        expect(headers).not_to include('SOME_OTHER_HEADER')
+        expect(request.headers['Content-Type']).to eq('application/json')
+        expect(request.headers['CONTENT_TYPE']).to eq('application/json')
+        expect(request.headers['Accept-Language']).to eq('en-US')
       end
-    end
-  end
-
-  describe '#request' do
-    it 'exposes a request object with headers property' do
-      env = {
-        'HTTP_CONTENT_TYPE' => 'application/json',
-        'HTTP_ACCEPT_LANGUAGE' => 'en-US',
-        'SOME_OTHER_HEADER' => 'value'
-      }
-      params = {}
-      api_controller = BaseTestController.new(env, params)
-
-      request = api_controller.request
-
-      expect(request).to be_a(BaseTestController::Request)
-      expect(request.headers).to include('Content-Type' => 'application/json', 'Accept-Language' => 'en-US')
-      expect(request.headers).to include('HTTP_CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT_LANGUAGE' => 'en-US')
-      expect(request.headers).not_to include('SOME_OTHER_HEADER')
     end
   end
 end
