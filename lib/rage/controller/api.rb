@@ -214,7 +214,6 @@ class RageController::API
   DEFAULT_HEADERS = { "content-type" => "application/json; charset=utf-8" }.freeze
 
   # @private
-  attr_reader :request
   def initialize(env, params)
     @__env = env
     @__params = params
@@ -290,7 +289,6 @@ class RageController::API
   end
 
   class Request
-    SPECIAL_HEADERS = %w[CONTENT_TYPE CONTENT_LENGTH].freeze
     # Get the request headers.
     # @example
     #  request.headers["Content-Type"] # => "application/json"
@@ -308,20 +306,22 @@ class RageController::API
     class Headers
       def initialize(env)
         @env = env
-        @headers = {}
       end
 
       def [](requested_header)
-        requested_header = requested_header.upcase.tr('-', '_')
 
         if requested_header.start_with?("HTTP_")
           @env[requested_header]
         else
+          requested_header = s = requested_header.tr("-", "_"); s.upcase! || s
+
           normalized_name = "HTTP_" + requested_header
-          if SPECIAL_HEADERS.include?(requested_header)
-            normalized_name = requested_header
+
+          if "CONTENT_TYPE" == requested_header || "CONTENT_LENGTH" == requested_header
+            @env[requested_header]
+          else
+            @env["HTTP_#{requested_header}"]
           end
-          @env[normalized_name]
         end
       end
     end
