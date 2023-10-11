@@ -10,6 +10,7 @@ class Rage::Router::DSL
   end
 
   class Handler
+    DEFAULT_MATCH_METHODS = %w[get post put patch delete].freeze
     # @private
     def initialize(router)
       @router = router
@@ -108,20 +109,23 @@ class Rage::Router::DSL
     #   match "/photos/:id", to: "photos#show", via: ["get", "post"]
     # @example
     #   match "/photos/:id", to: "photos#show", via: :all
-    def match(path, to:, constraints: {}, defaults: nil, via: nil)
-      # via is either empty, or an array of strings
-      via = [via].flatten.compact.reject(&:empty?).map(&:to_s)
-
-      if via.any? && !via.include?('all')
-        via.flatten.each do |method|
-          send(method.downcase, path, to: to, constraints: constraints, defaults: defaults)
-        end
+    def match(path, to:, constraints: {}, defaults: nil, via: :all)
+      # via is either nil, or an array of symbols or its :all
+      http_methods = via
+      # if its :all or nil, then we use the default HTTP methods
+      if [nil, :all].include?(via)
+        http_methods = DEFAULT_MATCH_METHODS
       else
-        # if via is 'all' or empty, then we get all possible methods except 'all' and add them
-        allowed_methods = %w[get post put patch delete]
-        allowed_methods.each do |method|
-          send(method.downcase, path, to: to, constraints: constraints, defaults: defaults)
+        # if its an array of symbols, then we use the symbols as HTTP methods
+        http_methods = Array(via).flatten.map(&:to_s)
+        # then we check if the HTTP methods are valid
+        http_methods.each do |method|
+          raise ArgumentError, "Invalid HTTP method: #{method}" unless DEFAULT_MATCH_METHODS.include?(method)
         end
+      end
+
+      http_methods.each do |method|
+        __on(method.upcase, path, to, constraints, defaults)
       end
     end
 
