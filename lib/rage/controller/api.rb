@@ -167,7 +167,7 @@ class RageController::API
         if: _if,
         unless: _unless
       }
-      
+
       action[:if] = define_tmp_method(action[:if]) if action[:if].is_a?(Proc)
       action[:unless] = define_tmp_method(action[:unless]) if action[:unless].is_a?(Proc)
 
@@ -293,8 +293,6 @@ class RageController::API
     # @example
     #  request.headers["Content-Type"] # => "application/json"
     # or request.headers["HTTP_CONTENT_TYPE"] # => "application/json"
-    attr_reader :headers
-
     def initialize(env)
       @env = env
     end
