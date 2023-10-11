@@ -131,6 +131,48 @@ class Rage::Router::DSL
       @module_prefixes.pop if opts[:module]
     end
 
+    def resources(name, opts = {})
+      @path_prefixes << name.to_s
+
+      yield if block_given?
+
+      @path_prefixes.pop
+
+      default_resource_actions = %i(index show create update destroy)
+      only = opts[:only]
+      except = opts[:except]
+      constraints = opts[:constraints]
+      defaults = opts[:defaults]
+
+      raise ArgumentError, "only one of 'only' and 'except' options can be specified" if only && except
+
+      routes = []
+      if only
+        routes = only
+        routes.each do |route|
+          raise ArgumentError, "Bad resource route: #{route} for only option" unless default_resource_actions.include?(route)
+        end
+      elsif except
+        routes = default_resource_actions - except.map(&:to_sym)
+      else
+        routes = default_resource_actions
+      end
+
+      routes.each do |route|
+        case route
+        when :index
+          __on("GET", "#{name}", "#{name}#index", constraints, defaults)
+        when :show
+          __on("GET", "#{name}/:id", "#{name}#show", constraints, defaults)
+        when :create
+          __on("POST", "#{name}", "#{name}#create", constraints, defaults)
+        when :update
+          __on("PUT", "#{name}/:id", "#{name}#update", constraints, defaults)
+        when :destroy
+          __on("DELETE", "#{name}/:id", "#{name}#destroy", constraints, defaults)
+        end
+      end
+    end
     # Specify default parameters for a set of routes.
     #
     # @param defaults [Hash] a hash of default parameters
