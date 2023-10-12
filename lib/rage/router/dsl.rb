@@ -175,6 +175,24 @@ class Rage::Router::DSL
       @defaults.pop
     end
 
+    def mount(*args)
+      if args.first.is_a?(Hash)
+        app = args.first.keys.first
+        at = args.first.values.first
+        via = args[0][:via]
+      else
+        app = args.first
+        at = args[1][:at]
+        via = args[1][:via]
+      end
+
+      # If app is a class, convert it to a lambda
+      app = ->(env) { app.new.call(env) } if app.is_a?(Class)
+
+      # Use match with via: :all to mount the Rack-based application
+      match(at, to: app, via:)
+    end
+
     private
 
     def __on(method, path, to, constraints, defaults)

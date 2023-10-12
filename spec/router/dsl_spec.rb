@@ -264,4 +264,28 @@ RSpec.describe Rage::Router::DSL do
       end
     end
   end
+
+  context "Mount" do
+    SomeRackApp = ->(env) { [200, { 'Content-Type' => 'text/plain' }, ['Hello, Rack!']] }
+
+    it "correctly mounts Rack applications" do
+      expect(router).to receive(:on).with("GET", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
+      dsl.draw { mount SomeRackApp, at: "test_route", via: :get }
+    end
+
+    it "correctly mounts a Rack application using POST" do
+      expect(router).to receive(:on).with("POST", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
+      dsl.draw { mount SomeRackApp, at: "test_route", via: :post }
+    end
+
+    it "correctly mounts a Rack application using PUT" do
+      expect(router).to receive(:on).with("PUT", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
+      dsl.draw { mount SomeRackApp, at: "test_route", via: :put }
+    end
+
+    it "correctly mounts a Rack application using DELETE" do
+      expect(router).to receive(:on).with("DELETE", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
+      dsl.draw { mount SomeRackApp, at: "test_route", via: :delete }
+    end
+  end
 end
