@@ -279,5 +279,33 @@ RSpec.describe Rage::Router::DSL do
         end
       end
     end
+
+    it "uses resources method" do
+      expect(router).to receive(:on).with("GET", "/photos", "photos#index", defaults: nil, constraints: {})
+      expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", defaults: nil, constraints: {})
+      expect(router).to receive(:on).with("POST", "/photos", "photos#create", defaults: nil, constraints: {})
+      expect(router).to receive(:on).with("PUT", "/photos/:id", "photos#update", defaults: nil, constraints: {})
+      expect(router).to receive(:on).with("DELETE", "/photos/:id", "photos#destroy", defaults: nil, constraints: {})
+
+      dsl.draw do
+        resources :photos
+      end
+    end
+
+    it "uses resources under namespace" do
+      expect(router).to receive(:on).with("GET", "/api/v1/photos", "api/v1/photos#index", defaults: nil, constraints: {})
+      expect(router).to receive(:on).with("GET", "/api/v1/photos/:id", "api/v1/photos#show", defaults: nil, constraints: {})
+      expect(router).to receive(:on).with("POST", "/api/v1/photos", "api/v1/photos#create", defaults: nil, constraints: {})
+      expect(router).to receive(:on).with("PUT", "/api/v1/photos/:id", "api/v1/photos#update", defaults: nil, constraints: {})
+      expect(router).to receive(:on).with("DELETE", "/api/v1/photos/:id", "api/v1/photos#destroy", defaults: nil, constraints: {})
+
+      dsl.draw do
+        namespace "api" do
+          namespace "v1" do
+            resources :photos
+          end
+        end
+      end
+    end
   end
 end
