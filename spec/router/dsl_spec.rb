@@ -263,5 +263,21 @@ RSpec.describe Rage::Router::DSL do
         end
       end
     end
+
+    it "uses namespace helper" do
+      expect(router).to receive(:on).with("GET", "/api/v1/test", "api/v1/test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("POST", "/api/v1/test", "api/v1/test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("PUT", "/api/v1/test", "api/v1/test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("PATCH", "/api/v1/test", "api/v1/test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("DELETE", "/api/v1/test", "api/v1/test#index", constraints: {}, defaults: nil)
+
+      dsl.draw do
+        namespace "api" do
+          namespace "v1" do
+            match "/test", to: "test#index", via: :all
+          end
+        end
+      end
+    end
   end
 end

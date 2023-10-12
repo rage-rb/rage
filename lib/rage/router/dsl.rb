@@ -129,6 +129,16 @@ class Rage::Router::DSL
       end
     end
 
+    def namespace(path, &block)
+      @path_prefixes << path
+      @module_prefixes << path
+
+      instance_eval &block
+
+      @path_prefixes.pop
+      @module_prefixes.pop
+    end
+
     # Scopes a set of routes to the given default options.
     #
     # @param [Hash] opts scope options.
