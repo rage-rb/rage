@@ -151,7 +151,7 @@ class Rage::Router::DSL
           raise ArgumentError, "Bad resource route: #{route} for only option" unless default_resource_actions.include?(route)
         end
       elsif except
-        routes = default_resource_actions - except.map(&:to_sym)
+        routes = default_resource_actions - except
       else
         routes = default_resource_actions
       end
