@@ -129,19 +129,14 @@ class Rage::Router::DSL
       end
     end
 
-    def resources(name, opts = {})
+    def resources(name, constraints: nil, defaults: nil, only: nil, except: nil)
       @path_prefixes << name.to_s
 
       yield if block_given?
 
       @path_prefixes.pop
 
-      default_resource_actions = %i(index show create update destroy)
-      only = opts[:only]
-      except = opts[:except]
-      constraints = opts[:constraints]
-      defaults = opts[:defaults]
-
+      default_resource_actions = %i[index show create update destroy]
       raise ArgumentError, "only one of 'only' and 'except' options can be specified" if only && except
 
       routes = []
