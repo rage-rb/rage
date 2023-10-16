@@ -198,6 +198,7 @@ RSpec.describe Rage::Router::DSL do
     end
 
     it "correctly adds handlers on via: :all" do
+      expect(router).to receive(:on).with("HEAD", "/test", "test#index", constraints: {}, defaults: nil)
       expect(router).to receive(:on).with("GET", "/test", "test#index", constraints: {}, defaults: nil)
       expect(router).to receive(:on).with("POST", "/test", "test#index", constraints: {}, defaults: nil)
       expect(router).to receive(:on).with("PUT", "/test", "test#index", constraints: {}, defaults: nil)
@@ -210,6 +211,7 @@ RSpec.describe Rage::Router::DSL do
     end
 
     it "correctly routes to all when no via is specified" do
+      expect(router).to receive(:on).with("HEAD", "/test", "test#index", constraints: {}, defaults: nil)
       expect(router).to receive(:on).with("GET", "/test", "test#index", constraints: {}, defaults: nil)
       expect(router).to receive(:on).with("POST", "/test", "test#index", constraints: {}, defaults: nil)
       expect(router).to receive(:on).with("PUT", "/test", "test#index", constraints: {}, defaults: nil)
@@ -251,6 +253,7 @@ RSpec.describe Rage::Router::DSL do
     end
 
     it "correctly routes via all with scope" do
+      expect(router).to receive(:on).with("HEAD", "/api/v1/test", "test#index", constraints: {}, defaults: nil)
       expect(router).to receive(:on).with("GET", "/api/v1/test", "test#index", constraints: {}, defaults: nil)
       expect(router).to receive(:on).with("POST", "/api/v1/test", "test#index", constraints: {}, defaults: nil)
       expect(router).to receive(:on).with("PUT", "/api/v1/test", "test#index", constraints: {}, defaults: nil)

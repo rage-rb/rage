@@ -84,7 +84,7 @@ RSpec.describe Rage::Router::Backend do
   end
 end
 
-RSpec.describe BaseTestController do
+RSpec.describe Rage::Request do
   describe 'Request' do
     describe '#headers' do
       it 'returns request headers with both meta-variable and original names' do
@@ -95,7 +95,7 @@ RSpec.describe BaseTestController do
           'HTTP_ACCEPT_LANGUAGE' => 'en-US',
           'HTTP_VARY' => 'Accept-Language',
         }
-        request = BaseTestController::Request.new(env)
+        request = Rage::Request.new(env)
 
         expect(request.headers['Content-Type']).to eq('application/json')
         expect(request.headers['CONTENT_TYPE']).to eq('application/json')
