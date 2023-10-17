@@ -288,4 +288,21 @@ class RageController::API
     @__headers = {}.merge!(@__headers) if DEFAULT_HEADERS.equal?(@__headers)
     @__headers
   end
+
+  # Authenticate using an HTTP Bearer token. Returns the value of the block if a token is found. Returns `nil` if no token is found.
+  #
+  # @yield [token] token value extracted from the `Authorization` header
+  # @example
+  #   user = authenticate_with_http_token do |token|
+  #     User.find_by(key: token)
+  #   end
+  def authenticate_with_http_token
+    auth_header = @__env["HTTP_AUTHORIZATION"]
+
+    if auth_header&.start_with?("Bearer")
+      yield auth_header[7..]
+    elsif auth_header&.start_with?("Token")
+      yield auth_header[6..]
+    end
+  end
 end
