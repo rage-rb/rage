@@ -129,6 +129,37 @@ class Rage::Router::DSL
       end
     end
 
+    # Register a new namespace.
+    #
+    # @param path [String] the path for the namespace
+    # @param options [Hash] a hash of options for the namespace
+    # @option options [String] :module the module name for the namespace
+    # @option options [String] :path the path for the namespace
+    # @example
+    #   namespace :admin do
+    #     get "/photos", to: "photos#index"
+    #   end
+    # @example
+    #   namespace :admin, path: "panel" do
+    #     get "/photos", to: "photos#index"
+    #   end
+    # @example
+    #   namespace :admin, module: "admin" do
+    #     get "/photos", to: "photos#index"
+    #   end
+    def namespace(path, **options, &block)
+      path_prefix = options[:path] || path
+      module_prefix = options[:module] || path
+
+      @path_prefixes << path_prefix
+      @module_prefixes << module_prefix
+
+      instance_eval &block
+
+      @path_prefixes.pop
+      @module_prefixes.pop
+    end
+
     # Scopes a set of routes to the given default options.
     #
     # @param [Hash] opts scope options.

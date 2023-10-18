@@ -266,5 +266,61 @@ RSpec.describe Rage::Router::DSL do
         end
       end
     end
+
+    it "uses namespace helper" do
+      expect(router).to receive(:on).with("HEAD", "/api/v1/test", "api/v1/test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("GET", "/api/v1/test", "api/v1/test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("POST", "/api/v1/test", "api/v1/test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("PUT", "/api/v1/test", "api/v1/test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("PATCH", "/api/v1/test", "api/v1/test#index", constraints: {}, defaults: nil)
+      expect(router).to receive(:on).with("DELETE", "/api/v1/test", "api/v1/test#index", constraints: {}, defaults: nil)
+
+      dsl.draw do
+        namespace "api" do
+          namespace "v1" do
+            match "/test", to: "test#index", via: :all
+          end
+        end
+      end
+    end
+
+    it "uses resources method" do
+      expect(router).to receive(:on).with("GET", "/photos", "photos#index", defaults: nil, constraints: {})
+      dsl.draw do
+        get "/photos", to: "photos#index"
+      end
+    end
+
+    it "uses get under namespace" do
+      expect(router).to receive(:on).with("GET", "/api/v1/photos", "api/v1/photos#index", defaults: nil, constraints: {})
+
+      dsl.draw do
+        namespace "api" do
+          namespace "v1" do
+            get "/photos", to: "photos#index"
+          end
+        end
+      end
+    end
+
+    it "uses get under namespace with path" do
+      expect(router).to receive(:on).with("GET", "/api/v2/photos", "api/v1/photos#index", defaults: nil, constraints: {})
+
+      dsl.draw do
+        namespace "api/v1", path: "api/v2" do
+          get "/photos", to: "photos#index"
+        end
+      end
+    end
+
+    it "uses get under namespace with path and module" do
+      expect(router).to receive(:on).with("GET", "/api/v2/photos", "api/v2/photos#index", defaults: nil, constraints: {})
+
+      dsl.draw do
+        namespace "api/v1", path: "api/v2", module: "api/v2" do
+          get "/photos", to: "photos#index"
+        end
+      end
+    end
   end
 end
