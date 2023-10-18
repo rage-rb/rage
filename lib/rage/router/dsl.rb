@@ -129,47 +129,30 @@ class Rage::Router::DSL
       end
     end
 
-    def resources(name, constraints: nil, defaults: nil, only: nil, except: nil)
-      @path_prefixes << name.to_s
+    # Register a new namespace.
+    #
+    # @param path [String] the path for the namespace
+    # @param options [Hash] a hash of options for the namespace
+    # @option options [String] :module the module name for the namespace
+    # @option options [String] :path the path for the namespace
+    # @example
+    #   namespace :admin do
+    #     get "/photos", to: "photos#index"
+    #   end
+    # @example
+    #   namespace :admin, path: "panel" do
+    #     get "/photos", to: "photos#index"
+    #   end
+    # @example
+    #   namespace :admin, module: "admin" do
+    #     get "/photos", to: "photos#index"
+    #   end
+    def namespace(path, **options, &block)
+      path_prefix = options[:path] || path
+      module_prefix = options[:module] || path
 
-      yield if block_given?
-
-      @path_prefixes.pop
-
-      default_resource_actions = %i[index show create update destroy]
-      raise ArgumentError, "only one of 'only' and 'except' options can be specified" if only && except
-
-      routes = []
-      if only
-        routes = only
-        routes.each do |route|
-          raise ArgumentError, "Bad resource route: #{route} for only option" unless default_resource_actions.include?(route)
-        end
-      elsif except
-        routes = default_resource_actions - except
-      else
-        routes = default_resource_actions
-      end
-
-      routes.each do |route|
-        case route
-        when :index
-          __on("GET", "#{name}", "#{name}#index", constraints, defaults)
-        when :show
-          __on("GET", "#{name}/:id", "#{name}#show", constraints, defaults)
-        when :create
-          __on("POST", "#{name}", "#{name}#create", constraints, defaults)
-        when :update
-          __on("PUT", "#{name}/:id", "#{name}#update", constraints, defaults)
-        when :destroy
-          __on("DELETE", "#{name}/:id", "#{name}#destroy", constraints, defaults)
-        end
-      end
-    end
-
-    def namespace(path, &block)
-      @path_prefixes << path
-      @module_prefixes << path
+      @path_prefixes << path_prefix
+      @module_prefixes << module_prefix
 
       instance_eval &block
 
