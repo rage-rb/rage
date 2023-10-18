@@ -51,6 +51,7 @@ require_relative "rage/application"
 require_relative "rage/fiber"
 require_relative "rage/fiber_scheduler"
 require_relative "rage/configuration"
+require_relative "rage/request"
 
 require_relative "rage/router/strategies/host"
 require_relative "rage/router/backend"

@@ -221,8 +221,9 @@ class RageController::API
     @__rendered = false
   end
 
+  # Get the request object. See {Rage::Request}.
   def request
-    @request ||= Request.new(@__env)
+    @request ||= Rage::Request.new(@__env)
   end
 
   # Send a response to the client.
@@ -286,42 +287,5 @@ class RageController::API
     # copy-on-write implementation for the headers object
     @__headers = {}.merge!(@__headers) if DEFAULT_HEADERS.equal?(@__headers)
     @__headers
-  end
-
-  class Request
-    # Get the request headers.
-    # @example
-    #  request.headers["Content-Type"] # => "application/json"
-    # or request.headers["HTTP_CONTENT_TYPE"] # => "application/json"
-    def initialize(env)
-      @env = env
-    end
-
-    def headers
-      @headers ||= Headers.new(@env)
-    end
-
-    class Headers
-      def initialize(env)
-        @env = env
-      end
-
-      def [](requested_header)
-
-        if requested_header.start_with?("HTTP_")
-          @env[requested_header]
-        else
-          requested_header = s = requested_header.tr("-", "_"); s.upcase! || s
-
-          normalized_name = "HTTP_" + requested_header
-
-          if "CONTENT_TYPE" == requested_header || "CONTENT_LENGTH" == requested_header
-            @env[requested_header]
-          else
-            @env["HTTP_#{requested_header}"]
-          end
-        end
-      end
-    end
   end
 end

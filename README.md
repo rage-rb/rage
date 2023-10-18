@@ -11,7 +11,7 @@ Inspired by [Deno](https://deno.com) and built on top of [Iodine](https://github
 
 * **High performance** - some think performance is not a major metric for a framework, but it's not true. Poor performance is a risk, and in today's world, companies refuse to use risky technologies.
 
-* **API-only** - the only technology we should be using to create web UI is JavaScript. Check out [Vite](https://vitejs.dev) if you don't know where to start.
+* **API-only** - the only technology we should be using to create web UI is JavaScript. Using native technologies is always the most flexible, scalable, and simple solution in the long run. Check out [Vite](https://vitejs.dev) if you don't know where to start.
 
 * **Acceptance of modern Ruby** - the framework includes a fiber scheduler, which means your code never blocks while waiting on IO.
 
