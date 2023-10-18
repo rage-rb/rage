@@ -10,7 +10,7 @@ class Rage::Router::DSL
   end
 
   class Handler
-    DEFAULT_MATCH_METHODS = %w[get post put patch delete].freeze
+    DEFAULT_MATCH_METHODS = %w[get post put patch delete head].freeze
     # @private
     def initialize(router)
       @router = router
@@ -99,7 +99,7 @@ class Rage::Router::DSL
       __on("GET", "/", to, nil, nil)
     end
 
-    #  Register a new route that accepts any HTTP method.
+    # Register a new route that accepts any HTTP method.
     # @param path [String] the path for the route handler
     # @param to [String] the route handler in the format of "controller#action"
     # @param constraints [Hash] a hash of constraints for the route
@@ -113,11 +113,11 @@ class Rage::Router::DSL
       # via is either nil, or an array of symbols or its :all
       http_methods = via
       # if its :all or nil, then we use the default HTTP methods
-      if [nil, :all].include?(via)
+      if via == :all || via.nil?
         http_methods = DEFAULT_MATCH_METHODS
       else
         # if its an array of symbols, then we use the symbols as HTTP methods
-        http_methods = Array(via).flatten.map(&:to_s)
+        http_methods = Array(via).map(&:to_s)
         # then we check if the HTTP methods are valid
         http_methods.each do |method|
           raise ArgumentError, "Invalid HTTP method: #{method}" unless DEFAULT_MATCH_METHODS.include?(method)
