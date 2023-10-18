@@ -316,6 +316,7 @@ RSpec.describe Rage::Router::DSL do
     end
 
     it "uses mount route without via" do
+      expect(router).to receive(:on).with("HEAD", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
       expect(router).to receive(:on).with("GET", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
       expect(router).to receive(:on).with("POST", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
       expect(router).to receive(:on).with("PUT", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
