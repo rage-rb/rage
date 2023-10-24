@@ -543,5 +543,26 @@ RSpec.describe Rage::Router::DSL do
         end
       end
     end
+
+    it "doesn't create routes" do
+      expect(router).not_to receive(:on)
+
+      dsl.draw do
+        resources :photos, only: []
+      end
+    end
+
+    it "uses activesupport" do
+      allow(Rage).to receive(:active_support?).and_return(true)
+      allow_any_instance_of(String).to receive(:singularize).and_return("image")
+
+      expect(router).to receive(:on).with("POST", "/photos/:image_id/mark", "photos#mark", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, only: [] do
+          post :mark
+        end
+      end
+    end
   end
 end
