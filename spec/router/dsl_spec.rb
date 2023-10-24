@@ -34,6 +34,12 @@ RSpec.describe Rage::Router::DSL do
     dsl.draw { root(to: "test#index") }
   end
 
+  it "doesn't allow routes with no handler" do
+    expect {
+      dsl.draw { get("test") }
+    }.to raise_error("Missing :to key on routes definition, please check your routes.")
+  end
+
   context "with constraints" do
     it "correctly adds post handlers" do
       expect(router).to receive(:on).with("POST", "/test", "test#index", a_hash_including(constraints: { host: "test.com" }))
@@ -108,7 +114,7 @@ RSpec.describe Rage::Router::DSL do
             get "/test", to: "test#index"
           end
         end
-      }.to raise_error("only 'module' and 'path' options are accepted")
+      }.to raise_error("only :module, :path, and :controller options are accepted")
     end
   end
 
@@ -410,4 +416,295 @@ RSpec.describe Rage::Router::DSL do
     end
   end
 
+  context "with resources" do
+    it "correctly creates routes" do
+      expect(router).to receive(:on).with("GET", "/photos", "photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photos/:id", "photos#destroy", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos
+      end
+    end
+
+    it "correctly creates routes under module" do
+      expect(router).to receive(:on).with("GET", "/photos", "api/photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos", "api/photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/photos/:id", "api/photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/photos/:id", "api/photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/photos/:id", "api/photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photos/:id", "api/photos#destroy", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, module: "api"
+      end
+    end
+
+    it "correctly creates routes under path" do
+      expect(router).to receive(:on).with("GET", "/api/photos", "photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/api/photos", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/api/photos/:id", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/api/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/api/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/api/photos/:id", "photos#destroy", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, path: "api/photos"
+      end
+    end
+
+    it "correctly creates routes under module and path" do
+      expect(router).to receive(:on).with("GET", "/my_photos", "v1/photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/my_photos", "v1/photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/my_photos/:id", "v1/photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/my_photos/:id", "v1/photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/my_photos/:id", "v1/photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/my_photos/:id", "v1/photos#destroy", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, path: "my_photos", module: "v1"
+      end
+    end
+
+    it "correctly creates routes with the :except option" do
+      expect(router).to receive(:on).with("GET", "/photos", "photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photos/:id", "photos#destroy", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, except: :show
+      end
+    end
+
+    it "correctly creates routes with the :only option" do
+      expect(router).to receive(:on).with("POST", "/photos", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photos/:id", "photos#destroy", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, only: %i(create destroy)
+      end
+    end
+
+    it "ignores non-standard actions" do
+      expect(router).not_to receive(:on)
+
+      dsl.draw do
+        resources :photos, only: %i(my_action)
+      end
+    end
+
+    it "correctly creates routes with the :param option" do
+      expect(router).to receive(:on).with("GET", "/photos", "photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/photos/:slug", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/photos/:slug", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/photos/:slug", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photos/:slug", "photos#destroy", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, param: "slug"
+      end
+    end
+
+    it "raises in case the :param option has incorrect value" do
+      expect {
+        dsl.draw do
+          resources :photos, param: ":slug"
+        end
+      }.to raise_error(":param option can't contain colons")
+    end
+
+    it "correctly creates routes with multiple options" do
+      expect(router).to receive(:on).with("GET", "/api/v1/photos", "api/photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/api/v1/photos", "api/photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/api/v1/photos/:slug", "api/photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/api/v1/photos/:slug", "api/photos#update", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, module: "api", path: "api/v1/photos", param: "slug", only: %i(index create update)
+      end
+    end
+
+    it "correctly creates nested routes" do
+      expect(router).to receive(:on).with("GET", "/photos", "photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photos/:id", "photos#destroy", instance_of(Hash))
+
+      expect(router).to receive(:on).with("POST", "/photos/:photo_id/like", "likes#create", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photos/:photo_id/dislike", "photos#dislike", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos do
+          post "/like", to: "likes#create"
+          delete :dislike
+        end
+      end
+    end
+
+    it "correctly creates nested routes with options" do
+      expect(router).to receive(:on).with("GET", "/my_photos", "api/photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/my_photos/:slug", "api/photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/my_photos/:slug", "api/photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/my_photos/:slug", "api/photos#update", instance_of(Hash))
+
+      expect(router).to receive(:on).with("POST", "/my_photos/:photo_slug/like", "api/likes#create", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/my_photos/:photo_slug/dislike", "api/photos#dislike", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, module: "api", path: "/my_photos/", param: "slug", except: %i(create destroy like) do
+          post "/like", to: "likes#create"
+          patch :dislike
+        end
+      end
+    end
+
+    it "correctly creates nested routes on collection" do
+      expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos/like_all", "photos#like_all", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, only: :show do
+          collection do
+            post :like_all
+          end
+        end
+      end
+    end
+
+    it "correctly creates nested resources" do
+      expect(router).to receive(:on).with("GET", "/albums", "albums#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/albums", "albums#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/albums/:id", "albums#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/albums/:id", "albums#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/albums/:id", "albums#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/albums/:id", "albums#destroy", instance_of(Hash))
+
+      expect(router).to receive(:on).with("GET", "/albums/:album_id/photos", "photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/albums/:album_id/photos", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/albums/:album_id/photos/:id", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/albums/:album_id/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/albums/:album_id/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/albums/:album_id/photos/:id", "photos#destroy", instance_of(Hash))
+
+      dsl.draw do
+        resources :albums do
+          resources :photos
+        end
+      end
+    end
+
+    it "correctly creates nested resources with options" do
+      expect(router).to receive(:on).with("POST", "/albums", "albums#create", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/albums/:slug", "albums#destroy", instance_of(Hash))
+
+      expect(router).to receive(:on).with("GET", "/albums/:album_slug/my_photos", "photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/albums/:album_slug/my_photos/:id", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/albums/:album_slug/my_photos/:id", "photos#destroy", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/albums/:album_slug/my_photos/:photo_id/add_to_album", "photos#add_to_album", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/albums/:album_slug/my_photos/like_all", "photo_likes#create", instance_of(Hash))
+
+      expect(router).to receive(:on).with("POST", "/albums/sort", "albums#sort", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/albums/:album_slug/tag", "albums#tag", instance_of(Hash))
+
+      dsl.draw do
+        resources :albums, only: %i(create destroy), param: "slug" do
+          resources :photos, except: %i(create update), path: "my_photos" do
+            post :add_to_album
+
+            collection do
+              post "like_all", to: "photo_likes#create"
+            end
+          end
+
+          collection do
+            post :sort
+          end
+
+          patch :tag
+        end
+      end
+    end
+
+    it "correctly creates multiple routes at the same time" do
+      expect(router).to receive(:on).with("GET", "/albums", "albums#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/albums", "albums#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/albums/:id", "albums#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/albums/:id", "albums#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/albums/:id", "albums#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/albums/:id", "albums#destroy", instance_of(Hash))
+
+      expect(router).to receive(:on).with("GET", "/photos", "photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photos/:id", "photos#destroy", instance_of(Hash))
+
+      dsl.draw do
+        resources :albums, :photos
+      end
+    end
+
+    it "correctly passes options to multiple routes at the same time" do
+      expect(router).to receive(:on).with("POST", "/albums", "admin/albums#create", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos", "admin/photos#create", instance_of(Hash))
+
+      expect(router).to receive(:on).with("PUT", "/albums/:album_id/tag", "admin/albums#tag", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/photos/:photo_id/tag", "admin/photos#tag", instance_of(Hash))
+
+      dsl.draw do
+        resources :albums, :photos, only: :create, module: :admin do
+          put :tag
+        end
+      end
+    end
+
+    it "correctly creates routes with the `scope` helper" do
+      expect(router).to receive(:on).with("GET", "/:album_id/photos", "photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/:album_id/photos", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/:album_id/photos/:id", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/:album_id/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/:album_id/photos/:id", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/:album_id/photos/:id", "photos#destroy", instance_of(Hash))
+
+      expect(router).to receive(:on).with("POST", "/:album_id/photos/:photo_id/like", "photos#like", instance_of(Hash))
+
+      dsl.draw do
+        scope path: ":album_id" do
+          resources :photos do
+            post :like
+          end
+        end
+      end
+    end
+
+    it "doesn't create routes" do
+      expect(router).not_to receive(:on)
+
+      dsl.draw do
+        resources :photos, only: []
+      end
+    end
+
+    it "uses activesupport" do
+      allow(Rage).to receive(:active_support?).and_return(true)
+      allow_any_instance_of(String).to receive(:singularize).and_return("image")
+
+      expect(router).to receive(:on).with("POST", "/photos/:image_id/mark", "photos#mark", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, only: [] do
+          post :mark
+        end
+      end
+    end
+  end
 end

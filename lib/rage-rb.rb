@@ -38,6 +38,10 @@ module Rage
     @root ||= Pathname.new(".").expand_path
   end
 
+  def self.active_support?
+    (@active_support_loaded ||= defined?(::ActiveSupport) ? true : :false) != :false
+  end
+
   module Router
     module Strategies
     end
