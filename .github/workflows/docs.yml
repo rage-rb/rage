@@ -2,7 +2,8 @@ name: Docs
 
 on:
   push:
-    branches: ["master"]
+    tags:
+      - '*'
 
   workflow_dispatch:
 

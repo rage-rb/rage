@@ -164,6 +164,37 @@ class Rage::Router::DSL
       end
     end
 
+    # Register a new namespace.
+    #
+    # @param path [String] the path for the namespace
+    # @param options [Hash] a hash of options for the namespace
+    # @option options [String] :module the module name for the namespace
+    # @option options [String] :path the path for the namespace
+    # @example
+    #   namespace :admin do
+    #     get "/photos", to: "photos#index"
+    #   end
+    # @example
+    #   namespace :admin, path: "panel" do
+    #     get "/photos", to: "photos#index"
+    #   end
+    # @example
+    #   namespace :admin, module: "admin" do
+    #     get "/photos", to: "photos#index"
+    #   end
+    def namespace(path, **options, &block)
+      path_prefix = options[:path] || path
+      module_prefix = options[:module] || path
+
+      @path_prefixes << path_prefix
+      @module_prefixes << module_prefix
+
+      instance_eval &block
+
+      @path_prefixes.pop
+      @module_prefixes.pop
+    end
+
     # Scopes a set of routes to the given default options.
     #
     # @param [Hash] opts scope options.
@@ -270,6 +301,30 @@ class Rage::Router::DSL
 
         scope(path: ":#{to_singular(resource)}_#{_param}", controller: resource, &block) if block
       end
+    end
+
+    # Mount a Rack-based application to be used within the application.
+    #
+    # @param app [Rack::Application] a Rack-based application
+    # @param at [String] the path at which to mount the Rack-based application
+    # @param via [Symbol] the HTTP method to use when mounting the Rack-based application
+    # @example
+    #   mount Sidekiq::Web => '/sidekiq', via: :get
+    # or
+    #  mount Sidekiq::Web, at: '/sidekiq', via: :get
+    def mount(*args)
+      if args.first.is_a?(Hash)
+        app = args.first.keys.first
+        at = args.first.values.first
+        via = args[0][:via]
+      else
+        app = args.first
+        at = args[1][:at]
+        via = args[1][:via]
+      end
+
+      # Use match with via: :all to mount the Rack-based application
+      match(at, to: app, via:)
     end
 
     private
