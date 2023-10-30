@@ -51,12 +51,12 @@ class Rage::Router::HandlerStorage
     lines = []
 
     param_keys.each_with_index do |key, i|
-      lines << "'#{key}' => param_values[#{i}]"
+      lines << ":#{key} => param_values[#{i}]"
     end
 
     if defaults
       defaults.except(*param_keys.map(&:to_sym)).each do |key, value|
-        lines << "'#{key}' => '#{value}'"
+        lines << ":#{key} => '#{value}'"
       end
     end
 

@@ -5,17 +5,17 @@ module RequestHelper
     @router ||= Rage::Router::Backend.new
   end
 
-  def perform_get_request(path, host: nil)
-    perform_request("GET", path, host)
+  def perform_get_request(path, host: nil, params: {})
+    perform_request("GET", path, host, params)
   end
 
-  def perform_post_request(path, host: nil)
-    perform_request("POST", path, host)
+  def perform_post_request(path, host: nil, params: {})
+    perform_request("POST", path, host, params)
   end
 
   private
 
-  def perform_request(method, path, host)
+  def perform_request(method, path, host, params)
     env = {
       "REQUEST_METHOD" => method,
       "PATH_INFO" => path,
@@ -23,6 +23,6 @@ module RequestHelper
     }
     handler = router.lookup(env)
 
-    [handler[:handler].call(env, handler[:params]), handler[:params]] if handler
+    [handler[:handler].call(env, handler[:params]), params.merge(handler[:params])] if handler
   end
 end

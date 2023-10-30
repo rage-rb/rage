@@ -116,8 +116,6 @@ RSpec.describe RageController::API do
 
   before do
     allow_any_instance_of(RageController::API).to receive(:verifier).and_return(verifier)
-    # TODO: remove this once we support real params
-    allow_any_instance_of(RageController::API).to receive(:params).and_return(params)
   end
 
   context "case 1" do
@@ -126,13 +124,13 @@ RSpec.describe RageController::API do
     it "correctly runs before actions" do
       params[:setup] = true
       expect(verifier).to receive(:setup).once
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi"]])
+      expect(run_action(klass, :index, params:)).to match([200, instance_of(Hash), ["hi"]])
     end
 
     it "doesn't run before actions" do
       params[:setup] = false
       expect(verifier).not_to receive(:setup)
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi"]])
+      expect(run_action(klass, :index, params:)).to match([200, instance_of(Hash), ["hi"]])
     end
   end
 
@@ -142,13 +140,13 @@ RSpec.describe RageController::API do
     it "correctly runs before actions" do
       params[:setup] = false
       expect(verifier).to receive(:setup).once
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi"]])
+      expect(run_action(klass, :index, params:)).to match([200, instance_of(Hash), ["hi"]])
     end
 
     it "doesn't run before actions" do
       params[:setup] = true
       expect(verifier).not_to receive(:setup)
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi"]])
+      expect(run_action(klass, :index, params:)).to match([200, instance_of(Hash), ["hi"]])
     end
   end
 
@@ -159,28 +157,28 @@ RSpec.describe RageController::API do
       params[:setup] = true
       params[:no_setup] = false
       expect(verifier).to receive(:setup).once
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi"]])
+      expect(run_action(klass, :index, params:)).to match([200, instance_of(Hash), ["hi"]])
     end
 
     it "correctly runs before actions" do
       params[:setup] = false
       params[:no_setup] = false
       expect(verifier).not_to receive(:setup)
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi"]])
+      expect(run_action(klass, :index, params:)).to match([200, instance_of(Hash), ["hi"]])
     end
 
     it "correctly runs before actions" do
       params[:setup] = true
       params[:no_setup] = true
       expect(verifier).not_to receive(:setup)
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi"]])
+      expect(run_action(klass, :index, params:)).to match([200, instance_of(Hash), ["hi"]])
     end
 
     it "correctly runs before actions" do
       params[:setup] = false
       params[:no_setup] = true
       expect(verifier).not_to receive(:setup)
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi"]])
+      expect(run_action(klass, :index, params:)).to match([200, instance_of(Hash), ["hi"]])
     end
   end
 
@@ -189,12 +187,12 @@ RSpec.describe RageController::API do
 
     it "correctly runs before actions" do
       expect(verifier).not_to receive(:setup)
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from index"]])
+      expect(run_action(klass, :index, params:)).to match([200, instance_of(Hash), ["hi from index"]])
     end
 
     it "correctly runs before actions" do
       expect(verifier).not_to receive(:setup)
-      expect(run_action(klass, :show)).to match([200, instance_of(Hash), ["hi from show"]])
+      expect(run_action(klass, :show, params:)).to match([200, instance_of(Hash), ["hi from show"]])
     end
   end
 
@@ -203,12 +201,12 @@ RSpec.describe RageController::API do
 
     it "correctly runs before actions" do
       expect(verifier).not_to receive(:setup)
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from index"]])
+      expect(run_action(klass, :index, params:)).to match([200, instance_of(Hash), ["hi from index"]])
     end
 
     it "correctly runs before actions" do
       expect(verifier).to receive(:setup).once
-      expect(run_action(klass, :show)).to match([200, instance_of(Hash), ["hi from show"]])
+      expect(run_action(klass, :show, params:)).to match([200, instance_of(Hash), ["hi from show"]])
     end
   end
 
@@ -218,7 +216,7 @@ RSpec.describe RageController::API do
     it "doesn't override inherited methods" do
       expect(verifier).not_to receive(:setup_1)
       expect(verifier).to receive(:setup_2).once
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi"]])
+      expect(run_action(klass, :index, params:)).to match([200, instance_of(Hash), ["hi"]])
     end
   end
 end
