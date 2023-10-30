@@ -32,3 +32,15 @@ jobs:
         TEST_MYSQL_URL: ${{ secrets.TEST_MYSQL_URL }}
         ENABLE_FIBER_TESTS: ${{ secrets.ENABLE_FIBER_TESTS }}
       run: bundle exec rake
+  docs:
+    runs-on: ubuntu-latest
+    name: Validate docs
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ruby
+        bundler-cache: true
+    - name: Run YARD
+      run: bundle exec yardoc --fail-on-warning
