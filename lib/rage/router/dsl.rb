@@ -305,13 +305,10 @@ class Rage::Router::DSL
 
     # Mount a Rack-based application to be used within the application.
     #
-    # @param app [Rack::Application] a Rack-based application
-    # @param at [String] the path at which to mount the Rack-based application
-    # @param via [Symbol] the HTTP method to use when mounting the Rack-based application
     # @example
-    #   mount Sidekiq::Web => '/sidekiq', via: :get
-    # or
-    #  mount Sidekiq::Web, at: '/sidekiq', via: :get
+    #   mount Sidekiq::Web => "/sidekiq"
+    # @example
+    #   mount Sidekiq::Web, at: "/sidekiq", via: :get
     def mount(*args)
       if args.first.is_a?(Hash)
         app = args.first.keys.first
