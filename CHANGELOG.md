@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## [0.4.0] - 2023-10-31
+
+### Added
+
+- Expose the `params` object.
+- Support header authentication with `authenticate_with_http_token`.
+- Add the `resources` and `namespace` route helpers.
+- Add the `mount` and `match` route helpers.
+- Allow to access request headers.
+- Support custom ports when starting the app with `rage s`.
+
 ## [0.3.0] - 2023-10-08
 
 ### Added
