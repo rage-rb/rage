@@ -13,7 +13,8 @@ class Rage::Application
       handler = @router.lookup(env)
 
       if handler
-        handler[:handler].call(env, handler[:params])
+        params = Rage::ParamsParser.prepare(env, handler[:params])
+        handler[:handler].call(env, params)
       else
         [404, {}, ["Not Found"]]
       end

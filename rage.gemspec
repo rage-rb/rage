@@ -29,5 +29,5 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "thor", "~> 1.0"
   spec.add_dependency "rack", "~> 2.0"
-  spec.add_dependency "rage-iodine", "~> 1.0"
+  spec.add_dependency "rage-iodine", "~> 2.0"
 end

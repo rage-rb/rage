@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "rage"
+require "rage/all"
 require_relative "support/request_helper"
 require_relative "support/controller_helper"
 require_relative "support/reactor_helper"

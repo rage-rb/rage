@@ -305,4 +305,30 @@ class RageController::API
       yield auth_header[6..]
     end
   end
+
+  if !defined?(::ActionController::Parameters)
+    # Get the request data. The keys inside the hash are symbols, so `params.keys` returns an array of `Symbol`.<br>
+    # You can also load Strong Params to have Rage automatically wrap `params` in an instance of `ActionController::Parameters`.<br>
+    # At the same time, if you are not implementing complex filtering rules or working with nested structures, consider using native `Hash#fetch` and `Hash#slice` instead.
+    #
+    # For multipart file uploads, the uploaded files are represented by an instance of {Rage::UploadedFile}.
+    #
+    # @return [Hash{Symbol=>String,Array,Hash,Numeric,NilClass,TrueClass,FalseClass}]
+    # @example
+    #   # make sure to load strong params before the `require "rage/all"` call
+    #   require "active_support/all"
+    #   require "action_controller/metal/strong_parameters"
+    #
+    #   params.permit(:user).require(:full_name, :dob)
+    # @example
+    #   # without strong params
+    #   params.fetch(:user).slice(:full_name, :dob)
+    def params
+      @__params
+    end
+  else
+    def params
+      @params ||= ActionController::Parameters.new(@__params)
+    end
+  end
 end
