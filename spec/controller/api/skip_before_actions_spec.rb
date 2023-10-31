@@ -230,7 +230,7 @@ RSpec.describe RageController::API do
     end
 
     it "raises an error" do
-      expect { klass }.to raise_error(/cannot be found/)
+      expect { klass }.to raise_error(/couldn't be found/)
     end
   end
 end

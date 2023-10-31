@@ -103,7 +103,7 @@ class RageController::API
     #   rescue_from User::NotAuthorized do |_|
     #     head :forbidden
     #   end
-    # @note Unlike Rails, the handler must always take an argument. Use `_` if you don't care about the actual exception.
+    # @note Unlike in Rails, the handler must always take an argument. Use `_` if you don't care about the actual exception.
     def rescue_from(*klasses, with: nil, &block)
       unless with
         if block_given?
@@ -189,7 +189,7 @@ class RageController::API
     #   skip_before_action :find_photo, only: :create
     def skip_before_action(action_name, only: nil, except: nil)
       i = @__before_actions&.find_index { |a| a[:name] == action_name }
-      raise "The following action was specified to be skipped but cannot be found: #{self}##{action_name}" unless i
+      raise "The following action was specified to be skipped but couldn't be found: #{self}##{action_name}" unless i
 
       @__before_actions = @__before_actions.dup if @__before_actions.frozen?
 

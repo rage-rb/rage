@@ -16,12 +16,14 @@ class Rage::Request
 
   # @private
   class Headers
+    HTTP = "HTTP_"
+
     def initialize(env)
       @env = env
     end
 
     def [](requested_header)
-      if requested_header.start_with?("HTTP_")
+      if requested_header.start_with?(HTTP)
         @env[requested_header]
       else
         (requested_header = requested_header.tr("-", "_")).upcase!
@@ -29,13 +31,13 @@ class Rage::Request
         if "CONTENT_TYPE" == requested_header || "CONTENT_LENGTH" == requested_header
           @env[requested_header]
         else
-          @env["HTTP_#{requested_header}"]
+          @env["#{HTTP}#{requested_header}"]
         end
       end
     end
 
     def inspect
-      headers = @env.select { |k| k == "CONTENT_TYPE" || k == "CONTENT_LENGTH" || k.start_with?("HTTP_") }
+      headers = @env.select { |k| k == "CONTENT_TYPE" || k == "CONTENT_LENGTH" || k.start_with?(HTTP) }
       "#<#{self.class.name} @headers=#{headers.inspect}"
     end
   end # class Headers

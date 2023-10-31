@@ -40,6 +40,10 @@ class Rage::Router::DSL
   #   scope path: ":account_id" do
   #     resources :projects
   #   end
+  # @example Scope routes to a specific namespace.
+  #   namespace :admin do
+  #     resources :posts
+  #   end
   class Handler
     # @private
     def initialize(router)
@@ -134,9 +138,10 @@ class Rage::Router::DSL
       __on("GET", "/", to, nil, nil)
     end
 
-    # Register a new route that accepts any HTTP method.
+    # Match a URL pattern to one or more routes.
+    #
     # @param path [String] the path for the route handler
-    # @param to [String] the route handler in the format of "controller#action"
+    # @param to [String, #call] the route handler in the format of "controller#action" or a callable
     # @param constraints [Hash] a hash of constraints for the route
     # @param defaults [Hash] a hash of default parameters for the route
     # @param via [Symbol, Array<Symbol>] an array of HTTP methods to accept
@@ -144,6 +149,8 @@ class Rage::Router::DSL
     #   match "/photos/:id", to: "photos#show", via: [:get, :post]
     # @example
     #   match "/photos/:id", to: "photos#show", via: :all
+    # @example
+    #   match "/health", to: -> (env) { [200, {}, ["healthy"]] }
     def match(path, to:, constraints: {}, defaults: nil, via: :all)
       # via is either nil, or an array of symbols or its :all
       http_methods = via
@@ -362,7 +369,8 @@ class Rage::Router::DSL
     end
 
     def to_singular(str)
-      return str.singularize if Rage.active_support?
+      @active_support_loaded ||= str.respond_to?(:singularize) || :false
+      return str.singularize if @active_support_loaded != :false
 
       @endings ||= {
         "ves" => "fe",

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 require "thor"
-require "rage"
+require "rage/all"
 require "irb"
 
 module Rage
