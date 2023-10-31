@@ -30,7 +30,7 @@ jobs:
         TEST_HTTP_URL: ${{ secrets.TEST_HTTP_URL }}
         TEST_PG_URL: ${{ secrets.TEST_PG_URL }}
         TEST_MYSQL_URL: ${{ secrets.TEST_MYSQL_URL }}
-        ENABLE_FIBER_TESTS: ${{ secrets.ENABLE_FIBER_TESTS }}
+        ENABLE_EXTERNAL_TESTS: ${{ secrets.ENABLE_EXTERNAL_TESTS }}
       run: bundle exec rake
   docs:
     runs-on: ubuntu-latest

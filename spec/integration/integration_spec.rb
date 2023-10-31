@@ -5,6 +5,10 @@ require "benchmark"
 
 RSpec.describe "End-to-end" do
   before :all do
+    skip("skipping end-to-end tests") unless ENV["ENABLE_EXTERNAL_TESTS"] == "true"
+  end
+
+  before :all do
     Bundler.with_unbundled_env do
       system("gem build -o rage-local.gem && gem install rage-local.gem --no-document")
       @pid = spawn("bundle exec rage s", chdir: "spec/integration/test_app")
@@ -13,8 +17,10 @@ RSpec.describe "End-to-end" do
   end
 
   after :all do
-    Process.kill(:SIGTERM, @pid)
-    Process.wait
+    if @pid
+      Process.kill(:SIGTERM, @pid)
+      Process.wait
+    end
   end
 
   it "correctly processes lambda requests" do
