@@ -15,11 +15,12 @@ module Rage
     end
 
     desc "s", "Start the app server."
+    option :port, aliases: "-p", desc: "Runs Rage on the specified port - defaults to 3000."
     def server
       app = ::Rack::Builder.parse_file("config.ru")
       app = app[0] if app.is_a?(Array)
 
-      ::Iodine.listen service: :http, handler: app, port: Rage.config.port
+      ::Iodine.listen service: :http, handler: app, port: options[:port] || Rage.config.port
       ::Iodine.threads = Rage.config.threads_count
       ::Iodine.workers = Rage.config.workers_count
 
