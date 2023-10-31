@@ -22,8 +22,8 @@ module Rage
     @config ||= Rage::Configuration.new
   end
 
-  def self.configure
-    yield(config)
+  def self.configure(&)
+    config.instance_eval(&)
   end
 
   def self.env
