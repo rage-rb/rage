@@ -46,9 +46,9 @@ This gem is designed to be a drop-in replacement for Rails in API mode. Public A
 
 Check out in-depth API docs for more information:
 
-- [Controller API](https://rage-rb.github.io/rage/RageController/API.html)
-- [Routing API](https://rage-rb.github.io/rage/Rage/Router/DSL/Handler.html)
-- [Fiber API](https://rage-rb.github.io/rage/Fiber.html)
+- [Controller API](https://rage-rb.pages.dev/RageController/API)
+- [Routing API](https://rage-rb.pages.dev/Rage/Router/DSL/Handler)
+- [Fiber API](https://rage-rb.pages.dev/Fiber)
 
 Also, see the [changelog](https://github.com/rage-rb/rage/blob/master/CHANGELOG.md) and [upcoming-releases](https://github.com/rage-rb/rage#upcoming-releases) for currently supported and planned features.
 
