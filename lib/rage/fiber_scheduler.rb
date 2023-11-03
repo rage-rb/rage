@@ -33,8 +33,7 @@ class Rage::FiberScheduler
       end
 
       if string.empty?
-        io_wait(io, IO::READABLE)
-        next
+        return -Errno::EAGAIN::Errno
       end
 
       buffer.set_string(string, offset)
