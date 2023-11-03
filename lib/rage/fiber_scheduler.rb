@@ -11,10 +11,14 @@ class Rage::FiberScheduler
 
   def io_wait(io, events, timeout = nil)
     f = Fiber.current
-    ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil || 0) { f.resume }
-    Fiber.yield
+    ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil || 0) { |err| f.resume(err) }
 
-    events
+    err = Fiber.yield
+    if err == Errno::ETIMEDOUT::Errno
+      0
+    else
+      events
+    end
   end
 
   # TODO: this is more synchronous than asynchronous right now
