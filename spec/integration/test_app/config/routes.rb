@@ -9,11 +9,10 @@ Rage.routes.draw do
   get "empty", to: "application#empty"
   get "raise_error", to: "application#raise_error"
 
-  get "params/query", to: "params#query"
-  get "params/:id/defaults", to: "params#defaults", defaults: { hello: "world" }
-  post "params/json", to: "params#json"
+  get "params/digest", to: "params#digest"
+  post "params/digest", to: "params#digest"
+  get "params/:id/defaults", to: "params#digest", defaults: { hello: "world" }
   post "params/multipart", to: "params#multipart"
-  post "params/urlencoded", to: "params#urlencoded"
 
   get "async/sum", to: "async#sum"
   get "async/long", to: "async#long"

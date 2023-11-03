@@ -10,7 +10,7 @@ RSpec.describe "End-to-end" do
 
   before :all do
     Bundler.with_unbundled_env do
-      system("gem build -o rage-local.gem && gem install rage-local.gem --no-document")
+      system("gem build -o rage-local.gem && gem install rage-local.gem --no-document && bundle install")
       @pid = spawn("bundle exec rage s", chdir: "spec/integration/test_app")
       sleep(1)
     end
@@ -76,9 +76,14 @@ RSpec.describe "End-to-end" do
     expect(response.to_s).to start_with("RuntimeError:1155 test error")
   end
 
+  it "sets correct headers" do
+    response = HTTP.get("http://localhost:3000/get")
+    expect(response.headers["content-type"]).to eq("text/plain; charset=utf-8")
+  end
+
   context "with params" do
     it "correctly parses query params" do
-      response = HTTP.get("http://localhost:3000/params/query?test=true&message=hello+world")
+      response = HTTP.get("http://localhost:3000/params/digest?test=true&message=hello+world")
       expect(response.code).to eq(200)
       expect(response.to_s).to eq("f4eaa8afa0abb12c143d599b670822a2")
     end
@@ -90,7 +95,7 @@ RSpec.describe "End-to-end" do
     end
 
     it "correctly parses json body" do
-      response = HTTP.post("http://localhost:3000/params/json?hello=w+o+r+l+d", json: { id: 10, test: true })
+      response = HTTP.post("http://localhost:3000/params/digest?hello=w+o+r+l+d", json: { id: 10, test: true })
       expect(response.code).to eq(200)
       expect(response.to_s).to eq("68104cf6236b92f607e2c0f3c78e0dc6")
     end
@@ -106,7 +111,7 @@ RSpec.describe "End-to-end" do
     end
 
     it "correctly parses urlencoded body" do
-      response = HTTP.post("http://localhost:3000/params/urlencoded", form: {
+      response = HTTP.post("http://localhost:3000/params/digest", form: {
         "users[][id]" => 11,
         "users[][name]" => 22
       })
