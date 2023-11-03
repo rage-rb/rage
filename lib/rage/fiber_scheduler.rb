@@ -3,6 +3,8 @@
 require "resolv"
 
 class Rage::FiberScheduler
+  MAX_READ = 8192
+
   def initialize
     @root_fiber = Fiber.current
   end
@@ -17,8 +19,14 @@ class Rage::FiberScheduler
 
   # TODO: this is more synchronous than asynchronous right now
   def io_read(io, buffer, length, offset = 0)
-    loop do
-      string = ::Iodine::Scheduler.read(io.fileno, length, offset)
+    length_to_read = if length == 0
+      buffer.size > MAX_READ ? MAX_READ : buffer.size
+    else
+      length
+    end
+
+    while true
+      string = ::Iodine::Scheduler.read(io.fileno, length_to_read, offset)
 
       if string.nil?
         return offset
@@ -30,9 +38,9 @@ class Rage::FiberScheduler
       end
 
       buffer.set_string(string, offset)
-      offset += string.bytesize
 
       size = string.bytesize
+      offset += size
       break if size >= length
       length -= size
     end
