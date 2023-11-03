@@ -4,11 +4,13 @@ require "net/http"
 require "digest"
 require "pg"
 require "mysql2"
+require "redis-client"
 
 RSpec.describe Rage::FiberScheduler do
   TEST_HTTP_URL = ENV["TEST_HTTP_URL"]
   TEST_PG_URL = ENV["TEST_PG_URL"]
   TEST_MYSQL_URL = ENV["TEST_MYSQL_URL"]
+  TEST_REDIS_URL = ENV["TEST_REDIS_URL"]
 
   before :all do
     skip("skipping fiber tests") unless ENV["ENABLE_EXTERNAL_TESTS"] == "true"
@@ -163,6 +165,68 @@ RSpec.describe Rage::FiberScheduler do
         -> { expect(result.first["token"]).to eq(str) }
       end
     end
+  end
+
+  context "with Redis" do
+    def redis
+      @redis&.close
+      @redis = RedisClient.config(url: TEST_REDIS_URL, inherit_socket: true).new_client
+    end
+
+    # it "correctly reads server info" do
+    #   within_reactor do
+    #     result = @redis.call("INFO")
+    #     -> { expect(result).to include("cluster_enabled") }
+    #   end
+    # end
+
+    # it "correctly reads single keys" do
+    #   within_reactor do
+    #     result = @redis.call("GET", "mystring")
+    #     -> { expect(Digest::SHA2.hexdigest(result)).to eq("7ba6faccb80b730d15739b58c8751a5a12c9cec86546bdb64756f1c554afb808") }
+    #   end
+    # end
+
+    it "correctly reads multiple keys" do
+      within_reactor do
+        results = (1..5).map { |i| redis.call("HGET", "myhash", "key_#{i}") }
+        -> { expect(Digest::SHA2.hexdigest(results.join)).to eq("7b885a6b2647baed195eedcf1e367ab37387eca8fdc18762b5382a062d894794") }
+      end
+    end
+
+    it "correctly writes small keys" do
+      within_reactor do
+        message = SecureRandom.bytes(2)
+        redis.call("SET", "mymessage", message)
+        result = redis.call("GET", "mymessage")
+        
+        -> { expect(result).to eq(message) }
+      end
+    end
+
+    # it "correctly writes large keys" do
+    #   within_reactor do
+    #     message = SecureRandom.bytes(50_000)
+    #     @redis.call("SET", "mymessage", message)
+    #     result = @redis.call("GET", "mymessage")
+        
+    #     -> { expect(result).to eq(message) }
+    #   end
+    # end
+
+    # context "with timeout" do
+    #   let(:redis) { config.new_client(read_timeout: 1) }
+
+    #   it "correctly times out" do
+    #     within_reactor do
+    #       redis.call("GET", "testkey")
+    #       redis.call("BLPOP", "mylist", 0)
+
+    #     rescue => e
+    #       -> { expect(e).to be_a(RedisClient::ReadTimeoutError) }
+    #     end
+    #   end
+    # end
   end
 
   it "correctly blocks and unblocks fibers" do

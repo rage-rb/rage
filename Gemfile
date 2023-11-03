@@ -11,5 +11,6 @@ gem "rspec", "~> 3.0"
 gem "http"
 gem "yard"
 
-gem "pg"
-gem "mysql2"
+gem "pg", "~> 1.5"
+gem "mysql2", "~> 0.5"
+gem "redis-client", "~> 0.18"
