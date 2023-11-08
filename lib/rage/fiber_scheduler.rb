@@ -3,7 +3,7 @@
 require "resolv"
 
 class Rage::FiberScheduler
-  MAX_READ = 8192
+  MAX_READ = 65536
 
   def initialize
     @root_fiber = Fiber.current
@@ -21,7 +21,6 @@ class Rage::FiberScheduler
     end
   end
 
-  # TODO: this is more synchronous than asynchronous right now
   def io_read(io, buffer, length, offset = 0)
     length_to_read = if length == 0
       buffer.size > MAX_READ ? MAX_READ : buffer.size
@@ -44,11 +43,10 @@ class Rage::FiberScheduler
 
       size = string.bytesize
       offset += size
-      break if size >= length
-      length -= size
-    end
+      return offset if size < length_to_read || size >= buffer.size
 
-    offset
+      Fiber.pause
+    end
   end
 
   def io_write(io, buffer, length, offset = 0)
