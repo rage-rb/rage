@@ -20,9 +20,9 @@ module Rage
       app = ::Rack::Builder.parse_file("config.ru")
       app = app[0] if app.is_a?(Array)
 
-      ::Iodine.listen service: :http, handler: app, port: options[:port] || Rage.config.port
-      ::Iodine.threads = Rage.config.threads_count
-      ::Iodine.workers = Rage.config.workers_count
+      ::Iodine.listen service: :http, handler: app, port: options[:port] || Rage.config.server.port
+      ::Iodine.threads = Rage.config.server.threads_count
+      ::Iodine.workers = Rage.config.server.workers_count
 
       ::Iodine.start
     end
