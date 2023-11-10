@@ -173,19 +173,19 @@ RSpec.describe Rage::FiberScheduler do
       @redis = RedisClient.config(url: TEST_REDIS_URL, inherit_socket: true).new_client
     end
 
-    # it "correctly reads server info" do
-    #   within_reactor do
-    #     result = @redis.call("INFO")
-    #     -> { expect(result).to include("cluster_enabled") }
-    #   end
-    # end
+    it "correctly reads server info" do
+      within_reactor do
+        result = redis.call("INFO")
+        -> { expect(result).to include("cluster_enabled") }
+      end
+    end
 
-    # it "correctly reads single keys" do
-    #   within_reactor do
-    #     result = @redis.call("GET", "mystring")
-    #     -> { expect(Digest::SHA2.hexdigest(result)).to eq("7ba6faccb80b730d15739b58c8751a5a12c9cec86546bdb64756f1c554afb808") }
-    #   end
-    # end
+    it "correctly reads single keys" do
+      within_reactor do
+        result = redis.call("GET", "mystring")
+        -> { expect(Digest::SHA2.hexdigest(result)).to eq("7ba6faccb80b730d15739b58c8751a5a12c9cec86546bdb64756f1c554afb808") }
+      end
+    end
 
     it "correctly reads multiple keys" do
       within_reactor do
