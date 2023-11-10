@@ -3,41 +3,50 @@
 require "resolv"
 
 class Rage::FiberScheduler
+  MAX_READ = 65536
+
   def initialize
     @root_fiber = Fiber.current
   end
 
   def io_wait(io, events, timeout = nil)
     f = Fiber.current
-    ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil || 0) { f.resume }
-    Fiber.yield
+    ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil || 0) { |err| f.resume(err) }
 
-    events
+    err = Fiber.yield
+    if err == Errno::ETIMEDOUT::Errno
+      0
+    else
+      events
+    end
   end
 
-  # TODO: this is more synchronous than asynchronous right now
   def io_read(io, buffer, length, offset = 0)
-    loop do
-      string = ::Iodine::Scheduler.read(io.fileno, length, offset)
+    length_to_read = if length == 0
+      buffer.size > MAX_READ ? MAX_READ : buffer.size
+    else
+      length
+    end
+
+    while true
+      string = ::Iodine::Scheduler.read(io.fileno, length_to_read, offset)
 
       if string.nil?
         return offset
       end
 
       if string.empty?
-        io_wait(io, IO::READABLE)
-        next
+        return -Errno::EAGAIN::Errno
       end
 
       buffer.set_string(string, offset)
-      offset += string.bytesize
 
       size = string.bytesize
-      break if size >= length
-      length -= size
-    end
+      offset += size
+      return offset if size < length_to_read || size >= buffer.size
 
-    offset
+      Fiber.pause
+    end
   end
 
   def io_write(io, buffer, length, offset = 0)

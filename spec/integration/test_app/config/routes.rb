@@ -16,6 +16,7 @@ Rage.routes.draw do
 
   get "async/sum", to: "async#sum"
   get "async/long", to: "async#long"
+  get "async/empty", to: "async#empty"
 
   get "before_actions/get", to: "before_actions#get"
 end

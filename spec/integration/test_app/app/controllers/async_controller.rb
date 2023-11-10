@@ -16,4 +16,8 @@ class AsyncController < RageController::API
     response = Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/long-http-get?i=#{params[:i]}"))
     render plain: response
   end
+
+  def empty
+    Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/instant-http-get?i=#{rand}"))
+  end
 end

@@ -66,6 +66,22 @@ RSpec.describe Rage::FiberScheduler do
     end
   end
 
+  it "correctly times out" do
+    uri = URI("#{TEST_HTTP_URL}/timeout")
+
+    within_reactor do
+      Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 1) do |http|
+        request = Net::HTTP::Get.new(uri)
+        response = http.request(request)
+      end
+
+      raise "test failed!"
+
+    rescue => e
+      -> { expect(e).to be_a(Net::ReadTimeout) }
+    end
+  end
+
   context "with Postgres" do
     let(:conn) { PG.connect(TEST_PG_URL) }
 

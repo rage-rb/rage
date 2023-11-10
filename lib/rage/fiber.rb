@@ -9,6 +9,14 @@ class Fiber
     @__result
   end
 
+  # @private
+  # pause a fiber and resume in the next iteration of the event loop
+  def self.pause
+    f = Fiber.current
+    Iodine.defer { f.resume }
+    Fiber.yield
+  end
+
   # Wait on several fibers at the same time. Calling this method will automatically pause the current fiber, allowing the
   #   server to process other requests. Once all fibers have completed, the current fiber will be automatically resumed.
   #

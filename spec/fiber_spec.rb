@@ -82,6 +82,19 @@ RSpec.describe Fiber do
     end
   end
 
+  it "processes fibers in parallel" do
+    within_reactor do
+      result = Benchmark.realtime do
+        Fiber.await(
+          Fiber.schedule { Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/long-http-get?i=#{rand}")) },
+          Fiber.schedule { Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/long-http-get?i=#{rand}")) }
+        )
+      end
+
+      -> { expect(result).to be < 1.5 }
+    end
+  end
+
   it "correctly watches on one fiber" do
     within_reactor do
       num = rand

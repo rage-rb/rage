@@ -20,6 +20,7 @@ RSpec.describe "End-to-end" do
     if @pid
       Process.kill(:SIGTERM, @pid)
       Process.wait
+      system("rm spec/integration/test_app/Gemfile.lock")
     end
   end
 
@@ -143,6 +144,12 @@ RSpec.describe "End-to-end" do
       expect(responses.map(&:to_s)).to match_array(%w(100 110 120))
 
       expect(time_spent).to be < 1.5
+    end
+
+    it "correctly sends default response" do
+      response = HTTP.timeout(2).get("http://localhost:3000/async/empty")
+      expect(response.code).to eq(204)
+      expect(response.to_s).to eq("")
     end
   end
 
