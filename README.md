@@ -143,12 +143,13 @@ Version | Changes
 ------- |------------
 0.2 :white_check_mark: | ~~Gem configuration by env.<br>Add `skip_before_action`.<br>Add `rescue_from`.<br>Router updates:<br>&emsp;• make the `root` helper work correctly with `scope`;<br>&emsp;• support the `defaults` option;~~
 0.3 :white_check_mark: | ~~CLI updates:<br>&emsp;• `routes` task;<br>&emsp;• `console` task;<br>Support the `:if` and `:unless` options in `before_action`.<br>Allow to set response headers.~~
-0.4 :white_check_mark: | ~~Expose the `params` object.<br>Support header authentication with `authenticate_with_http_token`.<br>Router updates:<br>&emsp;• add the `resources` route helper;<br>&emsp;• add the `namespace` route helper;<br>~~&emsp;• support regexp constraints (postponed)
-0.5 | Implement Iodine-based equivalent of `ActionController::Live`.<br>Use `ActionDispatch::RemoteIp`.
-0.6 | Expose the `cookies` object.<br>Expose the `send_data` and `send_file` methods.<br>Support conditional get with `etag` and `last_modified`.
-0.7 | Add request logging.
-0.8 | Collect app metrics.
-0.9 | Automatic code reloading in development.
+0.4 :white_check_mark: | ~~Expose the `params` object.<br>Support header authentication with `authenticate_with_http_token`.<br>Router updates:<br>&emsp;• add the `resources` route helper;<br>&emsp;• add the `namespace` route helper;~~
+0.5 | Add request logging.
+0.6 | Automatic code reloading in development with Zeitwerk.
+0.7 | Expose the `send_data` and `send_file` methods.
+0.8 | Support conditional get with `etag` and `last_modified`.
+0.9 | Expose the `cookies` and `session` objects.
+1.0 | Implement Iodine-based equivalent of Action Cable.
 
 ## Development
 
