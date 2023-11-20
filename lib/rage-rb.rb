@@ -39,6 +39,10 @@ module Rage
     @root ||= Pathname.new(".").expand_path
   end
 
+  def self.logger
+    @logger ||= config.logger
+  end
+
   module Router
     module Strategies
     end

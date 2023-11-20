@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 require "thor"
 require "rage/all"
-require "irb"
 
 module Rage
   class CLI < Thor
@@ -78,6 +77,7 @@ module Rage
 
     desc "c", "Start the app console."
     def console
+      require "irb"
       environment
       ARGV.clear
       IRB.start
