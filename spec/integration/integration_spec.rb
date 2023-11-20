@@ -21,6 +21,7 @@ RSpec.describe "End-to-end" do
       Process.kill(:SIGTERM, @pid)
       Process.wait
       system("rm spec/integration/test_app/Gemfile.lock")
+      system("rm spec/integration/test_app/log/development.log")
     end
   end
 
@@ -162,6 +163,54 @@ RSpec.describe "End-to-end" do
     it "correctly processes the request" do
       response = HTTP.get("http://localhost:3000/before_actions/get?with_timestamp=true")
       expect(response.parse).to eq({ "message" => "hello world", "timestamp" => 1636466868 })
+    end
+  end
+
+  context "with logs" do
+    let(:logs) { File.readlines("spec/integration/test_app/log/development.log") }
+
+    it "correctly adds 2xx entries" do
+      HTTP.get("http://localhost:3000/empty")
+      expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/empty controller=application action=empty status=204 duration=\d+\.\d+$/)
+    end
+
+    it "correctly adds 404 entries" do
+      HTTP.get("http://localhost:3000/unknown")
+      expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/unknown status=404 duration=\d+\.\d+$/)
+    end
+
+    it "correctly adds 500 entries" do
+      HTTP.get("http://localhost:3000/raise_error")
+      expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/raise_error controller=application action=raise_error status=500 duration=\d+\.\d+$/)
+    end
+
+    it "correctly adds non-get entries" do
+      HTTP.patch("http://localhost:3000/patch")
+      expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=PATCH path=\/patch controller=application action=patch status=200 duration=\d+\.\d+$/)
+    end
+
+    it "correctly adds custom entries" do
+      HTTP.get("http://localhost:3000/logs/custom")
+
+      request_logs = logs.last(4)
+      request_tag = logs.last.match(/^\[(\w{16})\]/)[1]
+
+      expect(request_logs[0]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info message=log_1$/)
+      expect(request_logs[1]).to match(/^\[#{request_tag}\]\[tag_2\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=warn message=log_2$/)
+      expect(request_logs[2]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=error test=true message=log_3$/)
+      expect(request_logs[3]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/logs\/custom controller=logs action=custom status=204 duration=\d+\.\d+$/)
+    end
+
+    it "correctly adds entries from inner fibers" do
+      r = HTTP.get("http://localhost:3000/logs/fiber")
+
+      request_logs = logs.last(4)
+      request_tag = logs.last.match(/^\[(\w{16})\]/)[1]
+
+      expect(request_logs[0]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info message=outside_1$/)
+      expect(request_logs[1]).to match(/^\[#{request_tag}\]\[in_fiber\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info message=inside$/)
+      expect(request_logs[2]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info message=outside_2$/)
+      expect(request_logs[3]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/logs\/fiber controller=logs action=fiber status=204 duration=\d+\.\d+$/)
     end
   end
 end
