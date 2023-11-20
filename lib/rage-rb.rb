@@ -24,6 +24,7 @@ module Rage
 
   def self.configure(&)
     config.instance_eval(&)
+    config.__finalize
   end
 
   def self.env
