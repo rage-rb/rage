@@ -6,7 +6,7 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/photos/1/get-over-here")
     expect(result).to eq("photos with wildcard")
-    expect(params).to eq({ id: "1", "*": "get-over-here" })
+    expect(params).to include({ id: "1", "*": "get-over-here" })
   end
 
   it "correctly processes a wildcard url" do
@@ -58,11 +58,11 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/photos/all/24")
     expect(result).to eq("all photos wildcard")
-    expect(params).to eq({ "*": "24" })
+    expect(params).to include({ "*": "24" })
 
     result, params = perform_get_request("/photos/24/print")
     expect(result).to eq("print single photo")
-    expect(params).to eq({ id: "24" })
+    expect(params).to include({ id: "24" })
 
     result, _ = perform_get_request("/photos/24/all")
     expect(result).to be_nil
@@ -84,6 +84,6 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/photos/get+photos%3B+kind%3A+favorites%3B+type%3D*.jpg")
     expect(result).to eq("get a photo")
-    expect(params).to eq({ "*": "get photos; kind: favorites; type=*.jpg" })
+    expect(params).to include({ "*": "get photos; kind: favorites; type=*.jpg" })
   end
 end

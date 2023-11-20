@@ -86,19 +86,19 @@ RSpec.describe "End-to-end" do
     it "correctly parses query params" do
       response = HTTP.get("http://localhost:3000/params/digest?test=true&message=hello+world")
       expect(response.code).to eq(200)
-      expect(response.to_s).to eq("f4eaa8afa0abb12c143d599b670822a2")
+      expect(response.to_s).to eq("e51b2c9c5399485acbc88f60f4f782c5")
     end
 
     it "correctly parses url params" do
       response = HTTP.get("http://localhost:3000/params/1144/defaults")
       expect(response.code).to eq(200)
-      expect(response.to_s).to eq("56c3d060e4db7e6906dfe05242518e0f")
+      expect(response.to_s).to eq("49d0c01df27b9b15b558554439bdfd00")
     end
 
     it "correctly parses json body" do
       response = HTTP.post("http://localhost:3000/params/digest?hello=w+o+r+l+d", json: { id: 10, test: true })
       expect(response.code).to eq(200)
-      expect(response.to_s).to eq("68104cf6236b92f607e2c0f3c78e0dc6")
+      expect(response.to_s).to eq("beda497e73ccdbe91c140377b9dc5e48")
     end
 
     it "correctly parses multipart body" do
@@ -108,7 +108,7 @@ RSpec.describe "End-to-end" do
       })
 
       expect(response.code).to eq(200)
-      expect(response.to_s).to eq("6cbcf9b8c335dc621cee43fa0d30799a")
+      expect(response.to_s).to eq("662b82a8999aa1ce53d67dcc6d3e3605")
     end
 
     it "correctly parses urlencoded body" do
@@ -118,7 +118,7 @@ RSpec.describe "End-to-end" do
       })
 
       expect(response.code).to eq(200)
-      expect(response.to_s).to eq("95fe4f42bfe61c67b8e5a8434480a23d")
+      expect(response.to_s).to eq("0f825fc37d17c300570e3252ea648563")
     end
   end
 

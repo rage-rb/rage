@@ -39,14 +39,14 @@ module Rage
 
       routes = Rage.__router.routes
       pattern = options[:grep]
-      routes.unshift({ method: "Verb", path: "Path", raw_handler: "Controller#Action" })
+      routes.unshift({ method: "Verb", path: "Path", meta: { raw_handler: "Controller#Action" } })
 
       grouped_routes = routes.each_with_object({}) do |route, memo|
         if pattern && !memo.empty?
-          next unless route[:path].match?(pattern) || route[:raw_handler].to_s.match?(pattern) || route[:method].match?(pattern)
+          next unless route[:path].match?(pattern) || route[:meta][:raw_handler].to_s.match?(pattern) || route[:method].match?(pattern)
         end
 
-        key = [route[:path], route[:raw_handler]]
+        key = [route[:path], route[:meta][:raw_handler]]
         if memo[key]
           memo[key][:method] += "|#{route[:method]}"
         else
@@ -68,7 +68,7 @@ module Rage
         meta = route[:constraints]
         meta.merge!(route[:defaults]) if route[:defaults]
 
-        handler = route[:raw_handler]
+        handler = route[:meta][:raw_handler]
         handler = "#{handler} #{meta}" unless meta&.empty?
 
         puts format("%-#{longest_method}s%-#{longest_path}s%s", route[:method], route[:path], handler)
