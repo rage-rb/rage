@@ -1,4 +1,8 @@
+# frozen_string_literal: true
+
 class Fiber
+  AWAIT_ERROR_MESSAGE = "err"
+
   # @private
   def __set_result(result)
     @__result = result
@@ -7,6 +11,16 @@ class Fiber
   # @private
   def __get_result
     @__result
+  end
+
+  # @private
+  def __set_err(err)
+    @__err = err
+  end
+
+  # @private
+  def __get_err
+    @__err
   end
 
   # @private
@@ -30,17 +44,43 @@ class Fiber
   def self.await(*fibers)
     f = Fiber.current
 
-    num_wait_for = fibers.count(&:alive?)
-    return fibers.map(&:__get_result) if num_wait_for == 0
+    # check which fibers are alive (i.e. have yielded) and which have errored out
+    i, err, num_wait_for = 0, nil, 0
+    while i < fibers.length
+      if fibers[i].alive?
+        num_wait_for += 1
+      else
+        err = fibers[i].__get_err
+        break if err
+      end
+      i += 1
+    end
 
-    Iodine.subscribe("await:#{f.object_id}") do
-      num_wait_for -= 1
-      f.resume if num_wait_for == 0
+    # raise if one of the fibers has errored out or return the result if none have yielded
+    if err
+      raise err
+    elsif num_wait_for == 0
+      return fibers.map!(&:__get_result)
+    end
+
+    # wait on async fibers; resume right away if one of the fibers errors out
+    Iodine.subscribe("await:#{f.object_id}") do |_, err|
+      if err == AWAIT_ERROR_MESSAGE
+        f.resume
+      else
+        num_wait_for -= 1
+        f.resume if num_wait_for == 0
+      end
     end
 
     Fiber.yield
     Iodine.defer { Iodine.unsubscribe("await:#{f.object_id}") }
 
-    fibers.map(&:__get_result)
+    # if num_wait_for is not 0 means we exited prematurely because of an error
+    if num_wait_for > 0
+      raise fibers.find(&:__get_err).__get_err
+    else
+      fibers.map!(&:__get_result)
+    end
   end
 end

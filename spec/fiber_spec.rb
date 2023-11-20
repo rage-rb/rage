@@ -121,4 +121,66 @@ RSpec.describe Fiber do
       end
     end
   end
+
+  it "swallows exceptions from inner fibers without Fiber.await" do
+    within_reactor do
+      Fiber.schedule { raise "can't see me" }
+      -> {}
+    end
+  end
+
+  it "propagates exceptions from inner fibers to Fiber.await" do
+    within_reactor do
+      Fiber.await(
+        Fiber.schedule { sleep(0.2) },
+        Fiber.schedule { sleep(0.2) && raise("inner raise") }
+      )
+
+      raise "failed!"
+
+    rescue => e
+      -> { expect(e.message).to eq("inner raise") }
+    end
+  end
+
+  it "doesn't wait for all fibers if one errored out" do
+    within_reactor do
+      results = []
+
+      Fiber.await(
+        Fiber.schedule { sleep(1); results << 1 },
+        Fiber.schedule { sleep(1); results << 2 },
+        Fiber.schedule { sleep(0.2); raise }
+      )
+
+    rescue
+      -> { expect(results).to be_empty }
+    end
+  end
+
+  it "doesn't wait for all fibers if one errored out" do
+    within_reactor do
+      results = []
+
+      Fiber.await(
+        Fiber.schedule { sleep(1); results << 1 },
+        Fiber.schedule { raise }
+      )
+
+    rescue
+      -> { expect(results).to be_empty }
+    end
+  end
+
+  it "returns errors right away" do
+    within_reactor do
+      Fiber.await(
+        Fiber.schedule { 111 },
+        Fiber.schedule { raise }
+      )
+
+    rescue => e
+      -> { expect(e).to be_a(StandardError) }
+    end
+  end
 end

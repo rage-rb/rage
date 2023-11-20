@@ -151,6 +151,12 @@ RSpec.describe "End-to-end" do
       expect(response.code).to eq(204)
       expect(response.to_s).to eq("")
     end
+
+    it "correctly processes exceptions from inner fibers" do
+      response = HTTP.get("http://localhost:3000/async/raise_error")
+      expect(response.code).to eq(500)
+      expect(response.to_s).to include("raised from inner fiber")
+    end
   end
 
   context "with before actions" do

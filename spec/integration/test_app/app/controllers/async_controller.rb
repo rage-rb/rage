@@ -20,4 +20,12 @@ class AsyncController < RageController::API
   def empty
     Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/instant-http-get?i=#{rand}"))
   end
+
+  def raise_error
+    f = Fiber.schedule do
+      sleep 0.1
+      raise "raised from inner fiber"
+    end
+    Fiber.await f
+  end
 end
