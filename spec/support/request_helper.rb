@@ -9,6 +9,10 @@ module RequestHelper
     perform_request("GET", path, host, params)
   end
 
+  def perform_head_request(path, host: nil, params: {})
+    perform_request("HEAD", path, host, params)
+  end
+
   def perform_post_request(path, host: nil, params: {})
     perform_request("POST", path, host, params)
   end

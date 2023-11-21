@@ -14,6 +14,32 @@ class Rage::Router::Backend
     @constrainer = Rage::Router::Constrainer.new({})
   end
 
+  def mount(path, handler, methods)
+    raise "Mount handler should respond to `call`" unless handler.respond_to?(:call)
+
+    raw_handler = handler
+    is_sidekiq = handler.respond_to?(:name) && handler.name == "Sidekiq::Web"
+
+    handler = ->(env, _params) do
+      env["SCRIPT_NAME"] = path
+      sub_path = env["PATH_INFO"].delete_prefix!(path)
+      env["PATH_INFO"] = "/" if sub_path == ""
+
+      if is_sidekiq
+        Rage::SidekiqSession.with_session(env) do
+          raw_handler.call(env)
+        end
+      else
+        raw_handler.call(env)
+      end
+    end
+
+    methods.each do |method|
+      __on(method, path, handler, raw_handler, {}, nil)
+      __on(method, "#{path}/*", handler, raw_handler, {}, nil)
+    end
+  end
+
   def on(method, path, handler, constraints: {}, defaults: nil)
     raw_handler = handler
     raise "Path could not be empty" if path&.empty?
