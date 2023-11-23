@@ -24,6 +24,7 @@ module Rage
 
   def self.configure(&)
     config.instance_eval(&)
+    config.__finalize
   end
 
   def self.env
@@ -36,6 +37,10 @@ module Rage
 
   def self.root
     @root ||= Pathname.new(".").expand_path
+  end
+
+  def self.logger
+    @logger ||= config.logger
   end
 
   module Router
