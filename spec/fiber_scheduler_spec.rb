@@ -2,8 +2,10 @@
 
 require "net/http"
 require "digest"
+require "benchmark"
 require "pg"
 require "mysql2"
+require "connection_pool"
 
 RSpec.describe Rage::FiberScheduler do
   TEST_HTTP_URL = ENV["TEST_HTTP_URL"]
@@ -181,6 +183,25 @@ RSpec.describe Rage::FiberScheduler do
     end
   end
 
+  context "with connection pool" do
+    let(:pool_timeout) { 5 }
+    let(:pool_size) { 2 }
+    let(:pool) { ConnectionPool.new(size: pool_size, timeout: pool_timeout) { Net::HTTP } }
+
+    it "doesn't wait for <timeout> before making released connections available" do
+      within_reactor do
+        result = Benchmark.realtime do
+          fibers = (1..pool_size + 1).map do
+            Fiber.schedule { pool.with { |conn| conn.get(URI("#{TEST_HTTP_URL}/long-http-get")) } }
+          end
+          Fiber.await(*fibers)
+        end
+
+        -> { expect(result).to be < pool_timeout }
+      end
+    end
+  end
+
   it "correctly blocks and unblocks fibers" do
     queue = Queue.new
     Thread.new do
@@ -235,5 +256,15 @@ RSpec.describe Rage::FiberScheduler do
     end
 
     File.unlink("test")
+  end
+
+  it "correctly sleeps" do
+    within_reactor do
+      result = Benchmark.realtime do
+        Fiber.await(Fiber.schedule { sleep(1) })
+      end
+
+      -> { expect((1..1.5)).to include(result)  }
+    end
   end
 end
