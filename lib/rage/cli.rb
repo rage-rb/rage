@@ -46,6 +46,12 @@ module Rage
         end
 
         key = [route[:path], route[:meta][:raw_handler]]
+
+        if route[:meta][:mount]
+          memo[key] = route.merge(method: "") unless route[:path].end_with?("*")
+          next
+        end
+
         if memo[key]
           memo[key][:method] += "|#{route[:method]}"
         else
