@@ -21,3 +21,7 @@ require_relative "controller/api"
 
 require_relative "logger/text_formatter"
 require_relative "logger/logger"
+
+if defined?(Sidekiq)
+  require_relative "sidekiq_session"
+end
