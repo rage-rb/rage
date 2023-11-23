@@ -1,4 +1,7 @@
 class Rage::Configuration
+  attr_accessor :logger, :log_formatter, :log_level
+
+  # used in DSL
   def config = self
 
   def server
@@ -14,5 +17,10 @@ class Rage::Configuration
       @workers_count = -1
       @port = 3000
     end
+  end
+
+  def __finalize
+    @logger.formatter = @log_formatter if @logger && @log_formatter
+    @logger.level = @log_level if @logger && @log_level
   end
 end

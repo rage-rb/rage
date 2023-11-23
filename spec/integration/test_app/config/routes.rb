@@ -19,4 +19,7 @@ Rage.routes.draw do
   get "async/empty", to: "async#empty"
 
   get "before_actions/get", to: "before_actions#get"
+
+  get "logs/custom", to: "logs#custom"
+  get "logs/fiber", to: "logs#fiber"
 end

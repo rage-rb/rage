@@ -99,10 +99,11 @@ class Rage::FiberScheduler
   end
 
   def fiber(&block)
-    f = Fiber.current
+    f, logger = Fiber.current, Thread.current[:rage_logger]
     inner_schedule = f != @root_fiber
 
     fiber = Fiber.new(blocking: false) do
+      Thread.current[:rage_logger] = logger
       Fiber.current.__set_result(block.call)
     ensure
       # send a message for `Fiber.await` to work
