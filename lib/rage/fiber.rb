@@ -36,13 +36,13 @@ class Fiber
   #
   # @param fibers [Fiber, Array<Fiber>] one or several fibers to wait on. The fibers must be created using the `Fiber.schedule` call.
   # @example
-  #   Fiber.await(
+  #   Fiber.await([
   #     Fiber.schedule { request_1 },
   #     Fiber.schedule { request_2 },
-  #   )
+  #   ])
   # @note This method should only be used when multiple fibers have to be processed in parallel. There's no need to use `Fiber.await` for single IO calls.
-  def self.await(*fibers)
-    f = Fiber.current
+  def self.await(fibers)
+    f, fibers = Fiber.current, Array(fibers)
 
     # check which fibers are alive (i.e. have yielded) and which have errored out
     i, err, num_wait_for = 0, nil, 0
