@@ -22,7 +22,9 @@ class Rage::Application
       end
 
     rescue => e
-      response = [500, {}, ["#{e.class}:#{e.message}\n\n#{e.backtrace.join("\n")}"]]
+      exception_str = "#{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}"
+      Rage.logger.error(exception_str)
+      response = [500, {}, [exception_str]]
 
     ensure
       finalize_logger(env, response, params)

@@ -14,7 +14,6 @@ RSpec.describe Rage::Logger do
       request_start: 123
     }
 
-    allow(Fiber).to receive(:scheduler).and_return(true)
     allow(Iodine::Rack::Utils).to receive(:gen_timestamp).and_return("very_accurate_timestamp")
     allow(Process).to receive(:pid).and_return(777)
   end

@@ -75,7 +75,7 @@ RSpec.describe "End-to-end" do
   it "correctly responds with 500" do
     response = HTTP.get("http://localhost:3000/raise_error")
     expect(response.code).to eq(500)
-    expect(response.to_s).to start_with("RuntimeError:1155 test error")
+    expect(response.to_s).to start_with("RuntimeError (1155 test error)")
   end
 
   it "sets correct headers" do
@@ -181,7 +181,13 @@ RSpec.describe "End-to-end" do
 
     it "correctly adds 500 entries" do
       HTTP.get("http://localhost:3000/raise_error")
-      expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/raise_error controller=application action=raise_error status=500 duration=\d+\.\d+$/)
+
+      request_tag = logs.last.match(/^\[(\w{16})\]/)[1]
+      request_logs = logs.select { |log| log.include?(request_tag) }
+
+      expect(request_logs.size).to eq(2)
+      expect(request_logs[0]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=error message=RuntimeError \(1155 test error\):$/)
+      expect(request_logs[1]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/raise_error controller=application action=raise_error status=500 duration=\d+\.\d+$/)
     end
 
     it "correctly adds non-get entries" do
@@ -202,7 +208,7 @@ RSpec.describe "End-to-end" do
     end
 
     it "correctly adds entries from inner fibers" do
-      r = HTTP.get("http://localhost:3000/logs/fiber")
+      HTTP.get("http://localhost:3000/logs/fiber")
 
       request_logs = logs.last(4)
       request_tag = logs.last.match(/^\[(\w{16})\]/)[1]
