@@ -32,6 +32,9 @@ class Rage::Router::Backend
       else
         raw_handler.call(env)
       end
+
+    ensure
+      env["PATH_INFO"] = "#{env["SCRIPT_NAME"]}#{sub_path}"
     end
 
     methods.each do |method|

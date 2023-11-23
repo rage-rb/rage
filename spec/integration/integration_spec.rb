@@ -218,5 +218,15 @@ RSpec.describe "End-to-end" do
       expect(request_logs[2]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info message=outside_2$/)
       expect(request_logs[3]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/logs\/fiber controller=logs action=fiber status=204 duration=\d+\.\d+$/)
     end
+
+    it "correctly adds root entries from mounted apps" do
+      HTTP.get("http://localhost:3000/admin")
+      expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/admin controller= action= status=200 duration=\d+\.\d+$/)
+    end
+
+    it "correctly adds non-root entries from mounted apps" do
+      HTTP.delete("http://localhost:3000/admin/undo")
+      expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=DELETE path=\/admin\/undo controller= action= status=200 duration=\d+\.\d+$/)
+    end
   end
 end
