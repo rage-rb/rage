@@ -200,6 +200,21 @@ RSpec.describe Rage::FiberScheduler do
         -> { expect(result).to be < pool_timeout }
       end
     end
+
+    context "with timeout" do
+      let(:pool_timeout) { 1 }
+      let(:pool_size) { 1 }
+
+      it "correctly times out" do
+        within_reactor do
+          Fiber.schedule { pool.with { |conn| conn.get(URI("#{TEST_HTTP_URL}/timeout")) } }
+          pool.with { |conn| conn.get(URI("#{TEST_HTTP_URL}/instant-http-get")) }
+          raise "failed"
+        rescue => e
+          -> { expect(e).to be_a(ConnectionPool::TimeoutError) }
+        end
+      end
+    end
   end
 
   it "correctly blocks and unblocks fibers" do
