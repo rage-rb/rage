@@ -108,7 +108,10 @@ class Rage::FiberScheduler
       end
     else
       # the fiber was created in the user code
+      logger = Thread.current[:rage_logger]
+
       Fiber.new(blocking: false) do
+        Thread.current[:rage_logger] = logger
         Fiber.current.__set_result(block.call)
         # send a message for `Fiber.await` to work
         Iodine.publish("await:#{parent.object_id}", "") if parent.alive?

@@ -14,8 +14,36 @@ class Rage::Router::Backend
     @constrainer = Rage::Router::Constrainer.new({})
   end
 
-  def on(method, path, handler, constraints: {}, defaults: nil)
+  def mount(path, handler, methods)
+    raise "Mount handler should respond to `call`" unless handler.respond_to?(:call)
+
     raw_handler = handler
+    is_sidekiq = handler.respond_to?(:name) && handler.name == "Sidekiq::Web"
+
+    handler = ->(env, _params) do
+      env["SCRIPT_NAME"] = path
+      sub_path = env["PATH_INFO"].delete_prefix!(path)
+      env["PATH_INFO"] = "/" if sub_path == ""
+
+      if is_sidekiq
+        Rage::SidekiqSession.with_session(env) do
+          raw_handler.call(env)
+        end
+      else
+        raw_handler.call(env)
+      end
+
+    ensure
+      env["PATH_INFO"] = "#{env["SCRIPT_NAME"]}#{sub_path}"
+    end
+
+    methods.each do |method|
+      __on(method, path, handler, {}, {}, { raw_handler:, mount: true })
+      __on(method, "#{path}/*", handler, {}, {}, { raw_handler:, mount: true })
+    end
+  end
+
+  def on(method, path, handler, constraints: {}, defaults: nil)
     raise "Path could not be empty" if path&.empty?
 
     if match_index = (path =~ OPTIONAL_PARAM_REGEXP)
@@ -29,11 +57,16 @@ class Rage::Router::Backend
       return
     end
 
+    meta = { raw_handler: handler }
+
     if handler.is_a?(String)
       raise "Invalid route handler format, expected to match the 'controller#action' pattern" unless handler =~ STRING_HANDLER_REGEXP
 
       controller, action = to_controller_class($1), $2
       run_action_method_name = controller.__register_action(action.to_sym)
+
+      meta[:controller] = $1
+      meta[:action] = $2
 
       handler = eval("->(env, params) { #{controller}.new(env, params).#{run_action_method_name} }")
     else
@@ -45,7 +78,7 @@ class Rage::Router::Backend
       handler = ->(env, _params) { orig_handler.call(env) }
     end
 
-    __on(method, path, handler, raw_handler, constraints, defaults)
+    __on(method, path, handler, constraints, defaults, meta)
   end
 
   def lookup(env)
@@ -55,7 +88,7 @@ class Rage::Router::Backend
 
   private
 
-  def __on(method, path, handler, raw_handler, constraints, defaults)
+  def __on(method, path, handler, constraints, defaults, meta)
     @constrainer.validate_constraints(constraints)
     # Let the constrainer know if any constraints are being used now
     @constrainer.note_usage(constraints)
@@ -162,7 +195,7 @@ class Rage::Router::Backend
       end
     end
 
-    route = { method: method, path: path, pattern: pattern, params: params, constraints: constraints, handler: handler, raw_handler: raw_handler, defaults: defaults }
+    route = { method:, path:, pattern:, params:, constraints:, handler:, defaults:, meta: }
     @routes << route
     current_node.add_route(route, @constrainer)
   end
