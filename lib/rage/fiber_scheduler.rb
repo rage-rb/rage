@@ -59,11 +59,7 @@ class Rage::FiberScheduler
   end
 
   def kernel_sleep(duration = nil)
-    if duration
-      f = Fiber.current
-      ::Iodine.run_after((duration * 1000).to_i) { f.resume } 
-      Fiber.yield
-    end
+    block(nil, duration || 0)
   end
 
   # TODO: GC works a little strange with this closure;
@@ -84,13 +80,22 @@ class Rage::FiberScheduler
     Resolv.getaddresses(hostname)
   end
 
-  def block(blocker, timeout = nil)
-    f = Fiber.current
-    ::Iodine.subscribe("unblock:#{f.object_id}") do
-      ::Iodine.defer { ::Iodine.unsubscribe("unblock:#{f.object_id}") }
-      f.resume
+  def block(_blocker, timeout = nil)
+    f, fulfilled, channel = Fiber.current, false, "unblock:#{Fiber.current.object_id}"
+
+    resume_fiber_block = proc do
+      unless fulfilled
+        fulfilled = true
+        ::Iodine.defer { ::Iodine.unsubscribe(channel) }
+        f.resume
+      end
     end
-    # TODO support timeout
+
+    ::Iodine.subscribe(channel, &resume_fiber_block)
+    if timeout
+      ::Iodine.run_after((timeout * 1000).to_i, &resume_fiber_block)
+    end
+
     Fiber.yield
   end
 

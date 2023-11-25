@@ -13,3 +13,4 @@ gem "yard"
 
 gem "pg"
 gem "mysql2"
+gem "connection_pool", "~> 2.0"
