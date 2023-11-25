@@ -99,16 +99,28 @@ class Rage::FiberScheduler
   end
 
   def fiber(&block)
-    f, logger = Fiber.current, Thread.current[:rage_logger]
-    inner_schedule = f != @root_fiber
+    parent = Fiber.current
 
-    fiber = Fiber.new(blocking: false) do
-      Thread.current[:rage_logger] = logger
-      Fiber.current.__set_result(block.call)
-    ensure
-      # send a message for `Fiber.await` to work
-      Iodine.publish("await:#{f.object_id}", "") if inner_schedule
+    fiber = if parent == @root_fiber
+      # the fiber to wrap a request in
+      Fiber.new(blocking: false) do
+        Fiber.current.__set_result(block.call)
+      end
+    else
+      # the fiber was created in the user code
+      logger = Thread.current[:rage_logger]
+
+      Fiber.new(blocking: false) do
+        Thread.current[:rage_logger] = logger
+        Fiber.current.__set_result(block.call)
+        # send a message for `Fiber.await` to work
+        Iodine.publish("await:#{parent.object_id}", "") if parent.alive?
+      rescue => e
+        Fiber.current.__set_err(e)
+        Iodine.publish("await:#{parent.object_id}", Fiber::AWAIT_ERROR_MESSAGE) if parent.alive?
+      end
     end
+
     fiber.resume
 
     fiber
