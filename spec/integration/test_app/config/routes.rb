@@ -17,6 +17,12 @@ Rage.routes.draw do
   get "async/sum", to: "async#sum"
   get "async/long", to: "async#long"
   get "async/empty", to: "async#empty"
+  get "async/raise_error", to: "async#raise_error"
 
   get "before_actions/get", to: "before_actions#get"
+
+  get "logs/custom", to: "logs#custom"
+  get "logs/fiber", to: "logs#fiber"
+
+  mount -> (_) { [200, {}, ""] }, at: "/admin"
 end

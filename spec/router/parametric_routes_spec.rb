@@ -6,7 +6,7 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/photos/123")
     expect(result).to eq("photo by id")
-    expect(params).to eq({ id: "123" })
+    expect(params).to include({ id: "123" })
   end
 
   it "correctly processes a parametric url with multiple sections" do
@@ -14,7 +14,7 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/api/v1/photos/1/get")
     expect(result).to eq("api photo by id")
-    expect(params).to eq({ version: "v1", id: "1" })
+    expect(params).to include({ version: "v1", id: "1" })
 
     result, _ = perform_get_request("/api/v1/photos/1/set")
     expect(result).to be_nil
@@ -28,7 +28,7 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/photos/1/222")
     expect(result).to eq("photo by id and user_id")
-    expect(params).to eq({ id: "1", user_id: "222" })
+    expect(params).to include({ id: "1", user_id: "222" })
 
     result, _ = perform_get_request("/photos/1/222/333")
     expect(result).to be_nil
@@ -39,7 +39,7 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/111/get_photos")
     expect(result).to eq("get photos")
-    expect(params).to eq({ id: "111" })
+    expect(params).to include({ id: "111" })
 
     result, _ = perform_get_request("/111/get_photo")
     expect(result).to be_nil
@@ -50,7 +50,7 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/12/photos/get")
     expect(result).to eq("get photos")
-    expect(params).to eq({ id: "12" })
+    expect(params).to include({ id: "12" })
 
     result, _ = perform_get_request("/12/photos")
     expect(result).to be_nil
@@ -64,11 +64,11 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/photos")
     expect(result).to eq("maybe photo by id")
-    expect(params).to be_empty
+    expect(params.keys).not_to include(:id)
 
     result, params = perform_get_request("/photos/first")
     expect(result).to eq("maybe photo by id")
-    expect(params).to eq({ id: "first" })
+    expect(params).to include({ id: "first" })
   end
 
   it "correctly processes optional parameters" do
@@ -76,11 +76,11 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/photos")
     expect(result).to eq("maybe photo by id")
-    expect(params).to be_empty
+    expect(params.keys).not_to include(:id)
 
     result, params = perform_get_request("/photos/first")
     expect(result).to eq("maybe photo by id")
-    expect(params).to eq({ id: "first" })
+    expect(params).to include({ id: "first" })
   end
 
   it "raises an error if optional param is not the last param" do
@@ -109,7 +109,7 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/photos.jpg/2/get")
     expect(result).to eq("jpg photo by id")
-    expect(params).to eq({ id: "2" })
+    expect(params).to include({ id: "2" })
   end
 
   it "correctly processes '-' in urls" do
@@ -118,11 +118,11 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/photos/123-my-favorite-one")
     expect(result).to eq("get photo by id")
-    expect(params).to eq({ id: "123-my-favorite-one" })
+    expect(params).to include({ id: "123-my-favorite-one" })
 
     result, params = perform_get_request("/api/photos/my-favorites/all")
     expect(result).to eq("api get all photos")
-    expect(params).to eq({ id: "my-favorites" })
+    expect(params).to include({ id: "my-favorites" })
   end
 
   it "correctly processes encoded urls" do
@@ -130,7 +130,7 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/photos/get+photos%3B+kind%3A+favorites%3B+type%3D*.jpg/fetch")
     expect(result).to eq("get photo by id")
-    expect(params).to eq({ id: "get photos; kind: favorites; type=*.jpg" })
+    expect(params).to include({ id: "get photos; kind: favorites; type=*.jpg" })
   end
 
   it "correctly processes '::' in urls" do
@@ -139,11 +139,11 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/:photos:jpg/23/:metadata")
     expect(result).to eq("get metadata")
-    expect(params).to eq({ id: "23" })
+    expect(params).to include({ id: "23" })
 
     result, params = perform_get_request("/:photos:jpg/11/10-10-2020")
     expect(result).to eq("get photo by id and date")
-    expect(params).to eq({ id: "11", date: "10-10-2020" })
+    expect(params).to include({ id: "11", date: "10-10-2020" })
   end
 
   it "correctly processes '%' in urls" do
@@ -151,7 +151,7 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/photos%25jpg/3")
     expect(result).to eq("jpg photo by id")
-    expect(params).to eq({ id: "3" })
+    expect(params).to include({ id: "3" })
   end
 
   it "correctly processes parametric urls" do
@@ -161,14 +161,14 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/jpg/favorites/10")
     expect(result).to eq("url 1")
-    expect(params).to eq({ namespace: "jpg", type: "favorites", id: "10" })
+    expect(params).to include({ namespace: "jpg", type: "favorites", id: "10" })
 
     result, params = perform_get_request("/jpg/photos/11/mark")
     expect(result).to eq("url 2")
-    expect(params).to eq({ namespace: "jpg", id: "11" })
+    expect(params).to include({ namespace: "jpg", id: "11" })
 
     result, params = perform_get_request("/svg/photos/12/mark")
     expect(result).to eq("url 3")
-    expect(params).to eq({ id: "12" })
+    expect(params).to include({ id: "12" })
   end
 end

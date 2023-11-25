@@ -194,7 +194,7 @@ RSpec.describe Rage::FiberScheduler do
           fibers = (1..pool_size + 1).map do
             Fiber.schedule { pool.with { |conn| conn.get(URI("#{TEST_HTTP_URL}/long-http-get")) } }
           end
-          Fiber.await(*fibers)
+          Fiber.await(fibers)
         end
 
         -> { expect(result).to be < pool_timeout }

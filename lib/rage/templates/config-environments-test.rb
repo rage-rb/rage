@@ -4,4 +4,7 @@ Rage.configure do
 
   # Specify the port the server will listen on.
   config.server.port = 3000
+
+  # Specify the logger
+  config.logger = Rage::Logger.new("log/test.log")
 end

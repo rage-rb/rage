@@ -330,89 +330,72 @@ RSpec.describe Rage::Router::DSL do
     end
   end
 
-  context "Mount" do
-    SomeRackApp = ->(env) { [200, { 'Content-Type' => 'text/plain' }, ['Hello, Rack!']] }
+  context "with the mount helper" do
+    let(:default_http_methods) { %w(GET POST PUT PATCH DELETE HEAD) }
 
-    it "correctly mounts Rack applications" do
-      expect(router).to receive(:on).with("GET", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      dsl.draw { mount SomeRackApp, at: "test_route", via: :get }
+    before do
+      stub_const("TestRackApp", ->(env) { [200, { "Content-Type" => "text/plain" }, ["Hello, Rack!"]] })
     end
 
-    it "correctly mounts a Rack application using POST" do
-      expect(router).to receive(:on).with("POST", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      dsl.draw { mount SomeRackApp, at: "test_route", via: :post }
-    end
+    context "with keyword arguments" do
+      it "correctly mounts Rack applications" do
+        expect(router).to receive(:mount).with("/test_route", TestRackApp, default_http_methods)
+        dsl.draw { mount(TestRackApp, at: "/test_route") }
+      end
 
-    it "correctly mounts a Rack application using PUT" do
-      expect(router).to receive(:on).with("PUT", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      dsl.draw { mount SomeRackApp, at: "test_route", via: :put }
-    end
-
-    it "correctly mounts a Rack application using DELETE" do
-      expect(router).to receive(:on).with("DELETE", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      dsl.draw { mount SomeRackApp, at: "test_route", via: :delete }
-    end
-  end
-
-  context "mouting a Rack application with hash" do
-    SomeRackApp = ->(env) { [200, { 'Content-Type' => 'text/plain' }, ['Hello, Rack!']] }
-
-    it "correctly mounts Rack applications" do
-      expect(router).to receive(:on).with("GET", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      dsl.draw { mount SomeRackApp => "test_route", via: :get }
-    end
-
-    it "correctly mounts a Rack application using POST" do
-      expect(router).to receive(:on).with("POST", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      dsl.draw { mount SomeRackApp => "test_route", via: :post }
-    end
-
-    it "correctly mounts a Rack application using PUT" do
-      expect(router).to receive(:on).with("PUT", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      dsl.draw { mount SomeRackApp => "test_route", via: :put }
-    end
-
-    it "correctly mounts a Rack application using DELETE" do
-      expect(router).to receive(:on).with("DELETE", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      dsl.draw { mount SomeRackApp => "test_route", via: :delete }
-    end
-
-    it "uses mount route without via" do
-      expect(router).to receive(:on).with("HEAD", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      expect(router).to receive(:on).with("GET", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      expect(router).to receive(:on).with("POST", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      expect(router).to receive(:on).with("PUT", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      expect(router).to receive(:on).with("PATCH", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      expect(router).to receive(:on).with("DELETE", "/test_route", SomeRackApp, constraints: {}, defaults: nil)
-      dsl.draw { mount SomeRackApp => "test_route" }
-    end
-  end
-
-  context "use mount with a class instead of a lambda" do
-    class SomeRackClassApp
-      def call(env)
-        [200, { 'Content-Type' => 'text/plain' }, ['Hello, Rack!']]
+      it "allows to customize http methods" do
+        expect(router).to receive(:mount).with("/test_route", TestRackApp, %w(POST PUT))
+        dsl.draw { mount(TestRackApp, at: "/test_route", via: %i(post put)) }
       end
     end
 
-    it "correctly mounts Rack applications" do
-      expect(router).to receive(:on).with("GET", "/test_route", SomeRackClassApp, constraints: {}, defaults: nil)
-      dsl.draw { mount SomeRackClassApp, at: "test_route", via: :get }
+    context "with hash arguments" do
+      it "correctly mounts Rack applications" do
+        expect(router).to receive(:mount).with("/test_route", TestRackApp, default_http_methods)
+        dsl.draw { mount(TestRackApp => "/test_route") }
+      end
+
+      it "allows to customize http methods" do
+        expect(router).to receive(:mount).with("/test_route", TestRackApp, %w(DELETE))
+        dsl.draw { mount(TestRackApp => "/test_route", via: :delete) }
+      end
     end
 
-    it "correctly mounts a Rack application using POST" do
-      expect(router).to receive(:on).with("POST", "/test_route", SomeRackClassApp, constraints: {}, defaults: nil)
-      dsl.draw { mount SomeRackClassApp, at: "test_route", via: :post }
+    it "correctly processes via: :all options" do
+      expect(router).to receive(:mount).with("/test_route", TestRackApp, default_http_methods)
+      dsl.draw { mount(TestRackApp, at: "/test_route", via: :all) }
     end
 
-    it "correctly mounts a Rack application using PUT" do
-      expect(router).to receive(:on).with("PUT", "/test_route", SomeRackClassApp, constraints: {}, defaults: nil)
-      dsl.draw { mount SomeRackClassApp, at: "test_route", via: :put }
+    it "validates http methods" do
+      expect {
+        dsl.draw { mount(TestRackApp, at: "/test_route", via: %i(all get)) }
+      }.to raise_error(/Invalid HTTP method: all/)
     end
 
-    it "correctly mounts a Rack application using DELETE" do
-      expect(router).to receive(:on).with("DELETE", "/test_route", SomeRackClassApp, constraints: {}, defaults: nil)
-      dsl.draw { mount SomeRackClassApp, at: "test_route", via: :delete }
+    it "adds leading slashes" do
+      expect(router).to receive(:mount).with("/test_route", TestRackApp, default_http_methods)
+      dsl.draw { mount(TestRackApp, at: "test_route") }
+    end
+
+    it "removes trailing slashes" do
+      expect(router).to receive(:mount).with("/test_route", TestRackApp, default_http_methods)
+      dsl.draw { mount(TestRackApp, at: "/test_route/") }
+    end
+
+    context "with a class" do
+      before do
+        klass = Class.new do
+          def call(env)
+            [200, { "Content-Type" => "text/plain" }, ["Hello, Rack!"]]
+          end
+        end
+        stub_const("TestRackApp", klass)
+      end
+
+      it "correctly mounts Rack applications" do
+        expect(router).to receive(:mount).with("/test_route", TestRackApp, default_http_methods)
+        dsl.draw { mount(TestRackApp => "/test_route") }
+      end
     end
   end
 

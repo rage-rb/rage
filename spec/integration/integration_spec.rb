@@ -21,6 +21,7 @@ RSpec.describe "End-to-end" do
       Process.kill(:SIGTERM, @pid)
       Process.wait
       system("rm spec/integration/test_app/Gemfile.lock")
+      system("rm spec/integration/test_app/log/development.log")
     end
   end
 
@@ -74,7 +75,7 @@ RSpec.describe "End-to-end" do
   it "correctly responds with 500" do
     response = HTTP.get("http://localhost:3000/raise_error")
     expect(response.code).to eq(500)
-    expect(response.to_s).to start_with("RuntimeError:1155 test error")
+    expect(response.to_s).to start_with("RuntimeError (1155 test error)")
   end
 
   it "sets correct headers" do
@@ -86,19 +87,19 @@ RSpec.describe "End-to-end" do
     it "correctly parses query params" do
       response = HTTP.get("http://localhost:3000/params/digest?test=true&message=hello+world")
       expect(response.code).to eq(200)
-      expect(response.to_s).to eq("f4eaa8afa0abb12c143d599b670822a2")
+      expect(response.to_s).to eq("e51b2c9c5399485acbc88f60f4f782c5")
     end
 
     it "correctly parses url params" do
       response = HTTP.get("http://localhost:3000/params/1144/defaults")
       expect(response.code).to eq(200)
-      expect(response.to_s).to eq("56c3d060e4db7e6906dfe05242518e0f")
+      expect(response.to_s).to eq("49d0c01df27b9b15b558554439bdfd00")
     end
 
     it "correctly parses json body" do
       response = HTTP.post("http://localhost:3000/params/digest?hello=w+o+r+l+d", json: { id: 10, test: true })
       expect(response.code).to eq(200)
-      expect(response.to_s).to eq("68104cf6236b92f607e2c0f3c78e0dc6")
+      expect(response.to_s).to eq("beda497e73ccdbe91c140377b9dc5e48")
     end
 
     it "correctly parses multipart body" do
@@ -108,7 +109,7 @@ RSpec.describe "End-to-end" do
       })
 
       expect(response.code).to eq(200)
-      expect(response.to_s).to eq("6cbcf9b8c335dc621cee43fa0d30799a")
+      expect(response.to_s).to eq("662b82a8999aa1ce53d67dcc6d3e3605")
     end
 
     it "correctly parses urlencoded body" do
@@ -118,7 +119,7 @@ RSpec.describe "End-to-end" do
       })
 
       expect(response.code).to eq(200)
-      expect(response.to_s).to eq("95fe4f42bfe61c67b8e5a8434480a23d")
+      expect(response.to_s).to eq("0f825fc37d17c300570e3252ea648563")
     end
   end
 
@@ -151,6 +152,12 @@ RSpec.describe "End-to-end" do
       expect(response.code).to eq(204)
       expect(response.to_s).to eq("")
     end
+
+    it "correctly processes exceptions from inner fibers" do
+      response = HTTP.get("http://localhost:3000/async/raise_error")
+      expect(response.code).to eq(500)
+      expect(response.to_s).to include("raised from inner fiber")
+    end
   end
 
   context "with before actions" do
@@ -162,6 +169,70 @@ RSpec.describe "End-to-end" do
     it "correctly processes the request" do
       response = HTTP.get("http://localhost:3000/before_actions/get?with_timestamp=true")
       expect(response.parse).to eq({ "message" => "hello world", "timestamp" => 1636466868 })
+    end
+  end
+
+  context "with logs" do
+    let(:logs) { File.readlines("spec/integration/test_app/log/development.log") }
+
+    it "correctly adds 2xx entries" do
+      HTTP.get("http://localhost:3000/empty")
+      expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/empty controller=application action=empty status=204 duration=\d+\.\d+$/)
+    end
+
+    it "correctly adds 404 entries" do
+      HTTP.get("http://localhost:3000/unknown")
+      expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/unknown status=404 duration=\d+\.\d+$/)
+    end
+
+    it "correctly adds 500 entries" do
+      HTTP.get("http://localhost:3000/raise_error")
+
+      request_tag = logs.last.match(/^\[(\w{16})\]/)[1]
+      request_logs = logs.select { |log| log.include?(request_tag) }
+
+      expect(request_logs.size).to eq(2)
+      expect(request_logs[0]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=error message=RuntimeError \(1155 test error\):$/)
+      expect(request_logs[1]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/raise_error controller=application action=raise_error status=500 duration=\d+\.\d+$/)
+    end
+
+    it "correctly adds non-get entries" do
+      HTTP.patch("http://localhost:3000/patch")
+      expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=PATCH path=\/patch controller=application action=patch status=200 duration=\d+\.\d+$/)
+    end
+
+    it "correctly adds custom entries" do
+      HTTP.get("http://localhost:3000/logs/custom")
+
+      request_logs = logs.last(4)
+      request_tag = logs.last.match(/^\[(\w{16})\]/)[1]
+
+      expect(request_logs[0]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info message=log_1$/)
+      expect(request_logs[1]).to match(/^\[#{request_tag}\]\[tag_2\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=warn message=log_2$/)
+      expect(request_logs[2]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=error test=true message=log_3$/)
+      expect(request_logs[3]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/logs\/custom controller=logs action=custom status=204 duration=\d+\.\d+$/)
+    end
+
+    it "correctly adds entries from inner fibers" do
+      HTTP.get("http://localhost:3000/logs/fiber")
+
+      request_logs = logs.last(4)
+      request_tag = logs.last.match(/^\[(\w{16})\]/)[1]
+
+      expect(request_logs[0]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info message=outside_1$/)
+      expect(request_logs[1]).to match(/^\[#{request_tag}\]\[in_fiber\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info message=inside$/)
+      expect(request_logs[2]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info message=outside_2$/)
+      expect(request_logs[3]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/logs\/fiber controller=logs action=fiber status=204 duration=\d+\.\d+$/)
+    end
+
+    it "correctly adds root entries from mounted apps" do
+      HTTP.get("http://localhost:3000/admin")
+      expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/admin controller= action= status=200 duration=\d+\.\d+$/)
+    end
+
+    it "correctly adds non-root entries from mounted apps" do
+      HTTP.delete("http://localhost:3000/admin/undo")
+      expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=DELETE path=\/admin\/undo controller= action= status=200 duration=\d+\.\d+$/)
     end
   end
 end
