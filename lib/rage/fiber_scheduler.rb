@@ -55,7 +55,7 @@ class Rage::FiberScheduler
 
     ::Iodine::Scheduler.write(io.fileno, buffer.get_string, bytes_to_write, offset)
 
-    buffer.size - offset
+    bytes_to_write - offset
   end
 
   def kernel_sleep(duration = nil)
@@ -120,7 +120,7 @@ class Rage::FiberScheduler
         Fiber.current.__set_result(block.call)
         # send a message for `Fiber.await` to work
         Iodine.publish("await:#{parent.object_id}", "") if parent.alive?
-      rescue => e
+      rescue Exception => e
         Fiber.current.__set_err(e)
         Iodine.publish("await:#{parent.object_id}", Fiber::AWAIT_ERROR_MESSAGE) if parent.alive?
       end

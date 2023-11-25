@@ -12,7 +12,7 @@ class Rage::Router::DSL
   ##
   # This class implements routing logic for your application, providing API similar to Rails.
   #
-  # Compared to Rails router, the most notable difference is that a wildcard segment can only be in the last section of the path and cannot be named.
+  # Compared to the Rails router, the most notable difference is that a wildcard segment can only be in the last section of the path and cannot be named.
   # Example:
   # ```ruby
   # get "/photos/*"

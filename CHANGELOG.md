@@ -1,25 +1,44 @@
 ## [Unreleased]
 
+## [0.5.0] - 2023-11-25
+
+### Added
+
+- Add sessions for compatibility with `Sidekiq::Web` (#35).
+- Add logger (#33).
+
+### Fixed
+
+- Fixes for `FiberScheduler#io_wait` and `FiberScheduler#io_read` (#32).
+- Correctly handle exceptions in inner fibers (#34).
+- Fixes for `FiberScheduler#kernel_sleep` (#36).
+
+### Changed
+
+- Use config namespaces (#25).
+- Update `Fiber.await` signature (#36).
+
 ## [0.4.0] - 2023-10-31
 
 ### Added
 
-- Expose the `params` object.
-- Support header authentication with `authenticate_with_http_token`.
-- Add the `resources` and `namespace` route helpers.
-- Add the `mount` and `match` route helpers.
-- Allow to access request headers.
+- Expose the `params` object (#23).
+- Support header authentication with `authenticate_with_http_token` (#21).
+- Add the `resources` route helper (#20).
+- Add the `namespace` route helper by [@arikarim](https://github.com/arikarim) (#17).
+- Add the `mount` and `match` route helpers by [@arikarim](https://github.com/arikarim) (#18) (#14).
+- Allow to access request headers by [@arikarim](https://github.com/arikarim) (#15).
 - Support custom ports when starting the app with `rage s`.
 
 ## [0.3.0] - 2023-10-08
 
 ### Added
 
-- CLI `routes` task.
-- CLI `console` task.
-- `:if` and `:unless` options in `before_action`.
-- Allow to set response headers.
-- Block version of `before_action`.
+- CLI `routes` task by [@arikarim](https://github.com/arikarim) (#9).
+- CLI `console` task (#12).
+- `:if` and `:unless` options in `before_action` (#10).
+- Allow to set response headers (#11).
+- Block version of `before_action` by [@heysyam99](https://github.com/heysyam99) (#8).
 
 ## [0.2.0] - 2023-09-27
 

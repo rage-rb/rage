@@ -21,7 +21,7 @@ class Rage::Application
         [404, {}, ["Not Found"]]
       end
 
-    rescue => e
+    rescue Exception => e
       exception_str = "#{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}"
       Rage.logger.error(exception_str)
       response = [500, {}, [exception_str]]
