@@ -1,6 +1,9 @@
 class Rage::TextFormatter
   def initialize
     @pid = Process.pid
+    Iodine.on_state(:on_start) do
+      @pid = Process.pid
+    end
   end
 
   def call(severity, timestamp, _, message)

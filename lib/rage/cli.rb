@@ -10,6 +10,7 @@ module Rage
 
     desc "new PATH", "Create a new application."
     def new(path)
+      require "rage/all"
       NewAppGenerator.start([path])
     end
 

@@ -7,6 +7,8 @@
 /spec/reports/
 /tmp/
 .DS_Store
+Gemfile.lock
+*.gem
 
 # rspec failure tracking
 .rspec_status

@@ -49,6 +49,7 @@ Check out in-depth API docs for more information:
 - [Controller API](https://rage-rb.pages.dev/RageController/API)
 - [Routing API](https://rage-rb.pages.dev/Rage/Router/DSL/Handler)
 - [Fiber API](https://rage-rb.pages.dev/Fiber)
+- [Logger API](https://rage-rb.pages.dev/Rage/Logger)
 
 Also, see the [changelog](https://github.com/rage-rb/rage/blob/master/CHANGELOG.md) and [upcoming-releases](https://github.com/rage-rb/rage#upcoming-releases) for currently supported and planned features.
 
@@ -144,7 +145,7 @@ Version | Changes
 0.2 :white_check_mark: | ~~Gem configuration by env.<br>Add `skip_before_action`.<br>Add `rescue_from`.<br>Router updates:<br>&emsp;• make the `root` helper work correctly with `scope`;<br>&emsp;• support the `defaults` option;~~
 0.3 :white_check_mark: | ~~CLI updates:<br>&emsp;• `routes` task;<br>&emsp;• `console` task;<br>Support the `:if` and `:unless` options in `before_action`.<br>Allow to set response headers.~~
 0.4 :white_check_mark: | ~~Expose the `params` object.<br>Support header authentication with `authenticate_with_http_token`.<br>Router updates:<br>&emsp;• add the `resources` route helper;<br>&emsp;• add the `namespace` route helper;~~
-0.5 | Add request logging.
+0.5 :white_check_mark:  | ~~Add request logging.~~
 0.6 | Automatic code reloading in development with Zeitwerk.
 0.7 | Expose the `send_data` and `send_file` methods.
 0.8 | Support conditional get with `etag` and `last_modified`.
