@@ -17,7 +17,6 @@ jobs:
         ruby:
           - '3.1.4'
           - '3.2.2'
-
     steps:
     - uses: actions/checkout@v3
     - name: Set up Ruby
@@ -44,3 +43,25 @@ jobs:
         bundler-cache: true
     - name: Run YARD
       run: bundle exec yardoc --fail-on-warning
+  cli:
+    runs-on: ubuntu-latest
+    name: Test CLI
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ruby
+        bundler-cache: true
+    - name: Build the gem
+      run: gem build -o rage-local.gem && gem install rage-local.gem --no-document
+    - name: Create a project
+      run: rage new my_app
+    - name: Start the server
+      working-directory: ./my_app
+      run: bundle install && bundle exec rage s&
+    - name: Test the default route
+      run: curl --fail http://localhost:3000
+    - name: Run the routes task
+      working-directory: ./my_app
+      run: bundle exec rage routes
