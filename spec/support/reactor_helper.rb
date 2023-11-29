@@ -10,6 +10,7 @@ module ReactorHelper
 
     Iodine.defer { fiber = Fiber.schedule { block.call } }
     Iodine.run_every(200) { Iodine.stop unless fiber.alive? rescue Iodine.stop }
+    Iodine.run_after(10_000) { fiber.raise("execution expired") }
 
     Iodine.threads = Iodine.workers = 1
     Iodine.start
