@@ -61,5 +61,6 @@ class Rage::Application
 
     logger[:final] = { env:, params:, response:, duration: }
     Rage.logger.info("")
+    logger[:final] = nil
   end
 end
