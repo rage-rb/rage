@@ -20,6 +20,7 @@ class Rage::Configuration
   end
 
   def __finalize
+    @logger ||= Rage::Logger.new(nil)
     @logger.formatter = @log_formatter if @logger && @log_formatter
     @logger.level = @log_level if @logger && @log_level
   end
