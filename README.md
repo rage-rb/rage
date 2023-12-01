@@ -4,6 +4,8 @@
 
 [![Gem Version](https://badge.fury.io/rb/rage-rb.svg)](https://badge.fury.io/rb/rage-rb)
 ![Tests](https://github.com/rage-rb/rage/actions/workflows/main.yml/badge.svg)
+![Ruby Requirement](https://img.shields.io/badge/Ruby-3.1%2B-%23f40000)
+
 
 Inspired by [Deno](https://deno.com) and built on top of [Iodine](https://github.com/rage-rb/iodine), this is a Ruby web framework that is based on the following design principles:
 
