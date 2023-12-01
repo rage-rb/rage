@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [0.5.1] - 2023-12-01
+
+### Fixed
+
+- Fix logging inside detached fibers (#41).
+- Allow to configure the logger as `nil` (#42).
+
 ## [0.5.0] - 2023-11-25
 
 ### Added
