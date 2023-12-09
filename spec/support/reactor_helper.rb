@@ -8,7 +8,7 @@ module ReactorHelper
   def within_reactor(&block)
     fiber = nil
 
-    Iodine.defer { fiber = Fiber.schedule { block.call } }
+    Iodine.defer { fiber = Fiber.schedule { Fiber.current.__set_result(block.call) } }
     Iodine.run_every(200) { Iodine.stop unless fiber.alive? rescue Iodine.stop }
     Iodine.run_after(10_000) { fiber.raise("execution expired") }
 
