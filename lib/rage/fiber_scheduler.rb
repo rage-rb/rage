@@ -108,9 +108,7 @@ class Rage::FiberScheduler
 
     fiber = if parent == @root_fiber
       # the fiber to wrap a request in
-      Fiber.new(blocking: false) do
-        Fiber.current.__set_result(block.call)
-      end
+      Fiber.new(blocking: false) { block.call }
     else
       # the fiber was created in the user code
       logger = Thread.current[:rage_logger]

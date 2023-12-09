@@ -4,6 +4,11 @@ class Fiber
   AWAIT_ERROR_MESSAGE = "err"
 
   # @private
+  def __get_id
+    @__rage_id ||= object_id.to_s
+  end
+
+  # @private
   def __set_result(result)
     @__result = result
   end

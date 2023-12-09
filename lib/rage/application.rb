@@ -9,34 +9,24 @@ class Rage::Application
   end
 
   def call(env)
-    fiber = Fiber.schedule do
-      init_logger
+    init_logger
 
-      handler = @router.lookup(env)
+    handler = @router.lookup(env)
 
-      response = if handler
-        params = Rage::ParamsParser.prepare(env, handler[:params])
-        handler[:handler].call(env, params)
-      else
-        [404, {}, ["Not Found"]]
-      end
-
-    rescue Exception => e
-      exception_str = "#{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}"
-      Rage.logger.error(exception_str)
-      response = [500, {}, [exception_str]]
-
-    ensure
-      finalize_logger(env, response, params)
-      Iodine.publish(env["IODINE_REQUEST_ID"], "") # notify Iodine the request can now be served
-    end
-
-    # the fiber encountered blocking IO and yielded; instruct Iodine to pause the request;
-    if fiber.alive?
-      [:__http_defer__, fiber]
+    response = if handler
+      params = Rage::ParamsParser.prepare(env, handler[:params])
+      handler[:handler].call(env, params)
     else
-      fiber.__get_result
+      [404, {}, ["Not Found"]]
     end
+
+  rescue Exception => e
+    exception_str = "#{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}"
+    Rage.logger.error(exception_str)
+    response = [500, {}, [exception_str]]
+
+  ensure
+    finalize_logger(env, response, params)
   end
 
   private
