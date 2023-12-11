@@ -20,6 +20,13 @@ module Rage
       app = ::Rack::Builder.parse_file("config.ru")
       app = app[0] if app.is_a?(Array)
 
+      unless app.is_a?(Rage::FiberWrapper)
+        raise <<-ERR
+          Couldn't find the default middleware. Make sure to add the following line to your config.ru file:
+          Rage.load_middlewares(self)
+        ERR
+      end
+
       ::Iodine.listen service: :http, handler: app, port: options[:port] || Rage.config.server.port
       ::Iodine.threads = Rage.config.server.threads_count
       ::Iodine.workers = Rage.config.server.workers_count
