@@ -83,6 +83,12 @@ RSpec.describe "End-to-end" do
     expect(response.headers["content-type"]).to eq("text/plain; charset=utf-8")
   end
 
+  it "correctly uses middlewares" do
+    response = HTTP.headers("Test-Middleware" => "true").get("http://localhost:3000/get")
+    expect(response.code).to eq(206)
+    expect(response.to_s).to eq("response from middleware")
+  end
+
   context "with params" do
     it "correctly parses query params" do
       response = HTTP.get("http://localhost:3000/params/digest?test=true&message=hello+world")

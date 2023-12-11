@@ -23,6 +23,16 @@ class Fiber
     @__err
   end
 
+   # @private
+  def __get_id
+    @__rage_id ||= object_id.to_s
+  end
+
+  # @private
+  def __yielded?
+    !@__rage_id.nil?
+  end
+
   # @private
   # pause a fiber and resume in the next iteration of the event loop
   def self.pause

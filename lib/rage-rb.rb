@@ -43,6 +43,12 @@ module Rage
     @logger ||= config.logger
   end
 
+  def self.load_middlewares(rack_builder)
+    config.middleware.middlewares.each do |middleware, args, block|
+      rack_builder.use(middleware, *args, &block)
+    end
+  end
+
   module Router
     module Strategies
     end
