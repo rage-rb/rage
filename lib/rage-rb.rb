@@ -28,7 +28,7 @@ module Rage
   end
 
   def self.env
-    @__env ||= ENV["RAGE_ENV"] || ENV["RAILS_ENV"] || ENV["RACK_ENV"] || "development"
+    @__env ||= Rage::Env.new(ENV["RAGE_ENV"] || ENV["RAILS_ENV"] || ENV["RACK_ENV"] || "development")
   end
 
   def self.groups
@@ -51,3 +51,5 @@ end
 
 module RageController
 end
+
+require_relative "rage/env"
