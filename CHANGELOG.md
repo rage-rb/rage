@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [0.5.2] - 2023-12-11
+
+### Added
+
+- Add env class (#43).
+
+### Changed
+
+- Schedule request Fibers in a separate middleware (#48).
+
 ## [0.5.1] - 2023-12-01
 
 ### Fixed
