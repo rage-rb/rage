@@ -14,6 +14,10 @@ class Rage::Router::Backend
     @constrainer = Rage::Router::Constrainer.new({})
   end
 
+  def reset_routes
+    @routes = []
+  end
+
   def mount(path, handler, methods)
     raise "Mount handler should respond to `call`" unless handler.respond_to?(:call)
 

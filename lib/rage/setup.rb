@@ -2,22 +2,35 @@ Iodine.patch_rack
 
 require_relative "#{Rage.root}/config/environments/#{Rage.env}"
 
+# TODO: add initializers
+autoload_path = "#{Rage.root}/app/"
+# TODO: prettify with methods .development? / .production?
+enable_reloading = Rage.env == 'development'
+enable_eager_loading = Rage.env == 'production'
 
-# load application files
-app, bad = Dir["#{Rage.root}/app/**/*.rb"], []
+require 'zeitwerk'
+loader = Zeitwerk::Loader.new
+loader.push_dir(autoload_path)
+# The first level of directories in app directory won't be treated as modules
+# e.g. app/controllers/pages_controller.rb will be linked to PagesController class
+# instead of Controllers::PagesController
+loader.collapse("#{Rage.root}/app/*")
+loader.enable_reloading if enable_reloading
+loader.setup
 
-loop do
-  path = app.shift
-  break if path.nil?
+loader.eager_load if enable_eager_loading
 
-  require_relative path
+if enable_reloading
+  require 'filewatcher'
+  file_watcher = Filewatcher.new(autoload_path)
 
-# push the file to the end of the list in case it depends on another file that has not yet been required;
-# re-raise if only errored out files are left
-rescue NameError
-  raise if (app - bad).empty?
-  app << path
-  bad << path
+  Thread.new do
+    file_watcher.watch do
+      loader.reload
+      Rage.__router.reset_routes
+      load("#{Rage.root}/config/routes.rb")
+    end
+  end
 end
 
 require_relative "#{Rage.root}/config/routes"
