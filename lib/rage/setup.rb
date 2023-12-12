@@ -2,7 +2,12 @@ Iodine.patch_rack
 
 require_relative "#{Rage.root}/config/environments/#{Rage.env}"
 
-# TODO: add initializers
+# Run application initializers
+Dir["#{Rage.root}/config/initializers/**/*.rb"].each do |initializer|
+  load(initializer)
+end
+
+# Load application classes
 autoload_path = "#{Rage.root}/app/"
 # TODO: prettify with methods .development? / .production?
 enable_reloading = Rage.env == 'development'
@@ -20,6 +25,7 @@ loader.setup
 
 loader.eager_load if enable_eager_loading
 
+# Watch for the code changes and automatically reload classes if the new changes were introduced
 if enable_reloading
   require 'filewatcher'
   file_watcher = Filewatcher.new(autoload_path)
