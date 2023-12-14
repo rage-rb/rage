@@ -13,8 +13,7 @@ autoload_path = "#{Rage.root}/app/"
 enable_reloading = Rage.env == 'development'
 enable_eager_loading = Rage.env == 'production'
 
-require 'zeitwerk'
-loader = Zeitwerk::Loader.new
+loader = Rage.code_loader
 loader.push_dir(autoload_path)
 # The first level of directories in app directory won't be treated as modules
 # e.g. app/controllers/pages_controller.rb will be linked to PagesController class
@@ -22,21 +21,6 @@ loader.push_dir(autoload_path)
 loader.collapse("#{Rage.root}/app/*")
 loader.enable_reloading if enable_reloading
 loader.setup
-
 loader.eager_load if enable_eager_loading
-
-# Watch for the code changes and automatically reload classes if the new changes were introduced
-if enable_reloading
-  require 'filewatcher'
-  file_watcher = Filewatcher.new(autoload_path)
-
-  Thread.new do
-    file_watcher.watch do
-      loader.reload
-      Rage.__router.reset_routes
-      load("#{Rage.root}/config/routes.rb")
-    end
-  end
-end
 
 require_relative "#{Rage.root}/config/routes"

@@ -24,6 +24,7 @@ require_relative "logger/logger"
 
 require_relative "middleware/fiber_wrapper"
 require_relative "middleware/cors"
+require_relative "middleware/reloader"
 
 if defined?(Sidekiq)
   require_relative "sidekiq_session"

@@ -16,6 +16,7 @@ class Rage::Router::Backend
 
   def reset_routes
     @routes = []
+    @trees = {}
   end
 
   def mount(path, handler, methods)
