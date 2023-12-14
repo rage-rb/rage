@@ -7,4 +7,6 @@ Rage.configure do
 
   # Specify the logger
   config.logger = Rage::Logger.new(STDOUT)
+
+  config.middleware.use Rage::Reloader
 end
