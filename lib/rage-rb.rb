@@ -4,7 +4,6 @@ require "rack"
 require "json"
 require "iodine"
 require "pathname"
-require "zeitwerk"
 
 module Rage
   def self.application
@@ -51,7 +50,7 @@ module Rage
   end
 
   def self.code_loader
-    @code_loader ||= Zeitwerk::Loader.new
+    @code_loader ||= Rage::CodeLoader.new
   end
 
   module Router

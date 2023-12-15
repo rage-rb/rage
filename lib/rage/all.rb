@@ -9,6 +9,7 @@ require_relative "request"
 require_relative "uploaded_file"
 require_relative "errors"
 require_relative "params_parser"
+require_relative "code_loader"
 
 require_relative "router/strategies/host"
 require_relative "router/backend"
