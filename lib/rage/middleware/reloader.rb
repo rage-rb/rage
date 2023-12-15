@@ -6,15 +6,7 @@ class Rage::Reloader
   end
 
   def call(env)
-    reload_application_code
-    @app.call(env)
-  end
-
-  private
-
-  def reload_application_code
     Rage.code_loader.reload
-    Rage.__router.reset_routes
-    load("#{Rage.root}/config/routes.rb")
+    @app.call(env)
   end
 end
