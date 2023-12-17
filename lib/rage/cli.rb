@@ -16,9 +16,16 @@ module Rage
 
     desc "s", "Start the app server."
     option :port, aliases: "-p", desc: "Runs Rage on the specified port - defaults to 3000."
+    option :environment, aliases: "-e", desc: "Specifies the environment to run this server under (test/development/production)."
+    option :binding, aliases: "-b", desc: "Binds Rails to the specified IP - defaults to 'localhost' in development and '0.0.0.0' in other environments."
     def server
+      ENV["RAGE_ENV"] = options[:environment]
+
       app = ::Rack::Builder.parse_file("config.ru")
       app = app[0] if app.is_a?(Array)
+
+      port = options[:port] || Rage.config.server.port
+      address = options[:binding] || (Rage.env.production? ? "0.0.0.0" : "localhost")
 
       unless app.is_a?(Rage::FiberWrapper)
         raise <<-ERR
@@ -27,7 +34,7 @@ module Rage
         ERR
       end
 
-      ::Iodine.listen service: :http, handler: app, port: options[:port] || Rage.config.server.port
+      ::Iodine.listen service: :http, handler: app, port: port, address: address
       ::Iodine.threads = Rage.config.server.threads_count
       ::Iodine.workers = Rage.config.server.workers_count
 
