@@ -29,6 +29,8 @@ module Rage
 
       port = options[:port] || Rage.config.server.port
       address = options[:binding] || (Rage.env.production? ? "0.0.0.0" : "localhost")
+      timeout = Rage.config.server.timeout
+      max_clients = Rage.config.server.max_clients
 
       unless app.is_a?(Rage::FiberWrapper)
         raise <<-ERR
@@ -37,7 +39,7 @@ module Rage
         ERR
       end
 
-      ::Iodine.listen service: :http, handler: app, port: port, address: address
+      ::Iodine.listen service: :http, handler: app, port: port, address: address, timeout: timeout, max_clients: max_clients
       ::Iodine.threads = Rage.config.server.threads_count
       ::Iodine.workers = Rage.config.server.workers_count
 

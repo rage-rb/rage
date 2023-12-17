@@ -13,7 +13,7 @@ class Rage::Configuration
   end
 
   class Server
-    attr_accessor :port, :workers_count
+    attr_accessor :port, :workers_count, :timeout, :max_clients
     attr_reader :threads_count
 
     def initialize
