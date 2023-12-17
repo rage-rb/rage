@@ -18,7 +18,10 @@ module Rage
     option :port, aliases: "-p", desc: "Runs Rage on the specified port - defaults to 3000."
     option :environment, aliases: "-e", desc: "Specifies the environment to run this server under (test/development/production)."
     option :binding, aliases: "-b", desc: "Binds Rails to the specified IP - defaults to 'localhost' in development and '0.0.0.0' in other environments."
+    option :help, aliases: "-h", desc: "Show this message."
     def server
+      return help("server") if options.help?
+
       ENV["RAGE_ENV"] = options[:environment]
 
       app = ::Rack::Builder.parse_file("config.ru")
@@ -43,7 +46,9 @@ module Rage
 
     desc 'routes', 'List all routes.'
     option :grep, aliases: "-g", desc: "Filter routes by pattern"
+    option :help, aliases: "-h", desc: "Show this message."
     def routes
+      return help("routes") if options.help?
       # the result would be something like this:
       # Verb  Path  Controller#Action
       # GET   /     application#index
@@ -97,7 +102,10 @@ module Rage
     end
 
     desc "c", "Start the app console."
+    option :help, aliases: "-h", desc: "Show this message."
     def console
+      return help("console") if options.help?
+
       require "irb"
       environment
       ARGV.clear
