@@ -1,8 +1,18 @@
 class Rage::Configuration
-  attr_accessor :logger, :log_formatter, :log_level
+  attr_accessor :logger
+  attr_reader :log_formatter, :log_level
 
   # used in DSL
   def config = self
+
+  def log_formatter=(formatter)
+    raise "Custom log formatter should respond to `#call`" unless formatter.respond_to?(:call)
+    @log_formatter = formatter
+  end
+
+  def log_level(level)
+    @log_level = level.is_a?(Symbol) ? Logger.const_get(level.to_s.upcase) : level
+  end
 
   def server
     @server ||= Server.new
@@ -60,9 +70,13 @@ class Rage::Configuration
     end
   end
 
+  # @private
   def __finalize
-    @logger ||= Rage::Logger.new(nil)
-    @logger.formatter = @log_formatter if @logger && @log_formatter
-    @logger.level = @log_level if @logger && @log_level
+    if @logger
+      @logger.formatter = @log_formatter if @log_formatter
+      @logger.level = @log_level if @log_level
+    else
+      @logger = Rage::Logger.new(nil)
+    end
   end
 end
