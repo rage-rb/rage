@@ -10,7 +10,7 @@ class Rage::Configuration
     @log_formatter = formatter
   end
 
-  def log_level(level)
+  def log_level=(level)
     @log_level = level.is_a?(Symbol) ? Logger.const_get(level.to_s.upcase) : level
   end
 
