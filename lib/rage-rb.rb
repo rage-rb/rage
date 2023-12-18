@@ -24,10 +24,11 @@ module Rage
 
   def self.configure(&)
     config.instance_eval(&)
+    config.__finalize
   end
 
   def self.env
-    @__env ||= ENV["RAGE_ENV"] || ENV["RAILS_ENV"] || ENV["RACK_ENV"] || "development"
+    @__env ||= Rage::Env.new(ENV["RAGE_ENV"] || ENV["RAILS_ENV"] || ENV["RACK_ENV"] || "development")
   end
 
   def self.groups
@@ -38,6 +39,16 @@ module Rage
     @root ||= Pathname.new(".").expand_path
   end
 
+  def self.logger
+    @logger ||= config.logger
+  end
+
+  def self.load_middlewares(rack_builder)
+    config.middleware.middlewares.each do |middleware, args, block|
+      rack_builder.use(middleware, *args, &block)
+    end
+  end
+
   module Router
     module Strategies
     end
@@ -46,3 +57,5 @@ end
 
 module RageController
 end
+
+require_relative "rage/env"

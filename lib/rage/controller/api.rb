@@ -50,7 +50,7 @@ class RageController::API
         ""
       end
 
-      class_eval <<-RUBY
+      class_eval <<-RUBY,  __FILE__, __LINE__ + 1
         def __run_#{action}
           #{before_actions_chunk}
           #{action}

@@ -55,15 +55,11 @@ class Rage::FiberScheduler
 
     ::Iodine::Scheduler.write(io.fileno, buffer.get_string, bytes_to_write, offset)
 
-    buffer.size - offset
+    bytes_to_write - offset
   end
 
   def kernel_sleep(duration = nil)
-    if duration
-      f = Fiber.current
-      ::Iodine.run_after((duration * 1000).to_i) { f.resume } 
-      Fiber.yield
-    end
+    block(nil, duration || 0)
   end
 
   # TODO: GC works a little strange with this closure;
@@ -84,13 +80,22 @@ class Rage::FiberScheduler
     Resolv.getaddresses(hostname)
   end
 
-  def block(blocker, timeout = nil)
-    f = Fiber.current
-    ::Iodine.subscribe("unblock:#{f.object_id}") do
-      ::Iodine.defer { ::Iodine.unsubscribe("unblock:#{f.object_id}") }
-      f.resume
+  def block(_blocker, timeout = nil)
+    f, fulfilled, channel = Fiber.current, false, "unblock:#{Fiber.current.object_id}"
+
+    resume_fiber_block = proc do
+      unless fulfilled
+        fulfilled = true
+        ::Iodine.defer { ::Iodine.unsubscribe(channel) }
+        f.resume
+      end
     end
-    # TODO support timeout
+
+    ::Iodine.subscribe(channel, &resume_fiber_block)
+    if timeout
+      ::Iodine.run_after((timeout * 1000).to_i, &resume_fiber_block)
+    end
+
     Fiber.yield
   end
 
@@ -99,15 +104,28 @@ class Rage::FiberScheduler
   end
 
   def fiber(&block)
-    f = Fiber.current
-    inner_schedule = f != @root_fiber
+    parent = Fiber.current
 
-    fiber = Fiber.new(blocking: false) do
-      Fiber.current.__set_result(block.call)
-    ensure
-      # send a message for `Fiber.await` to work
-      Iodine.publish("await:#{f.object_id}", "") if inner_schedule
+    fiber = if parent == @root_fiber
+      # the fiber to wrap a request in
+      Fiber.new(blocking: false) do
+        Fiber.current.__set_result(block.call)
+      end
+    else
+      # the fiber was created in the user code
+      logger = Thread.current[:rage_logger]
+
+      Fiber.new(blocking: false) do
+        Thread.current[:rage_logger] = logger
+        Fiber.current.__set_result(block.call)
+        # send a message for `Fiber.await` to work
+        Iodine.publish("await:#{parent.object_id}", "") if parent.alive?
+      rescue Exception => e
+        Fiber.current.__set_err(e)
+        Iodine.publish("await:#{parent.object_id}", Fiber::AWAIT_ERROR_MESSAGE) if parent.alive?
+      end
     end
+
     fiber.resume
 
     fiber

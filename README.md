@@ -4,6 +4,8 @@
 
 [![Gem Version](https://badge.fury.io/rb/rage-rb.svg)](https://badge.fury.io/rb/rage-rb)
 ![Tests](https://github.com/rage-rb/rage/actions/workflows/main.yml/badge.svg)
+![Ruby Requirement](https://img.shields.io/badge/Ruby-3.1%2B-%23f40000)
+
 
 Inspired by [Deno](https://deno.com) and built on top of [Iodine](https://github.com/rage-rb/iodine), this is a Ruby web framework that is based on the following design principles:
 
@@ -11,7 +13,7 @@ Inspired by [Deno](https://deno.com) and built on top of [Iodine](https://github
 
 * **High performance** - some think performance is not a major metric for a framework, but it's not true. Poor performance is a risk, and in today's world, companies refuse to use risky technologies.
 
-* **API-only** - the only technology we should be using to create web UI is JavaScript. Using native technologies is always the most flexible, scalable, and simple solution in the long run. Check out [Vite](https://vitejs.dev) if you don't know where to start.
+* **API-only** - separation of concerns is one of the most fundamental principles in software development. Backend and frontend are very different layers with different goals and paths to those goals. Separating BE code from FE code results in a much more sustainable architecture compared with classic Rails monoliths.
 
 * **Acceptance of modern Ruby** - the framework includes a fiber scheduler, which means your code never blocks while waiting on IO.
 
@@ -49,6 +51,7 @@ Check out in-depth API docs for more information:
 - [Controller API](https://rage-rb.pages.dev/RageController/API)
 - [Routing API](https://rage-rb.pages.dev/Rage/Router/DSL/Handler)
 - [Fiber API](https://rage-rb.pages.dev/Fiber)
+- [Logger API](https://rage-rb.pages.dev/Rage/Logger)
 
 Also, see the [changelog](https://github.com/rage-rb/rage/blob/master/CHANGELOG.md) and [upcoming-releases](https://github.com/rage-rb/rage#upcoming-releases) for currently supported and planned features.
 
@@ -98,10 +101,10 @@ require "net/http"
 
 class PagesController < RageController::API
   def index
-    pages = Fiber.await(
+    pages = Fiber.await([
       Fiber.schedule { Net::HTTP.get(URI("https://httpbin.org/json")) },
       Fiber.schedule { Net::HTTP.get(URI("https://httpbin.org/html")) },
-    )
+    ])
 
     render json: { pages: pages }
   end
@@ -144,7 +147,7 @@ Version | Changes
 0.2 :white_check_mark: | ~~Gem configuration by env.<br>Add `skip_before_action`.<br>Add `rescue_from`.<br>Router updates:<br>&emsp;• make the `root` helper work correctly with `scope`;<br>&emsp;• support the `defaults` option;~~
 0.3 :white_check_mark: | ~~CLI updates:<br>&emsp;• `routes` task;<br>&emsp;• `console` task;<br>Support the `:if` and `:unless` options in `before_action`.<br>Allow to set response headers.~~
 0.4 :white_check_mark: | ~~Expose the `params` object.<br>Support header authentication with `authenticate_with_http_token`.<br>Router updates:<br>&emsp;• add the `resources` route helper;<br>&emsp;• add the `namespace` route helper;~~
-0.5 | Add request logging.
+0.5 :white_check_mark:  | ~~Add request logging.~~
 0.6 | Automatic code reloading in development with Zeitwerk.
 0.7 | Expose the `send_data` and `send_file` methods.
 0.8 | Support conditional get with `etag` and `last_modified`.

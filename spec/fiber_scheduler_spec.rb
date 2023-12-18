@@ -2,8 +2,10 @@
 
 require "net/http"
 require "digest"
+require "benchmark"
 require "pg"
 require "mysql2"
+require "connection_pool"
 require "redis-client"
 
 RSpec.describe Rage::FiberScheduler do
@@ -81,6 +83,32 @@ RSpec.describe Rage::FiberScheduler do
 
     rescue => e
       -> { expect(e).to be_a(Net::ReadTimeout) }
+    end
+  end
+
+  it "works correctly with non-persistent connections" do
+    uri = URI("#{TEST_HTTP_URL}/instant-http-get")
+
+    within_reactor do
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+      request = Net::HTTP::Get.new(uri.request_uri)
+      response = http.request(request)
+
+      -> { expect(response).to be_a(Net::HTTPOK) }
+    end
+  end
+
+  it "works correctly with non-persistent connections" do
+    uri = URI("#{TEST_HTTP_URL}/http-post")
+
+    within_reactor do
+      response = Net::HTTP.start(uri.host) do |http|
+        http.post(uri.request_uri, "", { "connection" => "close" })
+      end
+
+      -> { expect(response).to be_a(Net::HTTPOK) }
     end
   end
 
@@ -179,6 +207,40 @@ RSpec.describe Rage::FiberScheduler do
         conn.query("UPDATE tags SET token = '#{str}' WHERE id = 999")
         result = conn.query("SELECT * FROM tags WHERE id = 999")
         -> { expect(result.first["token"]).to eq(str) }
+      end
+    end
+  end
+
+  context "with connection pool" do
+    let(:pool_timeout) { 5 }
+    let(:pool_size) { 2 }
+    let(:pool) { ConnectionPool.new(size: pool_size, timeout: pool_timeout) { Net::HTTP } }
+
+    it "doesn't wait for <timeout> before making released connections available" do
+      within_reactor do
+        result = Benchmark.realtime do
+          fibers = (1..pool_size + 1).map do
+            Fiber.schedule { pool.with { |conn| conn.get(URI("#{TEST_HTTP_URL}/long-http-get")) } }
+          end
+          Fiber.await(fibers)
+        end
+
+        -> { expect(result).to be < pool_timeout }
+      end
+    end
+
+    context "with timeout" do
+      let(:pool_timeout) { 1 }
+      let(:pool_size) { 1 }
+
+      it "correctly times out" do
+        within_reactor do
+          Fiber.schedule { pool.with { |conn| conn.get(URI("#{TEST_HTTP_URL}/timeout")) } }
+          pool.with { |conn| conn.get(URI("#{TEST_HTTP_URL}/instant-http-get")) }
+          raise "failed"
+        rescue => e
+          -> { expect(e).to be_a(ConnectionPool::TimeoutError) }
+        end
       end
     end
   end
@@ -299,5 +361,15 @@ RSpec.describe Rage::FiberScheduler do
     end
 
     File.unlink("test")
+  end
+
+  it "correctly sleeps" do
+    within_reactor do
+      result = Benchmark.realtime do
+        Fiber.await(Fiber.schedule { sleep(1) })
+      end
+
+      -> { expect((1..1.5)).to include(result)  }
+    end
   end
 end

@@ -18,3 +18,13 @@ require_relative "router/handler_storage"
 require_relative "router/node"
 
 require_relative "controller/api"
+
+require_relative "logger/text_formatter"
+require_relative "logger/logger"
+
+require_relative "middleware/fiber_wrapper"
+require_relative "middleware/cors"
+
+if defined?(Sidekiq)
+  require_relative "sidekiq_session"
+end

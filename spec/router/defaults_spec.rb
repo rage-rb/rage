@@ -6,7 +6,7 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/photos")
     expect(result).to eq("all photos")
-    expect(params).to eq({ format: "jpg" })
+    expect(params).to include({ format: "jpg" })
   end
 
   it "correctly processes defaults with parametric urls" do
@@ -14,31 +14,31 @@ RSpec.describe Rage::Router::Backend do
 
     result, params = perform_get_request("/photo/10")
     expect(result).to eq("one photo")
-    expect(params).to eq({ id: "10", format: "jpg" })
+    expect(params).to include({ id: "10", format: "jpg" })
   end
 
   it "prioritizes url params over defaults" do
     router.on("GET", "/photo/:id", ->(_) {}, defaults: { id: "20" })
 
     _, params = perform_get_request("/photo/30")
-    expect(params).to eq({ id: "30" })
+    expect(params).to include({ id: "30" })
   end
 
   it "uses defaults when a parameter is missing" do
     router.on("GET", "/photo(/:id)", ->(_) {}, defaults: { id: "20" })
 
     _, params = perform_get_request("/photo")
-    expect(params).to eq({ id: "20" })
+    expect(params).to include({ id: "20" })
 
     _, params = perform_get_request("/photo/30")
-    expect(params).to eq({ id: "30" })
+    expect(params).to include({ id: "30" })
   end
 
   it "converts default values to string" do
     router.on("GET", "/photos", ->(_) {}, defaults: { id: 15 })
 
     _, params = perform_get_request("/photos")
-    expect(params).to eq({ id: "15" })
+    expect(params).to include({ id: "15" })
   end
 
   it "doesn't check defaults when searching for duplicate routes" do
