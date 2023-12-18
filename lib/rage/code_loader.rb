@@ -10,7 +10,7 @@ class Rage::CodeLoader
   def setup
     autoload_path = "#{Rage.root}/app"
     enable_reloading = Rage.env.development?
-    enable_eager_loading = Rage.env.production?
+    enable_eager_loading = !Rage.env.development? && !Rage.env.test?
 
     @loader.push_dir(autoload_path)
     # The first level of directories in app directory won't be treated as modules
