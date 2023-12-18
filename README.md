@@ -52,7 +52,6 @@ Check out in-depth API docs for more information:
 - [Routing API](https://rage-rb.pages.dev/Rage/Router/DSL/Handler)
 - [Fiber API](https://rage-rb.pages.dev/Fiber)
 - [Logger API](https://rage-rb.pages.dev/Rage/Logger)
-- [Configuration API](https://rage-rb.pages.dev/Rage/Configuration)
 
 Also, see the [changelog](https://github.com/rage-rb/rage/blob/master/CHANGELOG.md) and [upcoming-releases](https://github.com/rage-rb/rage#upcoming-releases) for currently supported and planned features.
 
