@@ -12,7 +12,7 @@ class Rage::Router::DSL
   ##
   # This class implements routing logic for your application, providing API similar to Rails.
   #
-  # Compared to Rails router, the most notable difference is that a wildcard segment can only be in the last section of the path and cannot be named.
+  # Compared to the Rails router, the most notable difference is that a wildcard segment can only be in the last section of the path and cannot be named.
   # Example:
   # ```ruby
   # get "/photos/*"
@@ -327,8 +327,19 @@ class Rage::Router::DSL
         via = args[1][:via]
       end
 
-      # Use match with via: :all to mount the Rack-based application
-      match(at, to: app, via:)
+      at = "/#{at}" unless at.start_with?("/")
+      at = at.delete_suffix("/") if at.end_with?("/")
+
+      http_methods = if via == :all || via.nil?
+        @default_match_methods.map { |method| method.to_s.upcase! }
+      else
+        Array(via).map! do |method|
+          raise ArgumentError, "Invalid HTTP method: #{method}" unless @default_match_methods.include?(method)
+          method.to_s.upcase!
+        end
+      end
+
+      @router.mount(at, app, http_methods)
     end
 
     private

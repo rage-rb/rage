@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 require "thor"
-require "rage/all"
-require "irb"
+require "rack"
 
 module Rage
   class CLI < Thor
@@ -11,16 +10,29 @@ module Rage
 
     desc "new PATH", "Create a new application."
     def new(path)
+      require "rage/all"
       NewAppGenerator.start([path])
     end
 
     desc "s", "Start the app server."
     option :port, aliases: "-p", desc: "Runs Rage on the specified port - defaults to 3000."
+    option :environment, aliases: "-e", desc: "Specifies the environment to run this server under (test/development/production)."
+    option :binding, aliases: "-b", desc: "Binds Rails to the specified IP - defaults to 'localhost' in development and '0.0.0.0' in other environments."
+    option :help, aliases: "-h", desc: "Show this message."
     def server
+      return help("server") if options.help?
+
+      ENV["RAGE_ENV"] = options[:environment] || "development"
+
       app = ::Rack::Builder.parse_file("config.ru")
       app = app[0] if app.is_a?(Array)
 
-      ::Iodine.listen service: :http, handler: app, port: options[:port] || Rage.config.server.port
+      port = options[:port] || Rage.config.server.port
+      address = options[:binding] || (Rage.env.production? ? "0.0.0.0" : "localhost")
+      timeout = Rage.config.server.timeout
+      max_clients = Rage.config.server.max_clients
+
+      ::Iodine.listen service: :http, handler: app, port: port, address: address, timeout: timeout, max_clients: max_clients
       ::Iodine.threads = Rage.config.server.threads_count
       ::Iodine.workers = Rage.config.server.workers_count
 
@@ -29,7 +41,9 @@ module Rage
 
     desc 'routes', 'List all routes.'
     option :grep, aliases: "-g", desc: "Filter routes by pattern"
+    option :help, aliases: "-h", desc: "Show this message."
     def routes
+      return help("routes") if options.help?
       # the result would be something like this:
       # Verb  Path  Controller#Action
       # GET   /     application#index
@@ -39,14 +53,20 @@ module Rage
 
       routes = Rage.__router.routes
       pattern = options[:grep]
-      routes.unshift({ method: "Verb", path: "Path", raw_handler: "Controller#Action" })
+      routes.unshift({ method: "Verb", path: "Path", meta: { raw_handler: "Controller#Action" } })
 
       grouped_routes = routes.each_with_object({}) do |route, memo|
         if pattern && !memo.empty?
-          next unless route[:path].match?(pattern) || route[:raw_handler].to_s.match?(pattern) || route[:method].match?(pattern)
+          next unless route[:path].match?(pattern) || route[:meta][:raw_handler].to_s.match?(pattern) || route[:method].match?(pattern)
         end
 
-        key = [route[:path], route[:raw_handler]]
+        key = [route[:path], route[:meta][:raw_handler]]
+
+        if route[:meta][:mount]
+          memo[key] = route.merge(method: "") unless route[:path].end_with?("*")
+          next
+        end
+
         if memo[key]
           memo[key][:method] += "|#{route[:method]}"
         else
@@ -68,7 +88,7 @@ module Rage
         meta = route[:constraints]
         meta.merge!(route[:defaults]) if route[:defaults]
 
-        handler = route[:raw_handler]
+        handler = route[:meta][:raw_handler]
         handler = "#{handler} #{meta}" unless meta&.empty?
 
         puts format("%-#{longest_method}s%-#{longest_path}s%s", route[:method], route[:path], handler)
@@ -77,7 +97,11 @@ module Rage
     end
 
     desc "c", "Start the app console."
+    option :help, aliases: "-h", desc: "Show this message."
     def console
+      return help("console") if options.help?
+
+      require "irb"
       environment
       ARGV.clear
       IRB.start

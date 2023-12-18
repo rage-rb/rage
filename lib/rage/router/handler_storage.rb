@@ -22,7 +22,7 @@ class Rage::Router::HandlerStorage
       params: params,
       constraints: constraints,
       handler: route[:handler],
-      create_params_object: compile_create_params_object(params, route[:defaults])
+      create_params_object: compile_create_params_object(params, route[:defaults], route[:meta])
     }
 
     constraints_keys = constraints.keys
@@ -47,8 +47,11 @@ class Rage::Router::HandlerStorage
 
   private
 
-  def compile_create_params_object(param_keys, defaults)
-    lines = []
+  def compile_create_params_object(param_keys, defaults, meta)
+    lines = [
+      ":controller => '#{meta[:controller]}'.freeze",
+      ":action => '#{meta[:action]}'.freeze"
+    ]
 
     param_keys.each_with_index do |key, i|
       lines << ":#{key} => param_values[#{i}]"
@@ -56,7 +59,7 @@ class Rage::Router::HandlerStorage
 
     if defaults
       defaults.except(*param_keys.map(&:to_sym)).each do |key, value|
-        lines << ":#{key} => '#{value}'"
+        lines << ":#{key} => '#{value}'.freeze"
       end
     end
 
