@@ -22,7 +22,7 @@ module Rage
     def server
       return help("server") if options.help?
 
-      ENV["RAGE_ENV"] = options[:environment]
+      ENV["RAGE_ENV"] = options[:environment] || "development"
 
       app = ::Rack::Builder.parse_file("config.ru")
       app = app[0] if app.is_a?(Array)
