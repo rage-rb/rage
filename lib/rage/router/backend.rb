@@ -282,7 +282,6 @@ class Rage::Router::Backend
     end
 
     klass = "#{str}Controller"
-
     if Object.const_defined?(klass)
       Object.const_get(klass)
     else
