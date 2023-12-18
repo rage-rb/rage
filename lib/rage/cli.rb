@@ -16,18 +16,23 @@ module Rage
 
     desc "s", "Start the app server."
     option :port, aliases: "-p", desc: "Runs Rage on the specified port - defaults to 3000."
+    option :environment, aliases: "-e", desc: "Specifies the environment to run this server under (test/development/production)."
+    option :binding, aliases: "-b", desc: "Binds Rails to the specified IP - defaults to 'localhost' in development and '0.0.0.0' in other environments."
+    option :help, aliases: "-h", desc: "Show this message."
     def server
+      return help("server") if options.help?
+
+      ENV["RAGE_ENV"] = options[:environment] || "development"
+
       app = ::Rack::Builder.parse_file("config.ru")
       app = app[0] if app.is_a?(Array)
 
-      unless app.is_a?(Rage::FiberWrapper)
-        raise <<-ERR
-          Couldn't find the default middleware. Make sure to add the following line to your config.ru file:
-          Rage.load_middlewares(self)
-        ERR
-      end
+      port = options[:port] || Rage.config.server.port
+      address = options[:binding] || (Rage.env.production? ? "0.0.0.0" : "localhost")
+      timeout = Rage.config.server.timeout
+      max_clients = Rage.config.server.max_clients
 
-      ::Iodine.listen service: :http, handler: app, port: options[:port] || Rage.config.server.port
+      ::Iodine.listen service: :http, handler: app, port: port, address: address, timeout: timeout, max_clients: max_clients
       ::Iodine.threads = Rage.config.server.threads_count
       ::Iodine.workers = Rage.config.server.workers_count
 
@@ -36,7 +41,9 @@ module Rage
 
     desc 'routes', 'List all routes.'
     option :grep, aliases: "-g", desc: "Filter routes by pattern"
+    option :help, aliases: "-h", desc: "Show this message."
     def routes
+      return help("routes") if options.help?
       # the result would be something like this:
       # Verb  Path  Controller#Action
       # GET   /     application#index
@@ -90,7 +97,10 @@ module Rage
     end
 
     desc "c", "Start the app console."
+    option :help, aliases: "-h", desc: "Show this message."
     def console
+      return help("console") if options.help?
+
       require "irb"
       environment
       ARGV.clear
