@@ -5,6 +5,7 @@ require "zeitwerk"
 class Rage::CodeLoader
   def initialize
     @loader = Zeitwerk::Loader.new
+    @reloading = false
   end
 
   def setup
@@ -23,12 +24,13 @@ class Rage::CodeLoader
   end
 
   def reload
+    @reloading = true
     @loader.reload
     Rage.__router.reset_routes
     load("#{Rage.root}/config/routes.rb")
   end
 
-  def reloading_enabled?
-    @loader.reloading_enabled?
+  def reloading?
+    @reloading
   end
 end

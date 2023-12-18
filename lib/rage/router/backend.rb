@@ -84,6 +84,9 @@ class Rage::Router::Backend
     end
 
     __on(method, path, handler, constraints, defaults, meta)
+
+  rescue Rage::Errors::RouterError => e
+    raise e unless Rage.code_loader.reloading?
   end
 
   def lookup(env)
@@ -285,7 +288,7 @@ class Rage::Router::Backend
     if Object.const_defined?(klass)
       Object.const_get(klass)
     else
-      raise "Routing error: could not find the #{klass} class"
+      raise Rage::Errors::RouterError, "Routing error: could not find the #{klass} class"
     end
   end
 end
