@@ -133,6 +133,9 @@ class Rage::Configuration
 
     def insert_before(existing_middleware, new_middleware, *args, &block)
       index = find_middleware_index(existing_middleware)
+      if index == 0 && @middlewares[0][0] == Rage::FiberWrapper
+        puts("Warning: inserting #{new_middleware} before Rage::FiberWrapper may lead to undefined behavior.")
+      end
       @middlewares = (@middlewares[0...index] + [[new_middleware, args, block]] + @middlewares[index..]).uniq(&:first)
     end
 
