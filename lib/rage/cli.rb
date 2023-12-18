@@ -32,13 +32,6 @@ module Rage
       timeout = Rage.config.server.timeout
       max_clients = Rage.config.server.max_clients
 
-      unless app.is_a?(Rage::FiberWrapper)
-        raise <<-ERR
-          Couldn't find the default middleware. Make sure to add the following line to your config.ru file:
-          Rage.load_middlewares(self)
-        ERR
-      end
-
       ::Iodine.listen service: :http, handler: app, port: port, address: address, timeout: timeout, max_clients: max_clients
       ::Iodine.threads = Rage.config.server.threads_count
       ::Iodine.workers = Rage.config.server.workers_count
