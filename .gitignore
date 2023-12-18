@@ -6,7 +6,6 @@
 /pkg/
 /spec/reports/
 /tmp/
-.idea/
 .DS_Store
 Gemfile.lock
 *.gem
