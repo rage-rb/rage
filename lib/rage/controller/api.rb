@@ -25,7 +25,7 @@ class RageController::API
             "unless #{h[:unless]}"
           end
 
-          <<-RUBY
+          <<~RUBY
             #{h[:name]} #{condition}
             return [@__status, @__headers, @__body] if @__rendered
           RUBY
@@ -51,7 +51,7 @@ class RageController::API
             "unless #{h[:unless]}"
           end
 
-          <<-RUBY
+          <<~RUBY
             #{h[:name]} #{condition}
           RUBY
         end
@@ -63,7 +63,7 @@ class RageController::API
 
       rescue_handlers_chunk = if @__rescue_handlers
         lines = @__rescue_handlers.map do |klasses, handler|
-          <<-RUBY
+          <<~RUBY
           rescue #{klasses.join(", ")} => __e
             #{handler}(__e)
             [@__status, @__headers, @__body]
@@ -75,7 +75,7 @@ class RageController::API
         ""
       end
 
-      class_eval <<-RUBY,  __FILE__, __LINE__ + 1
+      class_eval <<~RUBY,  __FILE__, __LINE__ + 1
         def __run_#{action}
           #{before_actions_chunk}
           #{action}
