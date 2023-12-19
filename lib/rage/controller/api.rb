@@ -189,7 +189,7 @@ class RageController::API
     #   skip_before_action :find_photo, only: :create
     def skip_before_action(action_name, only: nil, except: nil)
       i = @__before_actions&.find_index { |a| a[:name] == action_name }
-      raise "The following action was specified to be skipped but couldn't be found: #{self}##{action_name}" unless i
+      raise Rage::Errors::RouterError, "The following action was specified to be skipped but couldn't be found: #{self}##{action_name}" unless i
 
       @__before_actions = @__before_actions.dup if @__before_actions.frozen?
 
