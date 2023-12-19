@@ -49,6 +49,10 @@ module Rage
     end
   end
 
+  def self.code_loader
+    @code_loader ||= Rage::CodeLoader.new
+  end
+
   module Router
     module Strategies
     end

@@ -14,6 +14,11 @@ class Rage::Router::Backend
     @constrainer = Rage::Router::Constrainer.new({})
   end
 
+  def reset_routes
+    @routes = []
+    @trees = {}
+  end
+
   def mount(path, handler, methods)
     raise "Mount handler should respond to `call`" unless handler.respond_to?(:call)
 
@@ -79,6 +84,9 @@ class Rage::Router::Backend
     end
 
     __on(method, path, handler, constraints, defaults, meta)
+
+  rescue Rage::Errors::RouterError => e
+    raise e unless Rage.code_loader.reloading?
   end
 
   def lookup(env)
@@ -280,7 +288,7 @@ class Rage::Router::Backend
     if Object.const_defined?(klass)
       Object.const_get(klass)
     else
-      raise "Routing error: could not find the #{klass} class"
+      raise Rage::Errors::RouterError, "Routing error: could not find the #{klass} class"
     end
   end
 end
