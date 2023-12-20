@@ -214,6 +214,19 @@ RSpec.describe Rage::FiberScheduler do
     let(:pool_size) { 2 }
     let(:pool) { ConnectionPool.new(size: pool_size, timeout: pool_timeout) { Net::HTTP } }
 
+    it "correctly schedules connections" do
+      within_reactor do
+        result = Benchmark.realtime do
+          fibers = 5.times.map do
+            Fiber.schedule { pool.with { sleep(0.2) } }
+          end
+          Fiber.await(fibers)
+        end
+
+        -> { expect(0.58..0.62).to include(result) }
+      end
+    end
+
     it "doesn't wait for <timeout> before making released connections available" do
       within_reactor do
         result = Benchmark.realtime do

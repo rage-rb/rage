@@ -34,6 +34,14 @@ class Fiber
   end
 
   # @private
+  def __block_channel(force = false)
+    @__block_channel_i ||= 0
+    @__block_channel_i += 1 if force
+
+    "block:#{object_id}:#{@__block_channel_i}"
+  end
+
+  # @private
   # pause a fiber and resume in the next iteration of the event loop
   def self.pause
     f = Fiber.current

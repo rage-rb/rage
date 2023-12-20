@@ -81,7 +81,7 @@ class Rage::FiberScheduler
   end
 
   def block(_blocker, timeout = nil)
-    f, fulfilled, channel = Fiber.current, false, "unblock:#{Fiber.current.object_id}"
+    f, fulfilled, channel = Fiber.current, false, Fiber.current.__block_channel(true)
 
     resume_fiber_block = proc do
       unless fulfilled
@@ -100,7 +100,7 @@ class Rage::FiberScheduler
   end
 
   def unblock(_blocker, fiber)
-    ::Iodine.publish("unblock:#{fiber.object_id}", "")
+    ::Iodine.publish(fiber.__block_channel, "")
   end
 
   def fiber(&block)
