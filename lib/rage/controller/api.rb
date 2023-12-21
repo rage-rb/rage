@@ -331,4 +331,26 @@ class RageController::API
       @params ||= ActionController::Parameters.new(@__params)
     end
   end
+
+  # Checks if the request is stale to decide if the action has to be rendered or the cached version is still valid. Use this method to implement conditional GET.
+  #
+  # @param etag [String] The etag of the requested resource.
+  # @param last_modified [Time] The last modified time of the requested resource.
+  # @return [Boolean] True if the response is stale, false otherwise.
+  # @example
+  #  stale?(etag: "123", last_modified: Time.utc(2023, 12, 15))
+  #  stale?(last_modified: Time.utc(2023, 12, 15))
+  #  stale?(etag: "123")
+  # @note `stale?` will set the response status to 304 if the request is fresh. This side effect will cause a double render error, if `render` gets called after this method. Make sure to implement a proper conditional in your action to prevent this from happening:
+  #  ```ruby
+  #  if stale?(etag: "123")
+  #    render json: { hello: "world" }
+  #  end
+  #  ```
+  def stale?(etag: nil, last_modified: nil)
+    still_fresh = request.fresh?(etag:, last_modified:)
+
+    head :not_modified if still_fresh
+    !still_fresh
+  end
 end
