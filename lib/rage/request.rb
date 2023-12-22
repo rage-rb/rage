@@ -46,7 +46,7 @@ class Rage::Request
   end
 
   def etag_matches?(requested_etags:, response_etag:)
-    requested_etags = requested_etags ? requested_etags.split(",").map(&:strip) : []
+    requested_etags = requested_etags ? requested_etags.split(",").each(&:strip!) : []
 
     return true if requested_etags.empty?
     return false if response_etag.nil?
