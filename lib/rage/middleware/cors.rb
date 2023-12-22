@@ -80,6 +80,7 @@ class Rage::Cors
     origins.each do |origin|
       if origin == "*"
         @origins = "*"
+        break
       elsif origin.is_a?(Regexp) || origin =~ /^\S+:\/\//
         @origins << origin
       else
