@@ -104,6 +104,16 @@ RSpec.describe RageController::API do
       end
     end
 
+    context "and a matching etag with whitespace is set in the action" do
+      let(:env) { { "HTTP_IF_NONE_MATCH" => " 123, 456, 789, 455, 789" } }
+
+      it "returns NOT MODIFIED" do
+        expect(run_action(klass, :stale_etag_test, env:)).to match(
+          [304, an_instance_of(Hash), []]
+        )
+      end
+    end
+
     context "and no matching etag is set in the action" do
       let(:env) { { "HTTP_IF_NONE_MATCH" => "456,789" } }
 
