@@ -95,7 +95,7 @@ RSpec.describe RageController::API do
     end
 
     context "and a matching etag is set in the action" do
-      let(:env) { { "HTTP_IF_NONE_MATCH" => "123" } }
+      let(:env) { { "HTTP_IF_NONE_MATCH" => "123,456,789" } }
 
       it "returns NOT MODIFIED" do
         expect(run_action(klass, :stale_etag_test, env:)).to match(
@@ -104,8 +104,8 @@ RSpec.describe RageController::API do
       end
     end
 
-    context "and a non-matching etag is set in the action" do
-      let(:env) { { "HTTP_IF_NONE_MATCH" => "456" } }
+    context "and no matching etag is set in the action" do
+      let(:env) { { "HTTP_IF_NONE_MATCH" => "456,789" } }
 
       it "renders the requested resource" do
         expect(run_action(klass, :stale_etag_test, env:)).to match(
@@ -116,7 +116,7 @@ RSpec.describe RageController::API do
   end
 
   context "when IF-NONE-MATCH contains a wildcard" do
-    let(:env) { { "HTTP_IF_NONE_MATCH" => "*" } }
+    let(:env) { { "HTTP_IF_NONE_MATCH" => "xyz,*" } }
 
     it "returns NOT MODIFIED" do
       expect(run_action(klass, :stale_etag_test, env:)).to match(
