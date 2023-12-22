@@ -35,6 +35,18 @@ RSpec.describe Rage::Cors do
     end
   end
 
+  context "with mixed origins" do
+    let(:cors) do
+      described_class.new(app) do
+        allow "*", "localhost:3000"
+      end
+    end
+
+    it "sets correct headers" do
+      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://localhost:3000" }, ["test response"]])
+    end
+  end
+
   context "with matching origins" do
     let(:cors) do
       described_class.new(app) do

@@ -22,7 +22,7 @@ module Rage
     def server
       return help("server") if options.help?
 
-      ENV["RAGE_ENV"] = options[:environment] || "development"
+      set_env(options)
 
       app = ::Rack::Builder.parse_file("config.ru")
       app = app[0] if app.is_a?(Array)
@@ -49,6 +49,7 @@ module Rage
       # GET   /     application#index
 
       # load config/application.rb
+      set_env(options)
       environment
 
       routes = Rage.__router.routes
@@ -101,6 +102,8 @@ module Rage
     def console
       return help("console") if options.help?
 
+      set_env(options)
+
       require "irb"
       environment
       ARGV.clear
@@ -111,6 +114,10 @@ module Rage
 
     def environment
       require File.expand_path("config/application.rb", Dir.pwd)
+    end
+
+    def set_env(options)
+      ENV["RAGE_ENV"] = options[:environment] || ENV["RAGE_ENV"] || ENV["RAILS_ENV"] || ENV["RACK_ENV"] || "development"
     end
   end
 
