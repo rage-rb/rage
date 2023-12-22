@@ -56,8 +56,8 @@ class Rage::Logger
   # @param shift_period_suffix [String] the log file suffix format for daily, weekly or monthly rotation
   # @param binmode sets whether the logger writes in binary mode
   def initialize(log, level: Logger::DEBUG, formatter: Rage::TextFormatter.new, shift_age: 0, shift_size: 104857600, shift_period_suffix: "%Y%m%d", binmode: false)
-    if log && log != File::NULL
-      @logdev = Logger::LogDevice.new(log, shift_age:, shift_size:, shift_period_suffix:, binmode:)
+    @logdev = if log && log != File::NULL
+      Logger::LogDevice.new(log, shift_age:, shift_size:, shift_period_suffix:, binmode:)
     end
 
     @formatter = formatter
