@@ -23,9 +23,6 @@ class Rage::Request
   #  request.fresh?(last_modified: Time.utc(2023, 12, 15))
   #  request.fresh?(etag: "123")
   def fresh?(etag:, last_modified:)
-    if_none_match = headers["HTTP_IF_NONE_MATCH"]
-    if_not_modified_since = headers["HTTP_IF_MODIFIED_SINCE"]
-
     # Always render response when no freshness information
     # is provided in the request.
     return false unless if_none_match || if_not_modified_since
@@ -39,6 +36,14 @@ class Rage::Request
   end
 
   private
+
+  def if_none_match
+    headers["HTTP_IF_NONE_MATCH"]
+  end
+
+  def if_not_modified_since
+    headers["HTTP_IF_MODIFIED_SINCE"] ? Time.new(headers["HTTP_IF_MODIFIED_SINCE"]) : nil
+  end
 
   def etag_matches?(requested_etags:, response_etag:)
     requested_etags = requested_etags ? requested_etags.split(",").map(&:strip) : []
