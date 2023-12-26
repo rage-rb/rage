@@ -287,13 +287,10 @@ class RageController::API
   end # class << self
 
   # @private
-  DEFAULT_HEADERS = { "content-type" => "application/json; charset=utf-8" }.freeze
-
-  # @private
   def initialize(env, params)
     @__env = env
     @__params = params
-    @__status, @__headers, @__body = 204, DEFAULT_HEADERS, []
+    @__status, @__headers, @__body = 204, { "content-type" => "application/json; charset=utf-8" }, []
     @__rendered = false
   end
 
@@ -360,8 +357,6 @@ class RageController::API
   # @example
   #   headers["Content-Type"] = "application/pdf"
   def headers
-    # copy-on-write implementation for the headers object
-    @__headers = {}.merge!(@__headers) if DEFAULT_HEADERS.equal?(@__headers)
     @__headers
   end
 
