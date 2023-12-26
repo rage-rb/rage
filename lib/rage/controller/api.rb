@@ -75,8 +75,16 @@ class RageController::API
         ""
       end
 
+      activerecord_loaded = Rage.config.internal.rails_mode && defined?(::ActiveRecord)
+
       class_eval <<~RUBY,  __FILE__, __LINE__ + 1
         def __run_#{action}
+          #{if activerecord_loaded
+            <<~RUBY
+              ActiveRecord::Base.connection_pool.enable_query_cache!
+            RUBY
+          end}
+
           #{before_actions_chunk}
           #{action}
 
@@ -90,6 +98,16 @@ class RageController::API
           [@__status, @__headers, @__body]
 
           #{rescue_handlers_chunk}
+
+          #{if activerecord_loaded
+            <<~RUBY
+            ensure
+              if ActiveRecord::Base.connection_pool.active_connection?
+                ActiveRecord::Base.connection_pool.disable_query_cache!
+                ActiveRecord::Base.connection_handler.clear_active_connections!
+              end
+            RUBY
+          end}
         end
       RUBY
     end

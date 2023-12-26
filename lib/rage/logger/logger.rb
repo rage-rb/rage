@@ -128,8 +128,8 @@ class Rage::Logger
             false
           end
         RUBY
-      elsif defined?(IRB)
-        # the call was made from IRB - don't use the formatter
+      elsif (Rage.config.internal.rails_mode ? Rage.config.internal.rails_console : defined?(IRB))
+        # the call was made from the console - don't use the formatter
         <<-RUBY
           def #{level_name}(msg = nil)
             @logdev.write((msg || yield) + "\n")
