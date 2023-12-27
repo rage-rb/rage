@@ -102,8 +102,8 @@ class RageController::API
           #{if activerecord_loaded
             <<~RUBY
             ensure
+              ActiveRecord::Base.connection_pool.disable_query_cache!
               if ActiveRecord::Base.connection_pool.active_connection?
-                ActiveRecord::Base.connection_pool.disable_query_cache!
                 ActiveRecord::Base.connection_handler.clear_active_connections!
               end
             RUBY
