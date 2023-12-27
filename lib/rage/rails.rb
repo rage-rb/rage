@@ -31,6 +31,8 @@ if defined?(ActiveRecord)
 end
 
 # plug into Rails' Zeitwerk instance to reload the code
-Rails.autoloaders.main.on_unload do
-  Rage.code_loader.rails_mode_reload
+Rails.autoloaders.main.on_setup do
+  if Iodine.running?
+    Rage.code_loader.rails_mode_reload
+  end
 end
