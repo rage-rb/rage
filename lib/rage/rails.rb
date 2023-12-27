@@ -36,3 +36,19 @@ Rails.autoloaders.main.on_setup do
     Rage.code_loader.rails_mode_reload
   end
 end
+
+# patch `ActionDispatch::Reloader` to synchronize `reload!` calls
+Rails.configuration.after_initialize do
+  conditional_mutex = Module.new do
+    def call(env)
+      @mutex ||= Mutex.new
+      if Rails.application.reloader.check!
+        @mutex.synchronize { super }
+      else
+        super
+      end
+    end
+  end
+
+  ActionDispatch::Reloader.prepend(conditional_mutex)
+end
