@@ -114,6 +114,12 @@ module Rage
 
     def environment
       require File.expand_path("config/application.rb", Dir.pwd)
+
+      # in Rails mode we delegate code loading to Rails, and thus need
+      # to manually load application code for CLI utilities to work
+      if Rage.config.internal.rails_mode
+        require "rage/setup"
+      end
     end
 
     def set_env(options)

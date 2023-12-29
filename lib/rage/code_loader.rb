@@ -4,15 +4,11 @@ require "zeitwerk"
 
 class Rage::CodeLoader
   def initialize
-    # we use Rails' Zeitwerk instance when in Rails mode
-    @loader = unless Rage.config.internal.rails_mode
-      Zeitwerk::Loader.new
-    end
     @reloading = false
   end
 
   def setup
-    return unless @loader
+    @loader = Zeitwerk::Loader.new
 
     autoload_path = "#{Rage.root}/app"
     enable_reloading = Rage.env.development?

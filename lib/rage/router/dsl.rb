@@ -7,6 +7,8 @@ class Rage::Router::DSL
 
   def draw(&block)
     Handler.new(@router).instance_eval(&block)
+    # propagate route definitions to Rails for `rails routes` to work
+    Rails.application.routes.draw(&block) if Rage.config.internal.rails_mode
   end
 
   ##
