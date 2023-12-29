@@ -285,7 +285,7 @@ class Rage::Router::DSL
       end
 
       _module, _path, _only, _except, _param = opts.values_at(:module, :path, :only, :except, :param)
-      raise ":param option can't contain colons" if _param&.include?(":")
+      raise ":param option can't contain colons" if _param.to_s.include?(":")
 
       _only = Array(_only) if _only
       _except = Array(_except) if _except
