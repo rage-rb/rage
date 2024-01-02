@@ -370,10 +370,18 @@ class RageController::API
   def authenticate_with_http_token
     auth_header = @__env["HTTP_AUTHORIZATION"]
 
-    if auth_header&.start_with?("Bearer")
-      yield auth_header[7..]
+    payload = if auth_header&.start_with?("Bearer")
+      auth_header[7..]
     elsif auth_header&.start_with?("Token")
-      yield auth_header[6..]
+      auth_header[6..]
+    end
+
+    return unless payload
+
+    if payload.start_with?("token=")
+      yield payload[6..]
+    else
+      yield payload
     end
   end
 
