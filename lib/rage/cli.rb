@@ -18,13 +18,14 @@ module Rage
     option :port, aliases: "-p", desc: "Runs Rage on the specified port - defaults to 3000."
     option :environment, aliases: "-e", desc: "Specifies the environment to run this server under (test/development/production)."
     option :binding, aliases: "-b", desc: "Binds Rails to the specified IP - defaults to 'localhost' in development and '0.0.0.0' in other environments."
+    option :config, aliases: "-c", desc: "Uses a custom rack configuration."
     option :help, aliases: "-h", desc: "Show this message."
     def server
       return help("server") if options.help?
 
       set_env(options)
 
-      app = ::Rack::Builder.parse_file("config.ru")
+      app = ::Rack::Builder.parse_file(options[:config] || "config.ru")
       app = app[0] if app.is_a?(Array)
 
       port = options[:port] || Rage.config.server.port
