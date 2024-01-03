@@ -391,11 +391,16 @@ class RageController::API
 
     return unless payload
 
-    if payload.start_with?("token=")
-      yield payload[6..]
+    token = if payload.start_with?("token=")
+      payload[6..]
     else
-      yield payload
+      payload
     end
+
+    token.delete_prefix!('"')
+    token.delete_suffix!('"')
+
+    yield token
   end
 
   if !defined?(::ActionController::Parameters)

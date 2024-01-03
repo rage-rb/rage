@@ -60,6 +60,16 @@ RSpec.describe RageController::API do
         value = subject.authenticate_with_http_token { :request_authenticated }
         expect(value).to eq(:request_authenticated)
       end
+
+      context "with quotes" do
+        let(:env) { { "HTTP_AUTHORIZATION" => "Token token=\"my_token\"" } }
+
+        it "extracts the token" do
+          subject.authenticate_with_http_token do |token|
+            expect(token).to eq("my_token")
+          end
+        end
+      end
     end
   end
 
