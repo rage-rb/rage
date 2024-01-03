@@ -299,6 +299,11 @@ class RageController::API
     @request ||= Rage::Request.new(@__env)
   end
 
+  # Get the response object. See {Rage::Response}.
+  def response
+    @response ||= Rage::Response.new(@__headers, @__body)
+  end
+
   # Send a response to the client.
   #
   # @param json [String, Object] send a json response to the client; objects like arrays will be serialized automatically
