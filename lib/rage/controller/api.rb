@@ -99,13 +99,21 @@ class RageController::API
 
           #{rescue_handlers_chunk}
 
+        ensure
           #{if activerecord_loaded
             <<~RUBY
-            ensure
               ActiveRecord::Base.connection_pool.disable_query_cache!
               if ActiveRecord::Base.connection_pool.active_connection?
                 ActiveRecord::Base.connection_handler.clear_active_connections!
               end
+            RUBY
+          end}
+
+          #{if method_defined?(:append_info_to_payload) || private_method_defined?(:append_info_to_payload)
+            <<~RUBY
+              context = {}
+              append_info_to_payload(context)
+              Thread.current[:rage_logger][:context] = context
             RUBY
           end}
         end
@@ -415,4 +423,12 @@ class RageController::API
       @params ||= ActionController::Parameters.new(@__params)
     end
   end
+
+  # @!method append_info_to_payload(payload)
+  #   Override this method to add more information to request logs.
+  #   @param [Hash] payload the payload to add additional information to
+  #   @example
+  #     def append_info_to_payload(payload)
+  #       payload[:response] = response.body
+  #     end
 end
