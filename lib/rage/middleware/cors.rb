@@ -17,7 +17,7 @@ class Rage::Cors
 
     response
   ensure
-    if origin = @cors_check.call(env)
+    if !$! && origin = @cors_check.call(env)
       headers = response[1]
       headers["Access-Control-Allow-Origin"] = origin
       if @origins != "*"
