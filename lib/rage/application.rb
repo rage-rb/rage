@@ -3,6 +3,7 @@
 class Rage::Application
   def initialize(router)
     @router = router
+    @exception_app = build_exception_app
   end
 
   def call(env)
@@ -17,10 +18,11 @@ class Rage::Application
       [404, {}, ["Not Found"]]
     end
 
+  rescue Rage::Errors::BadRequest => e
+    response = @exception_app.call(400, e)
+
   rescue Exception => e
-    exception_str = "#{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}"
-    Rage.logger.error(exception_str)
-    response = [500, {}, [exception_str]]
+    response = @exception_app.call(500, e)
 
   ensure
     finalize_logger(env, response, params)
@@ -49,5 +51,21 @@ class Rage::Application
     logger[:final] = { env:, params:, response:, duration: }
     Rage.logger.info("")
     logger[:final] = nil
+  end
+
+  def build_exception_app
+    if Rage.env.development?
+      ->(status, e) do
+        exception_str = "#{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}"
+        Rage.logger.error(exception_str)
+        [status, {}, [exception_str]]
+      end
+    else
+      ->(status, e) do
+        exception_str = "#{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}"
+        Rage.logger.error(exception_str)
+        [status, {}, []]
+      end
+    end
   end
 end
