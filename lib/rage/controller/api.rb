@@ -429,6 +429,12 @@ class RageController::API
     end
   end
 
+  # @private
+  # for comatibility with `Rails.application.routes.recognize_path`
+  def self.binary_params_for?(_)
+    false
+  end
+
   # @!method append_info_to_payload(payload)
   #   Override this method to add more information to request logs.
   #   @param [Hash] payload the payload to add additional information to
