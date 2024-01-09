@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [0.7.0] - 2024-01-09
+
+- Add conditional GET using `stale?` by [@tonekk](https://github.com/tonekk) (#55).
+- Add Rails integration (#57).
+- Add JSON log formatter (#59).
+
 ## [0.6.0] - 2023-12-22
 
 ### Added
