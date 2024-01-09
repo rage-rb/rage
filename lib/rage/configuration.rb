@@ -109,6 +109,10 @@ class Rage::Configuration
     @middleware ||= Middleware.new
   end
 
+  def internal
+    @internal ||= Internal.new
+  end
+
   class Server
     attr_accessor :port, :workers_count, :timeout, :max_clients
     attr_reader :threads_count
@@ -157,6 +161,15 @@ class Rage::Configuration
           raise ArgumentError, "Couldn't find #{middleware} in the middleware stack" unless i
         end
       end
+    end
+  end
+
+  # @private
+  class Internal
+    attr_accessor :rails_mode, :rails_console
+
+    def inspect
+      "#<#{self.class.name}>"
     end
   end
 

@@ -502,6 +502,19 @@ RSpec.describe Rage::Router::DSL do
       }.to raise_error(":param option can't contain colons")
     end
 
+    it "correctly works with :param as a symbol" do
+      expect(router).to receive(:on).with("GET", "/photos", "photos#index", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/photos/:slug", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/photos/:slug", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/photos/:slug", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photos/:slug", "photos#destroy", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, param: :slug
+      end
+    end
+
     it "correctly creates routes with multiple options" do
       expect(router).to receive(:on).with("GET", "/api/v1/photos", "api/photos#index", instance_of(Hash))
       expect(router).to receive(:on).with("POST", "/api/v1/photos", "api/photos#create", instance_of(Hash))

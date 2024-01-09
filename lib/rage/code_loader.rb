@@ -4,11 +4,12 @@ require "zeitwerk"
 
 class Rage::CodeLoader
   def initialize
-    @loader = Zeitwerk::Loader.new
     @reloading = false
   end
 
   def setup
+    @loader = Zeitwerk::Loader.new
+
     autoload_path = "#{Rage.root}/app"
     enable_reloading = Rage.env.development?
     enable_eager_loading = !Rage.env.development? && !Rage.env.test?
@@ -23,11 +24,22 @@ class Rage::CodeLoader
     @loader.eager_load if enable_eager_loading
   end
 
+  # in standalone mode - reload the code and the routes
   def reload
+    return unless @loader
+
     @reloading = true
     @loader.reload
     Rage.__router.reset_routes
     load("#{Rage.root}/config/routes.rb")
+  end
+
+  # in Rails mode - reset the routes; everything else will be done by Rails
+  def rails_mode_reload
+    return if @loader
+
+    @reloading = true
+    Rage.__router.reset_routes
   end
 
   def reloading?

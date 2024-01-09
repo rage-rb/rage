@@ -521,4 +521,20 @@ RSpec.describe Rage::Cors do
       ])
     end
   end
+
+  context "with exception" do
+    let(:cors) do
+      described_class.new(app) do
+        allow "localhost:3000"
+      end
+    end
+
+    before do
+      allow(app).to receive(:call).and_raise("test error")
+    end
+
+    it "correctly processes exceptions" do
+      expect { subject }.to raise_error(RuntimeError, "test error")
+    end
+  end
 end

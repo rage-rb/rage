@@ -75,8 +75,16 @@ class RageController::API
         ""
       end
 
+      activerecord_loaded = Rage.config.internal.rails_mode && defined?(::ActiveRecord)
+
       class_eval <<~RUBY,  __FILE__, __LINE__ + 1
         def __run_#{action}
+          #{if activerecord_loaded
+            <<~RUBY
+              ActiveRecord::Base.connection_pool.enable_query_cache!
+            RUBY
+          end}
+
           #{before_actions_chunk}
           #{action}
 
@@ -90,6 +98,24 @@ class RageController::API
           [@__status, @__headers, @__body]
 
           #{rescue_handlers_chunk}
+
+        ensure
+          #{if activerecord_loaded
+            <<~RUBY
+              ActiveRecord::Base.connection_pool.disable_query_cache!
+              if ActiveRecord::Base.connection_pool.active_connection?
+                ActiveRecord::Base.connection_handler.clear_active_connections!
+              end
+            RUBY
+          end}
+
+          #{if method_defined?(:append_info_to_payload) || private_method_defined?(:append_info_to_payload)
+            <<~RUBY
+              context = {}
+              append_info_to_payload(context)
+              Thread.current[:rage_logger][:context] = context
+            RUBY
+          end}
         end
       RUBY
     end
@@ -269,19 +295,21 @@ class RageController::API
   end # class << self
 
   # @private
-  DEFAULT_HEADERS = { "content-type" => "application/json; charset=utf-8" }.freeze
-
-  # @private
   def initialize(env, params)
     @__env = env
     @__params = params
-    @__status, @__headers, @__body = 204, DEFAULT_HEADERS, []
+    @__status, @__headers, @__body = 204, { "content-type" => "application/json; charset=utf-8" }, []
     @__rendered = false
   end
 
   # Get the request object. See {Rage::Request}.
   def request
     @request ||= Rage::Request.new(@__env)
+  end
+
+  # Get the response object. See {Rage::Response}.
+  def response
+    @response ||= Rage::Response.new(@__headers, @__body)
   end
 
   # Send a response to the client.
@@ -342,8 +370,6 @@ class RageController::API
   # @example
   #   headers["Content-Type"] = "application/pdf"
   def headers
-    # copy-on-write implementation for the headers object
-    @__headers = {}.merge!(@__headers) if DEFAULT_HEADERS.equal?(@__headers)
     @__headers
   end
 
@@ -357,11 +383,24 @@ class RageController::API
   def authenticate_with_http_token
     auth_header = @__env["HTTP_AUTHORIZATION"]
 
-    if auth_header&.start_with?("Bearer")
-      yield auth_header[7..]
+    payload = if auth_header&.start_with?("Bearer")
+      auth_header[7..]
     elsif auth_header&.start_with?("Token")
-      yield auth_header[6..]
+      auth_header[6..]
     end
+
+    return unless payload
+
+    token = if payload.start_with?("token=")
+      payload[6..]
+    else
+      payload
+    end
+
+    token.delete_prefix!('"')
+    token.delete_suffix!('"')
+
+    yield token
   end
 
   if !defined?(::ActionController::Parameters)
@@ -389,4 +428,18 @@ class RageController::API
       @params ||= ActionController::Parameters.new(@__params)
     end
   end
+
+  # @private
+  # for comatibility with `Rails.application.routes.recognize_path`
+  def self.binary_params_for?(_)
+    false
+  end
+
+  # @!method append_info_to_payload(payload)
+  #   Define this method to add more information to request logs.
+  #   @param [Hash] payload the payload to add additional information to
+  #   @example
+  #     def append_info_to_payload(payload)
+  #       payload[:response] = response.body
+  #     end
 end
