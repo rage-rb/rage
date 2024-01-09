@@ -436,7 +436,7 @@ class RageController::API
   end
 
   # @!method append_info_to_payload(payload)
-  #   Override this method to add more information to request logs.
+  #   Define this method to add more information to request logs.
   #   @param [Hash] payload the payload to add additional information to
   #   @example
   #     def append_info_to_payload(payload)
