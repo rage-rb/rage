@@ -222,6 +222,16 @@ class RageController::API
       end
     end
 
+    # Register a new `after_action` hook. Calls with the same `action_name` will overwrite the previous ones.
+    #
+    # @param action_name [String, nil] the name of the callback to add
+    # @param [Hash] opts action options
+    # @option opts [Symbol, Array<Symbol>] :only restrict the callback to run only for specific actions
+    # @option opts [Symbol, Array<Symbol>] :except restrict the callback to run for all actions except specified
+    # @option opts [Symbol, Proc] :if only run the callback if the condition is true
+    # @option opts [Symbol, Proc] :unless only run the callback if the condition is false
+    # @example
+    #   after_action :log_detailed_metrics, only: :create
     def after_action(action_name = nil, **opts, &block)
       action = prepare_action_params(action_name, **opts, &block)
 
@@ -303,11 +313,13 @@ class RageController::API
   end
 
   # Get the request object. See {Rage::Request}.
+  # @return [Rage::Request]
   def request
     @request ||= Rage::Request.new(@__env)
   end
 
   # Get the response object. See {Rage::Response}.
+  # @return [Rage::Response]
   def response
     @response ||= Rage::Response.new(@__headers, @__body)
   end
@@ -367,6 +379,7 @@ class RageController::API
 
   # Set response headers.
   #
+  # @return [Hash]
   # @example
   #   headers["Content-Type"] = "application/pdf"
   def headers

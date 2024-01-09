@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
 class Rage::Cors
+  # @private
   def initialize(app, *, &)
     @app = app
     instance_eval(&)
   end
 
+  # @private
   def call(env)
     if env["REQUEST_METHOD"] == "OPTIONS"
       return (response = @cors_response)
