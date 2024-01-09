@@ -223,7 +223,7 @@ RSpec.describe Rage::FiberScheduler do
           Fiber.await(fibers)
         end
 
-        -> { expect(0.58..0.62).to include(result) }
+        -> { expect(0.58..0.62).to cover(result) }
       end
     end
 
