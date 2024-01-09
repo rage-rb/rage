@@ -8,7 +8,7 @@ class RageController::API
     # sends a correct response down to the server;
     # returns the name of the newly defined method;
     def __register_action(action)
-      raise "The action '#{action}' could not be found for #{self}" unless method_defined?(action)
+      raise Rage::Errors::RouterError, "The action '#{action}' could not be found for #{self}" unless method_defined?(action)
 
       before_actions_chunk = if @__before_actions
         filtered_before_actions = @__before_actions.select do |h|
@@ -25,7 +25,7 @@ class RageController::API
             "unless #{h[:unless]}"
           end
 
-          <<-RUBY
+          <<~RUBY
             #{h[:name]} #{condition}
             return [@__status, @__headers, @__body] if @__rendered
           RUBY
@@ -36,9 +36,34 @@ class RageController::API
         ""
       end
 
+      after_actions_chunk = if @__after_actions
+        filtered_after_actions = @__after_actions.select do |h|
+          (!h[:only] || h[:only].include?(action)) &&
+            (!h[:except] || !h[:except].include?(action))
+        end
+
+        lines = filtered_after_actions.map! do |h|
+          condition = if h[:if] && h[:unless]
+            "if #{h[:if]} && !#{h[:unless]}"
+          elsif h[:if]
+            "if #{h[:if]}"
+          elsif h[:unless]
+            "unless #{h[:unless]}"
+          end
+
+          <<~RUBY
+            #{h[:name]} #{condition}
+          RUBY
+        end
+
+        lines.join("\n")
+      else
+        ""
+      end
+
       rescue_handlers_chunk = if @__rescue_handlers
         lines = @__rescue_handlers.map do |klasses, handler|
-          <<-RUBY
+          <<~RUBY
           rescue #{klasses.join(", ")} => __e
             #{handler}(__e)
             [@__status, @__headers, @__body]
@@ -50,26 +75,60 @@ class RageController::API
         ""
       end
 
-      class_eval <<-RUBY,  __FILE__, __LINE__ + 1
+      activerecord_loaded = Rage.config.internal.rails_mode && defined?(::ActiveRecord)
+
+      class_eval <<~RUBY,  __FILE__, __LINE__ + 1
         def __run_#{action}
+          #{if activerecord_loaded
+            <<~RUBY
+              ActiveRecord::Base.connection_pool.enable_query_cache!
+            RUBY
+          end}
+
           #{before_actions_chunk}
           #{action}
+
+          #{if !after_actions_chunk.empty?
+            <<~RUBY
+              @__rendered = true
+              #{after_actions_chunk}
+            RUBY
+          end}
 
           [@__status, @__headers, @__body]
 
           #{rescue_handlers_chunk}
+
+        ensure
+          #{if activerecord_loaded
+            <<~RUBY
+              ActiveRecord::Base.connection_pool.disable_query_cache!
+              if ActiveRecord::Base.connection_pool.active_connection?
+                ActiveRecord::Base.connection_handler.clear_active_connections!
+              end
+            RUBY
+          end}
+
+          #{if method_defined?(:append_info_to_payload) || private_method_defined?(:append_info_to_payload)
+            <<~RUBY
+              context = {}
+              append_info_to_payload(context)
+              Thread.current[:rage_logger][:context] = context
+            RUBY
+          end}
         end
       RUBY
     end
 
     # @private
-    attr_writer :__before_actions, :__rescue_handlers
+    attr_writer :__before_actions, :__after_actions, :__rescue_handlers
 
     # @private
     # pass the variable down to the child; the child will continue to use it until changes need to be made;
     # only then the object will be copied; the frozen state communicates that the object is shared with the parent;
     def inherited(klass)
       klass.__before_actions = @__before_actions.freeze
+      klass.__after_actions = @__after_actions.freeze
       klass.__rescue_handlers = @__rescue_handlers.freeze
     end
 
@@ -148,28 +207,11 @@ class RageController::API
     #   end
     # @note The block form doesn't receive an argument and is executed on the controller level as if it was a regular method.
     def before_action(action_name = nil, **opts, &block)
-      if block_given?
-        action_name = define_tmp_method(block)
-      elsif action_name.nil?
-        raise "No handler provided. Pass the `action_name` parameter or provide a block."
-      end
-
-       _only, _except, _if, _unless = opts.values_at(:only, :except, :if, :unless)
+      action = prepare_action_params(action_name, **opts, &block)
 
       if @__before_actions && @__before_actions.frozen?
         @__before_actions = @__before_actions.dup
       end
-
-      action = {
-        name: action_name,
-        only: _only && Array(_only),
-        except: _except && Array(_except),
-        if: _if,
-        unless: _unless
-      }
-
-      action[:if] = define_tmp_method(action[:if]) if action[:if].is_a?(Proc)
-      action[:unless] = define_tmp_method(action[:unless]) if action[:unless].is_a?(Proc)
 
       if @__before_actions.nil?
         @__before_actions = [action]
@@ -177,6 +219,32 @@ class RageController::API
         @__before_actions[i] = action
       else
         @__before_actions << action
+      end
+    end
+
+    # Register a new `after_action` hook. Calls with the same `action_name` will overwrite the previous ones.
+    #
+    # @param action_name [String, nil] the name of the callback to add
+    # @param [Hash] opts action options
+    # @option opts [Symbol, Array<Symbol>] :only restrict the callback to run only for specific actions
+    # @option opts [Symbol, Array<Symbol>] :except restrict the callback to run for all actions except specified
+    # @option opts [Symbol, Proc] :if only run the callback if the condition is true
+    # @option opts [Symbol, Proc] :unless only run the callback if the condition is false
+    # @example
+    #   after_action :log_detailed_metrics, only: :create
+    def after_action(action_name = nil, **opts, &block)
+      action = prepare_action_params(action_name, **opts, &block)
+
+      if @__after_actions && @__after_actions.frozen?
+        @__after_actions = @__after_actions.dup
+      end
+
+      if @__after_actions.nil?
+        @__after_actions = [action]
+      elsif i = @__after_actions.find_index { |a| a[:name] == action_name }
+        @__after_actions[i] = action
+      else
+        @__after_actions << action
       end
     end
 
@@ -208,22 +276,52 @@ class RageController::API
 
       @__before_actions[i] = action
     end
-  end # class << self
 
-  # @private
-  DEFAULT_HEADERS = { "content-type" => "application/json; charset=utf-8" }.freeze
+    private
+
+    # used by `before_action` and `after_action`
+    def prepare_action_params(action_name = nil, **opts, &block)
+      if block_given?
+        action_name = define_tmp_method(block)
+      elsif action_name.nil?
+        raise "No handler provided. Pass the `action_name` parameter or provide a block."
+      end
+
+       _only, _except, _if, _unless = opts.values_at(:only, :except, :if, :unless)
+
+      action = {
+        name: action_name,
+        only: _only && Array(_only),
+        except: _except && Array(_except),
+        if: _if,
+        unless: _unless
+      }
+
+      action[:if] = define_tmp_method(action[:if]) if action[:if].is_a?(Proc)
+      action[:unless] = define_tmp_method(action[:unless]) if action[:unless].is_a?(Proc)
+
+      action
+    end
+  end # class << self
 
   # @private
   def initialize(env, params)
     @__env = env
     @__params = params
-    @__status, @__headers, @__body = 204, DEFAULT_HEADERS, []
+    @__status, @__headers, @__body = 204, { "content-type" => "application/json; charset=utf-8" }, []
     @__rendered = false
   end
 
   # Get the request object. See {Rage::Request}.
+  # @return [Rage::Request]
   def request
     @request ||= Rage::Request.new(@__env)
+  end
+
+  # Get the response object. See {Rage::Response}.
+  # @return [Rage::Response]
+  def response
+    @response ||= Rage::Response.new(@__headers, @__body)
   end
 
   # Send a response to the client.
@@ -281,11 +379,10 @@ class RageController::API
 
   # Set response headers.
   #
+  # @return [Hash]
   # @example
   #   headers["Content-Type"] = "application/pdf"
   def headers
-    # copy-on-write implementation for the headers object
-    @__headers = {}.merge!(@__headers) if DEFAULT_HEADERS.equal?(@__headers)
     @__headers
   end
 
@@ -299,11 +396,24 @@ class RageController::API
   def authenticate_with_http_token
     auth_header = @__env["HTTP_AUTHORIZATION"]
 
-    if auth_header&.start_with?("Bearer")
-      yield auth_header[7..]
+    payload = if auth_header&.start_with?("Bearer")
+      auth_header[7..]
     elsif auth_header&.start_with?("Token")
-      yield auth_header[6..]
+      auth_header[6..]
     end
+
+    return unless payload
+
+    token = if payload.start_with?("token=")
+      payload[6..]
+    else
+      payload
+    end
+
+    token.delete_prefix!('"')
+    token.delete_suffix!('"')
+
+    yield token
   end
 
   if !defined?(::ActionController::Parameters)
@@ -353,4 +463,18 @@ class RageController::API
     head :not_modified if still_fresh
     !still_fresh
   end
+
+  # @private
+  # for comatibility with `Rails.application.routes.recognize_path`
+  def self.binary_params_for?(_)
+    false
+  end
+
+  # @!method append_info_to_payload(payload)
+  #   Define this method to add more information to request logs.
+  #   @param [Hash] payload the payload to add additional information to
+  #   @example
+  #     def append_info_to_payload(payload)
+  #       payload[:response] = response.body
+  #     end
 end

@@ -27,4 +27,12 @@ class LogsController < RageController::API
 
     Rage.logger.info "outside_2"
   end
+
+  private
+
+  def append_info_to_payload(payload)
+    if params[:append_info_to_payload]
+      payload["hello"] = "world"
+    end
+  end
 end

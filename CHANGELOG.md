@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+## [0.6.0] - 2023-12-22
+
+### Added
+
+- Implement after actions (#53).
+- Zeitwerk autoloading and reloading by [@alex-rogachev](https://github.com/alex-rogachev) (#54).
+- Support the `environment`, `binding`, `timeout`, and `max_clients` options when using `rage s` (#52).
+- Add CORS middleware (#49).
+
+### Fixed
+
+- Prevent `block` and `sleep` channels from conflicting (#51).
+
 ## [0.5.2] - 2023-12-11
 
 ### Added

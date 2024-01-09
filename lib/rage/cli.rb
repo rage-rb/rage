@@ -16,18 +16,24 @@ module Rage
 
     desc "s", "Start the app server."
     option :port, aliases: "-p", desc: "Runs Rage on the specified port - defaults to 3000."
+    option :environment, aliases: "-e", desc: "Specifies the environment to run this server under (test/development/production)."
+    option :binding, aliases: "-b", desc: "Binds Rails to the specified IP - defaults to 'localhost' in development and '0.0.0.0' in other environments."
+    option :config, aliases: "-c", desc: "Uses a custom rack configuration."
+    option :help, aliases: "-h", desc: "Show this message."
     def server
-      app = ::Rack::Builder.parse_file("config.ru")
+      return help("server") if options.help?
+
+      set_env(options)
+
+      app = ::Rack::Builder.parse_file(options[:config] || "config.ru")
       app = app[0] if app.is_a?(Array)
 
-      unless app.is_a?(Rage::FiberWrapper)
-        raise <<-ERR
-          Couldn't find the default middleware. Make sure to add the following line to your config.ru file:
-          Rage.load_middlewares(self)
-        ERR
-      end
+      port = options[:port] || Rage.config.server.port
+      address = options[:binding] || (Rage.env.production? ? "0.0.0.0" : "localhost")
+      timeout = Rage.config.server.timeout
+      max_clients = Rage.config.server.max_clients
 
-      ::Iodine.listen service: :http, handler: app, port: options[:port] || Rage.config.server.port
+      ::Iodine.listen service: :http, handler: app, port: port, address: address, timeout: timeout, max_clients: max_clients
       ::Iodine.threads = Rage.config.server.threads_count
       ::Iodine.workers = Rage.config.server.workers_count
 
@@ -36,12 +42,15 @@ module Rage
 
     desc 'routes', 'List all routes.'
     option :grep, aliases: "-g", desc: "Filter routes by pattern"
+    option :help, aliases: "-h", desc: "Show this message."
     def routes
+      return help("routes") if options.help?
       # the result would be something like this:
       # Verb  Path  Controller#Action
       # GET   /     application#index
 
       # load config/application.rb
+      set_env(options)
       environment
 
       routes = Rage.__router.routes
@@ -90,7 +99,12 @@ module Rage
     end
 
     desc "c", "Start the app console."
+    option :help, aliases: "-h", desc: "Show this message."
     def console
+      return help("console") if options.help?
+
+      set_env(options)
+
       require "irb"
       environment
       ARGV.clear
@@ -101,6 +115,16 @@ module Rage
 
     def environment
       require File.expand_path("config/application.rb", Dir.pwd)
+
+      # in Rails mode we delegate code loading to Rails, and thus need
+      # to manually load application code for CLI utilities to work
+      if Rage.config.internal.rails_mode
+        require "rage/setup"
+      end
+    end
+
+    def set_env(options)
+      ENV["RAGE_ENV"] = options[:environment] || ENV["RAGE_ENV"] || ENV["RAILS_ENV"] || ENV["RACK_ENV"] || "development"
     end
   end
 

@@ -56,8 +56,8 @@ class Rage::Logger
   # @param shift_period_suffix [String] the log file suffix format for daily, weekly or monthly rotation
   # @param binmode sets whether the logger writes in binary mode
   def initialize(log, level: Logger::DEBUG, formatter: Rage::TextFormatter.new, shift_age: 0, shift_size: 104857600, shift_period_suffix: "%Y%m%d", binmode: false)
-    if log && log != File::NULL
-      @logdev = Logger::LogDevice.new(log, shift_age:, shift_size:, shift_period_suffix:, binmode:)
+    @logdev = if log && log != File::NULL
+      Logger::LogDevice.new(log, shift_age:, shift_size:, shift_period_suffix:, binmode:)
     end
 
     @formatter = formatter
@@ -128,8 +128,8 @@ class Rage::Logger
             false
           end
         RUBY
-      elsif defined?(IRB)
-        # the call was made from IRB - don't use the formatter
+      elsif (Rage.config.internal.rails_mode ? Rage.config.internal.rails_console : defined?(IRB))
+        # the call was made from the console - don't use the formatter
         <<-RUBY
           def #{level_name}(msg = nil)
             @logdev.write((msg || yield) + "\n")

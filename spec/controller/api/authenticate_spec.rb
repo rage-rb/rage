@@ -16,6 +16,21 @@ RSpec.describe RageController::API do
       value = subject.authenticate_with_http_token { :request_authenticated }
       expect(value).to eq(:request_authenticated)
     end
+
+    context "with a token prefix" do
+      let(:env) { { "HTTP_AUTHORIZATION" => "Bearer token=my_token" } }
+
+      it "extracts the token" do
+        subject.authenticate_with_http_token do |token|
+          expect(token).to eq("my_token")
+        end
+      end
+
+      it "returns the value of the login procedure" do
+        value = subject.authenticate_with_http_token { :request_authenticated }
+        expect(value).to eq(:request_authenticated)
+      end
+    end
   end
 
   context "with a Token token" do
@@ -30,6 +45,31 @@ RSpec.describe RageController::API do
     it "returns the value of the login procedure" do
       value = subject.authenticate_with_http_token { :request_authenticated }
       expect(value).to eq(:request_authenticated)
+    end
+
+    context "with a token prefix" do
+      let(:env) { { "HTTP_AUTHORIZATION" => "Token token=my_token" } }
+
+      it "extracts the token" do
+        subject.authenticate_with_http_token do |token|
+          expect(token).to eq("my_token")
+        end
+      end
+
+      it "returns the value of the login procedure" do
+        value = subject.authenticate_with_http_token { :request_authenticated }
+        expect(value).to eq(:request_authenticated)
+      end
+
+      context "with quotes" do
+        let(:env) { { "HTTP_AUTHORIZATION" => "Token token=\"my_token\"" } }
+
+        it "extracts the token" do
+          subject.authenticate_with_http_token do |token|
+            expect(token).to eq("my_token")
+          end
+        end
+      end
     end
   end
 
