@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "time"
+
 class Rage::Request
   # @private
   def initialize(env)
@@ -42,7 +44,9 @@ class Rage::Request
   end
 
   def if_not_modified_since
-    headers["HTTP_IF_MODIFIED_SINCE"] ? Time.new(headers["HTTP_IF_MODIFIED_SINCE"]) : nil
+    headers["HTTP_IF_MODIFIED_SINCE"] ? Time.httpdate(headers["HTTP_IF_MODIFIED_SINCE"]) : nil
+  rescue ArgumentError
+    nil
   end
 
   def etag_matches?(requested_etags:, response_etag:)

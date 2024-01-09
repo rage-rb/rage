@@ -33,7 +33,7 @@ RSpec.describe RageController::API do
 
   context "when IF-MODIFIED-SINCE is given" do
     context "but last_modified is not set in the action" do
-      let(:env) { { "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).to_s } }
+      let(:env) { { "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).httpdate } }
 
       it "executes the action normally" do
         expect(run_action(klass, :no_freshness_info_in_response_test, env:)).to match(
@@ -43,7 +43,7 @@ RSpec.describe RageController::API do
     end
 
     context "and it's more recent than the requested content" do
-      let(:env) { { "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).to_s } }
+      let(:env) { { "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).httpdate } }
 
       it "returns NOT MODIFIED" do
         expect(run_action(klass, :stale_last_modified_test, env:)).to match(
@@ -53,9 +53,19 @@ RSpec.describe RageController::API do
     end
 
     context "and it's less recent that the requested content" do
-      let(:env) { { "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 11, 15).to_s } }
+      let(:env) { { "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 11, 15).httpdate } }
 
       it "renders the requested resource" do
+        expect(run_action(klass, :stale_last_modified_test, env:)).to match(
+          [200, an_instance_of(Hash), ["test_last_modified"]]
+        )
+      end
+    end
+
+    context "and the header value is invalid" do
+      let(:env) { { "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).to_s } }
+
+      it "executes the action normally" do
         expect(run_action(klass, :stale_last_modified_test, env:)).to match(
           [200, an_instance_of(Hash), ["test_last_modified"]]
         )
@@ -159,7 +169,7 @@ RSpec.describe RageController::API do
     context "and request is fresh" do
       let(:env) do
         {
-          "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).to_s,
+          "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).httpdate,
           "HTTP_IF_NONE_MATCH" => "123"
         }
       end
@@ -174,7 +184,7 @@ RSpec.describe RageController::API do
     context "and request is stale" do
       let(:env) do
         {
-          "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 11, 15).to_s,
+          "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 11, 15).httpdate,
           "HTTP_IF_NONE_MATCH" => "123"
         }
       end
@@ -189,7 +199,7 @@ RSpec.describe RageController::API do
     context "and request is fresh but etag does not match" do
       let(:env) do
         {
-          "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).to_s,
+          "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).httpdate,
           "HTTP_IF_NONE_MATCH" => "456"
         }
       end
@@ -204,7 +214,7 @@ RSpec.describe RageController::API do
     context "and etag is not set in the action" do
       let(:env) do
         {
-          "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).to_s,
+          "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).httpdate,
           "HTTP_IF_NONE_MATCH" => "123"
         }
       end
@@ -219,7 +229,7 @@ RSpec.describe RageController::API do
     context "and last_modified is not set in the action" do
       let(:env) do
         {
-          "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).to_s,
+          "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).httpdate,
           "HTTP_IF_NONE_MATCH" => "123"
         }
       end
