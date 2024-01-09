@@ -150,8 +150,8 @@ Status | Changes
 :white_check_mark: | ~~Expose the `params` object.<br>Support header authentication with `authenticate_with_http_token`.<br>Router updates:<br>&emsp;• add the `resources` route helper;<br>&emsp;• add the `namespace` route helper;~~
 :white_check_mark:  | ~~Add request logging.~~
 :white_check_mark: | ~~Automatic code reloading in development with Zeitwerk.~~
+:white_check_mark: | ~~Support conditional get with `etag` and `last_modified`.~~
 ⏳ | Expose the `send_data` and `send_file` methods.
-⏳ | Support conditional get with `etag` and `last_modified`.
 ⏳ | Expose the `cookies` and `session` objects.
 ⏳ | Implement Iodine-based equivalent of Action Cable.
 
