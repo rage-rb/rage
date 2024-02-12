@@ -36,7 +36,7 @@ module RageRequestHelpers
 
   alias_method :response, :last_response
 
-  APP = Rack::Builder.parse_file("config.ru").yield_self do |app|
+  APP = Rack::Builder.parse_file("#{Rage.root}/config.ru").yield_self do |app|
     app.is_a?(Array) ? app[0] : app
   end
 

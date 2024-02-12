@@ -1,0 +1,1 @@
+Rage.configure {}
