@@ -18,6 +18,7 @@ abort("The test suite is running in #{Rage.env} mode instead of 'test'!") unless
 class Fiber
   def self.schedule(&block)
     fiber = Fiber.new(blocking: true) do
+      Fiber.current.__set_id
       Fiber.current.__set_result(block.call)
     end
     fiber.resume

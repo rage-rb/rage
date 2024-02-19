@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 class Fiber
+  # @private
   AWAIT_ERROR_MESSAGE = "err"
 
   # @private
@@ -23,14 +24,14 @@ class Fiber
     @__err
   end
 
-   # @private
-  def __get_id
-    @__rage_id ||= object_id.to_s
+  # @private
+  def __set_id
+    @__rage_id = object_id.to_s
   end
 
-  # @private
-  def __yielded?
-    !@__rage_id.nil?
+   # @private
+  def __get_id
+    @__rage_id
   end
 
   # @private
