@@ -124,4 +124,11 @@ RSpec.describe "RSpec helpers", type: :request do
 
     expect(response).to have_http_status(:ok)
   end
+
+  it "allows to stub app calls" do
+    allow_any_instance_of(RageController::API).to receive(:params).and_return({ i: "12345" })
+
+    get "/params?i=111"
+    expect(response.body).to eq("12345")
+  end
 end
