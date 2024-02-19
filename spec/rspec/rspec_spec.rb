@@ -89,7 +89,7 @@ RSpec.describe "RSpec helpers", type: :request do
     post "/params", params: { i: "444" }
     expect(response.body).to eq("444")
 
-    post "/params", params: { i: "555" }.to_json, headers: { "content-type" => "application/json" }
+    post "/params", params: { i: "555" }, as: :json
     expect(response.body).to eq("555")
   end
 

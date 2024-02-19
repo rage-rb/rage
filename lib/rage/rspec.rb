@@ -54,7 +54,12 @@ module RageRequestHelpers
 
   %w(post put patch delete).each do |method_name|
     class_eval <<~RUBY, __FILE__, __LINE__ + 1
-      def #{method_name}(path, params: {}, headers: {})
+      def #{method_name}(path, params: {}, headers: {}, as: nil)
+        if as == :json
+          params = params.to_json
+          headers["content-type"] = "application/json"
+        end
+
         request("#{method_name.upcase}", path, params: params, headers: headers.merge("IODINE_HAS_BODY" => !params.empty?))
       end
     RUBY
