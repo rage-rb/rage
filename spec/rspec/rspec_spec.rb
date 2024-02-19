@@ -28,6 +28,10 @@ module RspecHelpersSpec
 
       render plain: i
     end
+
+    def subdomain
+      head :ok
+    end
   end
 
   Rage.routes.draw do
@@ -38,6 +42,8 @@ module RspecHelpersSpec
 
     get "headers", to: "rspec_helpers_spec/test#headers_action"
     get "fibers", to: "rspec_helpers_spec/test#fibers_action"
+
+    get "subdomain", to: "rspec_helpers_spec/test#subdomain", constraints: { host: /rage-test/ }
   end
 end
 
@@ -105,5 +111,17 @@ RSpec.describe "RSpec helpers", type: :request do
   it "allows to correctly schedule fibers" do
     get "/fibers"
     expect(response.body).to eq("3")
+  end
+
+  it "uses the default host value" do
+    get "/subdomain"
+    expect(response).to have_http_status(:not_found)
+  end
+
+  it "allows to modify host value" do
+    host! "rage-test.com"
+    get "/subdomain"
+
+    expect(response).to have_http_status(:ok)
   end
 end
