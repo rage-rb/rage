@@ -109,6 +109,7 @@ class Rage::FiberScheduler
     fiber = if parent == @root_fiber
       # the fiber to wrap a request in
       Fiber.new(blocking: false) do
+        Fiber.current.__set_id
         Fiber.current.__set_result(block.call)
       end
     else

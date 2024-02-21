@@ -17,7 +17,7 @@ class Rage::FiberWrapper
       @app.call(env)
     ensure
       # notify Iodine the request can now be resumed
-      Iodine.publish(Fiber.current.__get_id, "", Iodine::PubSub::PROCESS) if Fiber.current.__yielded?
+      Iodine.publish(Fiber.current.__get_id, "", Iodine::PubSub::PROCESS)
     end
 
     # the fiber encountered blocking IO and yielded; instruct Iodine to pause the request
