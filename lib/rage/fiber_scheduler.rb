@@ -49,13 +49,15 @@ class Rage::FiberScheduler
     end
   end
 
-  def io_write(io, buffer, length, offset = 0)
-    bytes_to_write = length
-    bytes_to_write = buffer.size if length == 0
+  unless ENV["RAGE_DISABLE_IO_WRITE"]
+    def io_write(io, buffer, length, offset = 0)
+      bytes_to_write = length
+      bytes_to_write = buffer.size if length == 0
 
-    ::Iodine::Scheduler.write(io.fileno, buffer.get_string, bytes_to_write, offset)
+      ::Iodine::Scheduler.write(io.fileno, buffer.get_string, bytes_to_write, offset)
 
-    bytes_to_write - offset
+      bytes_to_write - offset
+    end
   end
 
   def kernel_sleep(duration = nil)
