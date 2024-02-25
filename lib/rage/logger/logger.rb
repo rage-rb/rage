@@ -92,8 +92,6 @@ class Rage::Logger
     end
 
     yield(self)
-    true
-
   ensure
     Thread.current[:rage_logger][:context] = old_context
   end
@@ -107,10 +105,7 @@ class Rage::Logger
   #   end
   def tagged(tag)
     Thread.current[:rage_logger][:tags] << tag
-
     yield(self)
-    true
-
   ensure
     Thread.current[:rage_logger][:tags].pop
   end
