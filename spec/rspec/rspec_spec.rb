@@ -32,6 +32,11 @@ module RspecHelpersSpec
     def subdomain
       head :ok
     end
+
+    def logger
+      VeryImportantService.new.call
+      head :ok
+    end
   end
 
   Rage.routes.draw do
@@ -44,6 +49,19 @@ module RspecHelpersSpec
     get "fibers", to: "rspec_helpers_spec/test#fibers_action"
 
     get "subdomain", to: "rspec_helpers_spec/test#subdomain", constraints: { host: /rage-test/ }
+    get "logger", to: "rspec_helpers_spec/test#logger"
+  end
+
+  class VeryImportantService
+    def call
+      Rage.logger.tagged("test") do
+        Rage.logger.with_context(test_key: true) do
+          Rage.logger.info "test"
+        end
+      end
+
+      true
+    end
   end
 end
 
@@ -130,5 +148,14 @@ RSpec.describe "RSpec helpers", type: :request do
 
     get "/params?i=111"
     expect(response.body).to eq("12345")
+  end
+
+  it "allows to add custom logs" do
+    get "/logger"
+    expect(response).to have_http_status(:ok)
+  end
+
+  it "allows to add custom logs outside the request scope" do
+    expect(RspecHelpersSpec::VeryImportantService.new.call).to be(true)
   end
 end
