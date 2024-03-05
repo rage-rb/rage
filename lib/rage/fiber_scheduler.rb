@@ -7,6 +7,7 @@ class Rage::FiberScheduler
 
   def initialize
     @root_fiber = Fiber.current
+    @dns_cache = {}
   end
 
   def io_wait(io, events, timeout = nil)
@@ -79,7 +80,13 @@ class Rage::FiberScheduler
   # end
 
   def address_resolve(hostname)
-    Resolv.getaddresses(hostname)
+    @dns_cache[hostname] ||= begin
+      ::Iodine.run_after(60_000) do
+        @dns_cache[hostname] = nil
+      end
+
+      Resolv.getaddresses(hostname)
+    end
   end
 
   def block(_blocker, timeout = nil)
