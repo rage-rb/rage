@@ -96,9 +96,6 @@ end
 # include request helpers
 RSpec.configure do |config|
   config.include(RageRequestHelpers, type: :request)
-  config.before(:example) do
-    Thread.current[:rage_logger] = { tags: [], context: {} }
-  end
 end
 
 # patch MockResponse class

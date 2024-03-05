@@ -7,7 +7,7 @@ class Rage::TextFormatter
   end
 
   def call(severity, timestamp, _, message)
-    logger = Thread.current[:rage_logger]
+    logger = Thread.current[:rage_logger] || { tags: [], context: {} }
     tags, context = logger[:tags], logger[:context]
 
     if !context.empty?
@@ -29,6 +29,8 @@ class Rage::TextFormatter
       tags_msg = "[#{tags[0]}] timestamp=#{timestamp} pid=#{@pid} level=#{severity}"
     elsif tags.length == 2
       tags_msg = "[#{tags[0]}][#{tags[1]}] timestamp=#{timestamp} pid=#{@pid} level=#{severity}"
+    elsif tags.length == 0
+      tags_msg = "timestamp=#{timestamp} pid=#{@pid} level=#{severity}"
     else
       tags_msg = "[#{tags[0]}][#{tags[1]}]"
       i = 2

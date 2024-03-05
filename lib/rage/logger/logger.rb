@@ -83,7 +83,7 @@ class Rage::Logger
   #     Rage.logger.info "cache miss"
   #   end
   def with_context(context)
-    old_context = Thread.current[:rage_logger][:context]
+    old_context = (Thread.current[:rage_logger] ||= { tags: [], context: {} })[:context]
 
     if old_context.empty? # there's nothing in the context yet
       Thread.current[:rage_logger][:context] = context
@@ -104,7 +104,7 @@ class Rage::Logger
   #     Rage.logger.info "success"
   #   end
   def tagged(tag)
-    Thread.current[:rage_logger][:tags] << tag
+    (Thread.current[:rage_logger] ||= { tags: [], context: {} })[:tags] << tag
     yield(self)
   ensure
     Thread.current[:rage_logger][:tags].pop
@@ -115,8 +115,6 @@ class Rage::Logger
   private
 
   def define_log_methods
-    console_mode = Rage.config.internal.rails_mode ? Rage.config.internal.rails_console : defined?(IRB)
-
     methods = METHODS_MAP.map do |level_name, level_val|
       if @logdev.nil? || level_val < @level
         # logging is disabled or the log level is higher than the current one
@@ -125,7 +123,7 @@ class Rage::Logger
             false
           end
         RUBY
-      elsif console_mode
+      elsif (Rage.config.internal.rails_mode ? Rage.config.internal.rails_console : defined?(IRB))
         # the call was made from the console - don't use the formatter
         <<-RUBY
           def #{level_name}(msg = nil)
@@ -157,17 +155,5 @@ class Rage::Logger
     end
 
     self.class.class_eval(methods.join("\n"))
-
-    if console_mode
-      self.class.class_eval <<-RUBY
-        def with_context(_)
-          yield(self)
-        end
-
-        def tagged(_)
-          yield(self)
-        end
-      RUBY
-    end
   end
 end
