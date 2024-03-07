@@ -30,6 +30,21 @@ if defined?(ActiveRecord)
   end
 end
 
+# release ActiveRecord connections on yield
+if defined?(ActiveRecord)
+  class Fiber
+    def self.defer
+      res = Fiber.yield
+
+      if ActiveRecord::Base.connection_pool.active_connection?
+        ActiveRecord::Base.connection_handler.clear_active_connections!
+      end
+
+      res
+    end
+  end
+end
+
 # plug into Rails' Zeitwerk instance to reload the code
 Rails.autoloaders.main.on_setup do
   if Iodine.running?
