@@ -112,6 +112,12 @@ class Rage::Logger
 
   alias_method :with_tag, :tagged
 
+  def debug? = @level <= Logger::DEBUG
+  def error? = @level <= Logger::ERROR
+  def fatal? = @level <= Logger::FATAL
+  def info? = @level <= Logger::INFO
+  def warn? = @level <= Logger::WARN
+
   private
 
   def define_log_methods
