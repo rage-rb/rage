@@ -14,7 +14,7 @@ class Rage::FiberScheduler
     f = Fiber.current
     ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil || 0) { |err| f.resume(err) }
 
-    err = Fiber.yield
+    err = Fiber.defer
     if err == Errno::ETIMEDOUT::Errno
       0
     else

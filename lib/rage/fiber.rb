@@ -50,6 +50,13 @@ class Fiber
     Fiber.yield
   end
 
+  # @private
+  # under normal circumstances, the method is a copy of `yield`, but it can be overriden to perform
+  # additional steps on yielding, e.g. releasing AR connections; see "lib/rage/rails.rb"
+  class << self
+    alias_method :defer, :yield
+  end
+
   # Wait on several fibers at the same time. Calling this method will automatically pause the current fiber, allowing the
   #   server to process other requests. Once all fibers have completed, the current fiber will be automatically resumed.
   #
