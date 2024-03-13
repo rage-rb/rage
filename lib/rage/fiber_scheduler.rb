@@ -109,7 +109,7 @@ class Rage::FiberScheduler
   end
 
   def unblock(_blocker, fiber)
-    ::Iodine.publish(fiber.__block_channel, "")
+    ::Iodine.publish(fiber.__block_channel, "", Iodine::PubSub::PROCESS)
   end
 
   def fiber(&block)
@@ -129,10 +129,10 @@ class Rage::FiberScheduler
         Thread.current[:rage_logger] = logger
         Fiber.current.__set_result(block.call)
         # send a message for `Fiber.await` to work
-        Iodine.publish("await:#{parent.object_id}", "") if parent.alive?
+        Iodine.publish("await:#{parent.object_id}", "", Iodine::PubSub::PROCESS) if parent.alive?
       rescue Exception => e
         Fiber.current.__set_err(e)
-        Iodine.publish("await:#{parent.object_id}", Fiber::AWAIT_ERROR_MESSAGE) if parent.alive?
+        Iodine.publish("await:#{parent.object_id}", Fiber::AWAIT_ERROR_MESSAGE, Iodine::PubSub::PROCESS) if parent.alive?
       end
     end
 
