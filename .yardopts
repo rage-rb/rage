@@ -1,1 +1,1 @@
---exclude lib/rage/templates --markup markdown --no-private -o doc
+--exclude lib/rage/templates --exclude lib/rage/rspec --exclude lib/rage/rails --markup markdown --no-private -o doc

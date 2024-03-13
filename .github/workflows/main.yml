@@ -34,7 +34,7 @@ jobs:
       run: bundle exec rake
   docs:
     runs-on: ubuntu-latest
-    name: Validate docs
+    name: Docs
     steps:
     - uses: actions/checkout@v3
     - name: Set up Ruby
@@ -46,7 +46,7 @@ jobs:
       run: bundle exec yardoc --fail-on-warning
   cli:
     runs-on: ubuntu-latest
-    name: Test CLI
+    name: CLI
     steps:
     - uses: actions/checkout@v3
     - name: Set up Ruby
