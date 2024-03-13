@@ -83,7 +83,7 @@ class Rage::Logger
   #     Rage.logger.info "cache miss"
   #   end
   def with_context(context)
-    old_context = Thread.current[:rage_logger][:context]
+    old_context = (Thread.current[:rage_logger] ||= { tags: [], context: {} })[:context]
 
     if old_context.empty? # there's nothing in the context yet
       Thread.current[:rage_logger][:context] = context
@@ -92,8 +92,6 @@ class Rage::Logger
     end
 
     yield(self)
-    true
-
   ensure
     Thread.current[:rage_logger][:context] = old_context
   end
@@ -106,16 +104,19 @@ class Rage::Logger
   #     Rage.logger.info "success"
   #   end
   def tagged(tag)
-    Thread.current[:rage_logger][:tags] << tag
-
+    (Thread.current[:rage_logger] ||= { tags: [], context: {} })[:tags] << tag
     yield(self)
-    true
-
   ensure
     Thread.current[:rage_logger][:tags].pop
   end
 
   alias_method :with_tag, :tagged
+
+  def debug? = @level <= Logger::DEBUG
+  def error? = @level <= Logger::ERROR
+  def fatal? = @level <= Logger::FATAL
+  def info? = @level <= Logger::INFO
+  def warn? = @level <= Logger::WARN
 
   private
 

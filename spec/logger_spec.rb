@@ -99,6 +99,15 @@ RSpec.describe Rage::Logger do
       expect(io.readline).to eq("[my_test_tag][rspec][inner_tag] timestamp=very_accurate_timestamp pid=777 level=fatal message=hello there\n")
       expect(io.readline).to eq("[my_test_tag][rspec] timestamp=very_accurate_timestamp pid=777 level=debug message=debug message\n")
     end
+
+    it "returns block value" do
+      result = subject.tagged("rspec") do
+        subject.info "test"
+        :success
+      end
+
+      expect(result).to eq(:success)
+    end
   end
 
   context "with context" do
@@ -134,6 +143,15 @@ RSpec.describe Rage::Logger do
       expect(io.readline).to eq("[my_test_tag][rspec][test_tag] timestamp=very_accurate_timestamp pid=777 level=info b=222 message=info message\n")
       expect(io.readline).to eq("[my_test_tag][rspec][test_tag] timestamp=very_accurate_timestamp pid=777 level=unknown b=222 c=333 d=444 message=unknown message\n")
       expect(io.readline).to eq("[my_test_tag][rspec] timestamp=very_accurate_timestamp pid=777 level=warn b=222 message=warn message\n")
+    end
+
+    it "returns block value" do
+      result = subject.with_context(rspec: true) do
+        subject.info "text"
+        :ok
+      end
+
+      expect(result).to eq(:ok)
     end
   end
 
