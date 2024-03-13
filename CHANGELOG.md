@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## [1.0.0] - 2024-03-13
+
+### Added
+
+- RSpec integration (#60).
+- Add DNS cache (#65).
+- Allow to disable the `FiberScheduler#io_write` hook (#63).
+
+### Fixed
+
+- Preload fiber ID (#62).
+- Release ActiveRecord connections on yield (#66).
+- Logger fixes (#64).
+- Fix publish calls in cluster mode (#67).
+
 ## [0.7.0] - 2024-01-09
 
 - Add conditional GET using `stale?` by [@tonekk](https://github.com/tonekk) (#55).
