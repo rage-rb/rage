@@ -19,14 +19,12 @@ module RspecHelpersSpec
     end
 
     def fibers_action
-      i = 0
-
-      Fiber.await([
-        Fiber.schedule { i += 1 },
-        Fiber.schedule { i += 2 },
+      i = Fiber.await([
+        Fiber.schedule { 10 },
+        Fiber.schedule { 11 },
       ])
 
-      render plain: i
+      render plain: i.sum
     end
 
     def subdomain
@@ -128,7 +126,7 @@ RSpec.describe "RSpec helpers", type: :request do
 
   it "allows to correctly schedule fibers" do
     get "/fibers"
-    expect(response.body).to eq("3")
+    expect(response.body).to eq("21")
   end
 
   it "uses the default host value" do
