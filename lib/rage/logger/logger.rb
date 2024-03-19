@@ -33,6 +33,23 @@ require "logger"
 # Rage.logger.info("Initializing")
 # Rage.logger.debug { "This is a " + potentially + " expensive operation" }
 # ```
+#
+# ## Using the logger
+# The recommended approach to logging with Rage is to make sure your code always logs the same message no matter what the input is.
+# You can achieve this by using the {with_context} and {tagged} methods. So, a code like this:
+# ```ruby
+# def process_purchase(user_id:, product_id:)
+#   Rage.logger.info "processing purchase with user_id = #{user_id}; product_id = #{product_id}"
+# end
+# ```
+# turns into this:
+# ```ruby
+# def process_purchase(user_id:, product_id:)
+#   Rage.logger.with_context(user_id: user_id, product_id: product_id) do
+#     Rage.logger.info "processing purchase"
+#   end
+# end
+# ```
 class Rage::Logger
   METHODS_MAP = {
     "debug" => Logger::DEBUG,

@@ -19,7 +19,7 @@
 #
 # • _config.middleware.use_
 #
-# > Adds a middleware to the top of the middleware stack. **This is the preferred way of adding a middleware.**
+# > Adds a middleware to the top of the middleware stack. **This is the recommended way of adding a middleware.**
 # > ```
 # config.middleware.use Rack::Cors do
 #   allow do

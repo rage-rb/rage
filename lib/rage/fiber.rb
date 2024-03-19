@@ -1,5 +1,44 @@
 # frozen_string_literal: true
 
+##
+# Rage provides a simple and efficient API to wait on several instances of IO at the same time - {Fiber.await}.
+# 
+# Let's say we have the following controller:
+# ```ruby
+# class UsersController < RageController::API
+#   def show
+#     user = Net::HTTP.get(URI("http://users.service/users/#{params[:id]}"))
+#     bookings = Net::HTTP.get(URI("http://bookings.service/bookings?user_id=#{params[:id]}"))
+#     render json: { user: user, bookings: bookings }
+#   end
+# end
+# ```
+# This code will fire two consecutive HTTP requests. If each request takes 1 second to execute, the total execution time will be 2 seconds.<br>
+# With {Fiber.await}, we can significantly decrease the overall execution time by changing the code to fire the requests concurrently.
+#
+# To do this, we will need to:
+#
+# 1. Wrap every request in a separate fiber using {Fiber.schedule};
+# 2. Pass newly created fibers into {Fiber.await};
+#
+# ```ruby
+# class UsersController < RageController::API
+#   def show
+#     user, bookings = Fiber.await([
+#       Fiber.schedule { Net::HTTP.get(URI("http://users.service/users/#{params[:id]}")) },
+#       Fiber.schedule { Net::HTTP.get(URI("http://bookings.service/bookings?user_id=#{params[:id]}")) }
+#     ])
+#
+#     render json: { user: user, bookings: bookings }
+#   end
+# end
+# ```
+# With this change, if each request takes 1 second to execute, the total execution time will still be 1 second.
+# 
+# ## Creating fibers
+# Many developers see fibers as "lightweight threads" that should be used in conjunction with fiber pools, the same way we use thread pools for threads.<br>
+# Instead, it makes sense to think of fibers as regular Ruby objects. We don't use a pool of arrays when we need to create an array - we create a new object and let Ruby and the GC do their job.<br>
+# Same applies to fibers. Feel free to create as many fibers as you need on demand.
 class Fiber
   # @private
   AWAIT_ERROR_MESSAGE = "err"
@@ -58,7 +97,7 @@ class Fiber
   end
 
   # Wait on several fibers at the same time. Calling this method will automatically pause the current fiber, allowing the
-  #   server to process other requests. Once all fibers have completed, the current fiber will be automatically resumed.
+  # server to process other requests. Once all fibers have completed, the current fiber will be automatically resumed.
   #
   # @param fibers [Fiber, Array<Fiber>] one or several fibers to wait on. The fibers must be created using the `Fiber.schedule` call.
   # @example
@@ -109,4 +148,16 @@ class Fiber
       fibers.map!(&:__get_result)
     end
   end
+
+  # @!method self.schedule(&block)
+  #   Create a non-blocking fiber. Should mostly be used in conjunction with `Fiber.await`.
+  #   @example
+  #     Fiber.await([
+  #       Fiber.schedule { request_1 },
+  #       Fiber.schedule { request_2 }
+  #     ])
+  #   @example
+  #     fiber_1 = Fiber.schedule { request_1 }
+  #     fiber_2 = Fiber.schedule { request_2 }
+  #     Fiber.await([fiber_1, fiber_2])
 end
