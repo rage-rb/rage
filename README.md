@@ -53,8 +53,12 @@ Check out in-depth API docs for more information:
 - [Fiber API](https://rage-rb.pages.dev/Fiber)
 - [Logger API](https://rage-rb.pages.dev/Rage/Logger)
 - [Configuration API](https://rage-rb.pages.dev/Rage/Configuration)
+- [CORS middleware](https://rage-rb.pages.dev/Rage/Cors)
 
-Also, see the [changelog](https://github.com/rage-rb/rage/blob/master/CHANGELOG.md) and [upcoming-releases](https://github.com/rage-rb/rage#upcoming-releases) for currently supported and planned features.
+Also, see the following integration guides:
+
+- [Rails integration](https://github.com/rage-rb/rage/wiki/Rails-integration)
+- [RSpec integration](https://github.com/rage-rb/rage/wiki/RSpec-integration)
 
 ### Example
 
