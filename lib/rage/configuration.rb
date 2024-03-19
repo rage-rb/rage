@@ -15,6 +15,14 @@
 #
 # > Defines the verbosity of the Rage logger. This option defaults to `:debug` for all environments except production, where it defaults to `:info`. The available log levels are: `:debug`, `:info`, `:warn`, `:error`, `:fatal`, and `:unknown`.
 #
+# • _config.secret_key_base_
+#
+# > The `secret_key_base` is used as the input secret to the application's key generator, which is used to encrypt cookies. Rage will fall back to the `SECRET_KEY_BASE` environment variable if this is not set.
+#
+# • _config.fallback_secret_key_base_
+#
+# > Defines one or several old secrets that need to be rotated. Can accept a single key or an array of keys. Rage will fall back to the `FALLBACK_SECRET_KEY_BASE` environment variable if this is not set.
+#
 # # Middleware Configuration
 #
 # • _config.middleware.use_
@@ -100,6 +108,7 @@
 class Rage::Configuration
   attr_accessor :logger
   attr_reader :log_formatter, :log_level
+  attr_writer :secret_key_base, :fallback_secret_key_base
 
   # used in DSL
   def config = self
@@ -111,6 +120,14 @@ class Rage::Configuration
 
   def log_level=(level)
     @log_level = level.is_a?(Symbol) ? Logger.const_get(level.to_s.upcase) : level
+  end
+
+  def secret_key_base
+    @secret_key_base || ENV["SECRET_KEY_BASE"]
+  end
+
+  def fallback_secret_key_base
+    Array(@fallback_secret_key_base || ENV["FALLBACK_SECRET_KEY_BASE"])
   end
 
   def server
