@@ -155,33 +155,28 @@ RSpec.describe Rage::Logger do
     end
   end
 
-  context "from outside the application" do
+  context "outside the request/response cycle" do
     before do
-      stub_const("IRB", Class.new)
+      Thread.current[:rage_logger] = nil
     end
 
     it "correctly adds an entry" do
       subject.info "this is a test message"
-      expect(io.tap(&:rewind).read).to eq("this is a test message\n")
+      expect(io.tap(&:rewind).read).to eq("timestamp=very_accurate_timestamp pid=777 level=info message=this is a test message\n")
     end
 
-    it "correctly adds a block entry" do
-      subject.info { "this is a test message" }
-      expect(io.tap(&:rewind).read).to eq("this is a test message\n")
-    end
-
-    it "ignores tags" do
+    it "correctly adds tagged entry" do
       subject.tagged("rspec") do
         subject.info "this is a test message"
       end
-      expect(io.tap(&:rewind).read).to eq("this is a test message\n")
+      expect(io.tap(&:rewind).read).to eq("[rspec] timestamp=very_accurate_timestamp pid=777 level=info message=this is a test message\n")
     end
 
-    it "ignores context" do
-      subject.with_context(a: "1") do
+    it "correctly adds an entry with context" do
+      subject.with_context(key: "test") do
         subject.info "this is a test message"
       end
-      expect(io.tap(&:rewind).read).to eq("this is a test message\n")
+      expect(io.tap(&:rewind).read).to eq("timestamp=very_accurate_timestamp pid=777 level=info key=test message=this is a test message\n")
     end
   end
 

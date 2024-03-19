@@ -166,7 +166,7 @@ class Rage::Configuration
 
   # @private
   class Internal
-    attr_accessor :rails_mode, :rails_console
+    attr_accessor :rails_mode
 
     def inspect
       "#<#{self.class.name}>"

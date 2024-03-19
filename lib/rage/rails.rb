@@ -11,12 +11,6 @@ Iodine.patch_rack
 # configure the framework
 Rage.config.internal.rails_mode = true
 
-# make sure log formatter is not used in console
-Rails.application.console do
-  Rage.config.internal.rails_console = true
-  Rage.logger.level = Rage.logger.level if Rage.logger # trigger redefining log methods
-end
-
 # patch ActiveRecord's connection pool
 if defined?(ActiveRecord)
   Rails.configuration.after_initialize do
