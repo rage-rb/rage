@@ -26,8 +26,8 @@ class Fiber
     fiber
   end
 
-  def self.await(_)
-    # no-op
+  def self.await(fibers)
+    Array(fibers).map(&:__get_result)
   end
 end
 
