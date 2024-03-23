@@ -48,10 +48,11 @@ class Rage::Router::HandlerStorage
   private
 
   def compile_create_params_object(param_keys, defaults, meta)
-    lines = [
-      ":controller => '#{meta[:controller]}'.freeze",
-      ":action => '#{meta[:action]}'.freeze"
-    ]
+    lines = if meta[:controller]
+      [":controller => '#{meta[:controller]}'.freeze", ":action => '#{meta[:action]}'.freeze"]
+    else
+      []
+    end
 
     param_keys.each_with_index do |key, i|
       lines << ":#{key} => param_values[#{i}]"

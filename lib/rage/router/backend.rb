@@ -67,7 +67,7 @@ class Rage::Router::Backend
     if handler.is_a?(String)
       raise "Invalid route handler format, expected to match the 'controller#action' pattern" unless handler =~ STRING_HANDLER_REGEXP
 
-      controller, action = to_controller_class($1), $2
+      controller, action = Rage::Router::Util.path_to_class($1), $2
       run_action_method_name = controller.__register_action(action.to_sym)
 
       meta[:controller] = $1
@@ -271,24 +271,6 @@ class Rage::Router::Backend
         url_params << param
         path_index = param_end_index
       end
-    end
-  end
-
-  def to_controller_class(str)
-    str.capitalize!
-    str.gsub!(/([\/_])([a-zA-Z0-9]+)/) do
-      if $1 == "/"
-        "::#{$2.capitalize}"
-      else
-        $2.capitalize
-      end
-    end
-
-    klass = "#{str}Controller"
-    if Object.const_defined?(klass)
-      Object.const_get(klass)
-    else
-      raise Rage::Errors::RouterError, "Routing error: could not find the #{klass} class"
     end
   end
 end

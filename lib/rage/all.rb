@@ -18,6 +18,7 @@ require_relative "router/constrainer"
 require_relative "router/dsl"
 require_relative "router/handler_storage"
 require_relative "router/node"
+require_relative "router/util"
 
 require_relative "controller/api"
 
