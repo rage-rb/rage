@@ -146,13 +146,6 @@ class Rage::Logger
             false
           end
         RUBY
-      elsif (Rage.config.internal.rails_mode ? Rage.config.internal.rails_console : defined?(IRB))
-        # the call was made from the console - don't use the formatter
-        <<-RUBY
-          def #{level_name}(msg = nil)
-            @logdev.write((msg || yield) + "\n")
-          end
-        RUBY
       elsif @formatter.class.name.start_with?("Rage::")
         # the call was made from within the application and a built-in formatter is used;
         # in such case we use the `gen_timestamp` method which is much faster than `Time.now.strftime`;
