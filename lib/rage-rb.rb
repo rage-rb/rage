@@ -75,6 +75,8 @@ module Rage
     module Strategies
     end
   end
+
+  autoload :Cookies, "rage/cookies"
 end
 
 module RageController

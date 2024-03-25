@@ -324,6 +324,12 @@ class RageController::API
     @response ||= Rage::Response.new(@__headers, @__body)
   end
 
+  # Get the cookie object. See {Rage::Cookies}.
+  # @return [Rage::Cookies]
+  def cookies
+    @cookies ||= Rage::Cookies.new(@__env, self)
+  end
+
   # Send a response to the client.
   #
   # @param json [String, Object] send a json response to the client; objects like arrays will be serialized automatically
