@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## [1.1.0] - 2024-03-25
+
+### Changed
+
+- Change the way controller names are logged (#72).
+- Use formatters in console (#71).
+
+### Fixed
+
+- Fix Fiber.await behavior in RSpec (#70).
+
 ## [1.0.0] - 2024-03-13
 
 ### Added
