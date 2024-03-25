@@ -188,14 +188,16 @@ RSpec.describe Rage::Logger do
         response: [300, {}, []],
         duration: 1.45
       }
+
+      stub_const("RspecController", double(name: "RspecController"))
     end
 
     it "correctly add an entry" do
       subject.info ""
-      expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info method=GET path=/test_path controller=rspec action=index status=300 duration=1.45\n")
+      expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info method=GET path=/test_path controller=RspecController action=index status=300 duration=1.45\n")
     end
 
-    context "without params" do
+    context "with no params" do
       before do
         Thread.current[:rage_logger][:final].delete(:params)
       end
@@ -203,6 +205,29 @@ RSpec.describe Rage::Logger do
       it "correctly add an entry" do
         subject.info ""
         expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info method=GET path=/test_path status=300 duration=1.45\n")
+      end
+    end
+
+    context "with empty params" do
+      before do
+        Thread.current[:rage_logger][:final][:params] = {}
+      end
+
+      it "correctly add an entry" do
+        subject.info ""
+        expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info method=GET path=/test_path status=300 duration=1.45\n")
+      end
+    end
+
+    context "with namespaced controllers" do
+      before do
+        Thread.current[:rage_logger][:final][:params][:controller] = "api/v2/users"
+        stub_const("Api::V2::UsersController", double(name: "Api::V2::UsersController"))
+      end
+
+      it "correctly add an entry" do
+        subject.info ""
+        expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info method=GET path=/test_path controller=Api::V2::UsersController action=index status=300 duration=1.45\n")
       end
     end
   end
