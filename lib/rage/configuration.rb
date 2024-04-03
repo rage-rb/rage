@@ -79,7 +79,7 @@
 #
 # • _config.server.workers_count_
 #
-# > Specifies the number of server processes to run.
+# > Specifies the number of server processes to run. Defaults to 1 in development and to the number of available CPU cores in other environments.
 #
 # • _config.server.timeout_
 #
@@ -119,7 +119,7 @@ class Rage::Configuration
 
     def initialize
       @threads_count = 1
-      @workers_count = -1
+      @workers_count = Rage.env.development? ? 1 : -1
       @port = 3000
     end
   end
