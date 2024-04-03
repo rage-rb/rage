@@ -66,6 +66,7 @@ end
 RSpec.describe "RSpec helpers", type: :request do
   before do
     allow(Rage).to receive(:root).and_return(Pathname.new(__dir__).expand_path)
+    allow(Rage).to receive(:env).and_return(Rage::Env.new("test"))
     require "rage/rspec"
   end
 

@@ -77,6 +77,10 @@ class Rage::Logger
       Logger::LogDevice.new(log, shift_age:, shift_size:, shift_period_suffix:, binmode:)
     end
 
+    if Rage.env.development? && log.respond_to?(:sync=)
+      log.sync = true
+    end
+
     @formatter = formatter
     @level = level
     define_log_methods
