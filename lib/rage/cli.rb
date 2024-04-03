@@ -124,7 +124,7 @@ module Rage
     end
 
     def set_env(options)
-      ENV["RAGE_ENV"] = options[:environment] || ENV["RAGE_ENV"] || ENV["RAILS_ENV"] || ENV["RACK_ENV"] || "development"
+      ENV["RAGE_ENV"] = options[:environment] if options[:environment]
     end
   end
 
