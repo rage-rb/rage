@@ -60,6 +60,11 @@ Rails.configuration.after_initialize do
   end
 
   ActionDispatch::Reloader.prepend(conditional_mutex)
+
+  # use `ActionDispatch::Reloader` in development
+  if Rage.env.development?
+    Rage.config.middleware.use ActionDispatch::Reloader
+  end
 end
 
 # clone Rails logger
