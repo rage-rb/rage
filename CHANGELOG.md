@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [1.2.0] - 2024-04-03
+
+### Changed
+
+- Disable Ruby buffer for logging IO (#73).
+- Default to 1 worker in development (#74).
+- Default to use ActionDispatch::Reloader in dev env in Rails mode (#75).
+
 ## [1.1.0] - 2024-03-25
 
 ### Changed
