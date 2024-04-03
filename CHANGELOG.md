@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.2.2] - 2024-04-03
+
+### Fixed
+
+- Correctly determine Rage env (#77).
+
 ## [1.2.1] - 2024-04-03
 
 ### Fixed
