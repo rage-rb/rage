@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.2.1] - 2024-04-03
+
+### Fixed
+
+- Correctly clone Rails logger (#76).
+
 ## [1.2.0] - 2024-04-03
 
 ### Changed
