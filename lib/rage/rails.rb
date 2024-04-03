@@ -71,6 +71,6 @@ end
 Rails.configuration.after_initialize do
   if Rails.logger && !Rage.logger
     rails_logdev = Rails.logger.instance_variable_get(:@logdev)
-    Rage.config.logger = Rage::Logger.new(rails_logdev) if rails_logdev.is_a?(Logger::LogDevice)
+    Rage.config.logger = Rage::Logger.new(rails_logdev.dev) if rails_logdev.is_a?(Logger::LogDevice)
   end
 end
