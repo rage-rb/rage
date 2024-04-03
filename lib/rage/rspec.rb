@@ -4,7 +4,7 @@ require "rack/test"
 require "json"
 
 # set up environment
-ENV["RAGE_ENV"] ||= ENV["RAILS_ENV"] || ENV["RACK_ENV"] || "test"
+ENV["RAGE_ENV"] ||= "test"
 
 # load the app
 require "bundler/setup"
