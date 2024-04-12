@@ -1,5 +1,9 @@
 Iodine.patch_rack
 
+if defined?(ActiveSupport::IsolatedExecutionState)
+  ActiveSupport::IsolatedExecutionState.isolation_level = :fiber
+end
+
 if defined?(ActiveRecord::ConnectionAdapters::ConnectionPool)
   ActiveRecord::ConnectionAdapters::ConnectionPool
   module ActiveRecord::ConnectionAdapters

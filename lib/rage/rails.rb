@@ -24,6 +24,11 @@ if defined?(ActiveRecord)
   end
 end
 
+# set isolation level
+if defined?(ActiveSupport::IsolatedExecutionState)
+  ActiveSupport::IsolatedExecutionState.isolation_level = :fiber
+end
+
 # release ActiveRecord connections on yield
 if defined?(ActiveRecord)
   class Fiber
