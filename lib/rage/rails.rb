@@ -79,3 +79,8 @@ Rails.configuration.after_initialize do
     Rage.config.logger = Rage::Logger.new(rails_logdev.dev) if rails_logdev.is_a?(Logger::LogDevice)
   end
 end
+
+# patch `ActiveRecord::ConnectionPool`
+if defined?(ActiveRecord) && ENV["RAGE_ENABLE_AR_POOL"]
+  Rage.patch_active_record_connection_pool
+end

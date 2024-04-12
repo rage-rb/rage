@@ -71,8 +71,27 @@ module Rage
     @code_loader ||= Rage::CodeLoader.new
   end
 
+  def self.patch_active_record_connection_pool
+    is_connected = ActiveRecord::Base.connection_pool rescue false
+    if is_connected
+      puts "INFO: Patching ActiveRecord::ConnectionPool"
+      Iodine.on_state(:on_start) do
+        ActiveRecord::Base.connection_pool.extend(Rage::Ext::ActiveRecord::ConnectionPool)
+        ActiveRecord::Base.connection_pool.__init_rage_extension
+      end
+    else
+      puts "WARNING: DB connection is not established - can't patch ActiveRecord::ConnectionPool"
+    end
+  end
+
   module Router
     module Strategies
+    end
+  end
+
+  module Ext
+    module ActiveRecord
+      autoload :ConnectionPool, "rage/ext/active_record/connection_pool"
     end
   end
 end

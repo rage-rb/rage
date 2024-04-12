@@ -24,3 +24,7 @@ Dir["#{Rage.root}/config/initializers/**/*.rb"].each { |initializer| load(initia
 Rage.code_loader.setup
 
 require_relative "#{Rage.root}/config/routes"
+
+if defined?(ActiveRecord) && ENV["RAGE_ENABLE_AR_POOL"]
+  Rage.patch_active_record_connection_pool
+end
