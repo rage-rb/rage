@@ -1,20 +1,5 @@
 Iodine.patch_rack
 
-if defined?(ActiveSupport::IsolatedExecutionState)
-  ActiveSupport::IsolatedExecutionState.isolation_level = :fiber
-end
-
-if defined?(ActiveRecord::ConnectionAdapters::ConnectionPool)
-  ActiveRecord::ConnectionAdapters::ConnectionPool
-  module ActiveRecord::ConnectionAdapters
-    class ConnectionPool
-      def connection_cache_key(_)
-        Fiber.current
-      end
-    end
-  end
-end
-
 require_relative "#{Rage.root}/config/environments/#{Rage.env}"
 
 # Run application initializers
@@ -25,6 +10,4 @@ Rage.code_loader.setup
 
 require_relative "#{Rage.root}/config/routes"
 
-if defined?(ActiveRecord) && ENV["RAGE_ENABLE_AR_POOL"]
-  Rage.patch_active_record_connection_pool
-end
+require "rage/ext/setup"
