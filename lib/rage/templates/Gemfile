@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-gem "rage-rb", "<%= Rage::VERSION %>"
+gem "rage-rb", "~> <%= Rage::VERSION[0..2] %>"
 
 # Build JSON APIs with ease
 # gem "alba"
