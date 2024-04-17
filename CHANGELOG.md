@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.3.0] - 2024-04-17
+
+### Added
+
+- Introduce the `ActiveRecord::ConnectionPool` patch (#78).
+
 ## [1.2.2] - 2024-04-03
 
 ### Fixed
