@@ -31,6 +31,6 @@ if defined?(ActiveRecord::ConnectionAdapters::ConnectionPool)
 end
 
 # patch `ActiveRecord::ConnectionPool`
-if defined?(ActiveRecord) && ENV["RAGE_ENABLE_AR_POOL"]
+if defined?(ActiveRecord) && ENV["RAGE_PATCH_AR_POOL"]
   Rage.patch_active_record_connection_pool
 end

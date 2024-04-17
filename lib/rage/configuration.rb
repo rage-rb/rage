@@ -85,6 +85,18 @@
 #
 # > Specifies connection timeout.
 #
+# # Transient Settings
+#
+# The settings described in this section should be configured using **environment variables** and are either temporary or will become the default in the future.
+#
+# • _RAGE_DISABLE_IO_WRITE_
+#
+# > Disables the `io_write` hook to fix the ["zero-length iov"](https://bugs.ruby-lang.org/issues/19640) error on Ruby < 3.3.
+#
+# • _RAGE_PATCH_AR_POOL_
+#
+# > Enables the `ActiveRecord::ConnectionPool` patch to optimize database connection management. Use it to increase throughput under high load.
+#
 class Rage::Configuration
   attr_accessor :logger
   attr_reader :log_formatter, :log_level
