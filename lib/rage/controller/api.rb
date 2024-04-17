@@ -75,7 +75,7 @@ class RageController::API
         ""
       end
 
-      activerecord_loaded = Rage.config.internal.rails_mode && defined?(::ActiveRecord)
+      activerecord_loaded = defined?(::ActiveRecord)
 
       class_eval <<~RUBY,  __FILE__, __LINE__ + 1
         def __run_#{action}

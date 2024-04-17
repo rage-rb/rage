@@ -9,3 +9,5 @@ Dir["#{Rage.root}/config/initializers/**/*.rb"].each { |initializer| load(initia
 Rage.code_loader.setup
 
 require_relative "#{Rage.root}/config/routes"
+
+require "rage/ext/setup"

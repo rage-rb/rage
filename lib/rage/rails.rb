@@ -11,34 +11,6 @@ Iodine.patch_rack
 # configure the framework
 Rage.config.internal.rails_mode = true
 
-# patch ActiveRecord's connection pool
-if defined?(ActiveRecord)
-  Rails.configuration.after_initialize do
-    module ActiveRecord::ConnectionAdapters
-      class ConnectionPool
-        def connection_cache_key(_)
-          Fiber.current
-        end
-      end
-    end
-  end
-end
-
-# release ActiveRecord connections on yield
-if defined?(ActiveRecord)
-  class Fiber
-    def self.defer
-      res = Fiber.yield
-
-      if ActiveRecord::Base.connection_pool.active_connection?
-        ActiveRecord::Base.connection_handler.clear_active_connections!
-      end
-
-      res
-    end
-  end
-end
-
 # plug into Rails' Zeitwerk instance to reload the code
 Rails.autoloaders.main.on_setup do
   if Iodine.running?
@@ -71,6 +43,10 @@ end
 Rails.configuration.after_initialize do
   if Rails.logger && !Rage.logger
     rails_logdev = Rails.logger.instance_variable_get(:@logdev)
-    Rage.config.logger = Rage::Logger.new(rails_logdev.dev) if rails_logdev.is_a?(Logger::LogDevice)
+    Rage.configure do
+      config.logger = Rage::Logger.new(rails_logdev.dev) if rails_logdev.is_a?(Logger::LogDevice)
+    end
   end
 end
+
+require "rage/ext/setup"
