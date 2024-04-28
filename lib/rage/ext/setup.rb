@@ -4,7 +4,7 @@ if defined?(ActiveSupport::IsolatedExecutionState)
 end
 
 # release ActiveRecord connections on yield
-if defined?(ActiveRecord)
+if defined?(ActiveRecord) && ActiveRecord.version < Gem::Version.create("7.1.0")
   class Fiber
     def self.defer
       res = Fiber.yield
