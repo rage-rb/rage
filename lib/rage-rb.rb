@@ -104,6 +104,7 @@ module Rage
   end
 
   autoload :Cookies, "rage/cookies"
+  autoload :Session, "rage/session"
 end
 
 module RageController
