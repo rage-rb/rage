@@ -490,7 +490,7 @@ class RageController::API
   #       payload[:response] = response.body
   #     end
 
-  # Reset the entire session.
+  # Reset the entire session. See {Rage::Session}.
   def reset_session
     session.clear
   end
