@@ -91,7 +91,7 @@ class Fiber
 
   # @private
   # under normal circumstances, the method is a copy of `yield`, but it can be overriden to perform
-  # additional steps on yielding, e.g. releasing AR connections; see "lib/rage/rails.rb"
+  # additional steps on yielding, e.g. releasing AR connections; see "lib/rage/ext/setup.rb"
   class << self
     alias_method :defer, :yield
   end
