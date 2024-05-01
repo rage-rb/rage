@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [1.4.0] - 2024-05-01
+
+### Added
+
+- Support cookies and sessions (#69).
+
+### Fixed
+
+- Improve compatibility with ActiveRecord 7.1 (#80).
+
 ## [1.3.0] - 2024-04-17
 
 ### Added
