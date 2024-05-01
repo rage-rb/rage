@@ -102,6 +102,9 @@ module Rage
       autoload :ConnectionPool, "rage/ext/active_record/connection_pool"
     end
   end
+
+  autoload :Cookies, "rage/cookies"
+  autoload :Session, "rage/session"
 end
 
 module RageController

@@ -324,6 +324,18 @@ class RageController::API
     @response ||= Rage::Response.new(@__headers, @__body)
   end
 
+  # Get the cookie object. See {Rage::Cookies}.
+  # @return [Rage::Cookies]
+  def cookies
+    @cookies ||= Rage::Cookies.new(@__env, self)
+  end
+
+  # Get the session object. See {Rage::Session}.
+  # @return [Rage::Session]
+  def session
+    @session ||= Rage::Session.new(self)
+  end
+
   # Send a response to the client.
   #
   # @param json [String, Object] send a json response to the client; objects like arrays will be serialized automatically
@@ -477,4 +489,9 @@ class RageController::API
   #     def append_info_to_payload(payload)
   #       payload[:response] = response.body
   #     end
+
+  # Reset the entire session. See {Rage::Session}.
+  def reset_session
+    session.clear
+  end
 end
