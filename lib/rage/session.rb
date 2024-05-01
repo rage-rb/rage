@@ -23,7 +23,7 @@ class Rage::Session
   #
   # @param key [Symbol]
   def [](key)
-    read_session[key] || default
+    read_session[key]
   end
 
   # Returns the value of the given key from the session, or raises `KeyError` if the given key is not found
@@ -58,7 +58,7 @@ class Rage::Session
   alias_method :to_h, :to_hash
 
   def empty?
-    read_session.any?
+    read_session.empty?
   end
 
   # Returns `true` if the given key is present in the session.
