@@ -211,7 +211,7 @@ RSpec.describe RageController::API do
         allow(Rage.config).to receive(:secret_key_base).and_return("rage-test-key")
 
         subject.cookies.encrypted.permanent[:user_id] = "secret"
-        expect(response_cookies[:user_id]).to match(/\w+; expires=\w{3}, \d{2} \w{3} #{Time.now.year + 20} \d{2}:\d{2}:\d{2} GMT/)
+        expect(response_cookies[:user_id]).to match(/\S+; expires=\w{3}, \d{2} \w{3} #{Time.now.year + 20} \d{2}:\d{2}:\d{2} GMT/)
       end
 
       it "doesn't override expiration date" do
