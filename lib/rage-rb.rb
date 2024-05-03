@@ -24,6 +24,10 @@ module Rage
     end
   end
 
+  def self.multi_application
+    Rage::Router::Util::Cascade.new(application, Rails.application)
+  end
+
   def self.routes
     Rage::Router::DSL.new(__router)
   end
