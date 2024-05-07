@@ -68,12 +68,18 @@ class Rage::Router::Backend
       raise "Invalid route handler format, expected to match the 'controller#action' pattern" unless handler =~ STRING_HANDLER_REGEXP
 
       controller, action = Rage::Router::Util.path_to_class($1), $2
-      run_action_method_name = controller.__register_action(action.to_sym)
 
-      meta[:controller] = $1
-      meta[:action] = $2
+      if controller.ancestors.include?(RageController::API)
+        run_action_method_name = controller.__register_action(action.to_sym)
 
-      handler = eval("->(env, params) { #{controller}.new(env, params).#{run_action_method_name} }")
+        meta[:controller] = $1
+        meta[:action] = $2
+
+        handler = eval("->(env, params) { #{controller}.new(env, params).#{run_action_method_name} }")
+      else
+        # this is a Rails controller; notify `Rage::Router::Util::Cascade` to forward the request to Rails
+        handler = ->(_, _) { [404, { "X-Cascade" => "pass" }, []] }
+      end
     else
       raise "Non-string route handler should respond to `call`" unless handler.respond_to?(:call)
       # while regular handlers are expected to be called with the `env` and `params` objects,

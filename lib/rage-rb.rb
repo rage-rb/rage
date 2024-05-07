@@ -7,7 +7,25 @@ require "pathname"
 
 module Rage
   def self.application
-    Application.new(__router)
+    app = Application.new(__router)
+
+    config.middleware.middlewares.reverse.inject(app) do |next_in_chain, (middleware, args, block)|
+      # in Rails compatibility mode we first check if the middleware is a part of the Rails middleware stack;
+      # if it is - it is expected to be built using `ActionDispatch::MiddlewareStack::Middleware#build`
+      if Rage.config.internal.rails_mode
+        rails_middleware = Rails.application.config.middleware.middlewares.find { |m| m.name == middleware.name }
+      end
+
+      if rails_middleware
+        rails_middleware.build(next_in_chain)
+      else
+        middleware.new(next_in_chain, *args, &block)
+      end
+    end
+  end
+
+  def self.multi_application
+    Rage::Router::Util::Cascade.new(application, Rails.application)
   end
 
   def self.routes
@@ -43,28 +61,8 @@ module Rage
     @logger ||= config.logger
   end
 
-  def self.load_middlewares(rack_builder)
-    config.middleware.middlewares.each do |middleware, args, block|
-      # in Rails compatibility mode we first check if the middleware is a part of the Rails middleware stack;
-      # if it is - it is expected to be built using `ActionDispatch::MiddlewareStack::Middleware#build`, but Rack
-      # expects the middleware to respond to `#new`, so we wrap the middleware into a helper module
-      if Rage.config.internal.rails_mode
-        rails_middleware = Rails.application.config.middleware.middlewares.find { |m| m.name == middleware.name }
-        if rails_middleware
-          wrapper = Module.new do
-            extend self
-            attr_accessor :middleware
-            def new(app, *, &)
-              middleware.build(app)
-            end
-          end
-          wrapper.middleware = rails_middleware
-          middleware = wrapper
-        end
-      end
-
-      rack_builder.use(middleware, *args, &block)
-    end
+  def self.load_middlewares(_)
+    puts "`Rage.load_middlewares` is deprecated and has been merged into `Rage.application`. Please remove this call."
   end
 
   def self.code_loader

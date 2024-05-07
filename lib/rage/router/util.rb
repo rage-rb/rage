@@ -30,4 +30,19 @@ class Rage::Router::Util
       end
     end
   end
+
+  # @private
+  class Cascade
+    def initialize(rage_app, rails_app)
+      @rage_app = rage_app
+      @rails_app = rails_app
+    end
+
+    def call(env)
+      result = @rage_app.call(env)
+      return result if result[0] == :__http_defer__ || result[1]["X-Cascade".freeze] != "pass".freeze
+
+      @rails_app.call(env)
+    end
+  end
 end
