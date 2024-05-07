@@ -267,6 +267,27 @@ class Rage::Router::DSL
       @path_prefixes = orig_path_prefixes
     end
 
+    # Add a member route.
+    #
+    # @example Add a `photos/:id/preview` path instead of `photos/:photo_id/preview`
+    #   resources :photos do
+    #     member do
+    #       get "preview"
+    #     end
+    #   end
+    def member(&block)
+      orig_path_prefixes = @path_prefixes
+
+      if (param_prefix = @path_prefixes.last)&.start_with?(":") && @controllers.any?
+        member_prefix = param_prefix.delete_prefix(":#{to_singular(@controllers.last)}_")
+        @path_prefixes = [*@path_prefixes[0...-1], ":#{member_prefix}"]
+      end
+
+      instance_eval &block
+
+      @path_prefixes = orig_path_prefixes
+    end
+
     # Automatically create REST routes for a resource.
     #
     # @example Create five REST routes, all mapping to the `Photos` controller:

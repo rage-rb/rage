@@ -575,6 +575,31 @@ RSpec.describe Rage::Router::DSL do
       end
     end
 
+    it "correctly creates nested routes on member" do
+      expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos/:id/like", "photos#like", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, only: :show do
+          member do
+            post :like
+          end
+        end
+      end
+    end
+
+    it "correctly creates nested routes on member with a custom param" do
+      expect(router).to receive(:on).with("POST", "/photos/:photo_uuid/like", "photos#like", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, only: [], param: :photo_uuid do
+          member do
+            post :like
+          end
+        end
+      end
+    end
+
     it "correctly creates nested resources" do
       expect(router).to receive(:on).with("GET", "/albums", "albums#index", instance_of(Hash))
       expect(router).to receive(:on).with("POST", "/albums", "albums#create", instance_of(Hash))
@@ -606,6 +631,7 @@ RSpec.describe Rage::Router::DSL do
       expect(router).to receive(:on).with("DELETE", "/albums/:album_slug/my_photos/:id", "photos#destroy", instance_of(Hash))
       expect(router).to receive(:on).with("POST", "/albums/:album_slug/my_photos/:photo_id/add_to_album", "photos#add_to_album", instance_of(Hash))
       expect(router).to receive(:on).with("POST", "/albums/:album_slug/my_photos/like_all", "photo_likes#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/albums/:album_slug/my_photos/:id/keywords", "photos#keywords", instance_of(Hash))
 
       expect(router).to receive(:on).with("POST", "/albums/sort", "albums#sort", instance_of(Hash))
       expect(router).to receive(:on).with("PATCH", "/albums/:album_slug/tag", "albums#tag", instance_of(Hash))
@@ -617,6 +643,10 @@ RSpec.describe Rage::Router::DSL do
 
             collection do
               post "like_all", to: "photo_likes#create"
+            end
+
+            member do
+              get :keywords
             end
           end
 
