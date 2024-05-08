@@ -209,6 +209,7 @@ class Rage::Router::DSL
     # @param [Hash] opts scope options.
     # @option opts [String] :module module option
     # @option opts [String] :path path option
+    # @option opts [String] :controller controller option
     # @example Route `/photos` to `Api::PhotosController`
     #   scope module: "api" do
     #     get "photos", to: "photos#index"
@@ -216,6 +217,11 @@ class Rage::Router::DSL
     # @example Route `admin/photos` to `PhotosController`
     #   scope path: "admin" do
     #     get "photos", to: "photos#index"
+    #   end
+    # @example Route `/like` to `photos#like` and `/dislike` to `photos#dislike`
+    #   scope controller: "photos" do
+    #     post "like"
+    #     post "dislike"
     #   end
     # @example Nested calls
     #   scope module: "admin" do
