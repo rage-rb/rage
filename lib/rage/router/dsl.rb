@@ -258,6 +258,19 @@ class Rage::Router::DSL
       @defaults.pop
     end
 
+    # Scopes routes to a specific controller.
+    #
+    # @example
+    #   controller "photos" do
+    #     post "like"
+    #     post "dislike"
+    #   end
+    def controller(controller, &block)
+      @controllers << controller
+      instance_eval &block
+      @controllers.pop
+    end
+
     # Add a route to the collection.
     #
     # @example Add a `photos/search` path instead of `photos/:photo_id/search`

@@ -118,6 +118,27 @@ RSpec.describe Rage::Router::DSL do
     end
   end
 
+  context "with controller scope" do
+    it "correctly adds handlers" do
+      expect(router).to receive(:on).with("POST", "/api/v1/like", "api/v1/photos#like", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/api/v1/dislike", "api/v1/photos#dislike", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/api/v1/index", "api/v1/all_photos#index", instance_of(Hash))
+
+      dsl.draw do
+        namespace "api/v1" do
+          scope controller: "photos" do
+            post "like"
+            post "dislike"
+          end
+
+          controller "all_photos" do
+            get "index"
+          end
+        end
+      end
+    end
+  end
+
   context "with root helper inside a scope" do
     it "correctly adds handlers" do
       expect(router).to receive(:on).with("GET", "/api/v1/internal", "api/test#index", a_hash_including(constraints: {}))
