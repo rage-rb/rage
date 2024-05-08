@@ -428,6 +428,28 @@ class RageController::API
     yield token
   end
 
+  # Authenticate using an HTTP Bearer token, or otherwise render an HTTP header requesting the client to send a
+  # Bearer token. For the authentication to be considered successful, the block should return a non-nil value.
+  #
+  # @yield [token] token value extracted from the `Authorization` header
+  # @example
+  #   before_action :authenticate
+  #
+  #   def authenticate
+  #     authenticate_or_request_with_http_token do |token|
+  #       ApiToken.find_by(token: token)
+  #     end
+  #   end
+  def authenticate_or_request_with_http_token
+    authenticate_with_http_token { |token| yield(token) } || request_http_token_authentication
+  end
+
+  # Render an HTTP header requesting the client to send a Bearer token for authentication.
+  def request_http_token_authentication
+    headers["Www-Authenticate"] = "Token"
+    render plain: "HTTP Token: Access denied.", status: 401
+  end
+
   if !defined?(::ActionController::Parameters)
     # Get the request data. The keys inside the hash are symbols, so `params.keys` returns an array of `Symbol`.<br>
     # You can also load Strong Params to have Rage automatically wrap `params` in an instance of `ActionController::Parameters`.<br>
