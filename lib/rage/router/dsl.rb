@@ -209,6 +209,7 @@ class Rage::Router::DSL
     # @param [Hash] opts scope options.
     # @option opts [String] :module module option
     # @option opts [String] :path path option
+    # @option opts [String] :controller controller option
     # @example Route `/photos` to `Api::PhotosController`
     #   scope module: "api" do
     #     get "photos", to: "photos#index"
@@ -216,6 +217,11 @@ class Rage::Router::DSL
     # @example Route `admin/photos` to `PhotosController`
     #   scope path: "admin" do
     #     get "photos", to: "photos#index"
+    #   end
+    # @example Route `/like` to `photos#like` and `/dislike` to `photos#dislike`
+    #   scope controller: "photos" do
+    #     post "like"
+    #     post "dislike"
     #   end
     # @example Nested calls
     #   scope module: "admin" do
@@ -252,6 +258,19 @@ class Rage::Router::DSL
       @defaults.pop
     end
 
+    # Scopes routes to a specific controller.
+    #
+    # @example
+    #   controller "photos" do
+    #     post "like"
+    #     post "dislike"
+    #   end
+    def controller(controller, &block)
+      @controllers << controller
+      instance_eval &block
+      @controllers.pop
+    end
+
     # Add a route to the collection.
     #
     # @example Add a `photos/search` path instead of `photos/:photo_id/search`
@@ -264,6 +283,27 @@ class Rage::Router::DSL
       orig_path_prefixes = @path_prefixes
       @path_prefixes = @path_prefixes[0...-1] if @path_prefixes.last&.start_with?(":")
       instance_eval &block
+      @path_prefixes = orig_path_prefixes
+    end
+
+    # Add a member route.
+    #
+    # @example Add a `photos/:id/preview` path instead of `photos/:photo_id/preview`
+    #   resources :photos do
+    #     member do
+    #       get "preview"
+    #     end
+    #   end
+    def member(&block)
+      orig_path_prefixes = @path_prefixes
+
+      if (param_prefix = @path_prefixes.last)&.start_with?(":") && @controllers.any?
+        member_prefix = param_prefix.delete_prefix(":#{to_singular(@controllers.last)}_")
+        @path_prefixes = [*@path_prefixes[0...-1], ":#{member_prefix}"]
+      end
+
+      instance_eval &block
+
       @path_prefixes = orig_path_prefixes
     end
 
