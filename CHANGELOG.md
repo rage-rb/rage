@@ -1,5 +1,21 @@
 ## [Unreleased]
 
+## [1.5.0] - 2024-05-08
+
+### Added
+
+- Allow to have both Rails and Rage controllers in one application (#83).
+- Add `authenticate_or_request_with_http_token` (#85).
+- Add the `member` and `controller` route helpers (#86).
+
+### Changed
+
+- Deprecate `Rage.load_middlewares` (#83).
+
+### Fixed
+
+- Correctly init console in Rails mode (credit to [efibootmgr](https://github.com/efibootmgr)) (#84).
+
 ## [1.4.0] - 2024-05-01
 
 ### Added
