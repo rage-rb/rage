@@ -22,12 +22,14 @@ end
 Rails.configuration.after_initialize do
   conditional_mutex = Module.new do
     def call(env)
-      @mutex ||= Mutex.new
-      if Rails.application.reloader.check!
-        @mutex.synchronize { super }
+      res = if Rails.application.reloader.check! || !$rage_code_loaded
+        Fiber.new(blocking: true) { super }.resume
       else
         super
       end
+      $rage_code_loaded = true
+
+      res
     end
   end
 
