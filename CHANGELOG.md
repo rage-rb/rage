@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.5.1] - 2024-05-26
+
+### Fixed
+
+- Correctly reload code in multi apps (#87).
+
 ## [1.5.0] - 2024-05-08
 
 ### Added
