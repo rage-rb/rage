@@ -365,13 +365,13 @@ class RageController::API
   # Get the cookie object. See {Rage::Cookies}.
   # @return [Rage::Cookies]
   def cookies
-    @cookies ||= Rage::Cookies.new(@__env, self)
+    @cookies ||= Rage::Cookies.new(@__env, @__headers)
   end
 
   # Get the session object. See {Rage::Session}.
   # @return [Rage::Session]
   def session
-    @session ||= Rage::Session.new(self)
+    @session ||= Rage::Session.new(cookies)
   end
 
   # Send a response to the client.

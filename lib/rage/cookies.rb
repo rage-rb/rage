@@ -14,9 +14,9 @@ end
 
 class Rage::Cookies
   # @private
-  def initialize(env, controller)
+  def initialize(env, headers)
     @env = env
-    @headers = controller.headers
+    @headers = headers
     @request_cookies = {}
     @parsed = false
 

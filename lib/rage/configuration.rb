@@ -138,6 +138,10 @@ class Rage::Configuration
     @middleware ||= Middleware.new
   end
 
+  def cable
+    @cable ||= Cable.new
+  end
+
   def internal
     @internal ||= Internal.new
   end
@@ -189,6 +193,25 @@ class Rage::Configuration
         @middlewares.index { |m, _, _| m == middleware }.tap do |i|
           raise ArgumentError, "Couldn't find #{middleware} in the middleware stack" unless i
         end
+      end
+    end
+  end
+
+  class Cable
+    attr_accessor :protocol
+
+    def initialize
+      @protocol = Rage::Cable::Protocol::ActioncableV1Json
+    end
+
+    # TODO
+    def allowed_request_origins=(*origins)
+    end
+
+    # @private
+    def middlewares
+      @middlewares ||= Rage.config.middleware.middlewares.reject do |middleware, _, _|
+        middleware == Rage::FiberWrapper
       end
     end
   end
