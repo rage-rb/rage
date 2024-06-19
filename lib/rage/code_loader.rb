@@ -32,6 +32,7 @@ class Rage::CodeLoader
     @loader.reload
     Rage.__router.reset_routes
     load("#{Rage.root}/config/routes.rb")
+    Rage.__router.set_params_wrappers
   end
 
   # in Rails mode - reset the routes; everything else will be done by Rails

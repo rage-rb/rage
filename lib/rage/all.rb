@@ -21,6 +21,8 @@ require_relative "router/node"
 require_relative "router/util"
 
 require_relative "controller/api"
+require_relative "controller/parameters_wrappers/parameters_wrapper"
+require_relative "controller/parameters_wrappers/strong_parameters"
 
 require_relative "logger/text_formatter"
 require_relative "logger/json_formatter"

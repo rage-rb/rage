@@ -121,6 +121,25 @@ class RageController::API
     end
 
     # @private
+    # set the parameters wrappers stack;
+    # this is called when controller classes are loaded and their class variables that control wrappers plugging in are
+    # set;
+    def __set_params_wrappers
+      unless @__wrap_parameters_key.nil?
+        __params_wrappers_stack << ParametersWrappers::ParametersWrapper.new(@__wrap_parameters_key, @__wrap_parameters_options)
+      end
+
+      if defined?(::ActionController::Parameters)
+        __params_wrappers_stack << ParametersWrappers::StrongParameters.instance
+      end
+    end
+
+    # @private
+    def __params_wrappers_stack
+      @__params_wrappers_stack ||= []
+    end
+
+    # @private
     attr_writer :__before_actions, :__after_actions, :__rescue_handlers
 
     # @private
@@ -275,6 +294,20 @@ class RageController::API
       end
 
       @__before_actions[i] = action
+    end
+
+    # Initialize controller params wrapping into a nested hash.
+    # If initialized, params wrapping logic will be added to the controller.
+    #
+    # @param key [Symbol] key that the params hash will nested under
+    # @param options [Hash] wrapping options
+    # @example
+    #   wrap_parameters :user, include: [:name, :age]
+    # @example
+    #   wrap_parameters :user, exclude: :address
+    def wrap_parameters(key, options = {})
+      @__wrap_parameters_key = key
+      @__wrap_parameters_options = options
     end
 
     private
@@ -450,30 +483,26 @@ class RageController::API
     render plain: "HTTP Token: Access denied.", status: 401
   end
 
-  if !defined?(::ActionController::Parameters)
-    # Get the request data. The keys inside the hash are symbols, so `params.keys` returns an array of `Symbol`.<br>
-    # You can also load Strong Params to have Rage automatically wrap `params` in an instance of `ActionController::Parameters`.<br>
-    # At the same time, if you are not implementing complex filtering rules or working with nested structures, consider using native `Hash#fetch` and `Hash#slice` instead.
-    #
-    # For multipart file uploads, the uploaded files are represented by an instance of {Rage::UploadedFile}.
-    #
-    # @return [Hash{Symbol=>String,Array,Hash,Numeric,NilClass,TrueClass,FalseClass}]
-    # @example
-    #   # make sure to load strong params before the `require "rage/all"` call
-    #   require "active_support/all"
-    #   require "action_controller/metal/strong_parameters"
-    #
-    #   params.permit(:user).require(:full_name, :dob)
-    # @example
-    #   # without strong params
-    #   params.fetch(:user).slice(:full_name, :dob)
-    def params
-      @__params
-    end
-  else
-    def params
-      @params ||= ActionController::Parameters.new(@__params)
-    end
+  # Get the request data. The keys inside the hash are symbols, so `params.keys` returns an array of `Symbol`.<br>
+  # You can also load Strong Params to have Rage automatically wrap `params` in an instance of `ActionController::Parameters`.<br>
+  # At the same time, if you are not implementing complex filtering rules or working with nested structures, consider using native `Hash#fetch` and `Hash#slice` instead.
+  #
+  # For multipart file uploads, the uploaded files are represented by an instance of {Rage::UploadedFile}.
+  #
+  # @return [Hash{Symbol=>String,Array,Hash,Numeric,NilClass,TrueClass,FalseClass}]
+  # @example
+  #   # make sure to load strong params before the `require "rage/all"` call
+  #   require "active_support/all"
+  #   require "action_controller/metal/strong_parameters"
+  #
+  #   params.permit(:user).require(:full_name, :dob)
+  # @example
+  #   # without strong params
+  #   params.fetch(:user).slice(:full_name, :dob)
+  def params
+    self.class.__params_wrappers_stack.each { |wrapper| @__params = wrapper.wrap_params(@__params) }
+
+    @__params
   end
 
   # Checks if the request is stale to decide if the action has to be rendered or the cached version is still valid. Use this method to implement conditional GET.

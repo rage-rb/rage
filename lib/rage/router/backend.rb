@@ -100,6 +100,14 @@ class Rage::Router::Backend
     find(env, constraints)
   end
 
+  def set_params_wrappers(controller = RageController::API)
+    controller.__set_params_wrappers
+
+    controller.subclasses.each do |subclass|
+      set_params_wrappers(subclass)
+    end
+  end
+
   private
 
   def __on(method, path, handler, constraints, defaults, meta)
