@@ -8,6 +8,8 @@ Dir["#{Rage.root}/config/initializers/**/*.rb"].each { |initializer| load(initia
 # Load application classes
 Rage.code_loader.setup
 
+Rage.__router.set_params_wrappers
+
 require_relative "#{Rage.root}/config/routes"
 
 require "rage/ext/setup"
