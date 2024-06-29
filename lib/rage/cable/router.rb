@@ -50,7 +50,7 @@ class Rage::Cable::Router
         return :invalid
       end
 
-      klass.__prepare_actions.tap do |available_actions|
+      klass.__register_actions.tap do |available_actions|
         Rage.cable.debug_log { "Compiled #{channel_name}. Available remote actions: #{available_actions}." }
       end
 
