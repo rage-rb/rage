@@ -34,10 +34,11 @@ class Rage::Cable::Router
   # @param channel_name [String] the name of the channel class
   # @param params [Hash] the params hash associated with the subscription
   #
+  # @return [:invalid] if the subscription class does not exist
   # @return [:rejected] if the subscription was rejected
   # @return [:subscribed] if the subscription was accepted
   def process_subscription(connection, identifier, channel_name, params)
-    channel_factory = @channels_map[channel_name] || begin
+    channel_class = @channels_map[channel_name] || begin
       klass = Object.const_get(channel_name) if Object.const_defined?(channel_name)
       if klass.nil? || !klass.ancestors.include?(Rage::Cable::Channel)
         Rage.cable.debug_log { "Subscription class not found: #{channel_name}" }
@@ -48,12 +49,10 @@ class Rage::Cable::Router
         Rage.cable.debug_log { "Compiled #{channel_name}. Available remote actions: #{available_actions}." }
       end
 
-      @channels_map[channel_name] = ->(connection, params, identified_by) do
-        klass.new(connection, params, identified_by)
-      end
+      @channels_map[channel_name] = klass
     end
 
-    channel = channel_factory.call(connection, params, connection.env["rage.identified_by"])
+    channel = channel_class.new(connection, params, connection.env["rage.identified_by"])
     channel.__run_action(:subscribed)
 
     if channel.subscription_rejected?
