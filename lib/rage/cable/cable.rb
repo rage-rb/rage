@@ -35,6 +35,12 @@ module Rage::Cable
   def self.__build_handler(protocol)
     klass = Class.new do
       def initialize(protocol)
+        Iodine.on_state(:on_start) do
+          unless Fiber.scheduler
+            Fiber.set_scheduler(Rage::FiberScheduler.new)
+          end
+        end
+
         @protocol = protocol
       end
 

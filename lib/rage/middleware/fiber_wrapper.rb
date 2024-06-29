@@ -7,7 +7,9 @@
 class Rage::FiberWrapper
   def initialize(app)
     Iodine.on_state(:on_start) do
-      Fiber.set_scheduler(Rage::FiberScheduler.new)
+      unless Fiber.scheduler
+        Fiber.set_scheduler(Rage::FiberScheduler.new)
+      end
     end
     @app = app
   end
