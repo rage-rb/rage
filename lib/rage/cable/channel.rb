@@ -133,10 +133,17 @@ class Rage::Cable::Channel
         ""
       end
 
+      is_subscribing = action_name == :subscribed
       activerecord_loaded = defined?(::ActiveRecord)
 
       method_name = class_eval <<~RUBY,  __FILE__, __LINE__ + 1
         def __run_#{action_name}(data)
+          #{if is_subscribing
+            <<~RUBY
+              @__is_subscribing = true
+            RUBY
+          end}
+
           #{before_subscribe_chunk}
           #{before_unsubscribe_chunk}
 
@@ -411,9 +418,15 @@ class Rage::Cable::Channel
   #     transmit({ message: "Hello!" })
   #   end
   def transmit(data)
-    @__connection.write(
-      Rage.config.cable.protocol.serialize(@__params, data)
-    )
+    message = Rage.config.cable.protocol.serialize(@__params, data)
+
+    if @__is_subscribing
+      # we expect a confirmation message to be sent as a result of a successful subscribe call;
+      # this will make sure `transmit` calls send data after the confirmation;
+      ::Iodine.defer { @__connection.write(message) }
+    else
+      @__connection.write(message)
+    end
   end
 
   # Called once a client has become a subscriber of the channel.
