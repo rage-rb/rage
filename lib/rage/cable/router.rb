@@ -74,14 +74,13 @@ class Rage::Cable::Router
   #
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
   # @param identifier [String] the identifier of the subscription
-  # @param channel_name [String] the name of the channel class
   # @param action_name [Symbol] the name of the handler method
   # @param data [Object] the data sent by the client
   #
   # @return [:no_subscription] if the client is not subscribed to the specified channel
   # @return [:unknown_action] if the action does not exist on the specified channel
   # @return [:processed] if the message has been successfully processed
-  def process_message(connection, identifier, channel_name, action_name, data)
+  def process_message(connection, identifier, action_name, data)
     channel = connection.env["rage.cable"][identifier]
     unless channel
       Rage.cable.debug_log { "Unable to find the subscription" }
@@ -92,7 +91,7 @@ class Rage::Cable::Router
       channel.__run_action(action_name, data)
       :processed
     else
-      Rage.cable.debug_log { "Unable to process #{channel_name}##{action_name}" }
+      Rage.cable.debug_log { "Unable to process #{channel.class.name}##{action_name}" }
       :unknown_action
     end
   end
