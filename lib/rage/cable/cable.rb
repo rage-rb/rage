@@ -80,13 +80,6 @@ module Rage::Cable
     Rage.config.cable.protocol.broadcast(stream, data)
   end
 
-  # @private
-  def self.debug_log
-    if Rage.logger.debug?
-      Rage.logger.tagged("cable") { Rage.logger.debug { yield } }
-    end
-  end
-
   # @!parse [ruby]
   #   # @abstract
   #   class WebSocketConnection
