@@ -39,7 +39,12 @@ class Rage::Cable::Router
   # @return [:subscribed] if the subscription was accepted
   def process_subscription(connection, identifier, channel_name, params)
     channel_class = @channels_map[channel_name] || begin
-      klass = Object.const_get(channel_name) if Object.const_defined?(channel_name)
+      begin
+        klass = Object.const_get(channel_name)
+      rescue NameError
+        nil
+      end
+
       if klass.nil? || !klass.ancestors.include?(Rage::Cable::Channel)
         Rage.cable.debug_log { "Subscription class not found: #{channel_name}" }
         return :invalid
