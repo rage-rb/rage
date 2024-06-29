@@ -52,7 +52,7 @@ class Rage::Cable::Connection
   #
   # @return [Rage::Cookies]
   def cookies
-    @__cookies ||= Rage::Cookies.new(@__env, {}.freeze)
+    @__cookies ||= Rage::Cookies.new(@__env, ReadOnlyHash.new)
   end
 
   # Get the session object. See {Rage::Session}.
@@ -67,5 +67,12 @@ class Rage::Cable::Connection
   # @return [Hash{Symbol=>String,Array,Hash}]
   def params
     @__params ||= Iodine::Rack::Utils.parse_nested_query(@__env["QUERY_STRING"])
+  end
+
+  # @private
+  class ReadOnlyHash < Hash
+    def []=(_, _)
+      raise "Cookies cannot be set for WebSocket clients"
+    end
   end
 end
