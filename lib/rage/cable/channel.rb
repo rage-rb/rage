@@ -107,7 +107,7 @@ class Rage::Cable::Channel
         lines = @__rescue_handlers.map do |klasses, handler|
           <<~RUBY
           rescue #{klasses.join(", ")} => __e
-            #{handler}(__e)
+            #{instance_method(handler).arity == 0 ? handler : "#{handler}(__e)"}
           RUBY
         end
 
@@ -207,9 +207,19 @@ class Rage::Cable::Channel
     # Register an exception handler.
     #
     # @param klasses [Class, Array<Class>] exception classes to watch on
-    # @param with [Symbol] the name of a handler method. The method must take one argument, which is the raised exception. Alternatively, you can pass a block, which must also take one argument.
+    # @param with [Symbol] the name of a handler method. The method can take one argument, which is the raised exception. Alternatively, you can pass a block, which can also take one argument.
     # @example
     #   rescue_from StandardError, with: :report_error
+    #
+    #   private
+    # 
+    #   def report_error(e)
+    #     SomeExternalBugtrackingService.notify(e)
+    #   end
+    # @example
+    #   rescue_from StandardError do |e|
+    #     SomeExternalBugtrackingService.notify(e)
+    #   end
     def rescue_from(*klasses, with: nil, &block)
       unless with
         if block_given?
