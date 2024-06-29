@@ -12,20 +12,21 @@ class Rage::Cable::Channel
     attr_reader :__channels
 
     # @private
-    def __prepare_actions
+    # returns a list of actions that can be called remotely
+    def __register_actions
       actions = (
         public_instance_methods(true) - Rage::Cable::Channel.public_instance_methods(true)
       ).reject { |m| m.start_with?("__rage_tmp") || m.start_with?("__run") }
 
       @__prepared_actions = (INTERNAL_ACTIONS + actions).each_with_object({}) do |action_name, memo|
-        memo[action_name] = __prepare_action_proc(action_name)
+        memo[action_name] = __register_action_proc(action_name)
       end
 
       actions - INTERNAL_ACTIONS
     end
 
     # @private
-    def __prepare_action_proc(action_name)
+    def __register_action_proc(action_name)
       if action_name == :subscribed && @__hooks
         before_subscribe_chunk = if @__hooks[:before_subscribe]
           lines = @__hooks[:before_subscribe].map do |h|
