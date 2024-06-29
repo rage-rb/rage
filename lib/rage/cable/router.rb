@@ -18,7 +18,7 @@ class Rage::Cable::Router
     cable_connection.connect
 
     if cable_connection.rejected?
-      Rage.cable.debug_log { "An unauthorized connection attempt was rejected" }
+      Rage.logger.debug { "An unauthorized connection attempt was rejected" }
     else
       connection.env["rage.identified_by"] = cable_connection.__identified_by_map
       connection.env["rage.cable"] = {}
@@ -46,12 +46,12 @@ class Rage::Cable::Router
       end
 
       if klass.nil? || !klass.ancestors.include?(Rage::Cable::Channel)
-        Rage.cable.debug_log { "Subscription class not found: #{channel_name}" }
+        Rage.logger.debug { "Subscription class not found: #{channel_name}" }
         return :invalid
       end
 
       klass.__register_actions.tap do |available_actions|
-        Rage.cable.debug_log { "Compiled #{channel_name}. Available remote actions: #{available_actions}." }
+        Rage.logger.debug { "Compiled #{channel_name}. Available remote actions: #{available_actions}." }
       end
 
       @channels_map[channel_name] = klass
@@ -61,10 +61,10 @@ class Rage::Cable::Router
     channel.__run_action(:subscribed)
 
     if channel.subscription_rejected?
-      Rage.cable.debug_log { "#{channel_name} is transmitting the subscription rejection" }
+      Rage.logger.debug { "#{channel_name} is transmitting the subscription rejection" }
       :rejected
     else
-      Rage.cable.debug_log { "#{channel_name} is transmitting the subscription confirmation" }
+      Rage.logger.debug { "#{channel_name} is transmitting the subscription confirmation" }
       connection.env["rage.cable"][identifier] = channel
       :subscribed
     end
@@ -83,7 +83,7 @@ class Rage::Cable::Router
   def process_message(connection, identifier, action_name, data)
     channel = connection.env["rage.cable"][identifier]
     unless channel
-      Rage.cable.debug_log { "Unable to find the subscription" }
+      Rage.logger.debug { "Unable to find the subscription" }
       return :no_subscription
     end
 
@@ -91,7 +91,7 @@ class Rage::Cable::Router
       channel.__run_action(action_name, data)
       :processed
     else
-      Rage.cable.debug_log { "Unable to process #{channel.class.name}##{action_name}" }
+      Rage.logger.debug { "Unable to process #{channel.class.name}##{action_name}" }
       :unknown_action
     end
   end
