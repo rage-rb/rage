@@ -113,10 +113,10 @@ class Rage::Cable::Protocol::ActioncableV1Json
     data = JSON.parse(parsed_data[:data])
 
     message_status = if command == COMMAND::MESSAGE && data.has_key?("action")
-      @router.process_message(connection, identifier, params[:channel], data["action"].to_sym, data)
+      @router.process_message(connection, identifier, data["action"].to_sym, data)
 
     elsif command == COMMAND::MESSAGE
-      @router.process_message(connection, identifier, params[:channel], :receive, data)
+      @router.process_message(connection, identifier, :receive, data)
     end
 
     unless message_status == :processed
