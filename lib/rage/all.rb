@@ -26,6 +26,7 @@ require_relative "logger/text_formatter"
 require_relative "logger/json_formatter"
 require_relative "logger/logger"
 
+require_relative "middleware/origin_validator"
 require_relative "middleware/fiber_wrapper"
 require_relative "middleware/cors"
 require_relative "middleware/reloader"
