@@ -42,9 +42,11 @@ class Rage::Cable::Protocol::ActioncableV1Json
     INVALID = { type: TYPE::DISCONNECT, reason: REASON::INVALID, reconnect: true }.to_json
   end
 
+  HANDSHAKE_HEADERS = { "Sec-WebSocket-Protocol" => "actioncable-v1-json" }
+
   # The method defines the headers to send to the client after the handshake process.
   def self.protocol_definition
-    { "Sec-WebSocket-Protocol" => "actioncable-v1-json" }
+    HANDSHAKE_HEADERS
   end
 
   # This method serves as a constructor to prepare the object or set up recurring tasks (e.g. heartbeats).
