@@ -45,17 +45,29 @@ module Rage::Cable
       end
 
       def on_open(connection)
-        Fiber.schedule { @protocol.on_open(connection) }
+        Fiber.schedule do
+          @protocol.on_open(connection)
+        rescue => e
+          log_error(e)
+        end
       end
 
       def on_message(connection, data)
-        Fiber.schedule { @protocol.on_message(connection, data) }
+        Fiber.schedule do
+          @protocol.on_message(connection, data)
+        rescue => e
+          log_error(e)
+        end
       end
 
       if protocol.respond_to?(:on_close)
         def on_close(connection)
-          if ::Iodine.running?
-            Fiber.schedule { @protocol.on_close(connection) }
+          return unless ::Iodine.running?
+
+          Fiber.schedule do
+            @protocol.on_close(connection)
+          rescue => e
+            log_error(e)
           end
         end
       end
@@ -63,7 +75,15 @@ module Rage::Cable
       if protocol.respond_to?(:on_shutdown)
         def on_shutdown(connection)
           @protocol.on_shutdown(connection)
+        rescue => e
+          log_error(e)
         end
+      end
+
+      private
+
+      def log_error(e)
+        Rage.logger.error("Unhandled exception has occured - #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
       end
     end
 
