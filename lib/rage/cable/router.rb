@@ -62,6 +62,11 @@ class Rage::Cable::Router
 
     if channel.subscription_rejected?
       Rage.logger.debug { "#{channel_name} is transmitting the subscription rejection" }
+      # if the subscription is rejected in the `subscribed` method, ActionCable will additionally run
+      # the `unsubscribed` method; this makes little sense to me as the client was never subscribed in
+      # the first place; additionally, I don't think this behaviour is documented anywhere;
+      # so, I'm going to leave this line commented out for now;
+      # channel.__run_action(:unsubscribed)
       :rejected
     else
       Rage.logger.debug { "#{channel_name} is transmitting the subscription confirmation" }
