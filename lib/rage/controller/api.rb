@@ -80,7 +80,7 @@ class RageController::API
       wrap_parameters_chunk = if __wrap_parameters_key
         <<~RUBY
           options = self.class.__wrap_parameters_options
-          
+
           wrapped_params = if options[:include]
             @__params.slice(*[options[:include]].flatten)
           elsif options[:exclude]
@@ -88,8 +88,8 @@ class RageController::API
           else
             @__params
           end
-          
-          @__params = {self.class.__wrap_parameters_key => wrapped_params}
+
+          @__params = @__params.merge({self.class.__wrap_parameters_key => wrapped_params})
         RUBY
       end
 
