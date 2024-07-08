@@ -191,12 +191,20 @@ class Rage::Cable::Channel
     #   before_subscribe do
     #     ...
     #   end
+    # @example
+    #   before_subscribe :my_method, if: -> { ... }
     def before_subscribe(action_name = nil, **opts, &block)
       add_action(:before_subscribe, action_name, **opts, &block)
     end
 
     # Register a new `after_subscribe` hook that will be called after the {subscribed} method.
     #
+    # @example
+    #   after_subscribe do
+    #     ...
+    #   end
+    # @example
+    #   after_subscribe :my_method, unless: :subscription_rejected?
     # @note This callback will be triggered even if the subscription was rejected with the {reject} method.
     def after_subscribe(action_name = nil, **opts, &block)
       add_action(:after_subscribe, action_name, **opts, &block)
@@ -252,7 +260,7 @@ class Rage::Cable::Channel
     # @param every [Integer] the calling period in seconds
     # @example
     #   periodically every: 3.minutes do
-    #     transmit action: :update_count, count: current_count
+    #     transmit({ action: :update_count, count: current_count })
     #   end
     # @example
     #   periodically :update_count, every: 3.minutes
@@ -406,6 +414,9 @@ class Rage::Cable::Channel
   # @param stream [String] the name of the stream
   # @param data [Object] the data to send to the clients
   # @example
+  #   def subscribed
+  #     broadcast("notifications", { message: "A new member has joined!" })
+  #   end
   def broadcast(stream, data)
     Rage.config.cable.protocol.broadcast(stream, data)
   end
