@@ -233,11 +233,9 @@ RSpec.describe Rage::Cable::Channel do
   context "with rejection in before_subscribe" do
     let(:klass) { CableChannelSubscribeSpec::TestChannel5 }
 
-    # this test case doesn't seem logical to me - I would expect `subscribed` to not be called if
-    # the subscription is rejected in `before_subscribe`, but that's how ActionCable works as of v7.1.3.4;
     it "correctly runs the subscribed callback" do
-      expect(verifier).to receive(:subscribed).once
-      expect(verifier).to receive(:after_subscribe).once
+      expect(verifier).not_to receive(:subscribed)
+      expect(verifier).not_to receive(:after_subscribe)
       subject
     end
   end
