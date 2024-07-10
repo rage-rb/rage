@@ -817,4 +817,16 @@ RSpec.describe Rage::Router::DSL do
       end
     end
   end
+
+  context "with the `as` option" do
+    it "correctly adds get handlers" do
+      expect(router).to receive(:on).with("GET", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { get("/test", to: "test#index", as: :test_123) }
+    end
+
+    it "correctly adds legacy get handlers" do
+      expect(router).to receive(:on).with("GET", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { get("/test" => "test#index", as: :test_123) }
+    end
+  end
 end
