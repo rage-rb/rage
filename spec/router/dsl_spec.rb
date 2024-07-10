@@ -753,4 +753,68 @@ RSpec.describe Rage::Router::DSL do
       end
     end
   end
+
+  context "with legacy url helpers" do
+    it "correctly adds get handlers" do
+      expect(router).to receive(:on).with("GET", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { get("/test" => "test#index") }
+    end
+
+    it "correctly adds post handlers" do
+      expect(router).to receive(:on).with("POST", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { post("/test" => "test#index") }
+    end
+
+    it "correctly adds put handlers" do
+      expect(router).to receive(:on).with("PUT", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { put("/test" => "test#index") }
+    end
+
+    it "correctly adds patch handlers" do
+      expect(router).to receive(:on).with("PATCH", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { patch("/test" => "test#index") }
+    end
+
+    it "correctly adds delete handlers" do
+      expect(router).to receive(:on).with("DELETE", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { delete("/test" => "test#index") }
+    end
+
+    it "correctly adds constraints" do
+      expect(router).to receive(:on).with("POST", "/test", "test#index", a_hash_including(constraints: { host: "test.com" }))
+      dsl.draw { post("/test" => "test#index", constraints: { host: "test.com" }) }
+    end
+
+    it "correctly adds constraints and defaults" do
+      expect(router).to receive(:on).with("POST", "/test", "test#index", a_hash_including(constraints: { host: "test.com" }, defaults: { id: "5", format: "png" }))
+      dsl.draw { post("/test" => "test#index", constraints: { host: "test.com" }, defaults: { id: "5", format: "png" }) }
+    end
+
+    it "correctly adds namespaced handlers" do
+      expect(router).to receive(:on).with("PUT", "/api/v1/test", "api/v1/test#index", a_hash_including(constraints: {}))
+
+      dsl.draw do
+        namespace "api/v1" do
+          put "test" => "test#index"
+        end
+      end
+    end
+  end
+
+  context "with legacy root helper" do
+    it "correctly adds root handlers" do
+      expect(router).to receive(:on).with("GET", "/", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { root("test#index") }
+    end
+
+    it "correctly adds namespaced handlers" do
+      expect(router).to receive(:on).with("GET", "/api/v1", "api/v1/test#index", a_hash_including(constraints: {}))
+
+      dsl.draw do
+        namespace "api/v1" do
+          root "test#index"
+        end
+      end
+    end
+  end
 end
