@@ -220,9 +220,9 @@ class Rage::Router::DSL
     # Scopes a set of routes to the given default options.
     #
     # @param [Hash] opts scope options.
-    # @option opts [String] :module module option
-    # @option opts [String] :path path option
-    # @option opts [String] :controller controller option
+    # @option opts [String] :module the namespace for the controller
+    # @option opts [String] :path the path prefix for the routes
+    # @option opts [String] :controller scopes routes to a specific controller
     # @example Route `/photos` to `Api::PhotosController`
     #   scope module: "api" do
     #     get "photos", to: "photos#index"
@@ -322,6 +322,12 @@ class Rage::Router::DSL
 
     # Automatically create REST routes for a resource.
     #
+    # @param [Hash] opts resource options
+    # @option opts [String] :module the namespace for the controller
+    # @option opts [String] :path the path prefix for the routes
+    # @option opts [Symbol, Array<Symbol>] :only only generate routes for the given actions
+    # @option opts [Symbol, Array<Symbol>] :except generate all routes except for the given actions
+    # @option opts [String] :param overrides the default param name of `:id` in the URL
     # @example Create five REST routes, all mapping to the `Photos` controller:
     #   resources :photos
     #   # GET       /photos       => photos#index
