@@ -596,6 +596,17 @@ RSpec.describe Rage::Router::DSL do
       end
     end
 
+    it "correctly creates nested routes on collection with the :on option" do
+      expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos/like_all", "photos#like_all", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, only: :show do
+          post :like_all, on: :collection
+        end
+      end
+    end
+
     it "correctly creates nested routes on member" do
       expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", instance_of(Hash))
       expect(router).to receive(:on).with("POST", "/photos/:id/like", "photos#like", instance_of(Hash))
@@ -605,6 +616,17 @@ RSpec.describe Rage::Router::DSL do
           member do
             post :like
           end
+        end
+      end
+    end
+
+    it "correctly creates nested routes on member with the :on option" do
+      expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos/:id/like", "photos#like", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, only: :show do
+          post :like, on: :member
         end
       end
     end
