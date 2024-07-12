@@ -377,17 +377,7 @@ class Rage::Router::DSL
     #   mount Sidekiq::Web => "/sidekiq"
     # @example
     #   mount Sidekiq::Web, at: "/sidekiq", via: :get
-    def mount(*args)
-      if args.first.is_a?(Hash)
-        app = args.first.keys.first
-        at = args.first.values.first
-        via = args[0][:via]
-      else
-        app = args.first
-        at = args[1][:at]
-        via = args[1][:via]
-      end
-
+    def mount(app, at:, via: :all)
       at = "/#{at}" unless at.start_with?("/")
       at = at.delete_suffix("/") if at.end_with?("/")
 

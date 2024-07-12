@@ -3,6 +3,8 @@
 #
 # @example
 #   get "/photos/:id" => "photos#show"
+# @example
+#   mount Sidekiq::Web => "/sidekiq"
 module Rage::Router::DSLPlugins::LegacyHashNotation
   %i(get post put patch delete).each do |action_name|
     define_method(action_name) do |*args, **kwargs|
@@ -13,6 +15,16 @@ module Rage::Router::DSLPlugins::LegacyHashNotation
       else
         super(*args, **kwargs)
       end
+    end
+  end
+
+  def mount(*args, **kwargs)
+    if args.empty? && !kwargs.empty?
+      app, at = kwargs.first
+      options = kwargs.except(app).merge(at: at)
+      super(app, **options)
+    else
+      super(*args, **kwargs)
     end
   end
 end
