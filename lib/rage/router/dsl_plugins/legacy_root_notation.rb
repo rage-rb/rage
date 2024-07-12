@@ -4,13 +4,11 @@
 # @example
 #   root "photos#index"
 module Rage::Router::DSLPlugins::LegacyRootNotation
-  def root(arg)
-    if arg.is_a?(String)
-      # root "photos#index"
-      super(to: arg)
+  def root(*args, **kwargs)
+    if args.length == 1 && args[0].is_a?(String) && kwargs.empty?
+      super(to: args[0])
     else
-      # root to: "photos#index"
-      super(**arg)
+      super(*args, **kwargs)
     end
   end
 end
