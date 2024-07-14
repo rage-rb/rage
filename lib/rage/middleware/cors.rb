@@ -64,7 +64,7 @@ class Rage::Cors
     @methods = if methods != "*"
       methods.map! { |method| method.to_s.upcase }.tap { |m|
         if (invalid_methods = m - @default_methods).any?
-          raise "Unsupported method passed to Rage::Cors: #{invalid_methods[0]}"
+          raise ArgumentError, "Unsupported method passed to Rage::Cors: #{invalid_methods[0]}"
         end
       }.join(", ")
     elsif @allow_credentials
@@ -74,8 +74,8 @@ class Rage::Cors
     end
 
     if @allow_credentials
-      raise "Rage::Cors requires you to explicitly list allowed headers when using `allow_credentials: true`" if @allow_headers == "*"
-      raise "Rage::Cors requires you to explicitly list exposed headers when using `allow_credentials: true`" if @expose_headers == "*"
+      raise ArgumentError, "Rage::Cors requires you to explicitly list allowed headers when using `allow_credentials: true`" if @allow_headers == "*"
+      raise ArgumentError, "Rage::Cors requires you to explicitly list exposed headers when using `allow_credentials: true`" if @expose_headers == "*"
     end
 
     @origins = []
