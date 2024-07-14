@@ -821,6 +821,54 @@ RSpec.describe Rage::Router::DSL do
         end
       end
     end
+
+    context "with implicit controller" do
+      it "correctly adds handlers" do
+        expect(router).to receive(:on).with("GET", "/test", "users#index", a_hash_including(constraints: {}))
+
+        dsl.draw do
+          controller :users do
+            get "test" => :index
+          end
+        end
+      end
+
+      it "fails if no controller can be found" do
+        expect { dsl.draw { get("test" => :index) } }.to raise_error(/Could not derive/)
+      end
+    end
+
+    context "with implicit action" do
+      it "correctly adds handlers" do
+        expect(router).to receive(:on).with("PATCH", "/test", "users#test", a_hash_including(constraints: {}))
+        dsl.draw { patch "test" => "users" }
+      end
+
+      it "rewrites previously set controller values" do
+        expect(router).to receive(:on).with("POST", "/test", "users#test", a_hash_including(constraints: {}))
+
+        dsl.draw do
+          controller :photos do
+            post "test" => "users"
+          end
+        end
+      end
+
+      it "uses the last section of the path as the action value" do
+        expect(router).to receive(:on).with("GET", "/api/users/all", "test#all", a_hash_including(constraints: {}))
+        dsl.draw { get "api/users/all" => "test" }
+      end
+
+      it "correctly adds scoped handlers" do
+        expect(router).to receive(:on).with("GET", "/api/users/all", "test#all", a_hash_including(constraints: {}))
+
+        dsl.draw do
+          scope path: "api/users" do
+            get "all" => "test"
+          end
+        end
+      end
+    end
   end
 
   context "with legacy root helper" do
