@@ -899,4 +899,45 @@ RSpec.describe Rage::Router::DSL do
       dsl.draw { get("/test" => "test#index", as: :test_123) }
     end
   end
+
+  context "with the `controller` and `action` options" do
+    it "correctly adds handlers" do
+      expect(router).to receive(:on).with("GET", "/test", "users#index", a_hash_including(constraints: {}))
+      dsl.draw { get("test", controller: "users", action: "index") }
+    end
+
+    it "rewrites previously set controller values" do
+      expect(router).to receive(:on).with("GET", "/test", "users#index", a_hash_including(constraints: {}))
+
+      dsl.draw do
+        controller :photos do
+          get "test", controller: "users", action: "index"
+        end
+      end
+    end
+
+    it "correctly adds handlers with the `controller` option" do
+      expect(router).to receive(:on).with("GET", "/test", "users#test", a_hash_including(constraints: {}))
+      dsl.draw { get("test", controller: "users") }
+    end
+
+    it "uses the last section of the path as the action value" do
+      expect(router).to receive(:on).with("GET", "/api/users/all", "test#all", a_hash_including(constraints: {}))
+      dsl.draw { get "api/users/all", controller: "test" }
+    end
+
+    it "correctly adds handlers with the `action` option" do
+      expect(router).to receive(:on).with("GET", "/test", "admin_users#index", a_hash_including(constraints: {}))
+
+      dsl.draw do
+        controller :admin_users do
+          get "test", action: "index"
+        end
+      end
+    end
+
+    it "fails if no controller can be found" do
+      expect { dsl.draw { get("test", action: "index") } }.to raise_error(/Could not derive/)
+    end
+  end
 end

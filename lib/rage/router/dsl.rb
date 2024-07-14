@@ -3,6 +3,7 @@
 require_relative "dsl_plugins/legacy_hash_notation"
 require_relative "dsl_plugins/legacy_root_notation"
 require_relative "dsl_plugins/named_route_helpers"
+require_relative "dsl_plugins/controller_action_options"
 
 class Rage::Router::DSL
   def initialize(router)
@@ -51,6 +52,7 @@ class Rage::Router::DSL
   #     resources :posts
   #   end
   class Handler
+    prepend Rage::Router::DSLPlugins::ControllerActionOptions
     prepend Rage::Router::DSLPlugins::NamedRouteHelpers
     prepend Rage::Router::DSLPlugins::LegacyHashNotation
     prepend Rage::Router::DSLPlugins::LegacyRootNotation
