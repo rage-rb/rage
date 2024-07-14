@@ -114,7 +114,7 @@ class Rage::Configuration
   def config = self
 
   def log_formatter=(formatter)
-    raise "Custom log formatter should respond to `#call`" unless formatter.respond_to?(:call)
+    raise ArgumentError, "Custom log formatter should respond to `#call`" unless formatter.respond_to?(:call)
     @log_formatter = formatter
   end
 

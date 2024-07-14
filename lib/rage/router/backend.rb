@@ -20,7 +20,7 @@ class Rage::Router::Backend
   end
 
   def mount(path, handler, methods)
-    raise "Mount handler should respond to `call`" unless handler.respond_to?(:call)
+    raise ArgumentError, "Mount handler should respond to `call`" unless handler.respond_to?(:call)
 
     raw_handler = handler
     is_sidekiq = handler.respond_to?(:name) && handler.name == "Sidekiq::Web"
@@ -52,7 +52,7 @@ class Rage::Router::Backend
     raise "Path could not be empty" if path&.empty?
 
     if match_index = (path =~ OPTIONAL_PARAM_REGEXP)
-      raise "Optional Parameter has to be the last parameter of the path" if path.length != match_index + $&.length
+      raise ArgumentError, "Optional Parameter has to be the last parameter of the path" if path.length != match_index + $&.length
 
       path_full = path.sub(OPTIONAL_PARAM_REGEXP, "/#{$1}")
       path_optional = path.sub(OPTIONAL_PARAM_REGEXP, "")
@@ -65,7 +65,7 @@ class Rage::Router::Backend
     meta = { raw_handler: handler }
 
     if handler.is_a?(String)
-      raise "Invalid route handler format, expected to match the 'controller#action' pattern" unless handler =~ STRING_HANDLER_REGEXP
+      raise ArgumentError, "Invalid route handler format, expected to match the 'controller#action' pattern" unless handler =~ STRING_HANDLER_REGEXP
 
       controller, action = Rage::Router::Util.path_to_class($1), $2
 
@@ -81,7 +81,7 @@ class Rage::Router::Backend
         handler = ->(_, _) { [404, { "X-Cascade" => "pass" }, []] }
       end
     else
-      raise "Non-string route handler should respond to `call`" unless handler.respond_to?(:call)
+      raise ArgumentError, "Non-string route handler should respond to `call`" unless handler.respond_to?(:call)
       # while regular handlers are expected to be called with the `env` and `params` objects,
       # lambda handlers expect just `env` as an argument;
       # TODO: come up with something nicer?
@@ -189,7 +189,7 @@ class Rage::Router::Backend
         params << "*"
         current_node = current_node.create_wildcard_child
         parent_node_path_index = i + 1
-        raise "Wildcard must be the last character in the route" if i != pattern.length - 1
+        raise ArgumentError, "Wildcard must be the last character in the route" if i != pattern.length - 1
       end
 
       i += 1
@@ -205,7 +205,7 @@ class Rage::Router::Backend
         existing_route[:pattern] == pattern &&
         existing_route[:constraints] == constraints
       )
-        raise "Method '#{method}' already declared for route '#{pattern}' with constraints '#{constraints.inspect}'"
+        raise ArgumentError, "Method '#{method}' already declared for route '#{pattern}' with constraints '#{constraints.inspect}'"
       end
     end
 

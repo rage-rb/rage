@@ -325,7 +325,7 @@ class Rage::Router::DSL
       end
 
       _module, _path, _only, _except, _param = opts.values_at(:module, :path, :only, :except, :param)
-      raise ":param option can't contain colons" if _param.to_s.include?(":")
+      raise ArgumentError, ":param option can't contain colons" if _param.to_s.include?(":")
 
       _only = Array(_only) if _only
       _except = Array(_except) if _except
@@ -395,7 +395,7 @@ class Rage::Router::DSL
         if @controllers.any?
           to = "#{@controllers.last}##{path}"
         else
-          raise "Missing :to key on routes definition, please check your routes."
+          raise ArgumentError, "Missing :to key on routes definition, please check your routes."
         end
       end
 

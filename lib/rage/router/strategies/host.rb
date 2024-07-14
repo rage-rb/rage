@@ -18,7 +18,7 @@ class Rage::Router::Strategies::Host
 
   def validate(value)
     if !value.is_a?(String) && !value.is_a?(Regexp)
-      raise "Host should be a string or a Regexp"
+      raise ArgumentError, "Host should be a string or a Regexp"
     end
   end
 

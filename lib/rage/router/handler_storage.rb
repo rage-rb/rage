@@ -35,7 +35,7 @@ class Rage::Router::HandlerStorage
     end
 
     if @handlers.length >= 32
-      raise "Limit reached: a maximum of 32 route handlers per node allowed when there are constraints"
+      raise ArgumentError, "Limit reached: a maximum of 32 route handlers per node allowed when there are constraints"
     end
 
     @handlers << handler_object

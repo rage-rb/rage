@@ -168,7 +168,7 @@ class RageController::API
         if block_given?
           with = define_tmp_method(block)
         else
-          raise "No handler provided. Pass the `with` keyword argument or provide a block."
+          raise ArgumentError, "No handler provided. Pass the `with` keyword argument or provide a block."
         end
       end
 
@@ -224,7 +224,7 @@ class RageController::API
 
     # Register a new `after_action` hook. Calls with the same `action_name` will overwrite the previous ones.
     #
-    # @param action_name [String, nil] the name of the callback to add
+    # @param action_name [Symbol, nil] the name of the callback to add
     # @param [Hash] opts action options
     # @option opts [Symbol, Array<Symbol>] :only restrict the callback to run only for specific actions
     # @option opts [Symbol, Array<Symbol>] :except restrict the callback to run for all actions except specified
@@ -250,14 +250,14 @@ class RageController::API
 
     # Prevent a `before_action` hook from running.
     #
-    # @param action_name [String] the name of the callback to skip
+    # @param action_name [Symbol] the name of the callback to skip
     # @param only [Symbol, Array<Symbol>] restrict the callback to be skipped only for specific actions
     # @param except [Symbol, Array<Symbol>] restrict the callback to be skipped for all actions except specified
     # @example
     #   skip_before_action :find_photo, only: :create
     def skip_before_action(action_name, only: nil, except: nil)
       i = @__before_actions&.find_index { |a| a[:name] == action_name }
-      raise "The following action was specified to be skipped but couldn't be found: #{self}##{action_name}" unless i
+      raise ArgumentError, "The following action was specified to be skipped but couldn't be found: #{self}##{action_name}" unless i
 
       @__before_actions = @__before_actions.dup if @__before_actions.frozen?
 
@@ -284,7 +284,7 @@ class RageController::API
       if block_given?
         action_name = define_tmp_method(block)
       elsif action_name.nil?
-        raise "No handler provided. Pass the `action_name` parameter or provide a block."
+        raise ArgumentError, "No handler provided. Pass the `action_name` parameter or provide a block."
       end
 
        _only, _except, _if, _unless = opts.values_at(:only, :except, :if, :unless)

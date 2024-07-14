@@ -45,14 +45,14 @@ class Rage::Router::Constrainer
   end
 
   def new_store_for_constraint(constraint)
-    raise "No strategy registered for constraint key '#{constraint}'" unless @strategies[constraint]
+    raise ArgumentError, "No strategy registered for constraint key '#{constraint}'" unless @strategies[constraint]
     @strategies[constraint].storage
   end
 
   def validate_constraints(constraints)
     constraints.each do |key, value|
       strategy = @strategies[key]
-      raise "No strategy registered for constraint key '#{key}'" unless strategy
+      raise ArgumentError, "No strategy registered for constraint key '#{key}'" unless strategy
 
       strategy.validate(value)
     end
@@ -73,7 +73,7 @@ class Rage::Router::Constrainer
         if key == :host
           lines << "   host: env['HTTP_HOST'.freeze],"
         else
-          raise 'unknown non-custom strategy for compiling constraint derivation function'
+          raise ArgumentError, 'unknown non-custom strategy for compiling constraint derivation function'
         end
       else
         lines << "  #{strategy.name}: @strategies[#{key}].derive_constraint(env),"
