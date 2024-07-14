@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Rage::Router::Util
   class << self
     # converts controller name in a path form into a class
@@ -40,9 +42,13 @@ class Rage::Router::Util
 
     def call(env)
       result = @rage_app.call(env)
-      return result if result[0] == :__http_defer__ || result[1]["X-Cascade".freeze] != "pass".freeze
+      return result if result[0] == :__http_defer__
 
-      @rails_app.call(env)
+      if result[1]["X-Cascade"] == "pass" || env["PATH_INFO"].start_with?("/rails/")
+        @rails_app.call(env)
+      else
+        result
+      end
     end
   end
 end
