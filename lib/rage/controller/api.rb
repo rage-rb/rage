@@ -66,7 +66,7 @@ class RageController::API
         lines = @__rescue_handlers.map do |klasses, handler|
           <<~RUBY
           rescue #{klasses.join(", ")} => __e
-            #{handler}(__e)
+            #{instance_method(handler).arity == 0 ? handler : "#{handler}(__e)"}
             [@__status, @__headers, @__body]
           RUBY
         end
@@ -174,18 +174,17 @@ class RageController::API
     # Register a global exception handler. Handlers are inherited and matched from bottom to top.
     #
     # @param klasses [Class, Array<Class>] exception classes to watch on
-    # @param with [Symbol] the name of a handler method. The method must take one argument, which is the raised exception. Alternatively, you can pass a block, which must also take one argument.
+    # @param with [Symbol] the name of a handler method. Alternatively, you can pass a block.
     # @example
     #   rescue_from User::NotAuthorized, with: :deny_access
     #
-    #   def deny_access(exception)
+    #   def deny_access
     #     head :forbidden
     #   end
     # @example
-    #   rescue_from User::NotAuthorized do |_|
-    #     head :forbidden
+    #   rescue_from User::NotAuthorized do |exception|
+    #     render json: { message: exception.message }, status: :forbidden
     #   end
-    # @note Unlike in Rails, the handler must always take an argument. Use `_` if you don't care about the actual exception.
     def rescue_from(*klasses, with: nil, &block)
       unless with
         if block_given?
@@ -206,7 +205,7 @@ class RageController::API
 
     # Register a new `before_action` hook. Calls with the same `action_name` will overwrite the previous ones.
     #
-    # @param action_name [String, nil] the name of the callback to add
+    # @param action_name [Symbol, nil] the name of the callback to add
     # @param [Hash] opts action options
     # @option opts [Symbol, Array<Symbol>] :only restrict the callback to run only for specific actions
     # @option opts [Symbol, Array<Symbol>] :except restrict the callback to run for all actions except specified

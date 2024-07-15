@@ -78,6 +78,30 @@ module RescueFromSpec
       raise "123"
     end
   end
+
+  class TestController7 < RageController::API
+    rescue_from StandardError, with: :error_handler
+
+    def index
+      raise "111"
+      render plain: "hi"
+    end
+
+    private def error_handler
+      render plain: "error", status: 500
+    end
+  end
+
+  class TestController8 < RageController::API
+    rescue_from StandardError do
+      render plain: "block error", status: 500
+    end
+
+    def index
+      raise "111"
+      render plain: "hi"
+    end
+  end
 end
 
 RSpec.describe RageController::API do
@@ -136,6 +160,22 @@ RSpec.describe RageController::API do
 
     it "correctly handles exceptions" do
       expect(subject).to match([500, instance_of(Hash), ["block error handler"]])
+    end
+  end
+
+  context "case 7" do
+    let(:klass) { RescueFromSpec::TestController7 }
+
+    it "correctly handles exceptions" do
+      expect(subject).to match([500, instance_of(Hash), ["error"]])
+    end
+  end
+
+  context "case 8" do
+    let(:klass) { RescueFromSpec::TestController8 }
+
+    it "correctly handles exceptions" do
+      expect(subject).to match([500, instance_of(Hash), ["block error"]])
     end
   end
 end
