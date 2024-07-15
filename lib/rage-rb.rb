@@ -93,6 +93,9 @@ module Rage
   module Router
     module Strategies
     end
+
+    module DSLPlugins
+    end
   end
 
   module Ext

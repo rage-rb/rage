@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+require_relative "dsl_plugins/legacy_hash_notation"
+require_relative "dsl_plugins/legacy_root_notation"
+require_relative "dsl_plugins/named_route_helpers"
+require_relative "dsl_plugins/controller_action_options"
+
 class Rage::Router::DSL
   def initialize(router)
     @router = router
@@ -47,6 +52,11 @@ class Rage::Router::DSL
   #     resources :posts
   #   end
   class Handler
+    prepend Rage::Router::DSLPlugins::ControllerActionOptions
+    prepend Rage::Router::DSLPlugins::NamedRouteHelpers
+    prepend Rage::Router::DSLPlugins::LegacyHashNotation
+    prepend Rage::Router::DSLPlugins::LegacyRootNotation
+
     # @private
     def initialize(router)
       @router = router
@@ -67,12 +77,13 @@ class Rage::Router::DSL
     # @param to [String] the route handler in the format of "controller#action"
     # @param constraints [Hash] a hash of constraints for the route
     # @param defaults [Hash] a hash of default parameters for the route
+    # @param on [nil, :member, :collection] a shorthand for wrapping routes in a specific RESTful context
     # @example
     #   get "/photos/:id", to: "photos#show", constraints: { host: /myhost/ }
     # @example
     #   get "/photos(/:id)", to: "photos#show", defaults: { id: "-1" }
-    def get(path, to: nil, constraints: nil, defaults: nil)
-      __on("GET", path, to, constraints, defaults)
+    def get(path, to: nil, constraints: nil, defaults: nil, on: nil)
+      __with_on_scope(on) { __on("GET", path, to, constraints, defaults) }
     end
 
     # Register a new POST route.
@@ -81,12 +92,13 @@ class Rage::Router::DSL
     # @param to [String] the route handler in the format of "controller#action"
     # @param constraints [Hash] a hash of constraints for the route
     # @param defaults [Hash] a hash of default parameters for the route
+    # @param on [nil, :member, :collection] a shorthand for wrapping routes in a specific RESTful context
     # @example
     #   post "/photos", to: "photos#create", constraints: { host: /myhost/ }
     # @example
     #   post "/photos", to: "photos#create", defaults: { format: "jpg" }
-    def post(path, to: nil, constraints: nil, defaults: nil)
-      __on("POST", path, to, constraints, defaults)
+    def post(path, to: nil, constraints: nil, defaults: nil, on: nil)
+      __with_on_scope(on) { __on("POST", path, to, constraints, defaults) }
     end
 
     # Register a new PUT route.
@@ -95,12 +107,13 @@ class Rage::Router::DSL
     # @param to [String] the route handler in the format of "controller#action"
     # @param constraints [Hash] a hash of constraints for the route
     # @param defaults [Hash] a hash of default parameters for the route
+    # @param on [nil, :member, :collection] a shorthand for wrapping routes in a specific RESTful context
     # @example
     #   put "/photos/:id", to: "photos#update", constraints: { host: /myhost/ }
     # @example
     #   put "/photos(/:id)", to: "photos#update", defaults: { id: "-1" }
-    def put(path, to: nil, constraints: nil, defaults: nil)
-      __on("PUT", path, to, constraints, defaults)
+    def put(path, to: nil, constraints: nil, defaults: nil, on: nil)
+      __with_on_scope(on) { __on("PUT", path, to, constraints, defaults) }
     end
 
     # Register a new PATCH route.
@@ -109,12 +122,13 @@ class Rage::Router::DSL
     # @param to [String] the route handler in the format of "controller#action"
     # @param constraints [Hash] a hash of constraints for the route
     # @param defaults [Hash] a hash of default parameters for the route
+    # @param on [nil, :member, :collection] a shorthand for wrapping routes in a specific RESTful context
     # @example
     #   patch "/photos/:id", to: "photos#update", constraints: { host: /myhost/ }
     # @example
     #   patch "/photos(/:id)", to: "photos#update", defaults: { id: "-1" }
-    def patch(path, to: nil, constraints: nil, defaults: nil)
-      __on("PATCH", path, to, constraints, defaults)
+    def patch(path, to: nil, constraints: nil, defaults: nil, on: nil)
+      __with_on_scope(on) { __on("PATCH", path, to, constraints, defaults) }
     end
 
     # Register a new DELETE route.
@@ -123,12 +137,13 @@ class Rage::Router::DSL
     # @param to [String] the route handler in the format of "controller#action"
     # @param constraints [Hash] a hash of constraints for the route
     # @param defaults [Hash] a hash of default parameters for the route
+    # @param on [nil, :member, :collection] a shorthand for wrapping routes in a specific RESTful context
     # @example
     #   delete "/photos/:id", to: "photos#destroy", constraints: { host: /myhost/ }
     # @example
     #   delete "/photos(/:id)", to: "photos#destroy", defaults: { id: "-1" }
-    def delete(path, to: nil, constraints: nil, defaults: nil)
-      __on("DELETE", path, to, constraints, defaults)
+    def delete(path, to: nil, constraints: nil, defaults: nil, on: nil)
+      __with_on_scope(on) { __on("DELETE", path, to, constraints, defaults) }
     end
 
     # Register a new route pointing to '/'.
@@ -207,9 +222,9 @@ class Rage::Router::DSL
     # Scopes a set of routes to the given default options.
     #
     # @param [Hash] opts scope options.
-    # @option opts [String] :module module option
-    # @option opts [String] :path path option
-    # @option opts [String] :controller controller option
+    # @option opts [String] :module the namespace for the controller
+    # @option opts [String] :path the path prefix for the routes
+    # @option opts [String] :controller scopes routes to a specific controller
     # @example Route `/photos` to `Api::PhotosController`
     #   scope module: "api" do
     #     get "photos", to: "photos#index"
@@ -309,6 +324,12 @@ class Rage::Router::DSL
 
     # Automatically create REST routes for a resource.
     #
+    # @param [Hash] opts resource options
+    # @option opts [String] :module the namespace for the controller
+    # @option opts [String] :path the path prefix for the routes
+    # @option opts [Symbol, Array<Symbol>] :only only generate routes for the given actions
+    # @option opts [Symbol, Array<Symbol>] :except generate all routes except for the given actions
+    # @option opts [String] :param overrides the default param name of `:id` in the URL
     # @example Create five REST routes, all mapping to the `Photos` controller:
     #   resources :photos
     #   # GET       /photos       => photos#index
@@ -358,17 +379,7 @@ class Rage::Router::DSL
     #   mount Sidekiq::Web => "/sidekiq"
     # @example
     #   mount Sidekiq::Web, at: "/sidekiq", via: :get
-    def mount(*args)
-      if args.first.is_a?(Hash)
-        app = args.first.keys.first
-        at = args.first.values.first
-        via = args[0][:via]
-      else
-        app = args.first
-        at = args[1][:at]
-        via = args[1][:via]
-      end
-
+    def mount(app, at:, via: :all)
       at = "/#{at}" unless at.start_with?("/")
       at = at.delete_suffix("/") if at.end_with?("/")
 
@@ -418,6 +429,19 @@ class Rage::Router::DSL
         @router.on(method, "#{path_prefix}#{path}", "#{module_prefix}#{to}", constraints: constraints || {}, defaults: defaults)
       else
         @router.on(method, "#{path_prefix}#{path}", to, constraints: constraints || {}, defaults: defaults)
+      end
+    end
+
+    def __with_on_scope(on, &block)
+      case on
+      when nil
+        block.call
+      when :member
+        member(&block)
+      when :collection
+        collection(&block)
+      else
+        raise ArgumentError, "Unknown scope :#{on} given to :on"
       end
     end
 

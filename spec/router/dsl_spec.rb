@@ -596,6 +596,17 @@ RSpec.describe Rage::Router::DSL do
       end
     end
 
+    it "correctly creates nested routes on collection with the :on option" do
+      expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos/like_all", "photos#like_all", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, only: :show do
+          post :like_all, on: :collection
+        end
+      end
+    end
+
     it "correctly creates nested routes on member" do
       expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", instance_of(Hash))
       expect(router).to receive(:on).with("POST", "/photos/:id/like", "photos#like", instance_of(Hash))
@@ -605,6 +616,17 @@ RSpec.describe Rage::Router::DSL do
           member do
             post :like
           end
+        end
+      end
+    end
+
+    it "correctly creates nested routes on member with the :on option" do
+      expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photos/:id/like", "photos#like", instance_of(Hash))
+
+      dsl.draw do
+        resources :photos, only: :show do
+          post :like, on: :member
         end
       end
     end
@@ -751,6 +773,171 @@ RSpec.describe Rage::Router::DSL do
           post :mark
         end
       end
+    end
+  end
+
+  context "with legacy url helpers" do
+    it "correctly adds get handlers" do
+      expect(router).to receive(:on).with("GET", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { get("/test" => "test#index") }
+    end
+
+    it "correctly adds post handlers" do
+      expect(router).to receive(:on).with("POST", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { post("/test" => "test#index") }
+    end
+
+    it "correctly adds put handlers" do
+      expect(router).to receive(:on).with("PUT", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { put("/test" => "test#index") }
+    end
+
+    it "correctly adds patch handlers" do
+      expect(router).to receive(:on).with("PATCH", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { patch("/test" => "test#index") }
+    end
+
+    it "correctly adds delete handlers" do
+      expect(router).to receive(:on).with("DELETE", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { delete("/test" => "test#index") }
+    end
+
+    it "correctly adds constraints" do
+      expect(router).to receive(:on).with("POST", "/test", "test#index", a_hash_including(constraints: { host: "test.com" }))
+      dsl.draw { post("/test" => "test#index", constraints: { host: "test.com" }) }
+    end
+
+    it "correctly adds constraints and defaults" do
+      expect(router).to receive(:on).with("POST", "/test", "test#index", a_hash_including(constraints: { host: "test.com" }, defaults: { id: "5", format: "png" }))
+      dsl.draw { post("/test" => "test#index", constraints: { host: "test.com" }, defaults: { id: "5", format: "png" }) }
+    end
+
+    it "correctly adds namespaced handlers" do
+      expect(router).to receive(:on).with("PUT", "/api/v1/test", "api/v1/test#index", a_hash_including(constraints: {}))
+
+      dsl.draw do
+        namespace "api/v1" do
+          put "test" => "test#index"
+        end
+      end
+    end
+
+    context "with implicit controller" do
+      it "correctly adds handlers" do
+        expect(router).to receive(:on).with("GET", "/test", "users#index", a_hash_including(constraints: {}))
+
+        dsl.draw do
+          controller :users do
+            get "test" => :index
+          end
+        end
+      end
+
+      it "fails if no controller can be found" do
+        expect { dsl.draw { get("test" => :index) } }.to raise_error(/Could not derive/)
+      end
+    end
+
+    context "with implicit action" do
+      it "correctly adds handlers" do
+        expect(router).to receive(:on).with("PATCH", "/test", "users#test", a_hash_including(constraints: {}))
+        dsl.draw { patch "test" => "users" }
+      end
+
+      it "rewrites previously set controller values" do
+        expect(router).to receive(:on).with("POST", "/test", "users#test", a_hash_including(constraints: {}))
+
+        dsl.draw do
+          controller :photos do
+            post "test" => "users"
+          end
+        end
+      end
+
+      it "uses the last section of the path as the action value" do
+        expect(router).to receive(:on).with("GET", "/api/users/all", "test#all", a_hash_including(constraints: {}))
+        dsl.draw { get "api/users/all" => "test" }
+      end
+
+      it "correctly adds scoped handlers" do
+        expect(router).to receive(:on).with("GET", "/api/users/all", "test#all", a_hash_including(constraints: {}))
+
+        dsl.draw do
+          scope path: "api/users" do
+            get "all" => "test"
+          end
+        end
+      end
+    end
+  end
+
+  context "with legacy root helper" do
+    it "correctly adds root handlers" do
+      expect(router).to receive(:on).with("GET", "/", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { root("test#index") }
+    end
+
+    it "correctly adds namespaced handlers" do
+      expect(router).to receive(:on).with("GET", "/api/v1", "api/v1/test#index", a_hash_including(constraints: {}))
+
+      dsl.draw do
+        namespace "api/v1" do
+          root "test#index"
+        end
+      end
+    end
+  end
+
+  context "with the `as` option" do
+    it "correctly adds get handlers" do
+      expect(router).to receive(:on).with("GET", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { get("/test", to: "test#index", as: :test_123) }
+    end
+
+    it "correctly adds legacy get handlers" do
+      expect(router).to receive(:on).with("GET", "/test", "test#index", a_hash_including(constraints: {}))
+      dsl.draw { get("/test" => "test#index", as: :test_123) }
+    end
+  end
+
+  context "with the `controller` and `action` options" do
+    it "correctly adds handlers" do
+      expect(router).to receive(:on).with("GET", "/test", "users#index", a_hash_including(constraints: {}))
+      dsl.draw { get("test", controller: "users", action: "index") }
+    end
+
+    it "rewrites previously set controller values" do
+      expect(router).to receive(:on).with("GET", "/test", "users#index", a_hash_including(constraints: {}))
+
+      dsl.draw do
+        controller :photos do
+          get "test", controller: "users", action: "index"
+        end
+      end
+    end
+
+    it "correctly adds handlers with the `controller` option" do
+      expect(router).to receive(:on).with("GET", "/test", "users#test", a_hash_including(constraints: {}))
+      dsl.draw { get("test", controller: "users") }
+    end
+
+    it "uses the last section of the path as the action value" do
+      expect(router).to receive(:on).with("GET", "/api/users/all", "test#all", a_hash_including(constraints: {}))
+      dsl.draw { get "api/users/all", controller: "test" }
+    end
+
+    it "correctly adds handlers with the `action` option" do
+      expect(router).to receive(:on).with("GET", "/test", "admin_users#index", a_hash_including(constraints: {}))
+
+      dsl.draw do
+        controller :admin_users do
+          get "test", action: "index"
+        end
+      end
+    end
+
+    it "fails if no controller can be found" do
+      expect { dsl.draw { get("test", action: "index") } }.to raise_error(/Could not derive/)
     end
   end
 end
