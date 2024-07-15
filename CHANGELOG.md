@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [1.6.0] - 2024-07-15
+
+### Added
+
+- Support legacy route helpers (#90).
+- Correctly handle internal Rails routes in `Rage.multi_application` (#91).
+
 ## [1.5.1] - 2024-05-26
 
 ### Fixed
