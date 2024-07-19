@@ -13,9 +13,8 @@ RSpec.describe RageController::API do
         initial_params = {param: :value}
         expected_result = {param: :value}
 
-        expect(run_action(controller, :index, params: initial_params)).to match(
-          [200, instance_of(Hash), [expected_result.to_json]]
-        )
+        response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
+        expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
       end
     end
 
@@ -31,24 +30,40 @@ RSpec.describe RageController::API do
       end
 
       context "and wrapping root doesn't conflict with parameter key" do
-        it 'wraps the parameters into a nested hash' do
-          initial_params = {param: :value}
-          expected_result = {param: :value, root: {param: :value}}
+        context 'and CONTENT_TYPE header is blank' do
+          it "doesn't wrap the parameters into a nested hash" do
+            initial_params = {param: :value}
+            expected_result = {param: :value}
 
-          expect(run_action(controller, :index, params: initial_params)).to match(
-            [200, instance_of(Hash), [expected_result.to_json]]
-          )
+            response = run_action(controller, :index, params: initial_params)
+            expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
+          end
+        end
+
+        context 'and CONTENT_TYPE header is present' do
+          it 'wraps the parameters into a nested hash' do
+            initial_params = {param: :value}
+            expected_result = {param: :value, root: {param: :value}}
+
+            response = run_action(
+              controller,
+              :index,
+              params: initial_params,
+              env: {'CONTENT_TYPE' => "application/json"}
+            )
+
+            expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
+          end
         end
       end
 
       context 'and wrapping root conflicts with parameter key' do
-        it 'wraps the parameters into a nested hash and overrides the conflicting key' do
+        it "doesn't wrap the parameters into a nested hash" do
           initial_params = {root: :value, param: :value}
-          expected_result = {root: {root: :value, param: :value}, param: :value}
+          expected_result = {root: :value, param: :value}
 
-          expect(run_action(controller, :index, params: initial_params)).to match(
-            [200, instance_of(Hash), [expected_result.to_json]]
-          )
+          response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
+          expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
         end
       end
     end
@@ -69,9 +84,8 @@ RSpec.describe RageController::API do
           initial_params = {param_a: :value, param_b: :value}
           expected_result = {param_a: :value, param_b: :value, root: {param_a: :value}}
 
-          expect(run_action(controller, :index, params: initial_params)).to match(
-            [200, instance_of(Hash), [expected_result.to_json]]
-          )
+          response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
+          expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
         end
       end
 
@@ -95,9 +109,8 @@ RSpec.describe RageController::API do
             root: {param_a: :value, param_b: :value}
           }
 
-          expect(run_action(controller, :index, params: initial_params)).to match(
-            [200, instance_of(Hash), [expected_result.to_json]]
-          )
+          response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
+          expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
         end
       end
     end
@@ -118,9 +131,8 @@ RSpec.describe RageController::API do
           initial_params = {param_a: :value, param_b: :value}
           expected_result = {param_a: :value, param_b: :value, root: {param_b: :value}}
 
-          expect(run_action(controller, :index, params: initial_params)).to match(
-            [200, instance_of(Hash), [expected_result.to_json]]
-          )
+          response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
+          expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
         end
       end
 
@@ -139,9 +151,8 @@ RSpec.describe RageController::API do
           initial_params = {param_a: :value, param_b: :value, param_c: :value}
           expected_result = {param_a: :value, param_b: :value, param_c: :value, root: {param_c: :value}}
 
-          expect(run_action(controller, :index, params: initial_params)).to match(
-            [200, instance_of(Hash), [expected_result.to_json]]
-          )
+          response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
+          expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
         end
       end
     end
@@ -161,9 +172,8 @@ RSpec.describe RageController::API do
         initial_params = {param_a: :value, param_b: :value}
         expected_result = {param_a: :value, param_b: :value, root: {param_a: :value}}
 
-        expect(run_action(controller, :index, params: initial_params)).to match(
-          [200, instance_of(Hash), [expected_result.to_json]]
-        )
+        response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
+        expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
       end
     end
   end
@@ -210,15 +220,25 @@ RSpec.describe RageController::API do
           end
 
           it 'wraps params of child controller using wrapping key of child controller without options' do
-            expect(run_action(child_controller, :index, params: initial_params)).to match(
-              [200, instance_of(Hash), [expected_result.to_json]]
+            response = run_action(
+              child_controller,
+              :index,
+              params: initial_params,
+              env: {'CONTENT_TYPE' => "application/json"}
             )
+
+            expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
           end
 
           it 'wraps params of grandchild controller using wrapping key of child controller without options' do
-            expect(run_action(grandchild_controller, :index, params: initial_params)).to match(
-              [200, instance_of(Hash), [expected_result.to_json]]
+            response = run_action(
+              grandchild_controller,
+              :index,
+              params: initial_params,
+              env: {'CONTENT_TYPE' => "application/json"}
             )
+
+            expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
           end
         end
 
@@ -237,15 +257,25 @@ RSpec.describe RageController::API do
           let(:expected_result) { {parent_param: :value, child_param: :value, child_root: {child_param: :value}} }
 
           it 'wraps params of child controller using wrapping key and options of child controller' do
-            expect(run_action(child_controller, :index, params: initial_params)).to match(
-              [200, instance_of(Hash), [expected_result.to_json]]
+            response = run_action(
+              child_controller,
+              :index,
+              params: initial_params,
+              env: { 'CONTENT_TYPE' => "application/json" }
             )
+
+            expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
           end
 
           it 'wraps params of grandchild controller using wrapping key and options of child controller' do
-            expect(run_action(grandchild_controller, :index, params: initial_params)).to match(
-              [200, instance_of(Hash), [expected_result.to_json]]
+            response = run_action(
+              grandchild_controller,
+              :index,
+              params: initial_params,
+              env: {'CONTENT_TYPE' => "application/json"}
             )
+
+            expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
           end
         end
       end
@@ -263,15 +293,25 @@ RSpec.describe RageController::API do
         let(:expected_result) { {parent_param: :value, child_param: :value, parent_root: {parent_param: :value}} }
 
         it 'wraps params of child controller using wrapping key and options of parent controller' do
-          expect(run_action(child_controller, :index, params: initial_params)).to match(
-           [200, instance_of(Hash), [expected_result.to_json]]
-         )
+          response = run_action(
+            child_controller,
+            :index,
+            params: initial_params,
+            env: {'CONTENT_TYPE' => "application/json"}
+          )
+
+          expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
         end
 
         it 'wraps params of grandchild controller using wrapping key and options of parent controller' do
-          expect(run_action(child_controller, :index, params: initial_params)).to match(
-            [200, instance_of(Hash), [expected_result.to_json]]
+          response = run_action(
+            child_controller,
+            :index,
+            params: initial_params,
+            env: {'CONTENT_TYPE' => "application/json"}
           )
+
+          expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
         end
       end
     end

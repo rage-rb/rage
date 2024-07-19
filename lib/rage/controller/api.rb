@@ -79,17 +79,20 @@ class RageController::API
 
       wrap_parameters_chunk = if __wrap_parameters_key
         <<~RUBY
-          options = self.class.__wrap_parameters_options
-
-          wrapped_params = if options[:include]
-            @__params.slice(*[options[:include]].flatten)
-          elsif options[:exclude]
-            @__params.except(*[options[:exclude]].flatten)
-          else
-            @__params
+          wrap_key = self.class.__wrap_parameters_key
+          if !@__params.key?(wrap_key) && @__env['CONTENT_TYPE']
+            wrap_options = self.class.__wrap_parameters_options
+  
+            wrapped_params = if wrap_options[:include]
+              @__params.slice(*[wrap_options[:include]].flatten)
+            elsif wrap_options[:exclude]
+              @__params.except(*[wrap_options[:exclude]].flatten)
+            else
+              @__params
+            end
+  
+            @__params = @__params.merge({wrap_key => wrapped_params})
           end
-
-          @__params = @__params.merge({self.class.__wrap_parameters_key => wrapped_params})
         RUBY
       end
 
