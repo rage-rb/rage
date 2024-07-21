@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class RageController::API
+  RESERVED_PARAMS = %i[action controller].freeze
+
   class << self
     # @private
     # used by the router to register a new action;
@@ -86,9 +88,9 @@ class RageController::API
             wrapped_params = if wrap_options[:include]
               @__params.slice(*[wrap_options[:include]].flatten)
             elsif wrap_options[:exclude]
-              @__params.except(*[wrap_options[:exclude]].flatten)
+              @__params.except(*([wrap_options[:exclude]].flatten + RESERVED_PARAMS))
             else
-              @__params
+              @__params.except(*RESERVED_PARAMS)
             end
   
             @__params = @__params.merge({wrap_key => wrapped_params})

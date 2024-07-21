@@ -41,9 +41,9 @@ RSpec.describe RageController::API do
         end
 
         context 'and CONTENT_TYPE header is present' do
-          it 'wraps the parameters into a nested hash' do
-            initial_params = {param: :value}
-            expected_result = {param: :value, root: {param: :value}}
+          it 'wraps the parameters into a nested hash without the reserved params' do
+            initial_params = {param: :value, action: :action, controller: :controller}
+            expected_result = {param: :value, action: :action, controller: :controller, root: {param: :value}}
 
             response = run_action(
               controller,
@@ -59,8 +59,8 @@ RSpec.describe RageController::API do
 
       context 'and wrapping root conflicts with parameter key' do
         it "doesn't wrap the parameters into a nested hash" do
-          initial_params = {root: :value, param: :value}
-          expected_result = {root: :value, param: :value}
+          initial_params = {root: :value, param: :value, action: :action, controller: :controller}
+          expected_result = {root: :value, param: :value, action: :action, controller: :controller}
 
           response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
           expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
@@ -81,8 +81,14 @@ RSpec.describe RageController::API do
         end
 
         it 'wraps the param that is set to be included' do
-          initial_params = {param_a: :value, param_b: :value}
-          expected_result = {param_a: :value, param_b: :value, root: {param_a: :value}}
+          initial_params = {param_a: :value, param_b: :value, action: :action, controller: :controller}
+          expected_result = {
+            param_a: :value,
+            param_b: :value,
+            action: :action,
+            controller: :controller,
+            root: {param_a: :value}
+          }
 
           response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
           expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
@@ -101,11 +107,13 @@ RSpec.describe RageController::API do
         end
 
         it 'wraps the params that are set to be included' do
-          initial_params = {param_a: :value, param_b: :value, param_c: :value}
+          initial_params = {param_a: :value, param_b: :value, param_c: :value, action: :action, controller: :controller}
           expected_result = {
             param_a: :value,
             param_b: :value,
             param_c: :value,
+            action: :action,
+            controller: :controller,
             root: {param_a: :value, param_b: :value}
           }
 
@@ -128,8 +136,13 @@ RSpec.describe RageController::API do
         end
 
         it 'wraps the params except the param that is set to be excluded' do
-          initial_params = {param_a: :value, param_b: :value}
-          expected_result = {param_a: :value, param_b: :value, root: {param_b: :value}}
+          initial_params = {param_a: :value, param_b: :value, action: :action, controller: :controller}
+          expected_result = {
+            param_a: :value,
+            param_b: :value, action: :action,
+            controller: :controller,
+            root: {param_b: :value}
+          }
 
           response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
           expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
