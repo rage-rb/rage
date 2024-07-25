@@ -77,6 +77,23 @@ class RageController::API
 
       activerecord_loaded = defined?(::ActiveRecord)
 
+      wrap_parameters_chunk = if __wrap_parameters_key
+        <<~RUBY
+          wrap_key = self.class.__wrap_parameters_key
+          if !@__params.key?(wrap_key) && @__env['CONTENT_TYPE']
+            wrap_options = self.class.__wrap_parameters_options
+            wrapped_params = if wrap_options[:include].any?
+                               @__params.slice(*wrap_options[:include])
+                             else
+                               params_to_exclude_by_default = %i[action controller]
+                               @__params.except(*(wrap_options[:exclude] + params_to_exclude_by_default))
+                             end
+
+            @__params[wrap_key] = wrapped_params
+          end
+        RUBY
+      end
+
       class_eval <<~RUBY,  __FILE__, __LINE__ + 1
         def __run_#{action}
           #{if activerecord_loaded
@@ -85,6 +102,7 @@ class RageController::API
             RUBY
           end}
 
+          #{wrap_parameters_chunk}
           #{before_actions_chunk}
           #{action}
 
@@ -122,6 +140,7 @@ class RageController::API
 
     # @private
     attr_writer :__before_actions, :__after_actions, :__rescue_handlers
+    attr_accessor :__wrap_parameters_key, :__wrap_parameters_options
 
     # @private
     # pass the variable down to the child; the child will continue to use it until changes need to be made;
@@ -130,6 +149,8 @@ class RageController::API
       klass.__before_actions = @__before_actions.freeze
       klass.__after_actions = @__after_actions.freeze
       klass.__rescue_handlers = @__rescue_handlers.freeze
+      klass.__wrap_parameters_key = __wrap_parameters_key
+      klass.__wrap_parameters_options = __wrap_parameters_options
     end
 
     # @private
@@ -275,6 +296,23 @@ class RageController::API
       end
 
       @__before_actions[i] = action
+    end
+
+    # Initialize controller params wrapping into a nested hash.
+    # If initialized, params wrapping logic will be added to the controller.
+    # Params get wrapped only if the CONTENT_TYPE header is present and params hash doesn't contain a param that
+    # has the same name as the wrapper key.
+    #
+    # @param key [Symbol] key that the wrapped params hash will nested under
+    # @param include [Array] array of params that should be included to the wrapped params hash
+    # @param exclude [Array] array of params that should be excluded from the wrapped params hash
+    # @example
+    #   wrap_parameters :user, include: %i[name age]
+    # @example
+    #   wrap_parameters :user, exclude: %i[address]
+    def wrap_parameters(key, include: [], exclude: [])
+      @__wrap_parameters_key = key
+      @__wrap_parameters_options = {include:, exclude:}
     end
 
     private
