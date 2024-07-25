@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class RageController::API
-  RESERVED_PARAMS = %i[action controller].freeze
-
   class << self
     # @private
     # used by the router to register a new action;
@@ -84,16 +82,14 @@ class RageController::API
           wrap_key = self.class.__wrap_parameters_key
           if !@__params.key?(wrap_key) && @__env['CONTENT_TYPE']
             wrap_options = self.class.__wrap_parameters_options
-  
-            wrapped_params = if wrap_options[:include]
-              @__params.slice(*[wrap_options[:include]].flatten)
-            elsif wrap_options[:exclude]
-              @__params.except(*([wrap_options[:exclude]].flatten + RESERVED_PARAMS))
-            else
-              @__params.except(*RESERVED_PARAMS)
-            end
-  
-            @__params = @__params.merge({wrap_key => wrapped_params})
+            wrapped_params = if wrap_options[:include].any?
+                               @__params.slice(*wrap_options[:include])
+                             else
+                               params_to_exclude_by_default = %i[action controller]
+                               @__params.except(*(wrap_options[:exclude] + params_to_exclude_by_default))
+                             end
+
+            @__params[wrap_key] = wrapped_params
           end
         RUBY
       end
@@ -304,16 +300,19 @@ class RageController::API
 
     # Initialize controller params wrapping into a nested hash.
     # If initialized, params wrapping logic will be added to the controller.
+    # Params get wrapped only if the CONTENT_TYPE header is present and params hash doesn't contain a param that
+    # has the same name as the wrapper key.
     #
-    # @param key [Symbol] key that the params hash will nested under
-    # @param options [Hash] wrapping options
+    # @param key [Symbol] key that the wrapped params hash will nested under
+    # @param include [Array] array of params that should be included to the wrapped params hash
+    # @param exclude [Array] array of params that should be excluded from the wrapped params hash
     # @example
-    #   wrap_parameters :user, include: [:name, :age]
+    #   wrap_parameters :user, include: %i[name age]
     # @example
-    #   wrap_parameters :user, exclude: :address
-    def wrap_parameters(key, options = {})
+    #   wrap_parameters :user, exclude: %i[address]
+    def wrap_parameters(key, include: [], exclude: [])
       @__wrap_parameters_key = key
-      @__wrap_parameters_options = options
+      @__wrap_parameters_options = {include:, exclude:}
     end
 
     private

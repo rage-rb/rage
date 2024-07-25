@@ -69,43 +69,17 @@ RSpec.describe RageController::API do
     end
 
     context 'when parameters wrapper is declared with :include option' do
-      context 'and :include option is set as Symbol' do
-        let(:controller) do
-          Class.new(RageController::API) do
-            wrap_parameters :root, include: :param_a
+      let(:controller) do
+        Class.new(RageController::API) do
+          wrap_parameters :root, include: %i[param_a param_b]
 
-            def index
-              render json: params
-            end
+          def index
+            render json: params
           end
-        end
-
-        it 'wraps the param that is set to be included' do
-          initial_params = {param_a: :value, param_b: :value, action: :action, controller: :controller}
-          expected_result = {
-            param_a: :value,
-            param_b: :value,
-            action: :action,
-            controller: :controller,
-            root: {param_a: :value}
-          }
-
-          response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
-          expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
         end
       end
 
-      context 'and :include option is set as Array' do
-        let(:controller) do
-          Class.new(RageController::API) do
-            wrap_parameters :root, include: [:param_a, :param_b]
-
-            def index
-              render json: params
-            end
-          end
-        end
-
+      context 'and params to include are present in request' do
         it 'wraps the params that are set to be included' do
           initial_params = {param_a: :value, param_b: :value, param_c: :value, action: :action, controller: :controller}
           expected_result = {
@@ -121,27 +95,39 @@ RSpec.describe RageController::API do
           expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
         end
       end
+
+      context "and params to include aren't present in request" do
+        it 'adds empty hash under wrapping key to params' do
+          initial_params = {param_c: :value, action: :action, controller: :controller}
+          expected_result = {param_c: :value, action: :action, controller: :controller, root: {}}
+
+          response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
+          expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
+        end
+      end
     end
 
     context 'when parameters wrapper is declared with :exclude option' do
-      context 'and :exclude option is set as Symbol' do
-        let(:controller) do
-          Class.new(RageController::API) do
-            wrap_parameters :root, exclude: :param_a
+      let(:controller) do
+        Class.new(RageController::API) do
+          wrap_parameters :root, exclude: %i[param_a param_b]
 
-            def index
-              render json: params
-            end
+          def index
+            render json: params
           end
         end
+      end
 
-        it 'wraps the params except the param that is set to be excluded' do
-          initial_params = {param_a: :value, param_b: :value, action: :action, controller: :controller}
+      context 'and params to exclude are present in request' do
+        it 'wraps the params except those that are set to be excluded and those that need to be excluded by default' do
+          initial_params = {param_a: :value, param_b: :value, param_c: :value, action: :action, controller: :controller}
           expected_result = {
             param_a: :value,
-            param_b: :value, action: :action,
+            param_b: :value,
+            param_c: :value,
+            action: :action,
             controller: :controller,
-            root: {param_b: :value}
+            root: {param_c: :value}
           }
 
           response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
@@ -149,20 +135,10 @@ RSpec.describe RageController::API do
         end
       end
 
-      context 'and :exclude option is set as Array' do
-        let(:controller) do
-          Class.new(RageController::API) do
-            wrap_parameters :root, exclude: [:param_a, :param_b]
-
-            def index
-              render json: params
-            end
-          end
-        end
-
-        it 'wraps the params except the params that are set to be excluded' do
-          initial_params = {param_a: :value, param_b: :value, param_c: :value}
-          expected_result = {param_a: :value, param_b: :value, param_c: :value, root: {param_c: :value}}
+      context "and params to exclude aren't present in request" do
+        it 'wraps the params except those that need to be excluded by default ' do
+          initial_params = {param_c: :value, action: :action, controller: :controller}
+          expected_result = {param_c: :value, action: :action, controller: :controller, root: {param_c: :value}}
 
           response = run_action(controller, :index, params: initial_params, env: {'CONTENT_TYPE' => "application/json"})
           expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
@@ -173,7 +149,7 @@ RSpec.describe RageController::API do
     context 'when parameters wrapper is declared with both :exclude and :include options' do
       let(:controller) do
         Class.new(RageController::API) do
-          wrap_parameters :root, exclude: :param_a, include: :param_a
+          wrap_parameters :root, exclude: %i[param_a], include: %i[param_a]
 
           def index
             render json: params
@@ -189,142 +165,142 @@ RSpec.describe RageController::API do
         expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
       end
     end
-  end
 
-  describe 'controller inheritance' do
-    let(:grandchild_controller) do
-      Class.new(child_controller) do
-        def index
-          render json: params
-        end
-      end
-    end
-
-    context 'when parameters wrapper is declared in parent controller' do
-      let(:parent_controller) do
-        Class.new(RageController::API) do
-          wrap_parameters :parent_root, include: [:parent_param]
-
+    context 'controller inheritance' do
+      let(:grandchild_controller) do
+        Class.new(child_controller) do
           def index
             render json: params
           end
         end
       end
 
-      context 'and parameters wrapper is declared in child controller' do
-        context 'and child wrapper is declared without options' do
-          let(:child_controller) do
-            Class.new(parent_controller) do
-              wrap_parameters :child_root
+      context 'when parameters wrapper is declared in parent controller' do
+        let(:parent_controller) do
+          Class.new(RageController::API) do
+            wrap_parameters :parent_root, include: %i[parent_param]
 
-              def index
-                render json: params
-              end
-            end
-          end
-
-          let(:initial_params) { {parent_param: :value, child_param: :value} }
-          let(:expected_result) do
-            {
-              parent_param: :value,
-              child_param: :value,
-              child_root: {parent_param: :value, child_param: :value}
-            }
-          end
-
-          it 'wraps params of child controller using wrapping key of child controller without options' do
-            response = run_action(
-              child_controller,
-              :index,
-              params: initial_params,
-              env: {'CONTENT_TYPE' => "application/json"}
-            )
-
-            expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
-          end
-
-          it 'wraps params of grandchild controller using wrapping key of child controller without options' do
-            response = run_action(
-              grandchild_controller,
-              :index,
-              params: initial_params,
-              env: {'CONTENT_TYPE' => "application/json"}
-            )
-
-            expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
-          end
-        end
-
-        context 'and child wrapper is defined with options' do
-          let(:child_controller) do
-            Class.new(parent_controller) do
-              wrap_parameters :child_root, include: [:child_param]
-
-              def index
-                render json: params
-              end
-            end
-          end
-
-          let(:initial_params) { {parent_param: :value, child_param: :value} }
-          let(:expected_result) { {parent_param: :value, child_param: :value, child_root: {child_param: :value}} }
-
-          it 'wraps params of child controller using wrapping key and options of child controller' do
-            response = run_action(
-              child_controller,
-              :index,
-              params: initial_params,
-              env: { 'CONTENT_TYPE' => "application/json" }
-            )
-
-            expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
-          end
-
-          it 'wraps params of grandchild controller using wrapping key and options of child controller' do
-            response = run_action(
-              grandchild_controller,
-              :index,
-              params: initial_params,
-              env: {'CONTENT_TYPE' => "application/json"}
-            )
-
-            expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
-          end
-        end
-      end
-
-      context 'and parameters wrapper is not declared in child controller' do
-        let(:child_controller) do
-          Class.new(parent_controller) do
             def index
               render json: params
             end
           end
         end
 
-        let(:initial_params) { {parent_param: :value, child_param: :value} }
-        let(:expected_result) { {parent_param: :value, child_param: :value, parent_root: {parent_param: :value}} }
+        context 'and parameters wrapper is declared in child controller' do
+          context 'and child wrapper is declared without options' do
+            let(:child_controller) do
+              Class.new(parent_controller) do
+                wrap_parameters :child_root
 
-        it 'wraps params of child controller using wrapping key and options of parent controller' do
-          response = run_action(
-            child_controller,
-            :index,
-            params: initial_params,
-            env: {'CONTENT_TYPE' => "application/json"}
-          )
+                def index
+                  render json: params
+                end
+              end
+            end
 
-          expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
+            let(:initial_params) { {parent_param: :value, child_param: :value} }
+            let(:expected_result) do
+              {
+                parent_param: :value,
+                child_param: :value,
+                child_root: {parent_param: :value, child_param: :value}
+              }
+            end
+
+            it 'wraps params of child controller using wrapping key of child controller without options' do
+              response = run_action(
+                child_controller,
+                :index,
+                params: initial_params,
+                env: {'CONTENT_TYPE' => "application/json"}
+              )
+
+              expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
+            end
+
+            it 'wraps params of grandchild controller using wrapping key of child controller without options' do
+              response = run_action(
+                grandchild_controller,
+                :index,
+                params: initial_params,
+                env: {'CONTENT_TYPE' => "application/json"}
+              )
+
+              expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
+            end
+          end
+
+          context 'and child wrapper is defined with options' do
+            let(:child_controller) do
+              Class.new(parent_controller) do
+                wrap_parameters :child_root, include: %i[child_param]
+
+                def index
+                  render json: params
+                end
+              end
+            end
+
+            let(:initial_params) { {parent_param: :value, child_param: :value} }
+            let(:expected_result) { {parent_param: :value, child_param: :value, child_root: {child_param: :value}} }
+
+            it 'wraps params of child controller using wrapping key and options of child controller' do
+              response = run_action(
+                child_controller,
+                :index,
+                params: initial_params,
+                env: {'CONTENT_TYPE' => "application/json"}
+              )
+
+              expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
+            end
+
+            it 'wraps params of grandchild controller using wrapping key and options of child controller' do
+              response = run_action(
+                grandchild_controller,
+                :index,
+                params: initial_params,
+                env: {'CONTENT_TYPE' => "application/json"}
+              )
+
+              expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
+            end
+          end
         end
 
-        it 'wraps params of grandchild controller using wrapping key and options of parent controller' do
-          response = run_action(
-            child_controller,
-            :index,
-            params: initial_params,
-            env: {'CONTENT_TYPE' => "application/json"}
-          )
+        context 'and parameters wrapper is not declared in child controller' do
+          let(:child_controller) do
+            Class.new(parent_controller) do
+              def index
+                render json: params
+              end
+            end
+          end
 
-          expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
+          let(:initial_params) { {parent_param: :value, child_param: :value} }
+          let(:expected_result) { {parent_param: :value, child_param: :value, parent_root: {parent_param: :value}} }
+
+          it 'wraps params of child controller using wrapping key and options of parent controller' do
+            response = run_action(
+              child_controller,
+              :index,
+              params: initial_params,
+              env: {'CONTENT_TYPE' => "application/json"}
+            )
+
+            expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
+          end
+
+          it 'wraps params of grandchild controller using wrapping key and options of parent controller' do
+            response = run_action(
+              child_controller,
+              :index,
+              params: initial_params,
+              env: {'CONTENT_TYPE' => "application/json"}
+            )
+
+            expect(response).to match([200, instance_of(Hash), [expected_result.to_json]])
+          end
         end
       end
     end
