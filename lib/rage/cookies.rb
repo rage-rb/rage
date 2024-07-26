@@ -97,7 +97,7 @@ class Rage::Cookies
       return
     end
 
-    if domain = value[:domain]
+    if (domain = value[:domain])
       host = @env["HTTP_HOST"]
 
       _domain = if domain.is_a?(String)
@@ -141,7 +141,7 @@ class Rage::Cookies
     return @request_cookies if @parsed
 
     @parsed = true
-    if cookie_header = @env["HTTP_COOKIE"]
+    if (cookie_header = @env["HTTP_COOKIE"])
       cookie_header.split(/; */n).each do |cookie|
         next if cookie.empty?
         key, value = cookie.split("=", 2).yield_self { |k, _| [k.to_sym, _] }
@@ -193,7 +193,7 @@ class Rage::Cookies
           nil
         rescue RbNaCl::CryptoError
           i ||= 0
-          if box = fallback_boxes[i]
+          if (box = fallback_boxes[i])
             i += 1
             retry
           end
@@ -230,10 +230,8 @@ class Rage::Cookies
       end
 
       def fallback_boxes
-        @fallback_boxes ||= begin
-          Rage.config.fallback_secret_key_base.map do |key|
-            RbNaCl::SimpleBox.from_secret_key(RbNaCl::Hash.blake2b(key, digest_size: 32, salt: SALT))
-          end
+        @fallback_boxes ||= Rage.config.fallback_secret_key_base.map do |key|
+          RbNaCl::SimpleBox.from_secret_key(RbNaCl::Hash.blake2b(key, digest_size: 32, salt: SALT))
         end
       end
     end # class << self

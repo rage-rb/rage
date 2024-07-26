@@ -13,7 +13,7 @@ class Rage::SidekiqSession
   SESSION_KEY = "rage.sidekiq.session"
 
   def self.with_session(env)
-    env["rack.session"] = session = self.new(env)
+    env["rack.session"] = session = new(env)
     response = yield
 
     if session.changed

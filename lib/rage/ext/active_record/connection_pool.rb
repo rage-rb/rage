@@ -97,7 +97,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   # Signal that the fiber is finished with the current connection and it can be returned to the pool.
   def release_connection(owner = Fiber.current)
-    if conn = @__in_use.delete(owner)
+    if (conn = @__in_use.delete(owner))
       conn.__idle_since = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       @__connections << conn
       Iodine.publish("ext:ar-connection-released", "", Iodine::PubSub::PROCESS) if @__blocked.length > 0

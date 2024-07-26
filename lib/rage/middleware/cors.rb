@@ -19,7 +19,7 @@ class Rage::Cors
 
     response
   ensure
-    if !$! && origin = @cors_check.call(env)
+    if !$! && (origin = @cors_check.call(env))
       headers = response[1]
       headers["Access-Control-Allow-Origin"] = origin
       if @origins != "*"
@@ -99,7 +99,7 @@ class Rage::Cors
   def create_headers
     headers = {
       "Access-Control-Allow-Origin" => "",
-      "Access-Control-Allow-Methods" => @methods,
+      "Access-Control-Allow-Methods" => @methods
     }
 
     if @allow_headers

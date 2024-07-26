@@ -29,7 +29,7 @@ class Rage::ParamsParser
       url_params
     end
 
-  rescue => e
+  rescue
     raise Rage::Errors::BadRequest
   end
 

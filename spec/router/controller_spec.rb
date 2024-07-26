@@ -85,26 +85,25 @@ RSpec.describe Rage::Router::Backend do
 end
 
 RSpec.describe Rage::Request do
-  describe 'Request' do
-    describe '#headers' do
-      it 'returns request headers with both meta-variable and original names' do
+  describe "Request" do
+    describe "#headers" do
+      it "returns request headers with both meta-variable and original names" do
         env = {
-          'CONTENT_TYPE' => 'application/json',
-          'HTTP_ACCEPT_LANGUAGE' => 'en-US',
-          'HTTP_SOME_OTHER_HEADER' => 'value',
-          'HTTP_ACCEPT_LANGUAGE' => 'en-US',
-          'HTTP_VARY' => 'Accept-Language',
+          "CONTENT_TYPE" => "application/json",
+          "HTTP_SOME_OTHER_HEADER" => "value",
+          "HTTP_ACCEPT_LANGUAGE" => "en-US",
+          "HTTP_VARY" => "Accept-Language"
         }
         request = Rage::Request.new(env)
 
-        expect(request.headers['Content-Type']).to eq('application/json')
-        expect(request.headers['CONTENT_TYPE']).to eq('application/json')
-        expect(request.headers['Accept-Language']).to eq('en-US')
-        expect(request.headers['HTTP_ACCEPT_LANGUAGE']).to eq('en-US')
-        expect(request.headers['non-existent-header']).to be_nil
-        expect(request.headers['vary']).to eq('Accept-Language')
-        expect(request.headers['VARY']).to eq('Accept-Language')
-        expect(request.headers['Vary']).to eq('Accept-Language')
+        expect(request.headers["Content-Type"]).to eq("application/json")
+        expect(request.headers["CONTENT_TYPE"]).to eq("application/json")
+        expect(request.headers["Accept-Language"]).to eq("en-US")
+        expect(request.headers["HTTP_ACCEPT_LANGUAGE"]).to eq("en-US")
+        expect(request.headers["non-existent-header"]).to be_nil
+        expect(request.headers["vary"]).to eq("Accept-Language")
+        expect(request.headers["VARY"]).to eq("Accept-Language")
+        expect(request.headers["Vary"]).to eq("Accept-Language")
       end
     end
   end

@@ -237,7 +237,7 @@ RSpec.describe Rage::Logger do
 
     it "doesn't add a string entry" do
       expect(
-        subject.fatal "this is a test message"
+        subject.fatal("this is a test message")
       ).to be(false)
     end
 

@@ -15,7 +15,7 @@ class Rage::JSONFormatter
       context.each { |k, v| context_msg << "\"#{k}\":#{v.to_json}," }
     end
 
-    if final = logger[:final]
+    if (final = logger[:final])
       params, env = final[:params], final[:env]
       if params && params[:controller]
         return "{\"tags\":[\"#{tags[0]}\"],\"timestamp\":\"#{timestamp}\",\"pid\":\"#{@pid}\",\"level\":\"info\",\"method\":\"#{env["REQUEST_METHOD"]}\",\"path\":\"#{env["PATH_INFO"]}\",\"controller\":\"#{Rage::Router::Util.path_to_name(params[:controller])}\",\"action\":\"#{params[:action]}\",#{context_msg}\"status\":#{final[:response][0]},\"duration\":#{final[:duration]}}\n"

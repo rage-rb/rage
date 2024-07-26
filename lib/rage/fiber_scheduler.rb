@@ -66,7 +66,7 @@ class Rage::FiberScheduler
   end
 
   # TODO: GC works a little strange with this closure;
-  # 
+  #
   # def timeout_after(duration, exception_class = Timeout::Error, *exception_arguments, &block)
   #   fiber, block_status = Fiber.current, :running
   #   ::Iodine.run_after((duration * 1000).to_i) do

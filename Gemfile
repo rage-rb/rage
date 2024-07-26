@@ -9,6 +9,7 @@ gem "rake", "~> 13.0"
 
 gem "rspec", "~> 3.0"
 gem "yard"
+gem "rubocop", "~> 1.65", require: false
 
 group :test do
   gem "http"

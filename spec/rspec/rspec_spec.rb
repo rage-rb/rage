@@ -10,8 +10,8 @@ module RspecHelpersSpec
 
     def headers_action
       if request.headers["Content-Type"] == "text/plain" &&
-        request.headers["Cache-Control"] == "max-age=604800, must-revalidate" &&
-        request.headers["Last-Modified"] == "Sun, 03 Sep 2017 00:17:02 GMT"
+         request.headers["Cache-Control"] == "max-age=604800, must-revalidate" &&
+         request.headers["Last-Modified"] == "Sun, 03 Sep 2017 00:17:02 GMT"
         head :ok
       else
         head :bad_request
@@ -21,7 +21,7 @@ module RspecHelpersSpec
     def fibers_action
       i = Fiber.await([
         Fiber.schedule { 10 },
-        Fiber.schedule { 11 },
+        Fiber.schedule { 11 }
       ])
 
       render plain: i.sum

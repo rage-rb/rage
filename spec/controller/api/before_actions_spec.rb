@@ -261,7 +261,7 @@ RSpec.describe RageController::API do
     end
   end
 
-  it 'raises an error if the action name is missing and a block is not pass' do
+  it "raises an error if the action name is missing and a block is not pass" do
     expect do
       Class.new(RageController::API) {
         before_action only: [:index]
@@ -269,7 +269,7 @@ RSpec.describe RageController::API do
     end.to raise_error("No handler provided. Pass the `action_name` parameter or provide a block.")
   end
 
-  context 'case 8' do
+  context "case 8" do
     let(:klass) { ControllerApiBeforeActionsSpec::TestController8 }
 
     it "correctly runs before actions" do

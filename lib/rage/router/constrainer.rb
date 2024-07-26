@@ -73,7 +73,7 @@ class Rage::Router::Constrainer
         if key == :host
           lines << "   host: env['HTTP_HOST'.freeze],"
         else
-          raise ArgumentError, 'unknown non-custom strategy for compiling constraint derivation function'
+          raise ArgumentError, "unknown non-custom strategy for compiling constraint derivation function"
         end
       else
         lines << "  #{strategy.name}: @strategies[#{key}].derive_constraint(env),"

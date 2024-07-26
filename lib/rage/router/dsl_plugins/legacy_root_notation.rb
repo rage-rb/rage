@@ -8,7 +8,7 @@ module Rage::Router::DSLPlugins::LegacyRootNotation
     if args.length == 1 && args[0].is_a?(String) && kwargs.empty?
       super(to: args[0])
     else
-      super(*args, **kwargs)
+      super
     end
   end
 end

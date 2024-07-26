@@ -51,7 +51,7 @@ class Rage::Router::Backend
   def on(method, path, handler, constraints: {}, defaults: nil)
     raise "Path could not be empty" if path&.empty?
 
-    if match_index = (path =~ OPTIONAL_PARAM_REGEXP)
+    if (match_index = (path =~ OPTIONAL_PARAM_REGEXP))
       raise ArgumentError, "Optional Parameter has to be the last parameter of the path" if path.length != match_index + $&.length
 
       path_full = path.sub(OPTIONAL_PARAM_REGEXP, "/#{$1}")
@@ -200,11 +200,9 @@ class Rage::Router::Backend
     end
 
     @routes.each do |existing_route|
-      if (
-        existing_route[:method] == method &&
-        existing_route[:pattern] == pattern &&
-        existing_route[:constraints] == constraints
-      )
+      if existing_route[:method] == method &&
+         existing_route[:pattern] == pattern &&
+         existing_route[:constraints] == constraints
         raise ArgumentError, "Method '#{method}' already declared for route '#{pattern}' with constraints '#{constraints.inspect}'"
       end
     end

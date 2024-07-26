@@ -40,7 +40,7 @@ module Rage::Router::DSLPlugins::LegacyHashNotation
       options = kwargs.except(app).merge(at: at)
       super(app, **options)
     else
-      super(*args, **kwargs)
+      super
     end
   end
 end
