@@ -29,7 +29,7 @@ RSpec.describe Rage::ParamsParser do
       "IODINE_HAS_BODY" => !!body,
       "QUERY_STRING" => query_string,
       "CONTENT_TYPE" => content_type,
-      "rack.input" => rack_input,
+      "rack.input" => rack_input
     }
   end
 

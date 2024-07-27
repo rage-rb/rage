@@ -64,7 +64,7 @@ class Rage::Router::HandlerStorage
       end
     end
 
-    eval "->(param_values) { { #{lines.join(',')} } }"
+    eval "->(param_values) { { #{lines.join(",")} } }"
   end
 
   def get_handler_matching_constraints(_derived_constraints)

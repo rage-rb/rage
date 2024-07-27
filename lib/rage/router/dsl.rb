@@ -213,7 +213,7 @@ class Rage::Router::DSL
       @path_prefixes << path_prefix
       @module_prefixes << module_prefix
 
-      instance_eval &block
+      instance_eval(&block)
 
       @path_prefixes.pop
       @module_prefixes.pop
@@ -253,7 +253,7 @@ class Rage::Router::DSL
       @module_prefixes << opts[:module] if opts[:module]
       @controllers << opts[:controller] if opts[:controller]
 
-      instance_eval &block
+      instance_eval(&block)
 
       @path_prefixes.pop if opts[:path]
       @module_prefixes.pop if opts[:module]
@@ -269,7 +269,7 @@ class Rage::Router::DSL
     #   end
     def defaults(defaults, &block)
       @defaults << defaults
-      instance_eval &block
+      instance_eval(&block)
       @defaults.pop
     end
 
@@ -282,7 +282,7 @@ class Rage::Router::DSL
     #   end
     def controller(controller, &block)
       @controllers << controller
-      instance_eval &block
+      instance_eval(&block)
       @controllers.pop
     end
 
@@ -297,7 +297,7 @@ class Rage::Router::DSL
     def collection(&block)
       orig_path_prefixes = @path_prefixes
       @path_prefixes = @path_prefixes[0...-1] if @path_prefixes.last&.start_with?(":")
-      instance_eval &block
+      instance_eval(&block)
       @path_prefixes = orig_path_prefixes
     end
 
@@ -317,7 +317,7 @@ class Rage::Router::DSL
         @path_prefixes = [*@path_prefixes[0...-1], ":#{member_prefix}"]
       end
 
-      instance_eval &block
+      instance_eval(&block)
 
       @path_prefixes = orig_path_prefixes
     end

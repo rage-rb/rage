@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require "thor"
 require "rack"
 
@@ -40,7 +41,7 @@ module Rage
       ::Iodine.start
     end
 
-    desc 'routes', 'List all routes.'
+    desc "routes", "List all routes."
     option :grep, aliases: "-g", desc: "Filter routes by pattern"
     option :help, aliases: "-h", desc: "Show this message."
     def routes

@@ -32,6 +32,18 @@ jobs:
         TEST_MYSQL_URL: ${{ secrets.TEST_MYSQL_URL }}
         ENABLE_EXTERNAL_TESTS: ${{ secrets.ENABLE_EXTERNAL_TESTS }}
       run: bundle exec rake
+  linter:
+    runs-on: ubuntu-latest
+    name: Code Style
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ruby
+        bundler-cache: true
+    - name: Run Linter
+      run: bundle exec rubocop
   docs:
     runs-on: ubuntu-latest
     name: Docs

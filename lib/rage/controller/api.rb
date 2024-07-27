@@ -7,6 +7,7 @@ class RageController::API
     # registering means defining a new method which calls the action, makes additional calls (e.g. before actions) and
     # sends a correct response down to the server;
     # returns the name of the newly defined method;
+    # rubocop:disable Layout/IndentationWidth, Layout/EndAlignment, Layout/HeredocIndentation
     def __register_action(action)
       raise Rage::Errors::RouterError, "The action '#{action}' could not be found for #{self}" unless method_defined?(action)
 
@@ -80,7 +81,7 @@ class RageController::API
       wrap_parameters_chunk = if __wrap_parameters_key
         <<~RUBY
           wrap_key = self.class.__wrap_parameters_key
-          if !@__params.key?(wrap_key) && @__env['CONTENT_TYPE']
+          if !@__params.key?(wrap_key) && @__env["CONTENT_TYPE"]
             wrap_options = self.class.__wrap_parameters_options
             wrapped_params = if wrap_options[:include].any?
                                @__params.slice(*wrap_options[:include])
@@ -94,7 +95,7 @@ class RageController::API
         RUBY
       end
 
-      class_eval <<~RUBY,  __FILE__, __LINE__ + 1
+      class_eval <<~RUBY, __FILE__, __LINE__ + 1
         def __run_#{action}
           #{if activerecord_loaded
             <<~RUBY
@@ -137,6 +138,7 @@ class RageController::API
         end
       RUBY
     end
+    # rubocop:enable all
 
     # @private
     attr_writer :__before_actions, :__after_actions, :__rescue_handlers
@@ -236,7 +238,7 @@ class RageController::API
 
       if @__before_actions.nil?
         @__before_actions = [action]
-      elsif i = @__before_actions.find_index { |a| a[:name] == action_name }
+      elsif (i = @__before_actions.find_index { |a| a[:name] == action_name })
         @__before_actions[i] = action
       else
         @__before_actions << action
@@ -262,7 +264,7 @@ class RageController::API
 
       if @__after_actions.nil?
         @__after_actions = [action]
-      elsif i = @__after_actions.find_index { |a| a[:name] == action_name }
+      elsif (i = @__after_actions.find_index { |a| a[:name] == action_name })
         @__after_actions[i] = action
       else
         @__after_actions << action
@@ -312,7 +314,7 @@ class RageController::API
     #   wrap_parameters :user, exclude: %i[address]
     def wrap_parameters(key, include: [], exclude: [])
       @__wrap_parameters_key = key
-      @__wrap_parameters_options = {include:, exclude:}
+      @__wrap_parameters_options = { include:, exclude: }
     end
 
     private
@@ -325,7 +327,7 @@ class RageController::API
         raise ArgumentError, "No handler provided. Pass the `action_name` parameter or provide a block."
       end
 
-       _only, _except, _if, _unless = opts.values_at(:only, :except, :if, :unless)
+      _only, _except, _if, _unless = opts.values_at(:only, :except, :if, :unless)
 
       action = {
         name: action_name,

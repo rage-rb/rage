@@ -74,7 +74,7 @@ RSpec.describe Rage::FiberScheduler do
     within_reactor do
       Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 1) do |http|
         request = Net::HTTP::Get.new(uri)
-        response = http.request(request)
+        http.request(request)
       end
 
       raise "test failed!"
@@ -163,7 +163,7 @@ RSpec.describe Rage::FiberScheduler do
         port: uri.port,
         username: uri.user,
         password: uri.password,
-        database: uri.path[1..-1]
+        database: uri.path[1..]
       )
     end
 
@@ -318,7 +318,7 @@ RSpec.describe Rage::FiberScheduler do
         Fiber.await(Fiber.schedule { sleep(1) })
       end
 
-      -> { expect((1..1.5)).to include(result)  }
+      -> { expect((1..1.5)).to include(result) }
     end
   end
 end

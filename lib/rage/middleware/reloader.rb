@@ -8,7 +8,7 @@ class Rage::Reloader
   def call(env)
     Rage.code_loader.reload
     @app.call(env)
-rescue Exception => e
+  rescue Exception => e
     exception_str = "#{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}"
     puts(exception_str)
     [500, {}, [exception_str]]

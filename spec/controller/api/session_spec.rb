@@ -83,7 +83,7 @@ RSpec.describe RageController::API do
   context "when writing a session" do
     let(:new_session) do
       _, session_cookie = subject.headers.find { |k, _| k == "Set-Cookie" }
-      session_value = session_cookie.match(/#{Rage::Session::KEY}\=(\S+);/)[1]
+      session_value = session_cookie.match(/#{Rage::Session::KEY}=(\S+);/)[1]
 
       Rage::Cookies::EncryptedJar.load(
         Rack::Utils.unescape(session_value, Encoding::UTF_8)

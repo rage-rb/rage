@@ -412,7 +412,7 @@ RSpec.describe Rage::Cors do
     end
 
     it "sets correct headers" do
-      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://localhost:3000", "Access-Control-Allow-Credentials"=>"true" }, ["test response"]])
+      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://localhost:3000", "Access-Control-Allow-Credentials" => "true" }, ["test response"]])
     end
 
     context "with preflight requests" do
@@ -444,7 +444,7 @@ RSpec.describe Rage::Cors do
     end
 
     it "sets correct headers" do
-      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://localhost:3000", "Access-Control-Expose-Headers"=>"*" }, ["test response"]])
+      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://localhost:3000", "Access-Control-Expose-Headers" => "*" }, ["test response"]])
     end
 
     context "with preflight requests" do

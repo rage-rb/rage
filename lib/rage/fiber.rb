@@ -2,7 +2,7 @@
 
 ##
 # Rage provides a simple and efficient API to wait on several instances of IO at the same time - {Fiber.await}.
-# 
+#
 # Let's say we have the following controller:
 # ```ruby
 # class UsersController < RageController::API
@@ -34,7 +34,7 @@
 # end
 # ```
 # With this change, if each request takes 1 second to execute, the total execution time will still be 1 second.
-# 
+#
 # ## Creating fibers
 # Many developers see fibers as "lightweight threads" that should be used in conjunction with fiber pools, the same way we use thread pools for threads.<br>
 # Instead, it makes sense to think of fibers as regular Ruby objects. We don't use a pool of arrays when we need to create an array - we create a new object and let Ruby and the GC do their job.<br>
@@ -68,7 +68,7 @@ class Fiber
     @__rage_id = object_id.to_s
   end
 
-   # @private
+  # @private
   def __get_id
     @__rage_id
   end

@@ -20,7 +20,7 @@ RSpec.describe Fiber do
     within_reactor do
       result = Fiber.await([
         Fiber.schedule { 10 },
-        Fiber.schedule { 20 },
+        Fiber.schedule { 20 }
       ])
 
       -> { expect(result).to eq([10, 20]) }
@@ -33,7 +33,7 @@ RSpec.describe Fiber do
 
       result = Fiber.await([
         Fiber.schedule { Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/long-http-get?i=#{num[0]}")) },
-        Fiber.schedule { Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/long-http-get?i=#{num[1]}")) },
+        Fiber.schedule { Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/long-http-get?i=#{num[1]}")) }
       ])
 
       -> { expect(result).to eq([(num[0] * 10).to_s, (num[1] * 10).to_s]) }
@@ -48,7 +48,7 @@ RSpec.describe Fiber do
         Fiber.schedule { 111 },
         Fiber.schedule { Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/long-http-get?i=#{num[0]}")) },
         Fiber.schedule { Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/long-http-get?i=#{num[1]}")) },
-        Fiber.schedule { 222 },
+        Fiber.schedule { 222 }
       ])
 
       -> { expect(result).to eq([111, (num[0] * 10).to_s, (num[1] * 10).to_s, 222]) }
@@ -61,7 +61,7 @@ RSpec.describe Fiber do
 
       result = Fiber.await([
         Fiber.schedule { Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/long-http-get?i=#{num[0]}")) },
-        Fiber.schedule { Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/instant-http-get?i=#{num[1]}")) },
+        Fiber.schedule { Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/instant-http-get?i=#{num[1]}")) }
       ])
 
       -> { expect(result).to eq([(num[0] * 10).to_s, (num[1] * 10).to_s]) }
@@ -74,7 +74,7 @@ RSpec.describe Fiber do
         Fiber.await([
           Fiber.schedule { Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/long-http-get?i=#{rand}")) },
           Fiber.schedule { sleep(1) },
-          Fiber.schedule { sleep(1) },
+          Fiber.schedule { sleep(1) }
         ])
       end
 
@@ -100,7 +100,7 @@ RSpec.describe Fiber do
       num = rand
 
       result = Fiber.await([
-        Fiber.schedule { Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/instant-http-get?i=#{num}")) },
+        Fiber.schedule { Net::HTTP.get(URI("#{ENV["TEST_HTTP_URL"]}/instant-http-get?i=#{num}")) }
       ])
 
       -> { expect(result).to eq([(num * 10).to_s]) }

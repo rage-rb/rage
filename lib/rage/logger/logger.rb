@@ -8,7 +8,7 @@ require "logger"
 # [fecbba0735355738] timestamp=2023-10-19T11:12:56+00:00 pid=1825 level=info message=hello
 # ```
 # In the log entry above, `timestamp`, `pid`, `level`, and `message` are keys, while `fecbba0735355738` is a tag.
-# 
+#
 # Use {tagged} to add custom tags to an entry:
 # ```ruby
 # Rage.logger.tagged("ApiCall") do

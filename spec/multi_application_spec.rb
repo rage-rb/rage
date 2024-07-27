@@ -3,7 +3,7 @@
 RSpec.describe "Rage Multi App" do
   subject { Rage.multi_application.call(env) }
 
-  let(:env) { { "PATH_INFO"=> "/" } }
+  let(:env) { { "PATH_INFO" => "/" } }
   let(:rails_verifier) { double }
   let(:rage_verifier) { double }
 
@@ -51,7 +51,7 @@ RSpec.describe "Rage Multi App" do
   end
 
   context "with Rails internal request" do
-    let(:env) { { "PATH_INFO"=> "/rails/action_mailbox" } }
+    let(:env) { { "PATH_INFO" => "/rails/action_mailbox" } }
     let(:rage_response) { [200, {}, []] }
     let(:rails_response) { :test_rails_response }
 
