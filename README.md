@@ -15,7 +15,7 @@ Inspired by [Deno](https://deno.com) and built on top of [Iodine](https://github
 
 * **API-only** - separation of concerns is one of the most fundamental principles in software development. Backend and frontend are very different layers with different goals and paths to those goals. Separating BE code from FE code results in a much more sustainable architecture compared with classic Rails monoliths.
 
-* **Acceptance of modern Ruby** - the framework includes a fiber scheduler, which means your code never blocks while waiting on IO.
+* **Acceptance of modern Ruby** - the framework includes a fiber scheduler, which means your code never blocks while waiting on I/O.
 
 ## Installation
 
@@ -116,34 +116,48 @@ class PagesController < RageController::API
 end
 ```
 
-:information_source: **Note**: When using `Fiber.await`, it is important to wrap any instance of IO into a fiber using `Fiber.schedule`.
+:information_source: **Note**: When using `Fiber.await`, it is important to wrap every argument into a fiber using `Fiber.schedule`.
 
 ## Benchmarks
 
-#### hello world
+#### Hello World
 
 ```ruby
-class ArticlesController < ApplicationController
+class BenchmarksController < ApplicationController
   def index
     render json: { hello: "world" }
   end
 end
 ```
-![Requests per second](https://github.com/rage-rb/rage/assets/2270393/6c221903-e265-4c94-80e1-041f266c8f47)
 
-#### waiting on IO
+![Requests per second](https://github.com/user-attachments/assets/a7f864ae-0dfb-4628-a420-265a10d8591d)
+
+#### Waiting on I/O
 
 ```ruby
 require "net/http"
 
-class ArticlesController < ApplicationController
+class BenchmarksController < ApplicationController
   def index
     Net::HTTP.get(URI("<endpoint-that-responds-in-one-second>"))
     head :ok
   end
 end
 ```
-![Time to complete 100 requests](https://github.com/rage-rb/rage/assets/2270393/007044e9-efe0-4675-9cab-8a4868154118)
+
+![Time to complete 100 requests](https://github.com/user-attachments/assets/4f4feda3-bd88-43d8-8999-268534c2f9de)
+
+#### Using ActiveRecord
+
+```ruby
+class BenchmarksController < ApplicationController
+  def show
+    render json: World.find(rand(10_000))
+  end
+end
+```
+
+![Requests per second-2](https://github.com/user-attachments/assets/b7ee0bff-e7c8-4fd4-a565-ce0b67a6320e)
 
 ## Upcoming releases
 
