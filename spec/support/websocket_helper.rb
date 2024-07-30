@@ -11,11 +11,15 @@ module WebSocketHelper
 
   class WebSocketTestClient
     def initialize(url, headers: {})
+      @url = url
+      @headers = headers
+
       ws_data = { connected: false, closed: false, heartbeats: [], messages: [] }
 
-      @ws = WebSocket::Client::Simple.connect(url, headers:) do |ws|
+      @ws = WebSocket::Client::Simple.connect(@url, headers: @headers) do |ws|
         ws.on :open do
           ws_data[:connected] = true
+          ws_data[:closed] = false
         end
 
         ws.on :message do |msg|
@@ -38,7 +42,14 @@ module WebSocketHelper
     end
 
     def send(data)
-      @ws.send(data)
+      2.times do
+        @ws.send(data)
+        break
+      rescue Errno::EBADF
+        puts "Lost websocket connection! Reconnecting..."
+        @ws.connect(@url, headers: @headers)
+      end
+
       sleep 0.1
     end
 
