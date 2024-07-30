@@ -44,7 +44,7 @@ Start coding!
 
 ## Getting Started
 
-This gem is designed to be a drop-in replacement for Rails in API mode. Public API is mostly expected to match Rails, however, sometimes it's a little bit more strict.
+This gem is designed to be a drop-in replacement for Rails in API mode. Public API is expected to fully match Rails.
 
 Check out in-depth API docs for more information:
 
@@ -59,6 +59,8 @@ Also, see the following integration guides:
 
 - [Rails integration](https://github.com/rage-rb/rage/wiki/Rails-integration)
 - [RSpec integration](https://github.com/rage-rb/rage/wiki/RSpec-integration)
+
+If you are a first-time contributor, make sure to check the [overview doc](https://github.com/rage-rb/rage/blob/master/OVERVIEW.md) that shows how Rage's core components interact with each other.
 
 ### Example
 
@@ -157,7 +159,7 @@ class BenchmarksController < ApplicationController
 end
 ```
 
-![Requests per second-2](https://github.com/user-attachments/assets/b7ee0bff-e7c8-4fd4-a565-ce0b67a6320e)
+![Requests per second](https://github.com/user-attachments/assets/04678788-0034-4db4-9582-d0bc16fd9e28)
 
 ## Upcoming releases
 
