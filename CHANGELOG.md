@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [1.7.0] - 2024-07-30
+
+### Added
+
+- Support `wrap_parameters` by [@alex-rogachev](https://github.com/alex-rogachev) (#89).
+- Unknown environment error handling by [@cuneyter](https://github.com/cuneyter) (#95).
+- Allow `rescue_from` handlers to not accept arguments (#93).
+
 ## [1.6.0] - 2024-07-15
 
 ### Added
