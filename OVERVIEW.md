@@ -31,7 +31,7 @@ class UsersController < RageController::API
 end
 ```
 
-Before processing requests to `UsersController#show`, Rage has to [register](https://github.com/rage-rb/rage/blob/master/lib/rage/controller/api.rb#L10) the show action. Registering means defining a new method that will look like this:
+Before processing requests to `UsersController#show`, Rage has to [register](https://github.com/rage-rb/rage/blob/master/lib/rage/controller/api.rb#L11) the show action. Registering means defining a new method that will look like this:
 
 ```ruby
 class UsersController
