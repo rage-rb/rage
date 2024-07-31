@@ -142,6 +142,7 @@ class RageController::API
 
     # @private
     attr_writer :__before_actions, :__after_actions, :__rescue_handlers
+    # @private
     attr_accessor :__wrap_parameters_key, :__wrap_parameters_options
 
     # @private
@@ -299,14 +300,12 @@ class RageController::API
       @__before_actions[i] = action
     end
 
-    # Initialize controller params wrapping into a nested hash.
-    # If initialized, params wrapping logic will be added to the controller.
-    # Params get wrapped only if the CONTENT_TYPE header is present and params hash doesn't contain a param that
-    # has the same name as the wrapper key.
+    # Wraps the parameters hash into a nested hash. This will allow clients to submit requests without having to specify any root elements.
+    # Params get wrapped only if the `Content-Type` header is present and the `params` hash doesn't contain a param with the same name as the wrapper key.
     #
-    # @param key [Symbol] key that the wrapped params hash will nested under
-    # @param include [Array] array of params that should be included to the wrapped params hash
-    # @param exclude [Array] array of params that should be excluded from the wrapped params hash
+    # @param key [Symbol] the wrapper key
+    # @param include [Symbol, Array<Symbol>] the list of attribute names which parameters wrapper will wrap into a nested hash
+    # @param exclude [Symbol, Array<Symbol>] the list of attribute names which parameters wrapper will exclude from a nested hash
     # @example
     #   wrap_parameters :user, include: %i[name age]
     # @example
