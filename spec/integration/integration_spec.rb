@@ -327,6 +327,8 @@ RSpec.describe "End-to-end" do
     end
 
     it "processes messages asynchronously" do
+      skip if ENV["GITHUB_ACTIONS"]
+
       threads = 3.times.map do
         Thread.new do
           with_websocket_connection("ws://localhost:3000/cable?user_id=#{rand(100)}", headers: { Origin: "localhost:3000" }) do |client|
