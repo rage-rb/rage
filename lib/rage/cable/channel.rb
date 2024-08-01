@@ -26,6 +26,7 @@ class Rage::Cable::Channel
     end
 
     # @private
+    # rubocop:disable Layout/HeredocIndentation, Layout/IndentationWidth, Layout/EndAlignment, Layout/ElseAlignment
     def __register_action_proc(action_name)
       if action_name == :subscribed && @__hooks
         before_subscribe_chunk = if @__hooks[:before_subscribe]
@@ -136,7 +137,7 @@ class Rage::Cable::Channel
       is_subscribing = action_name == :subscribed
       activerecord_loaded = defined?(::ActiveRecord)
 
-      method_name = class_eval <<~RUBY,  __FILE__, __LINE__ + 1
+      method_name = class_eval <<~RUBY, __FILE__, __LINE__ + 1
         def __run_#{action_name}(data)
           #{if is_subscribing
             <<~RUBY
@@ -175,6 +176,7 @@ class Rage::Cable::Channel
 
       eval("->(channel, data) { channel.#{method_name}(data) }")
     end
+    # rubocop:enable all
 
     # @private
     def __prepare_id_method(method_name)
@@ -228,7 +230,7 @@ class Rage::Cable::Channel
     #   rescue_from StandardError, with: :report_error
     #
     #   private
-    # 
+    #
     #   def report_error(e)
     #     SomeExternalBugtrackingService.notify(e)
     #   end
@@ -322,7 +324,7 @@ class Rage::Cable::Channel
         raise ArgumentError, "No handler provided. Pass the `action_name` parameter or provide a block."
       end
 
-       _if, _unless = opts.values_at(:if, :unless)
+      _if, _unless = opts.values_at(:if, :unless)
 
       action = {
         name: action_name,
@@ -342,7 +344,7 @@ class Rage::Cable::Channel
 
       if @__hooks[action_type].nil?
         @__hooks[action_type] = [action]
-      elsif i = @__hooks[action_type].find_index { |a| a[:name] == action_name }
+      elsif (i = @__hooks[action_type].find_index { |a| a[:name] == action_name })
         @__hooks[action_type][i] = action
       else
         @__hooks[action_type] << action

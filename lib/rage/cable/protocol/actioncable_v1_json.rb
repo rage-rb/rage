@@ -108,7 +108,7 @@ class Rage::Cable::Protocol::ActioncableV1Json
       return
     end
 
-    # process data messages; 
+    # process data messages;
     # plain `JSON` is used here to conform with the ActionCable API that passes `data` as a Hash with string keys;
     data = JSON.parse(parsed_data[:data])
 

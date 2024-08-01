@@ -218,8 +218,6 @@ class Rage::Configuration
       @protocol = Rage::Cable::Protocol::ActioncableV1Json
       @allowed_request_origins = if Rage.env.development? || Rage.env.test?
         /localhost/
-      else
-        nil
       end
     end
 
