@@ -7,8 +7,8 @@ class Rage::Session
   KEY = Rack::RACK_SESSION.to_sym
 
   # @private
-  def initialize(controller)
-    @cookies = controller.cookies.encrypted
+  def initialize(cookies)
+    @cookies = cookies.encrypted
   end
 
   # Writes the value to the session.

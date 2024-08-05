@@ -30,8 +30,13 @@ class Rage::CodeLoader
 
     @reloading = true
     @loader.reload
+
     Rage.__router.reset_routes
     load("#{Rage.root}/config/routes.rb")
+
+    unless Rage.autoload?(:Cable) # the `Cable` component is loaded
+      Rage::Cable.__router.reset
+    end
   end
 
   # in Rails mode - reset the routes; everything else will be done by Rails
@@ -40,6 +45,10 @@ class Rage::CodeLoader
 
     @reloading = true
     Rage.__router.reset_routes
+
+    unless Rage.autoload?(:Cable) # the `Cable` component is loaded
+      Rage::Cable.__router.reset
+    end
   end
 
   def reloading?

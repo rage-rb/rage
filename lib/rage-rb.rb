@@ -7,25 +7,15 @@ require "pathname"
 
 module Rage
   def self.application
-    app = Application.new(__router)
-
-    config.middleware.middlewares.reverse.inject(app) do |next_in_chain, (middleware, args, block)|
-      # in Rails compatibility mode we first check if the middleware is a part of the Rails middleware stack;
-      # if it is - it is expected to be built using `ActionDispatch::MiddlewareStack::Middleware#build`
-      if Rage.config.internal.rails_mode
-        rails_middleware = Rails.application.config.middleware.middlewares.find { |m| m.name == middleware.name }
-      end
-
-      if rails_middleware
-        rails_middleware.build(next_in_chain)
-      else
-        middleware.new(next_in_chain, *args, &block)
-      end
-    end
+    with_middlewares(Application.new(__router), config.middleware.middlewares)
   end
 
   def self.multi_application
     Rage::Router::Util::Cascade.new(application, Rails.application)
+  end
+
+  def self.cable
+    Rage::Cable
   end
 
   def self.routes
@@ -90,6 +80,23 @@ module Rage
     end
   end
 
+  # @private
+  def self.with_middlewares(app, middlewares)
+    middlewares.reverse.inject(app) do |next_in_chain, (middleware, args, block)|
+      # in Rails compatibility mode we first check if the middleware is a part of the Rails middleware stack;
+      # if it is - it is expected to be built using `ActionDispatch::MiddlewareStack::Middleware#build`
+      if Rage.config.internal.rails_mode
+        rails_middleware = Rails.application.config.middleware.middlewares.find { |m| m.name == middleware.name }
+      end
+
+      if rails_middleware
+        rails_middleware.build(next_in_chain)
+      else
+        middleware.new(next_in_chain, *args, &block)
+      end
+    end
+  end
+
   module Router
     module Strategies
     end
@@ -106,6 +113,7 @@ module Rage
 
   autoload :Cookies, "rage/cookies"
   autoload :Session, "rage/session"
+  autoload :Cable, "rage/cable/cable"
 end
 
 module RageController

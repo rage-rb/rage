@@ -93,6 +93,20 @@
 #
 # > Specifies connection timeout.
 #
+# # Cable Configuration
+#
+# • _config.cable.protocol_
+#
+# > Specifies the protocol the server will use. The only value currently supported is `Rage::Cable::Protocol::ActioncableV1Json`. The client application will need to use [@rails/actioncable](https://www.npmjs.com/package/@rails/actioncable) to talk to the server.
+#
+# • _config.cable.allowed_request_origins_
+#
+# > Restricts the server to only accept requests from specified origins. The origins can be instances of strings or regular expressions, against which a check for the match will be performed.
+#
+# • _config.cable.disable_request_forgery_protection_
+#
+# > Allows requests from any origin.
+#
 # # Transient Settings
 #
 # The settings described in this section should be configured using **environment variables** and are either temporary or will become the default in the future.
@@ -136,6 +150,10 @@ class Rage::Configuration
 
   def middleware
     @middleware ||= Middleware.new
+  end
+
+  def cable
+    @cable ||= Cable.new
   end
 
   def internal
@@ -188,6 +206,32 @@ class Rage::Configuration
       else
         @middlewares.index { |m, _, _| m == middleware }.tap do |i|
           raise ArgumentError, "Couldn't find #{middleware} in the middleware stack" unless i
+        end
+      end
+    end
+  end
+
+  class Cable
+    attr_accessor :protocol, :allowed_request_origins, :disable_request_forgery_protection
+
+    def initialize
+      @protocol = Rage::Cable::Protocol::ActioncableV1Json
+      @allowed_request_origins = if Rage.env.development? || Rage.env.test?
+        /localhost/
+      end
+    end
+
+    # @private
+    def middlewares
+      @middlewares ||= begin
+        origin_middleware = if @disable_request_forgery_protection
+          []
+        else
+          [[Rage::OriginValidator, Array(@allowed_request_origins), nil]]
+        end
+
+        origin_middleware + Rage.config.middleware.middlewares.reject do |middleware, _, _|
+          middleware == Rage::FiberWrapper
         end
       end
     end

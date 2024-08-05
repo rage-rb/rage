@@ -4,6 +4,7 @@ require "rage/all"
 require_relative "support/request_helper"
 require_relative "support/controller_helper"
 require_relative "support/reactor_helper"
+require_relative "support/websocket_helper"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
@@ -23,4 +24,5 @@ RSpec.configure do |config|
   config.include RequestHelper
   config.include ControllerHelper
   config.include ReactorHelper
+  config.include WebSocketHelper
 end
