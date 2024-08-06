@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.8.0] - 2024-08-06
+
+### Added
+
+- Support WebSockets (#88).
+
 ## [1.7.0] - 2024-07-30
 
 ### Added
