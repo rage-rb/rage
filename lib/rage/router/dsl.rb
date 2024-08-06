@@ -17,7 +17,7 @@ class Rage::Router::DSL
   end
 
   ##
-  # This class implements routing logic for your application, providing API similar to Rails.
+  # This class implements routing logic for your application, providing an API similar to Rails.
   #
   # Compared to the Rails router, the most notable difference is that a wildcard segment can only be in the last section of the path and cannot be named.
   # Example:

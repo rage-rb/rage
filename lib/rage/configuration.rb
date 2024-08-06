@@ -1,6 +1,15 @@
 # frozen_string_literal: true
 
 ##
+# `Rage.configure` can be used to adjust the behavior of your Rage application:
+#
+# ```ruby
+# Rage.configure do
+#   config.logger = Rage::Logger.new(STDOUT)
+#   config.server.workers_count = 2
+# end
+# ```
+#
 # # General Configuration
 #
 # • _config.logger_
