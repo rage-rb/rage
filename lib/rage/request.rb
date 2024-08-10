@@ -37,6 +37,45 @@ class Rage::Request
     )
   end
 
+  # Returns the full URL of the request.
+  # @example
+  #   request.url # => "https://example.com/users?show_archived=true"
+  def url
+    scheme = @env["rack.url_scheme"]
+    host = @env["SERVER_NAME"]
+    port = @env["SERVER_PORT"]
+    path = @env["PATH_INFO"]
+    query_string = @env["QUERY_STRING"]
+
+    port_part = (scheme == "http" && port == "80") || (scheme == "https" && port == "443") ? "" : ":#{port}"
+    query_part = query_string.empty? ? "" : "?#{query_string}"
+
+    "#{scheme}://#{host}#{port_part}#{path}#{query_part}"
+  end
+
+  # Returns the path of the request.
+  # @example
+  #   request.path # => "/users"
+  def path
+    @env["PATH_INFO"]
+  end
+
+  # Returns the full path including the query string.
+  # @example
+  #   request.fullpath # => "/users?show_archived=true"
+  def fullpath
+    path = @env["PATH_INFO"]
+    query_string = @env["QUERY_STRING"]
+    query_string.empty? ? path : "#{path}?#{query_string}"
+  end
+
+  # Returns the user agent of the request.
+  # @example
+  #  request.user_agent # => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
+  def user_agent
+    headers["HTTP_USER_AGENT"]
+  end
+
   private
 
   def if_none_match
