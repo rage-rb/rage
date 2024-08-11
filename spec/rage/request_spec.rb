@@ -1,6 +1,3 @@
-require "rack"
-require "time"
-
 RSpec.describe Rage::Request do
   let(:env) do
     {
