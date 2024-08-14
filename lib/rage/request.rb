@@ -73,7 +73,7 @@ class Rage::Request
   # @example
   #  request.user_agent # => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
   def user_agent
-    headers["HTTP_USER_AGENT"]
+    @env["HTTP_USER_AGENT"]
   end
 
   private
