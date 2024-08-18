@@ -165,6 +165,10 @@ class Rage::Configuration
     @cable ||= Cable.new
   end
 
+  def public_file_server
+    @public_file_server ||= PublicFileServer.new
+  end
+
   def internal
     @internal ||= Internal.new
   end
@@ -244,6 +248,10 @@ class Rage::Configuration
         end
       end
     end
+  end
+
+  class PublicFileServer
+    attr_accessor :enabled
   end
 
   # @private
