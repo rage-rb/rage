@@ -20,6 +20,7 @@ end
 
 Rage.configure do
   config.middleware.use TestMiddleware
+  config.public_file_server.enabled = !!ENV["ENABLE_FILE_SERVER"]
 end
 
 require "rage/setup"

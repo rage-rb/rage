@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "rage/all"
+require_relative "support/integration_helper"
 require_relative "support/request_helper"
 require_relative "support/controller_helper"
 require_relative "support/reactor_helper"
@@ -21,6 +22,7 @@ RSpec.configure do |config|
     Iodine.patch_rack
   end
 
+  config.include IntegrationHelper
   config.include RequestHelper
   config.include ControllerHelper
   config.include ReactorHelper
