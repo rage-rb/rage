@@ -2,6 +2,7 @@
 
 require "thor"
 require "rack"
+require "rage/version"
 
 module Rage
   class CLI < Thor
@@ -110,6 +111,29 @@ module Rage
       environment
       ARGV.clear
       IRB.start
+    end
+
+    desc "middleware", "List Rack middleware stack enabled for the application"
+    def middleware
+      app = ::Rack::Builder.parse_file(options[:config] || "config.ru")
+      app = app[0] if app.is_a?(Array)
+      middlewares = []
+
+      while app
+        if app.instance_variable_defined?(:@app)
+          middlewares << app.class
+          app = app.instance_variable_get(:@app)
+        else
+          break
+        end
+      end
+
+      middlewares.each { |middleware| puts middleware }
+    end
+
+    desc "version", "Return the current version of the framework"
+    def version
+      puts Rage::VERSION
     end
 
     private
