@@ -102,6 +102,12 @@
 #
 # > Specifies connection timeout.
 #
+# # Static file server
+#
+# • _config.public_file_server.enabled_
+#
+# > Configures whether Rage should serve static files from the public directory. Defaults to `false`.
+#
 # # Cable Configuration
 #
 # • _config.cable.protocol_
