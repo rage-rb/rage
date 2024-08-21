@@ -10,20 +10,11 @@ RSpec.describe "End-to-end" do
   end
 
   before :all do
-    Bundler.with_unbundled_env do
-      system("gem build -o rage-local.gem && gem install rage-local.gem --no-document && bundle install")
-      @pid = spawn("bundle exec rage s", chdir: "spec/integration/test_app")
-      sleep(1)
-    end
+    launch_server
   end
 
   after :all do
-    if @pid
-      Process.kill(:SIGTERM, @pid)
-      Process.wait
-      system("rm spec/integration/test_app/Gemfile.lock")
-      system("rm spec/integration/test_app/log/development.log")
-    end
+    stop_server
   end
 
   it "correctly processes lambda requests" do

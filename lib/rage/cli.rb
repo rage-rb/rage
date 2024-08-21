@@ -29,12 +29,15 @@ module Rage
       app = ::Rack::Builder.parse_file(options[:config] || "config.ru")
       app = app[0] if app.is_a?(Array)
 
-      port = options[:port] || Rage.config.server.port
-      address = options[:binding] || (Rage.env.production? ? "0.0.0.0" : "localhost")
-      timeout = Rage.config.server.timeout
-      max_clients = Rage.config.server.max_clients
+      server_options = { service: :http, handler: app }
 
-      ::Iodine.listen service: :http, handler: app, port: port, address: address, timeout: timeout, max_clients: max_clients
+      server_options[:port] = options[:port] || Rage.config.server.port
+      server_options[:address] = options[:binding] || (Rage.env.production? ? "0.0.0.0" : "localhost")
+      server_options[:timeout] = Rage.config.server.timeout
+      server_options[:max_clients] = Rage.config.server.max_clients
+      server_options[:public] = Rage.config.public_file_server.enabled ? Rage.root.join("public").to_s : nil
+
+      ::Iodine.listen(**server_options)
       ::Iodine.threads = Rage.config.server.threads_count
       ::Iodine.workers = Rage.config.server.workers_count
 

@@ -102,6 +102,12 @@
 #
 # > Specifies connection timeout.
 #
+# # Static file server
+#
+# • _config.public_file_server.enabled_
+#
+# > Configures whether Rage should serve static files from the public directory. Defaults to `false`.
+#
 # # Cable Configuration
 #
 # • _config.cable.protocol_
@@ -163,6 +169,10 @@ class Rage::Configuration
 
   def cable
     @cable ||= Cable.new
+  end
+
+  def public_file_server
+    @public_file_server ||= PublicFileServer.new
   end
 
   def internal
@@ -244,6 +254,10 @@ class Rage::Configuration
         end
       end
     end
+  end
+
+  class PublicFileServer
+    attr_accessor :enabled
   end
 
   # @private
