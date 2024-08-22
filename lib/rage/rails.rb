@@ -44,7 +44,10 @@ end
 # clone Rails logger
 Rails.configuration.after_initialize do
   if Rails.logger && !Rage.logger
-    rails_logdev = Rails.logger.instance_variable_get(:@logdev)
+    rails_logdev = Rails.logger.yield_self { |logger|
+      logger.class.name == "ActiveSupport::BroadcastLogger" ? logger.broadcasts.last : logger
+    }.instance_variable_get(:@logdev)
+
     Rage.configure do
       config.logger = Rage::Logger.new(rails_logdev.dev) if rails_logdev.is_a?(Logger::LogDevice)
     end
