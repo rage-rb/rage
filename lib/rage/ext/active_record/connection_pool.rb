@@ -149,7 +149,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   # Yields a connection from the connection pool to the block.
   def with_connection(_ = nil)
-    unless conn = @__in_use[Fiber.current]
+    unless (conn = @__in_use[Fiber.current])
       conn = connection
       fresh_connection = true
     end

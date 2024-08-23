@@ -45,7 +45,7 @@ end
 Rails.configuration.after_initialize do
   if Rails.logger && !Rage.logger
     rails_logdev = Rails.logger.yield_self { |logger|
-      logger.class.name == "ActiveSupport::BroadcastLogger" ? logger.broadcasts.last : logger
+      logger.respond_to?(:broadcasts) ? logger.broadcasts.last : logger
     }.instance_variable_get(:@logdev)
 
     Rage.configure do
