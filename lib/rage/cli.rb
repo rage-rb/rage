@@ -127,6 +127,10 @@ module Rage
 
     def set_env(options)
       ENV["RAGE_ENV"] = options[:environment] if options[:environment]
+
+      # at this point we don't know whether the app is running in standalone or Rails mode;
+      # we set both variables to make sure applications are running in the same environment;
+      ENV["RAILS_ENV"] = ENV["RAGE_ENV"] if ENV["RAGE_ENV"] && ENV["RAILS_ENV"] != ENV["RAGE_ENV"]
     end
   end
 
