@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## [1.9.0] - 2024-08-24
+
+### Added
+
+- Static file server (#100).
+- Rails 7.2 compatibility (#101).
+
+### Fixed
+
+- Correctly set Rails env (#102).
+
 ## [1.8.0] - 2024-08-06
 
 ### Added
