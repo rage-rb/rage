@@ -148,10 +148,14 @@ module Rage::Ext::ActiveRecord::ConnectionPool
   end
 
   # Yields a connection from the connection pool to the block.
-  def with_connection
-    yield connection
+  def with_connection(_ = nil)
+    unless (conn = @__in_use[Fiber.current])
+      conn = connection
+      fresh_connection = true
+    end
+    yield conn
   ensure
-    release_connection
+    release_connection if fresh_connection
   end
 
   # Returns an array containing the connections currently in the pool.
@@ -227,6 +231,10 @@ module Rage::Ext::ActiveRecord::ConnectionPool
   # Check out a database connection from the pool, indicating that you want
   # to use it. You should call #checkin when you no longer need this.
   def checkout(_ = nil)
+    connection
+  end
+
+  def lease_connection
     connection
   end
 
