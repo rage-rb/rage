@@ -265,7 +265,7 @@ class Rage::Configuration
     attr_accessor :rails_mode
 
     def patch_ar_pool?
-      ENV["RAGE_PATCH_AR_POOL"] && !Rage.env.test?
+      !ENV["RAGE_DISABLE_AR_POOL_PATCH"] && !Rage.env.test?
     end
 
     def inspect
