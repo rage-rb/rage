@@ -264,6 +264,10 @@ class Rage::Configuration
   class Internal
     attr_accessor :rails_mode
 
+    def patch_ar_pool?
+      ENV["RAGE_PATCH_AR_POOL"] && !Rage.env.test?
+    end
+
     def inspect
       "#<#{self.class.name}>"
     end

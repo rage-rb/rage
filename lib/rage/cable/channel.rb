@@ -166,6 +166,7 @@ class Rage::Cable::Channel
           #{if activerecord_loaded
             <<~RUBY
             ensure
+              # TODO
               if ActiveRecord::Base.connection_pool.active_connection?
                 ActiveRecord::Base.connection_handler.clear_active_connections!
               end

@@ -82,6 +82,9 @@ class Fiber
   end
 
   # @private
+  attr_accessor :__awaited_fileno
+
+  # @private
   # pause a fiber and resume in the next iteration of the event loop
   def self.pause
     f = Fiber.current

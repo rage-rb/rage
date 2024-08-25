@@ -4,16 +4,30 @@ if defined?(ActiveSupport::IsolatedExecutionState)
 end
 
 # release ActiveRecord connections on yield
-if defined?(ActiveRecord) && ActiveRecord.version < Gem::Version.create("7.1.0")
-  class Fiber
-    def self.defer
-      res = Fiber.yield
+if defined?(ActiveRecord) && Rage.config.internal.patch_ar_pool?
+  if ActiveRecord.version >= Gem::Version.create("7.2.0")
+    # yay! AR 7.2+ uses `with_connection` internaly - no need to use `Fiber.defer`
+    if ENV["RAGE_DISABLE_AR_WEAK_CONNECTIONS"]
+      puts "WARNING: The RAGE_DISABLE_AR_WEAK_CONNECTIONS setting does not have any effect in Rails 7.2+"
+    end
+  elsif !ENV["RAGE_DISABLE_AR_WEAK_CONNECTIONS"]
+    class Fiber
+      def self.defer(fileno)
+        f = Fiber.current
+        f.__awaited_fileno = fileno
 
-      if ActiveRecord::Base.connection_pool.active_connection?
-        ActiveRecord::Base.connection_handler.clear_active_connections!
+        res = Fiber.yield
+
+        if ActiveRecord::Base.connection_handler.active_connections?(:all)
+          Iodine.defer do
+            if fileno != f.__awaited_fileno
+              ActiveRecord::Base.connection_handler.connection_pools(:all).each { |pool| pool.release_connection(f) }
+            end
+          end
+        end
+
+        res
       end
-
-      res
     end
   end
 end
@@ -31,6 +45,6 @@ if defined?(ActiveRecord::ConnectionAdapters::ConnectionPool)
 end
 
 # patch `ActiveRecord::ConnectionPool`
-if defined?(ActiveRecord) && ENV["RAGE_PATCH_AR_POOL"] && !Rage.env.test?
+if defined?(ActiveRecord) && Rage.config.internal.patch_ar_pool?
   Rage.patch_active_record_connection_pool
 end
