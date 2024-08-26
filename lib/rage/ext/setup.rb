@@ -18,10 +18,10 @@ if defined?(ActiveRecord) && Rage.config.internal.patch_ar_pool?
 
         res = Fiber.yield
 
-        if ActiveRecord::Base.connection_handler.active_connections?(:all)
+        if ActiveRecord::Base.connection_handler.active_connections?
           Iodine.defer do
             if fileno != f.__awaited_fileno
-              ActiveRecord::Base.connection_handler.connection_pools(:all).each { |pool| pool.release_connection(f) }
+              ActiveRecord::Base.connection_handler.connection_pools.each { |pool| pool.release_connection(f) }
             end
           end
         end
