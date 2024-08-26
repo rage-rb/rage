@@ -268,6 +268,12 @@ class Rage::Configuration
       !ENV["RAGE_DISABLE_AR_POOL_PATCH"] && !Rage.env.test?
     end
 
+    # whether we should manually release AR connections;
+    # AR 7.2+ uses `with_connection` internaly, so we only need to do this for older versions;
+    def manually_release_ar_connections?
+      defined?(ActiveRecord) && ActiveRecord.version < Gem::Version.create("7.2.0")
+    end
+
     def inspect
       "#<#{self.class.name}>"
     end
