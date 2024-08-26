@@ -76,8 +76,6 @@ class RageController::API
         ""
       end
 
-      activerecord_loaded = defined?(::ActiveRecord)
-
       wrap_parameters_chunk = if __wrap_parameters_key
         <<~RUBY
           wrap_key = self.class.__wrap_parameters_key
@@ -95,9 +93,12 @@ class RageController::API
         RUBY
       end
 
+      query_cache_enabled = defined?(::ActiveRecord)
+      should_release_connections = Rage.config.internal.manually_release_ar_connections?
+
       class_eval <<~RUBY, __FILE__, __LINE__ + 1
         def __run_#{action}
-          #{if activerecord_loaded
+          #{if query_cache_enabled
             <<~RUBY
               ActiveRecord::Base.connection_pool.enable_query_cache!
             RUBY
@@ -119,9 +120,14 @@ class RageController::API
           #{rescue_handlers_chunk}
 
         ensure
-          #{if activerecord_loaded
+          #{if query_cache_enabled
             <<~RUBY
               ActiveRecord::Base.connection_pool.disable_query_cache!
+            RUBY
+          end}
+
+          #{if should_release_connections
+            <<~RUBY
               if ActiveRecord::Base.connection_handler.active_connections?(:all)
                 ActiveRecord::Base.connection_handler.clear_active_connections!(:all)
               end
