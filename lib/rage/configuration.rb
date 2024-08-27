@@ -274,6 +274,12 @@ class Rage::Configuration
       defined?(ActiveRecord) && ActiveRecord.version < Gem::Version.create("7.2.0")
     end
 
+    # whether we should manually reconnect closed AR connections;
+    # AR 7.1+ does this automatically while executing the query;
+    def should_manually_restore_ar_connections?
+      defined?(ActiveRecord) && ActiveRecord.version < Gem::Version.create("7.1.0")
+    end
+
     def inspect
       "#<#{self.class.name}>"
     end

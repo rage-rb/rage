@@ -24,11 +24,30 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     end
   end
 
+  # reconnect closed connections on checkout;
+  # only included with `Rage.config.should_manually_restore_ar_connections?`
+  module ConnectionWithVerify
+    def connection
+      conn = super
+
+      if conn.__needs_reconnect
+        conn.reconnect!
+        conn.__needs_reconnect = false
+      end
+
+      conn
+    end
+  end
+  if Rage.config.internal.should_manually_restore_ar_connections?
+    prepend ConnectionWithVerify
+  end
+
   def self.extended(instance)
     instance.class.alias_method :__checkout__, :checkout
     instance.class.alias_method :__remove__, :remove
 
     ActiveRecord::ConnectionAdapters::AbstractAdapter.attr_accessor(:__idle_since)
+    ActiveRecord::ConnectionAdapters::AbstractAdapter.attr_accessor(:__needs_reconnect)
   end
 
   def __init_rage_extension
@@ -61,6 +80,26 @@ module Rage::Ext::ActiveRecord::ConnectionPool
             @__blocked.delete(fiber)
             fiber.raise(ActiveRecord::ConnectionTimeoutError, "could not obtain a connection from the pool within #{@__checkout_timeout} seconds; all pooled connections were in use")
           end
+        end
+      end
+    end
+
+    # monitor connections health
+    if Rage.config.internal.should_manually_restore_ar_connections?
+      Iodine.run_every(1_000) do
+        i = 0
+        while i < @__connections.length
+          conn = @__connections[i]
+
+          unless conn.__needs_reconnect
+            needs_reconnect = !conn.active? rescue true
+            if needs_reconnect
+              conn.__needs_reconnect = true
+              conn.disconnect!
+            end
+          end
+
+          i += 1
         end
       end
     end
@@ -135,6 +174,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
       conn = @__connections[i]
       if conn.__idle_since && current_time - conn.__idle_since >= minimum_idle
         conn.__idle_since = nil
+        conn.__needs_reconnect = true
         conn.disconnect!
       end
       i += 1
