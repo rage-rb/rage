@@ -4,29 +4,21 @@ RSpec.describe Rage::CLI do
   subject(:rage_cli) { described_class.new }
 
   describe "#middleware" do
-    let(:config_ru) { "spec/rspec/config.ru" }
-
     before do
-      allow(rage_cli).to receive(:options).and_return(config: config_ru)
-      allow(Rack::Builder).to receive(:parse_file).with(config_ru).and_return([app])
+      allow(rage_cli).to receive(:environment)
+      allow(Rage.config).to receive_message_chain(:middleware, :middlewares).and_return(middlewares)
     end
 
     context "when middleware stack is present" do
-      let(:app) do
-        Rack::Builder.app do
-          use Rage::FiberWrapper
-          use Rage::Reloader
-          run ->(env) { [200, { "Content-Type" => "text/plain" }, ["OK"]] }
-        end
-      end
+      let(:middlewares) { [[Rage::FiberWrapper], [Rage::Reloader, [], nil]] }
 
       it "lists the middleware stack" do
-        expect { rage_cli.middleware }.to output(/Rage::FiberWrapper\nRage::Reloader/).to_stdout
+        expect { rage_cli.middleware }.to output("use \Rage::FiberWrapper\nuse \Rage::Reloader\n").to_stdout
       end
     end
 
     context "when middleware stack is empty" do
-      let(:app) { ->(env) { [200, { "Content-Type" => "text/plain" }, ["OK"]] } }
+      let(:middlewares) { [] }
 
       it "does not list any middleware" do
         expect { rage_cli.middleware }.to output("").to_stdout

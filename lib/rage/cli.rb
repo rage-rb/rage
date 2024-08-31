@@ -115,20 +115,11 @@ module Rage
 
     desc "middleware", "List Rack middleware stack enabled for the application"
     def middleware
-      app = ::Rack::Builder.parse_file(options[:config] || "config.ru")
-      app = app[0] if app.is_a?(Array)
-      middlewares = []
+      environment
 
-      while app
-        if app.instance_variable_defined?(:@app)
-          middlewares << app.class
-          app = app.instance_variable_get(:@app)
-        else
-          break
-        end
+      Rage.config.middleware.middlewares.each do |middleware|
+        say "use #{middleware.first.name}"
       end
-
-      middlewares.each { |middleware| puts middleware }
     end
 
     desc "version", "Return the current version of the framework"
