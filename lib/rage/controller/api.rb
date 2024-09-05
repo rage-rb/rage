@@ -94,7 +94,7 @@ class RageController::API
       end
 
       query_cache_enabled = defined?(::ActiveRecord)
-      should_release_connections = Rage.config.internal.manually_release_ar_connections?
+      should_release_connections = Rage.config.internal.should_manually_release_ar_connections?
 
       class_eval <<~RUBY, __FILE__, __LINE__ + 1
         def __run_#{action}

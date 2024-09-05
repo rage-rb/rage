@@ -6,11 +6,11 @@ end
 # release ActiveRecord connections on yield
 if defined?(ActiveRecord) && Rage.config.internal.patch_ar_pool?
   if ENV["RAGE_DISABLE_AR_WEAK_CONNECTIONS"]
-    unless Rage.config.internal.manually_release_ar_connections?
+    unless Rage.config.internal.should_manually_release_ar_connections?
       puts "WARNING: The RAGE_DISABLE_AR_WEAK_CONNECTIONS setting does not have any effect with Active Record 7.2+"
     end
     # no-op
-  elsif Rage.config.internal.manually_release_ar_connections?
+  elsif Rage.config.internal.should_manually_release_ar_connections?
     class Fiber
       def self.defer(fileno)
         f = Fiber.current
