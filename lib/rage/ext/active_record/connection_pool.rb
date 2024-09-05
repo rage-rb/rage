@@ -66,7 +66,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     @__checkout_timeout = checkout_timeout
 
     # how long a connection can be idle for before disconnecting
-    @__idle_timeout = reaper.frequency
+    @__idle_timeout = respond_to?(:db_config) ? db_config.idle_timeout : @idle_timeout
 
     # how often should we check for fibers that wait for a connection for too long
     @__timeout_worker_frequency = 0.5
