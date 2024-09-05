@@ -147,11 +147,13 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   # Recover lost connections for the pool.
   def reap
+    crashed_fibers = nil
+
     @__in_use.each do |fiber, conn|
       unless fiber.alive?
         if conn.active?
           conn.reset!
-          release_connection(fiber)
+          (crashed_fibers ||= []) << fiber
         else
           @__in_use.delete(fiber)
           conn.disconnect!
@@ -160,6 +162,10 @@ module Rage::Ext::ActiveRecord::ConnectionPool
           Iodine.publish("ext:ar-connection-released", "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
         end
       end
+    end
+
+    if crashed_fibers
+      crashed_fibers.each { |fiber| release_connection(fiber) }
     end
   end
 
