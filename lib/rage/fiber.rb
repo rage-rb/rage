@@ -141,7 +141,7 @@ class Fiber
       end
     end
 
-    Fiber.yield
+    Fiber.defer(-1)
     Iodine.defer { Iodine.unsubscribe("await:#{f.object_id}") }
 
     # if num_wait_for is not 0 means we exited prematurely because of an error
