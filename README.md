@@ -59,6 +59,7 @@ Also, see the following integration guides:
 
 - [Rails integration](https://github.com/rage-rb/rage/wiki/Rails-integration)
 - [RSpec integration](https://github.com/rage-rb/rage/wiki/RSpec-integration)
+- [WebSockets guide](https://github.com/rage-rb/rage/wiki/WebSockets-guide)
 
 If you are a first-time contributor, make sure to check the [overview doc](https://github.com/rage-rb/rage/blob/master/OVERVIEW.md) that shows how Rage's core components interact with each other.
 
@@ -172,8 +173,8 @@ Status | Changes
 :white_check_mark: | ~~Automatic code reloading in development with Zeitwerk.~~
 :white_check_mark: | ~~Support conditional get with `etag` and `last_modified`.~~
 :white_check_mark: | ~~Expose the `cookies` and `session` objects.~~
+:white_check_mark: | ~~Implement Iodine-based equivalent of Action Cable.~~
 ⏳ | Expose the `send_data` and `send_file` methods.
-⏳ | Implement Iodine-based equivalent of Action Cable.
 
 ## Development
 
