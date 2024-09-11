@@ -104,8 +104,10 @@ module Rage::Ext::ActiveRecord::ConnectionPool
       end
     end
 
+    @release_connection_channel = "ext:ar-connection-released:#{object_id}"
+
     # resume blocked fibers once connections become available
-    Iodine.subscribe("ext:ar-connection-released") do
+    Iodine.subscribe(@release_connection_channel) do
       if @__blocked.length > 0 && @__connections.length > 0
         f, _ = @__blocked.shift
         f.resume
@@ -114,7 +116,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
     # unsubscribe on shutdown
     Iodine.on_state(:on_finish) do
-      Iodine.unsubscribe("ext:ar-connection-released")
+      Iodine.unsubscribe(@release_connection_channel)
     end
   end
 
@@ -139,7 +141,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     if (conn = @__in_use.delete(owner))
       conn.__idle_since = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       @__connections << conn
-      Iodine.publish("ext:ar-connection-released", "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
+      Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
     end
 
     conn
@@ -159,7 +161,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
           conn.disconnect!
           __remove__(conn)
           @__connections += build_new_connections(1)
-          Iodine.publish("ext:ar-connection-released", "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
+          Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
         end
       end
     end
@@ -262,7 +264,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
     # notify blocked fibers that there are new connections available
     [@__blocked.length, @__connections.length].min.times do
-      Iodine.publish("ext:ar-connection-released", "", Iodine::PubSub::PROCESS)
+      Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS)
     end
   end
 

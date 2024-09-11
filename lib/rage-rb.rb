@@ -65,8 +65,10 @@ module Rage
       if is_connected
         puts "INFO: Patching ActiveRecord::ConnectionPool"
         Iodine.on_state(:on_start) do
-          ActiveRecord::Base.connection_pool.extend(Rage::Ext::ActiveRecord::ConnectionPool)
-          ActiveRecord::Base.connection_pool.__init_rage_extension
+          ActiveRecord::Base.connection_handler.connection_pool_list(:all).each do |pool|
+            pool.extend(Rage::Ext::ActiveRecord::ConnectionPool)
+            pool.__init_rage_extension
+          end
         end
       else
         puts "WARNING: DB connection is not established - can't patch ActiveRecord::ConnectionPool"
