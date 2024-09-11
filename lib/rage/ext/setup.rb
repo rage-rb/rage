@@ -1,3 +1,7 @@
+if defined?(ActiveRecord) && ActiveRecord.version < Gem::Version.create("6")
+  fail "Rage is only compatible with Active Record 6+. Detected Active Record version: #{ActiveRecord.version}."
+end
+
 # set ActiveSupport isolation level
 if defined?(ActiveSupport::IsolatedExecutionState)
   ActiveSupport::IsolatedExecutionState.isolation_level = :fiber
