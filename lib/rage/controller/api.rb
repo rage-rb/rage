@@ -128,9 +128,7 @@ class RageController::API
 
           #{if should_release_connections
             <<~RUBY
-              if ActiveRecord::Base.connection_handler.active_connections?
-                ActiveRecord::Base.connection_handler.clear_active_connections!
-              end
+              ActiveRecord::Base.connection_handler.clear_active_connections!(:all)
             RUBY
           end}
 
