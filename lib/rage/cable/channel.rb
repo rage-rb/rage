@@ -135,7 +135,7 @@ class Rage::Cable::Channel
       end
 
       is_subscribing = action_name == :subscribed
-      activerecord_loaded = defined?(::ActiveRecord)
+      should_release_connections = Rage.config.internal.should_manually_release_ar_connections?
 
       method_name = class_eval <<~RUBY, __FILE__, __LINE__ + 1
         def __run_#{action_name}(data)
@@ -163,13 +163,10 @@ class Rage::Cable::Channel
           #{periodic_timers_chunk}
           #{rescue_handlers_chunk}
 
-          #{if activerecord_loaded
+          #{if should_release_connections
             <<~RUBY
             ensure
-              # TODO
-              if ActiveRecord::Base.connection_pool.active_connection?
-                ActiveRecord::Base.connection_handler.clear_active_connections!
-              end
+              ActiveRecord::Base.connection_handler.clear_active_connections!(:all)
             RUBY
           end}
         end
