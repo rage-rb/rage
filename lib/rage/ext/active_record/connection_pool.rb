@@ -160,6 +160,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
           @__in_use.delete(fiber)
           conn.disconnect!
           __remove__(conn)
+          self.automatic_reconnect = true
           @__connections += build_new_connections(1)
           Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
         end
@@ -260,6 +261,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     end
 
     # create a new pool
+    self.automatic_reconnect = true
     @__connections = build_new_connections
 
     # notify blocked fibers that there are new connections available
