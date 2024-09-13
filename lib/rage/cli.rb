@@ -134,6 +134,24 @@ module Rage
       puts Rage::VERSION
     end
 
+    map "--tasks" => :tasks
+    desc "--tasks", "See the list of available tasks."
+    def tasks
+      require "io/console"
+
+      tasks = linked_rake_tasks
+      return if tasks.empty?
+
+      _, max_width = IO.console.winsize
+      max_task_name = tasks.max_by { |task| task.name.length }.name.length + 2
+      max_comment = max_width - max_task_name - 8
+
+      tasks.each do |task|
+        comment = task.comment.length <= max_comment ? task.comment : "#{task.comment[0...max_comment - 5]}..."
+        puts sprintf("rage %-#{max_task_name}s # %s", task.name, comment)
+      end
+    end
+
     def method_missing(method, *, &)
       if linked_rake_tasks.any? { |task| task.name == method.to_s }
         Rake::Task[method].invoke
