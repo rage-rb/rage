@@ -84,12 +84,7 @@ if defined?(ActiveRecord) && !Rage.config.internal.rails_mode && (database_url |
     end
   end
 
-  if database_file_config
-    ActiveRecord::Base.configurations = database_file_config
-  else
-    ActiveRecord::Base.configurations = { Rage.env.to_s => database_url_config }
-  end
-
+  ActiveRecord::Base.configurations = database_file_config || { Rage.env.to_s => database_url_config }
   ActiveRecord::Base.establish_connection(Rage.env.to_sym)
 
   if defined?(Rake)

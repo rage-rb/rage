@@ -191,13 +191,17 @@ module Rage
       end
     end
 
-    def method_missing(method, *, &)
-      if linked_rake_tasks.any? { |task| task.name == method.to_s }
-        Rake::Task[method].invoke
+    def method_missing(method_name, *, &)
+      if respond_to?(method_name)
+        Rake::Task[method_name].invoke
       else
         suggestions = linked_rake_tasks.map(&:name)
-        raise UndefinedCommandError.new(method.to_s, suggestions, nil)
+        raise UndefinedCommandError.new(method_name.to_s, suggestions, nil)
       end
+    end
+
+    def respond_to_missing?(method_name, include_private = false)
+      linked_rake_tasks.any? { |task| task.name == method_name.to_s } || super
     end
 
     private
