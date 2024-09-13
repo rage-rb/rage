@@ -130,9 +130,13 @@
 #
 # > Disables the `io_write` hook to fix the ["zero-length iov"](https://bugs.ruby-lang.org/issues/19640) error on Ruby < 3.3.
 #
-# • _RAGE_PATCH_AR_POOL_
+# • _RAGE_DISABLE_AR_POOL_PATCH_
 #
-# > Enables the `ActiveRecord::ConnectionPool` patch to optimize database connection management. Use it to increase throughput under high load.
+# > Disables the `ActiveRecord::ConnectionPool` patch and makes Rage use the original ActiveRecord implementation.
+#
+# • _RAGE_DISABLE_AR_WEAK_CONNECTIONS_
+#
+# > Instructs Rage to not reuse Active Record connections between different fibers.
 #
 class Rage::Configuration
   attr_accessor :logger
@@ -263,6 +267,22 @@ class Rage::Configuration
   # @private
   class Internal
     attr_accessor :rails_mode
+
+    def patch_ar_pool?
+      !ENV["RAGE_DISABLE_AR_POOL_PATCH"] && !Rage.env.test?
+    end
+
+    # whether we should manually release AR connections;
+    # AR 7.2+ uses `with_connection` internaly, so we only need to do this for older versions;
+    def should_manually_release_ar_connections?
+      defined?(ActiveRecord) && ActiveRecord.version < Gem::Version.create("7.2.0")
+    end
+
+    # whether we should manually reconnect closed AR connections;
+    # AR 7.1+ does this automatically while executing the query;
+    def should_manually_restore_ar_connections?
+      defined?(ActiveRecord) && ActiveRecord.version < Gem::Version.create("7.1.0")
+    end
 
     def inspect
       "#<#{self.class.name}>"

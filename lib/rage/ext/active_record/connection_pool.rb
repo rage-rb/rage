@@ -24,11 +24,30 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     end
   end
 
+  # reconnect closed connections on checkout;
+  # only included with `Rage.config.should_manually_restore_ar_connections?`
+  module ConnectionWithVerify
+    def connection
+      conn = super
+
+      if conn.__needs_reconnect
+        conn.reconnect!
+        conn.__needs_reconnect = false
+      end
+
+      conn
+    end
+  end
+  if Rage.config.internal.should_manually_restore_ar_connections?
+    prepend ConnectionWithVerify
+  end
+
   def self.extended(instance)
     instance.class.alias_method :__checkout__, :checkout
     instance.class.alias_method :__remove__, :remove
 
     ActiveRecord::ConnectionAdapters::AbstractAdapter.attr_accessor(:__idle_since)
+    ActiveRecord::ConnectionAdapters::AbstractAdapter.attr_accessor(:__needs_reconnect)
   end
 
   def __init_rage_extension
@@ -47,7 +66,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     @__checkout_timeout = checkout_timeout
 
     # how long a connection can be idle for before disconnecting
-    @__idle_timeout = reaper.frequency
+    @__idle_timeout = respond_to?(:db_config) ? db_config.idle_timeout : @idle_timeout
 
     # how often should we check for fibers that wait for a connection for too long
     @__timeout_worker_frequency = 0.5
@@ -65,8 +84,30 @@ module Rage::Ext::ActiveRecord::ConnectionPool
       end
     end
 
+    # monitor connections health
+    if Rage.config.internal.should_manually_restore_ar_connections?
+      Iodine.run_every(1_000) do
+        i = 0
+        while i < @__connections.length
+          conn = @__connections[i]
+
+          unless conn.__needs_reconnect
+            needs_reconnect = !conn.active? rescue true
+            if needs_reconnect
+              conn.__needs_reconnect = true
+              conn.disconnect!
+            end
+          end
+
+          i += 1
+        end
+      end
+    end
+
+    @release_connection_channel = "ext:ar-connection-released:#{object_id}"
+
     # resume blocked fibers once connections become available
-    Iodine.subscribe("ext:ar-connection-released") do
+    Iodine.subscribe(@release_connection_channel) do
       if @__blocked.length > 0 && @__connections.length > 0
         f, _ = @__blocked.shift
         f.resume
@@ -75,7 +116,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
     # unsubscribe on shutdown
     Iodine.on_state(:on_finish) do
-      Iodine.unsubscribe("ext:ar-connection-released")
+      Iodine.unsubscribe(@release_connection_channel)
     end
   end
 
@@ -100,7 +141,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     if (conn = @__in_use.delete(owner))
       conn.__idle_since = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       @__connections << conn
-      Iodine.publish("ext:ar-connection-released", "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
+      Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
     end
 
     conn
@@ -108,19 +149,26 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   # Recover lost connections for the pool.
   def reap
+    crashed_fibers = nil
+
     @__in_use.each do |fiber, conn|
       unless fiber.alive?
         if conn.active?
           conn.reset!
-          release_connection(fiber)
+          (crashed_fibers ||= []) << fiber
         else
           @__in_use.delete(fiber)
           conn.disconnect!
           __remove__(conn)
+          self.automatic_reconnect = true
           @__connections += build_new_connections(1)
-          Iodine.publish("ext:ar-connection-released", "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
+          Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
         end
       end
+    end
+
+    if crashed_fibers
+      crashed_fibers.each { |fiber| release_connection(fiber) }
     end
   end
 
@@ -135,6 +183,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
       conn = @__connections[i]
       if conn.__idle_since && current_time - conn.__idle_since >= minimum_idle
         conn.__idle_since = nil
+        conn.__needs_reconnect = true
         conn.disconnect!
       end
       i += 1
@@ -212,11 +261,12 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     end
 
     # create a new pool
+    self.automatic_reconnect = true
     @__connections = build_new_connections
 
     # notify blocked fibers that there are new connections available
     [@__blocked.length, @__connections.length].min.times do
-      Iodine.publish("ext:ar-connection-released", "", Iodine::PubSub::PROCESS)
+      Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS)
     end
   end
 

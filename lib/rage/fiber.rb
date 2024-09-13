@@ -39,6 +39,43 @@
 # Many developers see fibers as "lightweight threads" that should be used in conjunction with fiber pools, the same way we use thread pools for threads.<br>
 # Instead, it makes sense to think of fibers as regular Ruby objects. We don't use a pool of arrays when we need to create an array - we create a new object and let Ruby and the GC do their job.<br>
 # Same applies to fibers. Feel free to create as many fibers as you need on demand.
+#
+# ## Active Record Connections
+#
+# Let's consider the following controller, where we update a record in the database:
+#
+# ```ruby
+# class UsersController < RageController::API
+#   def update
+#     User.update!(params[:id], email: params[:email])
+#     render status: :ok
+#   end
+# end
+# ```
+#
+# The `User.update!` call here checks out an Active Record connection, and Rage will automatically check it back in once the action is completed. So far so good!
+#
+# Let's consider another example:
+#
+# ```ruby
+# require "net/http"
+#
+# class UsersController < RageController::API
+#   def update
+#     User.update!(params[:id], email: params[:email]) # takes 5ms
+#     Net::HTTP.post_form(URI("https://mailing.service/update"), { user_id: params[:id] }) # takes 50ms
+#     render status: :ok
+#   end
+# end
+# ```
+#
+# Here, we've added another step: once the record is updated, we will send a request to update the user's data in the mailing list service.
+#
+# However, in this case, we want to release the Active Record connection before the action is completed. You can see that we need the connection only for the `User.update!` call.
+# The next 50ms the code will spend waiting for the HTTP request to finish, and if we don't release the Active Record connection right away, other fibers won't be able to use it.
+#
+# Active Record 7.2 handles this case by using [#with_connection](https://api.rubyonrails.org/classes/ActiveRecord/ConnectionAdapters/ConnectionPool.html#method-i-with_connection) internally.
+# With older Active Record versions, Rage handles this case on its own by keeping track of blocking calls and releasing Active Record connections between them.
 class Fiber
   # @private
   AWAIT_ERROR_MESSAGE = "err"
@@ -80,6 +117,9 @@ class Fiber
 
     "block:#{object_id}:#{@__block_channel_i}"
   end
+
+  # @private
+  attr_accessor :__awaited_fileno
 
   # @private
   # pause a fiber and resume in the next iteration of the event loop
@@ -138,7 +178,7 @@ class Fiber
       end
     end
 
-    Fiber.yield
+    Fiber.defer(-1)
     Iodine.defer { Iodine.unsubscribe("await:#{f.object_id}") }
 
     # if num_wait_for is not 0 means we exited prematurely because of an error
