@@ -56,6 +56,45 @@ if defined?(ActiveRecord::ConnectionAdapters::ConnectionPool)
   end
 end
 
+# connect to the database in standalone mode
+database_url, database_file = ENV["DATABASE_URL"], Rage.root.join("config/database.yml")
+if defined?(ActiveRecord) && !Rage.config.internal.rails_mode && (database_url || database_file.exist?)
+  # transform database URL to an object
+  database_url_config = if database_url.nil?
+    {}
+  elsif ActiveRecord.version >= Gem::Version.create("6.1.0")
+    ActiveRecord::Base.configurations
+    ActiveRecord::DatabaseConfigurations::ConnectionUrlResolver.new(database_url).to_hash
+  else
+    ActiveRecord::ConnectionAdapters::ConnectionSpecification::ConnectionUrlResolver.new(database_url).to_hash
+  end
+  database_url_config.transform_keys!(&:to_s)
+
+  # load config/database.yml
+  if database_file.exist?
+    database_file_config = begin
+      require "yaml"
+      require "erb"
+      YAML.safe_load(ERB.new(database_file.read).result, aliases: true)
+    end
+
+    # merge database URL config into the file config (only if we have one database)
+    database_file_config.transform_values! do |env_config|
+      env_config.all? { |_, v| v.is_a?(Hash) } ? env_config : env_config.merge(database_url_config)
+    end
+  end
+
+  if database_file_config
+    ActiveRecord::Base.configurations = database_file_config
+  else
+    ActiveRecord::Base.configurations = { Rage.env.to_s => database_url_config }
+  end
+
+  ActiveRecord::Base.establish_connection(Rage.env.to_sym)
+  ActiveRecord::Base.logger = Rage.logger
+  ActiveRecord::Base.connection_pool.with_connection {} # validate the connection
+end
+
 # patch `ActiveRecord::ConnectionPool`
 if defined?(ActiveRecord) && Rage.config.internal.patch_ar_pool?
   Rage.patch_active_record_connection_pool
