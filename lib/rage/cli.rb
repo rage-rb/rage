@@ -134,6 +134,15 @@ module Rage
       puts Rage::VERSION
     end
 
+    def method_missing(method, *, &)
+      if linked_rake_tasks.any? { |task| task.name == method.to_s }
+        Rake::Task[method].invoke
+      else
+        suggestions = linked_rake_tasks.map(&:name)
+        raise UndefinedCommandError.new(method.to_s, suggestions, nil)
+      end
+    end
+
     private
 
     def environment
@@ -150,6 +159,14 @@ module Rage
       # at this point we don't know whether the app is running in standalone or Rails mode;
       # we set both variables to make sure applications are running in the same environment;
       ENV["RAILS_ENV"] = ENV["RAGE_ENV"] if ENV["RAGE_ENV"] && ENV["RAILS_ENV"] != ENV["RAGE_ENV"]
+    end
+
+    def linked_rake_tasks
+      require "rake"
+      Rake::TaskManager.record_task_metadata = true
+      load "Rakefile"
+
+      Rake::Task.tasks.select { |task| !task.comment.nil? && task.name.start_with?("db:") }
     end
   end
 
