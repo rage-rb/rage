@@ -130,9 +130,13 @@
 #
 # > Disables the `io_write` hook to fix the ["zero-length iov"](https://bugs.ruby-lang.org/issues/19640) error on Ruby < 3.3.
 #
-# • _RAGE_PATCH_AR_POOL_
+# • _RAGE_DISABLE_AR_POOL_PATCH_
 #
-# > Enables the `ActiveRecord::ConnectionPool` patch to optimize database connection management. Use it to increase throughput under high load.
+# > Disables the `ActiveRecord::ConnectionPool` patch and makes Rage use the original ActiveRecord implementation.
+#
+# • _RAGE_DISABLE_AR_WEAK_CONNECTIONS_
+#
+# > Instructs Rage to not reuse Active Record connections between different fibers.
 #
 class Rage::Configuration
   attr_accessor :logger
