@@ -11,9 +11,13 @@ module Rage
     end
 
     desc "new PATH", "Create a new application."
-    def new(path)
+    option :database, aliases: "-d", desc: "Preconfigure for selected database.", enum: %w(mysql trilogy postgresql sqlite3)
+    option :help, aliases: "-h", desc: "Show this message."
+    def new(path = nil)
+      return help("new") if options.help? || path.nil?
+
       require "rage/all"
-      NewAppGenerator.start([path])
+      CLINewAppGenerator.start([path, options[:database]])
     end
 
     desc "s", "Start the app server."
@@ -149,12 +153,17 @@ module Rage
     end
   end
 
-  class NewAppGenerator < Thor::Group
+  class CLINewAppGenerator < Thor::Group
     include Thor::Actions
     argument :path, type: :string
+    argument :database, type: :string, required: false
 
     def self.source_root
       File.expand_path("templates", __dir__)
+    end
+
+    def setup
+      @use_database = !database.nil?
     end
 
     def create_directory
@@ -162,9 +171,47 @@ module Rage
     end
 
     def copy_files
-      Dir.glob("*", base: self.class.source_root).each do |template|
+      inject_templates
+    end
+
+    def install_database
+      return unless @use_database
+
+      @app_name = path.tr("-", "_").downcase
+      append_to_file "#{path}/Gemfile", <<~RUBY
+
+        gem "#{get_db_gem_name}"
+        gem "activerecord"
+        gem "standalone_migrations", require: false
+      RUBY
+
+      inject_templates("db-templates")
+      inject_templates("db-templates/#{database}")
+    end
+
+    private
+
+    def inject_templates(from = nil)
+      root = "#{self.class.source_root}/#{from}"
+
+      Dir.glob("*", base: root).each do |template|
+        next if File.directory?("#{root}/#{template}")
+
         *template_path_parts, template_name = template.split("-")
-        template(template, "#{path}/#{template_path_parts.join("/")}/#{template_name}")
+        template("#{root}/#{template}", [path, *template_path_parts, template_name].join("/"))
+      end
+    end
+
+    def get_db_gem_name
+      case database
+      when "mysql"
+        "mysql2"
+      when "trilogy"
+        "trilogy"
+      when "postgresql"
+        "pg"
+      when "sqlite3"
+        "sqlite3"
       end
     end
   end
