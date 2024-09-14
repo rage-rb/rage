@@ -9,9 +9,9 @@ end
 # Run application initializers
 Dir["#{Rage.root}/config/initializers/**/*.rb"].each { |initializer| load(initializer) }
 
+require "rage/ext/setup"
+
 # Load application classes
 Rage.code_loader.setup
 
 require_relative "#{Rage.root}/config/routes"
-
-require "rage/ext/setup"
