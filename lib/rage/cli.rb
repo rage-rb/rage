@@ -192,6 +192,8 @@ module Rage
     end
 
     def method_missing(method_name, *, &)
+      set_env({})
+
       if respond_to?(method_name)
         Rake::Task[method_name].invoke
       else
