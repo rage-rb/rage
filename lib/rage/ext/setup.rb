@@ -87,10 +87,8 @@ if defined?(ActiveRecord) && !Rage.config.internal.rails_mode && (database_url |
   ActiveRecord::Base.configurations = database_file_config || { Rage.env.to_s => database_url_config }
   ActiveRecord::Base.establish_connection(Rage.env.to_sym)
 
-  if defined?(Rake)
-    ActiveRecord::Base.logger = nil
-  else
-    ActiveRecord::Base.logger = Rage.logger
+  unless defined?(Rake)
+    ActiveRecord::Base.logger = Rage.logger if Rage.logger.debug?
     ActiveRecord::Base.connection_pool.with_connection {} # validate the connection
   end
 end
