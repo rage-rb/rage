@@ -82,7 +82,7 @@ class Rage::Logger
     end
 
     @formatter = formatter
-    @level = level
+    @level = @logdev ? level : Logger::UNKNOWN
     define_log_methods
   end
 
