@@ -155,7 +155,7 @@ end
 ```ruby
 class BenchmarksController < ApplicationController
   def show
-    render json: World.find(rand(10_000))
+    render json: World.find(rand(1..10_000))
   end
 end
 ```
