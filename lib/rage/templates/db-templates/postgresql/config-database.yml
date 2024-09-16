@@ -1,0 +1,21 @@
+##
+# PostgreSQL. Versions 9.3 and up are supported.
+#
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%%= ENV.fetch("DB_MAX_CONNECTIONS") { 5 } %>
+
+development:
+  <<: *default
+  database: <%= @app_name %>_development
+
+test:
+  <<: *default
+  database: <%= @app_name %>_test
+
+production:
+  <<: *default
+  database: <%= @app_name %>_production
+  username: <%= @app_name %>
+  password: <%%= ENV["<%= @app_name.upcase %>_DATABASE_PASSWORD"] %>

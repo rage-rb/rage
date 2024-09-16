@@ -1,0 +1,24 @@
+##
+# MySQL. Versions 5.5.8 and up are supported.
+#
+default: &default
+  adapter: trilogy
+  encoding: utf8mb4
+  pool: <%%= ENV.fetch("DB_MAX_THREADS") { 5 } %>
+  username: root
+  password:
+  socket: /tmp/mysql.sock
+
+development:
+  <<: *default
+  database: <%= @app_name %>_development
+
+test:
+  <<: *default
+  database: <%= @app_name %>_test
+
+production:
+  <<: *default
+  database: <%= @app_name %>_production
+  username: <%= @app_name %>
+  password: <%%= ENV["<%= @app_name.upcase %>_DATABASE_PASSWORD"] %>

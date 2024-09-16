@@ -5,15 +5,54 @@ require "rack"
 require "rage/version"
 
 module Rage
+  class CLICodeGenerator < Thor
+    include Thor::Actions
+
+    def self.source_root
+      File.expand_path("templates", __dir__)
+    end
+
+    desc "migration NAME", "Generate a new migration."
+    def migration(name = nil)
+      return help("migration") if name.nil?
+
+      setup
+      Rake::Task["db:new_migration"].invoke(name)
+    end
+
+    desc "model NAME", "Generate a new model."
+    def model(name = nil)
+      return help("model") if name.nil?
+
+      setup
+      migration("create_#{name.pluralize}")
+      @model_name = name.classify
+      template("model-template/model.rb", "app/models/#{name.singularize.underscore}.rb")
+    end
+
+    private
+
+    def setup
+      @setup ||= begin
+        require "rake"
+        load "Rakefile"
+      end
+    end
+  end
+
   class CLI < Thor
     def self.exit_on_failure?
       true
     end
 
     desc "new PATH", "Create a new application."
-    def new(path)
+    option :database, aliases: "-d", desc: "Preconfigure for selected database.", enum: %w(mysql trilogy postgresql sqlite3)
+    option :help, aliases: "-h", desc: "Show this message."
+    def new(path = nil)
+      return help("new") if options.help? || path.nil?
+
       require "rage/all"
-      NewAppGenerator.start([path])
+      CLINewAppGenerator.start([path, options[:database]])
     end
 
     desc "s", "Start the app server."
@@ -130,6 +169,43 @@ module Rage
       puts Rage::VERSION
     end
 
+    map "generate" => :g
+    desc "g TYPE", "Generate new code."
+    subcommand "g", CLICodeGenerator
+
+    map "--tasks" => :tasks
+    desc "--tasks", "See the list of available tasks."
+    def tasks
+      require "io/console"
+
+      tasks = linked_rake_tasks
+      return if tasks.empty?
+
+      _, max_width = IO.console.winsize
+      max_task_name = tasks.max_by { |task| task.name.length }.name.length + 2
+      max_comment = max_width - max_task_name - 8
+
+      tasks.each do |task|
+        comment = task.comment.length <= max_comment ? task.comment : "#{task.comment[0...max_comment - 5]}..."
+        puts sprintf("rage %-#{max_task_name}s # %s", task.name, comment)
+      end
+    end
+
+    def method_missing(method_name, *, &)
+      set_env({})
+
+      if respond_to?(method_name)
+        Rake::Task[method_name].invoke
+      else
+        suggestions = linked_rake_tasks.map(&:name)
+        raise UndefinedCommandError.new(method_name.to_s, suggestions, nil)
+      end
+    end
+
+    def respond_to_missing?(method_name, include_private = false)
+      linked_rake_tasks.any? { |task| task.name == method_name.to_s } || super
+    end
+
     private
 
     def environment
@@ -141,20 +217,37 @@ module Rage
     end
 
     def set_env(options)
-      ENV["RAGE_ENV"] = options[:environment] if options[:environment]
+      if options[:environment]
+        ENV["RAGE_ENV"] = ENV["RAILS_ENV"] = options[:environment]
+      elsif ENV["RAGE_ENV"]
+        ENV["RAILS_ENV"] = ENV["RAGE_ENV"]
+      elsif ENV["RAILS_ENV"]
+        ENV["RAGE_ENV"] = ENV["RAILS_ENV"]
+      else
+        ENV["RAGE_ENV"] = ENV["RAILS_ENV"] = "development"
+      end
+    end
 
-      # at this point we don't know whether the app is running in standalone or Rails mode;
-      # we set both variables to make sure applications are running in the same environment;
-      ENV["RAILS_ENV"] = ENV["RAGE_ENV"] if ENV["RAGE_ENV"] && ENV["RAILS_ENV"] != ENV["RAGE_ENV"]
+    def linked_rake_tasks
+      require "rake"
+      Rake::TaskManager.record_task_metadata = true
+      load "Rakefile"
+
+      Rake::Task.tasks.select { |task| !task.comment.nil? && task.name.start_with?("db:") }
     end
   end
 
-  class NewAppGenerator < Thor::Group
+  class CLINewAppGenerator < Thor::Group
     include Thor::Actions
     argument :path, type: :string
+    argument :database, type: :string, required: false
 
     def self.source_root
       File.expand_path("templates", __dir__)
+    end
+
+    def setup
+      @use_database = !database.nil?
     end
 
     def create_directory
@@ -162,9 +255,47 @@ module Rage
     end
 
     def copy_files
-      Dir.glob("*", base: self.class.source_root).each do |template|
+      inject_templates
+    end
+
+    def install_database
+      return unless @use_database
+
+      @app_name = path.tr("-", "_").downcase
+      append_to_file "#{path}/Gemfile", <<~RUBY
+
+        gem "#{get_db_gem_name}"
+        gem "activerecord"
+        gem "standalone_migrations", require: false
+      RUBY
+
+      inject_templates("db-templates")
+      inject_templates("db-templates/#{database}")
+    end
+
+    private
+
+    def inject_templates(from = nil)
+      root = "#{self.class.source_root}/#{from}"
+
+      Dir.glob("*", base: root).each do |template|
+        next if File.directory?("#{root}/#{template}")
+
         *template_path_parts, template_name = template.split("-")
-        template(template, "#{path}/#{template_path_parts.join("/")}/#{template_name}")
+        template("#{root}/#{template}", [path, *template_path_parts, template_name].join("/"))
+      end
+    end
+
+    def get_db_gem_name
+      case database
+      when "mysql"
+        "mysql2"
+      when "trilogy"
+        "trilogy"
+      when "postgresql"
+        "pg"
+      when "sqlite3"
+        "sqlite3"
       end
     end
   end

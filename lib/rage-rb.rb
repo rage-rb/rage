@@ -82,6 +82,10 @@ module Rage
     end
   end
 
+  def self.load_tasks
+    Rage::Tasks.init
+  end
+
   # @private
   def self.with_middlewares(app, middlewares)
     middlewares.reverse.inject(app) do |next_in_chain, (middleware, args, block)|
@@ -113,6 +117,7 @@ module Rage
     end
   end
 
+  autoload :Tasks, "rage/tasks"
   autoload :Cookies, "rage/cookies"
   autoload :Session, "rage/session"
   autoload :Cable, "rage/cable/cable"

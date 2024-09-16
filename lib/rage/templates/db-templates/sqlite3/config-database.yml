@@ -1,0 +1,19 @@
+##
+# SQLite. Versions 3.8.0 and up are supported.
+#
+default: &default
+  adapter: sqlite3
+  pool: <%%= ENV.fetch("DB_MAX_CONNECTIONS") { 5 } %>
+  timeout: 5000
+
+development:
+  <<: *default
+  database: storage/development.sqlite3
+
+test:
+  <<: *default
+  database: storage/test.sqlite3
+
+production:
+  <<: *default
+  database: storage/production.sqlite3
