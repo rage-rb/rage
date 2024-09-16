@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## [1.10.0] - 2024-09-16
+
+### Changed
+
+- Enable Rage Connection Pool by default (#103).
+- Allow to preconfigure the app for selected database (#104).
+
+### Added
+
+- Add `version` and `middleware` CLI commands (#99).
+
 ## [1.9.0] - 2024-08-24
 
 ### Added
