@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.10.1] - 2024-09-17
+
+### Fixed
+
+- Patch AR pool even if `Rake` is defined (#105).
+
 ## [1.10.0] - 2024-09-16
 
 ### Changed
