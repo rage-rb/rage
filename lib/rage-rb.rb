@@ -63,7 +63,7 @@ module Rage
     patch = proc do
       is_connected = ActiveRecord::Base.connection_pool rescue false
       if is_connected
-        puts "INFO: Patching ActiveRecord::ConnectionPool"
+        Iodine.on_state(:pre_start) { puts "INFO: Patching ActiveRecord::ConnectionPool" }
         Iodine.on_state(:on_start) do
           ActiveRecord::Base.connection_handler.connection_pool_list(:all).each do |pool|
             pool.extend(Rage::Ext::ActiveRecord::ConnectionPool)

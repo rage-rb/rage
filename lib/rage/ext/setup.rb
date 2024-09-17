@@ -94,6 +94,6 @@ if defined?(ActiveRecord) && !Rage.config.internal.rails_mode && (database_url |
 end
 
 # patch `ActiveRecord::ConnectionPool`
-if defined?(ActiveRecord) && !defined?(Rake) && Rage.config.internal.patch_ar_pool?
+if defined?(ActiveRecord) && Rage.config.internal.patch_ar_pool?
   Rage.patch_active_record_connection_pool
 end
