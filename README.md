@@ -46,6 +46,11 @@ Start coding!
 
 This gem is designed to be a drop-in replacement for Rails in API mode. Public API is expected to fully match Rails.
 
+A Rage application can operate in two modes:
+
+* **Rails Mode**: Integrate Rage into an existing Rails application to improve throughput and better handle traffic spikes. For more information, see [Rails Integration](https://github.com/rage-rb/rage/wiki/Rails-integration).
+* **Standalone Mode**: Build high-performance services with minimal setup using Rage. To get started, run `rage new --help` for more details.
+
 Check out in-depth API docs for more information:
 
 - [Controller API](https://rage-rb.pages.dev/RageController/API)
