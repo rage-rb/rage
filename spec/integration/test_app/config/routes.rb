@@ -25,4 +25,18 @@ Rage.routes.draw do
   get "logs/fiber", to: "logs#fiber"
 
   mount ->(_) { [200, {}, ""] }, at: "/admin"
+
+  namespace :api do
+    namespace :v1 do
+      resources :users, only: %i(index show create)
+    end
+
+    namespace :v2 do
+      resources :users, only: %i(index show create)
+    end
+
+    namespace :v3 do
+      resources :users, only: :show
+    end
+  end
 end

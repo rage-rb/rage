@@ -122,6 +122,17 @@
 #
 # > Allows requests from any origin.
 #
+# # OpenAPI Configuration
+# • _config.openapi.tag_resolver_
+#
+# > Specifies the proc to build tags for API operations. The proc accepts the controller class, the symbol name of the action, and the default tag built by Rage.
+#
+# > ```ruby
+# config.openapi.tag_resolver = proc do |controller, action, default_tag|
+#    # ...
+# end
+# > ```
+#
 # # Transient Settings
 #
 # The settings described in this section should be configured using **environment variables** and are either temporary or will become the default in the future.
@@ -179,6 +190,10 @@ class Rage::Configuration
     @public_file_server ||= PublicFileServer.new
   end
 
+  def openapi
+    @openapi ||= OpenAPI.new
+  end
+
   def internal
     @internal ||= Internal.new
   end
@@ -216,6 +231,10 @@ class Rage::Configuration
     def insert_after(existing_middleware, new_middleware, *args, &block)
       index = find_middleware_index(existing_middleware)
       @middlewares = (@middlewares[0..index] + [[new_middleware, args, block]] + @middlewares[index + 1..]).uniq(&:first)
+    end
+
+    def include?(middleware)
+      !!find_middleware_index(middleware) rescue false
     end
 
     private
@@ -262,6 +281,10 @@ class Rage::Configuration
 
   class PublicFileServer
     attr_accessor :enabled
+  end
+
+  class OpenAPI
+    attr_accessor :tag_resolver
   end
 
   # @private

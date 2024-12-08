@@ -913,7 +913,7 @@ Style/RedundantFreeze:
   Enabled: true
 
 Style/RedundantHeredocDelimiterQuotes:
-  Enabled: true
+  Enabled: false
 
 Style/RedundantInterpolation:
   Enabled: true

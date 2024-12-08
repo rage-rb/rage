@@ -37,6 +37,10 @@ class Rage::CodeLoader
     unless Rage.autoload?(:Cable) # the `Cable` component is loaded
       Rage::Cable.__router.reset
     end
+
+    unless Rage.autoload?(:OpenAPI) # the `OpenAPI` component is loaded
+      Rage::OpenAPI.__reset_data_cache
+    end
   end
 
   # in Rails mode - reset the routes; everything else will be done by Rails
@@ -48,6 +52,10 @@ class Rage::CodeLoader
 
     unless Rage.autoload?(:Cable) # the `Cable` component is loaded
       Rage::Cable.__router.reset
+    end
+
+    unless Rage.autoload?(:OpenAPI) # the `OpenAPI` component is loaded
+      Rage::OpenAPI.__reset_data_cache
     end
   end
 

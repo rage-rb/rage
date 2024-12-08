@@ -6,6 +6,8 @@ require_relative "support/request_helper"
 require_relative "support/controller_helper"
 require_relative "support/reactor_helper"
 require_relative "support/websocket_helper"
+require_relative "support/contexts/mocked_classes"
+require_relative "support/contexts/mocked_rage_routes"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
@@ -27,4 +29,7 @@ RSpec.configure do |config|
   config.include ControllerHelper
   config.include ReactorHelper
   config.include WebSocketHelper
+
+  config.include_context "mocked_classes", include_shared: true
+  config.include_context "mocked_rage_routes", include_shared: true
 end
