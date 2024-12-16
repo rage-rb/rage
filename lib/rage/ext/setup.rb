@@ -7,11 +7,13 @@ if defined?(ActiveSupport::IsolatedExecutionState)
   ActiveSupport::IsolatedExecutionState.isolation_level = :fiber
 end
 
-# patch Active Record 6.0 to accept the role argument
-if defined?(ActiveRecord) && ActiveRecord.version < Gem::Version.create("6.1")
+# patch Active Record 6.0 to accept the role argument;
+# for Active Record 6.1 and 7.0 with `legacy_connection_handling == false` this also
+# allows to correctly handle the `:all` argument by ignoring it
+if defined?(ActiveRecord) && ActiveRecord.version < Gem::Version.create("7.1")
   %i(active_connections? connection_pool_list clear_active_connections!).each do |m|
-    ActiveRecord::Base.connection_handler.define_singleton_method(m) do |_ = nil|
-      super()
+    ActiveRecord::Base.connection_handler.define_singleton_method(m) do |role = nil|
+      role == :all ? super() : super(role)
     end
   end
 end
