@@ -11,6 +11,8 @@ class RageController::API
     def __register_action(action)
       raise Rage::Errors::RouterError, "The action '#{action}' could not be found for #{self}" unless method_defined?(action)
 
+      around_actions_total = 0
+
       before_actions_chunk = if @__before_actions
         filtered_before_actions = @__before_actions.select do |h|
           (!h[:only] || h[:only].include?(action)) &&
@@ -26,16 +28,36 @@ class RageController::API
             "unless #{h[:unless]}"
           end
 
-          <<~RUBY
-            #{h[:name]} #{condition}
-            return [@__status, @__headers, @__body] if @__rendered
-          RUBY
+          if h[:around]
+            around_actions_total += 1
+
+            if condition
+              <<~RUBY
+                __should_apply_around_action = #{condition}
+                  !@__rendered
+                end
+
+                #{h[:wrapper]}(__should_apply_around_action) do
+              RUBY
+            else
+              <<~RUBY
+                __should_apply_around_action = !@__rendered
+                #{h[:wrapper]}(__should_apply_around_action) do
+              RUBY
+            end
+          else
+            <<~RUBY
+              #{h[:name]} #{condition}
+            RUBY
+          end
         end
 
         lines.join("\n")
       else
         ""
       end
+
+      around_actions_end_chunk = around_actions_total.times.reduce("") { |memo| memo + "end\n" }
 
       after_actions_chunk = if @__after_actions
         filtered_after_actions = @__after_actions.select do |h|
@@ -106,7 +128,8 @@ class RageController::API
 
           #{wrap_parameters_chunk}
           #{before_actions_chunk}
-          #{action}
+          #{action} unless @__rendered
+          #{around_actions_end_chunk}
 
           #{if !after_actions_chunk.empty?
             <<~RUBY
@@ -161,13 +184,29 @@ class RageController::API
     end
 
     # @private
-    @@__tmp_name_seed = ("a".."i").to_a.permutation
+    @@__dynamic_name_seed = ("a".."i").to_a.permutation
 
     # @private
-    # define temporary method based on a block
-    def define_tmp_method(block)
-      name = @@__tmp_name_seed.next.join
-      define_method("__rage_tmp_#{name}", block)
+    # define a method based on a block
+    def define_dynamic_method(block)
+      name = @@__dynamic_name_seed.next.join
+      define_method("__rage_dynamic_#{name}", block)
+    end
+
+    # @private
+    # define a method that will call a specified method if a condition is `true` or yield if `false`
+    def define_maybe_yield(method_name)
+      name = @@__dynamic_name_seed.next.join
+
+      class_eval <<~RUBY, __FILE__, __LINE__ + 1
+        def __rage_dynamic_#{name}(condition)
+          if condition
+            #{method_name} { yield }
+          else
+            yield
+          end
+        end
+      RUBY
     end
 
     ############
@@ -193,7 +232,7 @@ class RageController::API
     def rescue_from(*klasses, with: nil, &block)
       unless with
         if block_given?
-          with = define_tmp_method(block)
+          with = define_dynamic_method(block)
         else
           raise ArgumentError, "No handler provided. Pass the `with` keyword argument or provide a block."
         end
@@ -249,6 +288,39 @@ class RageController::API
       end
     end
 
+    # Register a new `around_action` hook. Calls with the same `action_name` will overwrite the previous ones.
+    #
+    # @param action_name [Symbol, nil] the name of the callback to add
+    # @param [Hash] opts action options
+    # @option opts [Symbol, Array<Symbol>] :only restrict the callback to run only for specific actions
+    # @option opts [Symbol, Array<Symbol>] :except restrict the callback to run for all actions except specified
+    # @option opts [Symbol, Proc] :if only run the callback if the condition is true
+    # @option opts [Symbol, Proc] :unless only run the callback if the condition is false
+    # @example
+    #   around_action :wrap_in_transaction
+    #
+    #   def wrap_in_transaction
+    #     ActiveRecord::Base.transaction do
+    #       yield
+    #     end
+    #   end
+    def around_action(action_name = nil, **opts, &block)
+      action = prepare_action_params(action_name, **opts, &block)
+      action.merge!(around: true, wrapper: define_maybe_yield(action[:name]))
+
+      if @__before_actions && @__before_actions.frozen?
+        @__before_actions = @__before_actions.dup
+      end
+
+      if @__before_actions.nil?
+        @__before_actions = [action]
+      elsif (i = @__before_actions.find_index { |a| a[:name] == action_name })
+        @__before_actions[i] = action
+      else
+        @__before_actions << action
+      end
+    end
+
     # Register a new `after_action` hook. Calls with the same `action_name` will overwrite the previous ones.
     #
     # @param action_name [Symbol, nil] the name of the callback to add
@@ -283,7 +355,7 @@ class RageController::API
     # @example
     #   skip_before_action :find_photo, only: :create
     def skip_before_action(action_name, only: nil, except: nil)
-      i = @__before_actions&.find_index { |a| a[:name] == action_name }
+      i = @__before_actions&.find_index { |a| a[:name] == action_name && !a[:around] }
       raise ArgumentError, "The following action was specified to be skipped but couldn't be found: #{self}##{action_name}" unless i
 
       @__before_actions = @__before_actions.dup if @__before_actions.frozen?
@@ -324,7 +396,7 @@ class RageController::API
     # used by `before_action` and `after_action`
     def prepare_action_params(action_name = nil, **opts, &block)
       if block_given?
-        action_name = define_tmp_method(block)
+        action_name = define_dynamic_method(block)
       elsif action_name.nil?
         raise ArgumentError, "No handler provided. Pass the `action_name` parameter or provide a block."
       end
@@ -339,8 +411,8 @@ class RageController::API
         unless: _unless
       }
 
-      action[:if] = define_tmp_method(action[:if]) if action[:if].is_a?(Proc)
-      action[:unless] = define_tmp_method(action[:unless]) if action[:unless].is_a?(Proc)
+      action[:if] = define_dynamic_method(action[:if]) if action[:if].is_a?(Proc)
+      action[:unless] = define_dynamic_method(action[:unless]) if action[:unless].is_a?(Proc)
 
       action
     end
