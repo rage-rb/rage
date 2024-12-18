@@ -18,6 +18,10 @@ module Rage
     Rage::Cable
   end
 
+  def self.openapi
+    Rage::OpenAPI
+  end
+
   def self.routes
     Rage::Router::DSL.new(__router)
   end
@@ -121,6 +125,7 @@ module Rage
   autoload :Cookies, "rage/cookies"
   autoload :Session, "rage/session"
   autoload :Cable, "rage/cable/cable"
+  autoload :OpenAPI, "rage/openapi/openapi"
 end
 
 module RageController

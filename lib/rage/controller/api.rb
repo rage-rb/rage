@@ -12,12 +12,7 @@ class RageController::API
       raise Rage::Errors::RouterError, "The action '#{action}' could not be found for #{self}" unless method_defined?(action)
 
       before_actions_chunk = if @__before_actions
-        filtered_before_actions = @__before_actions.select do |h|
-          (!h[:only] || h[:only].include?(action)) &&
-            (!h[:except] || !h[:except].include?(action))
-        end
-
-        lines = filtered_before_actions.map do |h|
+        lines = __before_actions_for(action).map do |h|
           condition = if h[:if] && h[:unless]
             "if #{h[:if]} && !#{h[:unless]}"
           elsif h[:if]
@@ -38,12 +33,7 @@ class RageController::API
       end
 
       after_actions_chunk = if @__after_actions
-        filtered_after_actions = @__after_actions.select do |h|
-          (!h[:only] || h[:only].include?(action)) &&
-            (!h[:except] || !h[:except].include?(action))
-        end
-
-        lines = filtered_after_actions.map! do |h|
+        lines = __after_actions_for(action).map do |h|
           condition = if h[:if] && h[:unless]
             "if #{h[:if]} && !#{h[:unless]}"
           elsif h[:if]
@@ -317,6 +307,31 @@ class RageController::API
     def wrap_parameters(key, include: [], exclude: [])
       @__wrap_parameters_key = key
       @__wrap_parameters_options = { include:, exclude: }
+    end
+
+    # @private
+    def __before_action_exists?(name)
+      @__before_actions.any? { |h| h[:name] == name && !h[:around] }
+    end
+
+    # @private
+    def __before_actions_for(action_name)
+      return [] unless @__before_actions
+
+      @__before_actions.select do |h|
+        (!h[:only] || h[:only].include?(action_name)) &&
+          (!h[:except] || !h[:except].include?(action_name))
+      end
+    end
+
+    # @private
+    def __after_actions_for(action_name)
+      return [] unless @__after_actions
+
+      @__after_actions.select do |h|
+        (!h[:only] || h[:only].include?(action_name)) &&
+          (!h[:except] || !h[:except].include?(action_name))
+      end
     end
 
     private

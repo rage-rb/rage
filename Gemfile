@@ -19,4 +19,5 @@ group :test do
   gem "rbnacl"
   gem "domain_name"
   gem "websocket-client-simple"
+  gem "prism"
 end

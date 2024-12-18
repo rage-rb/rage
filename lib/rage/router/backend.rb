@@ -74,6 +74,7 @@ class Rage::Router::Backend
 
         meta[:controller] = $1
         meta[:action] = $2
+        meta[:controller_class] = controller
 
         handler = eval("->(env, params) { #{controller}.new(env, params).#{run_action_method_name} }")
       else
