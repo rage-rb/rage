@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [1.11.0] - 2024-12-18
+
+### Added
+
+- `Rage::OpenAPI` (#109).
+
+### Fixed
+
+- Correctly handle ActiveRecord connections in the environments with `legacy_connection_handling == false` (#108).
+
 ## [1.10.1] - 2024-09-17
 
 ### Fixed
