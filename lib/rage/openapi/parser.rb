@@ -38,6 +38,9 @@ class Rage::OpenAPI::Parser
           node.root.title = expression[7..]
         end
 
+      elsif expression =~ /@response\s/
+        parse_response_tag(expression, node, comments[i])
+
       elsif expression =~ /@auth\s/
         method, name, tail_name = expression[6..].split(" ", 3)
         children = find_children(comments[i + 1..])
@@ -104,31 +107,7 @@ class Rage::OpenAPI::Parser
         node.description = [expression[13..]] + children
 
       elsif expression =~ /@response\s/
-        response = expression[10..].strip
-        status, response_data = if response =~ /^\d{3}$/
-          [response, nil]
-        elsif response =~ /^\d{3}/
-          response.split(" ", 2)
-        else
-          ["200", response]
-        end
-
-        if node.responses.has_key?(status)
-          Rage::OpenAPI.__log_warn "duplicate `@response` tag detected at #{location_msg(comments[i])}"
-        elsif response_data.nil?
-          node.responses[status] = nil
-        else
-          parsed = Rage::OpenAPI::Parsers::Response.parse(
-            response_data,
-            namespace: Rage::OpenAPI.__module_parent(node.controller)
-          )
-
-          if parsed
-            node.responses[status] = parsed
-          else
-            Rage::OpenAPI.__log_warn "unrecognized `@response` tag detected at #{location_msg(comments[i])}"
-          end
-        end
+        parse_response_tag(expression, node, comments[i])
 
       elsif expression =~ /@request\s/
         request = expression[9..]
@@ -189,5 +168,33 @@ class Rage::OpenAPI::Parser
     relative_path = Pathname.new(location.__source_path).relative_path_from(Rage.root)
 
     "#{relative_path}:#{location.start_line}"
+  end
+
+  def parse_response_tag(expression, node, comment)
+    response = expression[10..].strip
+    status, response_data = if response =~ /^\d{3}$/
+      [response, nil]
+    elsif response =~ /^\d{3}/
+      response.split(" ", 2)
+    else
+      ["200", response]
+    end
+
+    if node.responses.has_key?(status)
+      Rage::OpenAPI.__log_warn "duplicate `@response` tag detected at #{location_msg(comment)}"
+    elsif response_data.nil?
+      node.responses[status] = nil
+    else
+      parsed = Rage::OpenAPI::Parsers::Response.parse(
+        response_data,
+        namespace: Rage::OpenAPI.__module_parent(node.controller)
+      )
+
+      if parsed
+        node.responses[status] = parsed
+      else
+        Rage::OpenAPI.__log_warn "unrecognized `@response` tag detected at #{location_msg(comment)}"
+      end
+    end
   end
 end
