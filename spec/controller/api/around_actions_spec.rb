@@ -312,6 +312,78 @@ module ControllerApiAroundActionsSpec
       verifier.after_logger_action
     end
   end
+
+  class TestController14 < RageController::API
+    after_action :add_session_id
+    around_action :with_transaction
+    around_action :with_duration
+    around_action :with_logger
+    before_action :verify_access
+
+    def index
+      verifier.action
+      render plain: "hi"
+    end
+
+    private
+
+    def add_session_id
+      verifier.session_action
+    end
+
+    def with_transaction
+      verifier.transaction_before_action
+      yield
+      verifier.transaction_after_action
+    end
+
+    def with_duration
+      verifier.duration_before_action
+      yield
+      verifier.duration_after_action
+    end
+
+    def with_logger
+      verifier.logger_before_action
+      yield
+      verifier.logger_after_action
+    end
+
+    def verify_access
+      verifier.verify_access_action
+      head :forbidden
+    end
+  end
+
+  class TestController15 < RageController::API
+    around_action :with_transaction
+    before_action :verify_access
+    around_action :with_duration
+
+    def index
+      verifier.action
+      render plain: "hi"
+    end
+
+    private
+
+    def with_transaction
+      verifier.transaction_before_action
+      yield
+      verifier.transaction_after_action
+    end
+
+    def verify_access
+      verifier.verify_access_action
+      head :forbidden
+    end
+
+    def with_duration
+      verifier.duration_before_action
+      yield
+      verifier.duration_after_action
+    end
+  end
 end
 
 RSpec.describe RageController::API do
@@ -412,7 +484,7 @@ RSpec.describe RageController::API do
     let(:klass) { ControllerApiAroundActionsSpec::TestController8 }
 
     it "correctly runs around actions" do
-      expect(verifier).to receive(:before_action).ordered
+      expect(verifier).to receive(:before_action)
       expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from before_action"]])
     end
   end
@@ -422,9 +494,9 @@ RSpec.describe RageController::API do
 
     it "correctly runs around actions" do
       expect(verifier).to receive(:transaction_before_action).ordered
-      expect(verifier).to receive(:transaction_after_action).ordered
+      expect(verifier).to receive(:action).ordered
 
-      expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from around_action"]])
+      expect { run_action(klass, :index) }.to raise_error(/Render was called multiple times/)
     end
   end
 
@@ -471,6 +543,34 @@ RSpec.describe RageController::API do
     it "correctly runs around actions" do
       expect(verifier).to receive(:transaction_action).ordered
       expect(run_action(klass, :index)).to match([204, instance_of(Hash), []])
+    end
+  end
+
+  context "case 14" do
+    let(:klass) { ControllerApiAroundActionsSpec::TestController14 }
+
+    it "correctly runs around actions" do
+      expect(verifier).to receive(:transaction_before_action).ordered
+      expect(verifier).to receive(:duration_before_action).ordered
+      expect(verifier).to receive(:logger_before_action).ordered
+      expect(verifier).to receive(:verify_access_action).ordered
+      expect(verifier).to receive(:logger_after_action).ordered
+      expect(verifier).to receive(:duration_after_action).ordered
+      expect(verifier).to receive(:transaction_after_action).ordered
+
+      expect(run_action(klass, :index)).to match([403, instance_of(Hash), []])
+    end
+  end
+
+  context "case 15" do
+    let(:klass) { ControllerApiAroundActionsSpec::TestController15 }
+
+    it "correctly runs around actions" do
+      expect(verifier).to receive(:transaction_before_action).ordered
+      expect(verifier).to receive(:verify_access_action).ordered
+      expect(verifier).to receive(:transaction_after_action).ordered
+
+      expect(run_action(klass, :index)).to match([403, instance_of(Hash), []])
     end
   end
 end

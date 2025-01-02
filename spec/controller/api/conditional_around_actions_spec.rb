@@ -174,6 +174,33 @@ module ControllerApiConditionalAroundActionsSpec
       verifier.with_duration
     end
   end
+
+  class TestController10 < RageController::API
+    around_action :with_transaction, if: -> { params[:with_transaction] }
+    before_action :verify_access
+    around_action :with_duration, if: -> { params[:with_duration] }
+
+    def index
+      render plain: "hi"
+    end
+
+    private
+
+    def with_transaction
+      verifier.with_transaction
+      yield
+    end
+
+    def verify_access
+      verifier.verify_access
+      head :forbidden
+    end
+
+    def with_duration
+      verifier.with_duration
+      yield
+    end
+  end
 end
 
 RSpec.describe RageController::API do
@@ -348,6 +375,30 @@ RSpec.describe RageController::API do
 
       expect(verifier).to receive(:with_duration)
       expect(run_action(klass, :index, params:)).to match([204, instance_of(Hash), []])
+    end
+  end
+
+  context "case 10" do
+    let(:klass) { ControllerApiConditionalAroundActionsSpec::TestController10 }
+
+    it "correctly runs around actions" do
+      params[:with_transaction] = true
+      params[:with_duration] = true
+
+      expect(verifier).to receive(:with_transaction).ordered
+      expect(verifier).to receive(:verify_access).ordered
+
+      expect(run_action(klass, :index, params:)).to match([403, instance_of(Hash), []])
+    end
+
+    it "skips around actions" do
+      params[:with_transaction] = true
+      params[:with_duration] = false
+
+      expect(verifier).to receive(:with_transaction).ordered
+      expect(verifier).to receive(:verify_access).ordered
+
+      expect(run_action(klass, :index, params:)).to match([403, instance_of(Hash), []])
     end
   end
 end

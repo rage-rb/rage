@@ -143,6 +143,26 @@ module ControllerApiBeforeActionsSpec
       verifier.setup_3
     end
   end
+
+  class TestController9 < RageController::API
+    before_action :stop_action
+    before_action :continue_action
+
+    def index
+      render plain: "hi from index"
+    end
+
+    private
+
+    def stop_action
+      verifier.stop_action
+      head :forbidden
+    end
+
+    def continue_action
+      verifier.continue_action
+    end
+  end
 end
 
 RSpec.describe RageController::API do
@@ -277,6 +297,15 @@ RSpec.describe RageController::API do
       expect(verifier).to receive(:setup_2).once
       expect(verifier).to receive(:setup_3).once
       expect(run_action(klass, :index)).to match([200, instance_of(Hash), ["hi from index"]])
+    end
+  end
+
+  context "case 9" do
+    let(:klass) { ControllerApiBeforeActionsSpec::TestController9 }
+
+    it "correctly runs before actions" do
+      expect(verifier).to receive(:stop_action).once
+      expect(run_action(klass, :index)).to match([403, instance_of(Hash), []])
     end
   end
 end

@@ -29,20 +29,22 @@ class RageController::API
             if condition
               <<~RUBY
                 __should_apply_around_action = #{condition}
-                  !@__rendered
+                  !@__before_callback_rendered
                 end
-
                 #{h[:wrapper]}(__should_apply_around_action) do
               RUBY
             else
               <<~RUBY
-                __should_apply_around_action = !@__rendered
+                __should_apply_around_action = !@__before_callback_rendered
                 #{h[:wrapper]}(__should_apply_around_action) do
               RUBY
             end
           else
             <<~RUBY
-              #{h[:name]} #{condition}
+              unless @__before_callback_rendered
+                #{h[:name]} #{condition}
+                @__before_callback_rendered = true if @__rendered
+              end
             RUBY
           end
         end
@@ -118,13 +120,15 @@ class RageController::API
 
           #{wrap_parameters_chunk}
           #{before_actions_chunk}
-          #{action} unless @__rendered
+          #{action} unless @__before_callback_rendered
           #{around_actions_end_chunk}
 
           #{if !after_actions_chunk.empty?
             <<~RUBY
-              @__rendered = true
-              #{after_actions_chunk}
+              unless @__before_callback_rendered
+                @__rendered = true
+                #{after_actions_chunk}
+              end
             RUBY
           end}
 
