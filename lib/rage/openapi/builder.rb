@@ -11,6 +11,7 @@ class Rage::OpenAPI::Builder
   class ParsingError < StandardError
   end
 
+  # @param namespace [String, Module]
   def initialize(namespace: nil)
     @namespace = namespace.to_s if namespace
 
