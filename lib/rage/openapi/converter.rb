@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 class Rage::OpenAPI::Converter
+  # @param nodes [Rage::OpenAPI::Nodes::Root]
   def initialize(nodes)
     @nodes = nodes
     @used_tags = Set.new

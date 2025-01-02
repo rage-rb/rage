@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class Rage::OpenAPI::Parser
+  # @param node [Rage::OpenAPI::Nodes::Parent]
+  # @param comments [Array<Prism::InlineComment>]
   def parse_dangling_comments(node, comments)
     i = 0
 
@@ -72,6 +74,8 @@ class Rage::OpenAPI::Parser
     end
   end
 
+  # @param node [Rage::OpenAPI::Nodes::Method]
+  # @param comments [Array<Prism::InlineComment>]
   def parse_method_comments(node, comments)
     i = 0
 

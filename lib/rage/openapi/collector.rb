@@ -5,6 +5,7 @@
 # At this point we don't care whether these are Rage OpenAPI comments or not.
 #
 class Rage::OpenAPI::Collector < Prism::Visitor
+  # @param comments [Array<Prism::InlineComment>]
   def initialize(comments)
     @comments = comments.dup
     @method_comments = {}
