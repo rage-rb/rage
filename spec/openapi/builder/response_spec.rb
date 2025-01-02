@@ -250,5 +250,87 @@ RSpec.describe Rage::OpenAPI::Builder do
         subject
       end
     end
+
+    context "with global tag" do
+      let_class("ApplicationController", parent: RageController::API) do
+        <<~'RUBY'
+          # @response 500 { status: String }
+        RUBY
+      end
+
+      let_class("Api::V1::BaseController", parent: mocked_classes.ApplicationController) do
+        <<~'RUBY'
+          # @response 500 { error: INTERNAL_SERVER_ERROR, session_id: String }
+          # @response 404 { error: NOT_FOUND, session_id: String }
+        RUBY
+      end
+
+      let_class("UsersController", parent: mocked_classes["Api::V1::BaseController"]) do
+        <<~'RUBY'
+          # @response [{ id: Integer, full_name: String }]
+          def index
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "GET /users" => "UsersController#index" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "error" => { "type" => "string", "enum" => ["INTERNAL_SERVER_ERROR"] }, "session_id" => { "type" => "string" } } } } } }, "404" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "error" => { "type" => "string", "enum" => ["NOT_FOUND"] }, "session_id" => { "type" => "string" } } } } } }, "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } } } } } } } } } } } })
+      end
+
+      context "with empty parent nodes" do
+        let_class("ApplicationController", parent: RageController::API) do
+          <<~'RUBY'
+            # @response 500 { status: String }
+          RUBY
+        end
+
+        let_class("Api::V1::BaseController", parent: mocked_classes.ApplicationController)
+
+        let_class("UsersController", parent: mocked_classes["Api::V1::BaseController"]) do
+          <<~'RUBY'
+            # @response [{ id: Integer, full_name: String }]
+            def index
+            end
+          RUBY
+        end
+
+        let(:routes) do
+          { "GET /users" => "UsersController#index" }
+        end
+
+        it "returns correct schema" do
+          expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "status" => { "type" => "string" } } } } } }, "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } } } } } } } } } } } })
+        end
+      end
+
+      context "with override in method node" do
+        let_class("ApplicationController", parent: RageController::API) do
+          <<~'RUBY'
+            # @response 500 { status: String }
+          RUBY
+        end
+
+        let_class("UsersController", parent: mocked_classes.ApplicationController) do
+          <<~'RUBY'
+            # @response [{ id: Integer, full_name: String }]
+            # @response 500 { error: INTERNAL_SERVER_ERROR, session_id: String }
+            def index
+            end
+          RUBY
+        end
+
+        let(:routes) do
+          { "GET /users" => "UsersController#index" }
+        end
+
+        it "returns correct schema" do
+          expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "error" => { "type" => "string", "enum" => ["INTERNAL_SERVER_ERROR"] }, "session_id" => { "type" => "string" } } } } } }, "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } } } } } } } } } } } })
+        end
+      end
+    end
   end
 end
