@@ -69,7 +69,7 @@ class Rage::Cookies
   # @example
   #   cookies.permanent[:user_id] = current_user.id
   def permanent
-    dup.tap { |c| c.expires = Time.now + 20 * 365 * 24 * 60 * 60 }
+    dup.tap { |c| c.expires = Date.today.next_year(20) }
   end
 
   # Set a cookie.
