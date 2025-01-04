@@ -835,6 +835,19 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
         is_expected.to eq({ "type" => "object", "properties" => { "data" => { "type" => "object", "properties" => { "name" => { "type" => "string" }, "id" => { "type" => "integer" }, "admin" => { "type" => "boolean" }, "salary" => { "type" => "number", "format" => "float" } } } } })
       end
     end
+
+    context "with dates" do
+      let_class("UserResource") do
+        <<~'RUBY'
+          include Alba::Resource
+          attributes created_at: DateTime, dob: Date
+        RUBY
+      end
+
+      it do
+        is_expected.to eq({ "type" => "object", "properties" => { "created_at" => { "type" => "string", "format" => "date-time" }, "dob" => { "type" => "string", "format" => "date" } } })
+      end
+    end
   end
 
   context "with automatic resource inference" do

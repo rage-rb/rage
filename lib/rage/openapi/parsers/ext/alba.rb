@@ -273,6 +273,10 @@ class Rage::OpenAPI::Parsers::Ext::Alba
         { "type" => "number" }
       when "Float"
         { "type" => "number", "format" => "float" }
+      when "Date"
+        { "type" => "string", "format" => "date" }
+      when "DateTime", "Time"
+        { "type" => "string", "format" => "date-time" }
       else
         { "type" => "string" }
       end
