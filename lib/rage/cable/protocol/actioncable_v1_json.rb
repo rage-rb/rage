@@ -57,10 +57,13 @@ class Rage::Cable::Protocol::ActioncableV1Json
   def self.init(router)
     @router = router
 
-    ping_counter = Time.now.to_i
-    ::Iodine.run_every(3000) do
-      ping_counter += 1
-      ::Iodine.publish("cable:ping", { type: TYPE::PING, message: ping_counter }.to_json)
+    Iodine.on_state(:on_start) do
+      ping_counter = Time.now.to_i
+
+      Iodine.run_every(3000) do
+        ping_counter += 1
+        Iodine.publish("cable:ping", { type: TYPE::PING, message: ping_counter }.to_json, Iodine::PubSub::PROCESS)
+      end
     end
 
     # Hash<String(stream name) => Array<Hash>(subscription params)>
