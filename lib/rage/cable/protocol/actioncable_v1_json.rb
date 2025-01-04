@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "zlib"
+
 ##
 # A protocol defines the structure, rules and semantics for exchanging data between the client and the server.
 # The class that defines a protocol should respond to the following methods:
@@ -147,7 +149,7 @@ class Rage::Cable::Protocol::ActioncableV1Json
   # @param name [String] the stream name
   # @param params [Hash] parameters associated with the client
   def self.subscribe(connection, name, params)
-    connection.subscribe("cable:#{name}:#{params.hash}")
+    connection.subscribe("cable:#{name}:#{Zlib.crc32(params.to_s)}")
     @subscription_identifiers[name] << params unless @subscription_identifiers[name].include?(params)
   end
 
@@ -160,7 +162,7 @@ class Rage::Cable::Protocol::ActioncableV1Json
 
     while i < identifiers.length
       params = identifiers[i]
-      ::Iodine.publish("cable:#{name}:#{params.hash}", serialize(params, data))
+      ::Iodine.publish("cable:#{name}:#{Zlib.crc32(params.to_s)}", serialize(params, data))
       i += 1
     end
   end
