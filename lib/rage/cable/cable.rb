@@ -8,6 +8,8 @@ module Rage::Cable
   #     run Rage.cable.application
   #   end
   def self.application
+    @adapter = Rage.config.cable.adapter
+
     protocol = Rage.config.cable.protocol
     protocol.init(__router)
 
@@ -98,6 +100,7 @@ module Rage::Cable
   #   Rage.cable.broadcast("chat", { message: "A new member has joined!" })
   def self.broadcast(stream, data)
     Rage.config.cable.protocol.broadcast(stream, data)
+    @adapter&.publish(stream, data)
   end
 
   # @!parse [ruby]
