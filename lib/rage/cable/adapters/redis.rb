@@ -98,7 +98,7 @@ class Rage::Cable::Adapters::Redis < Rage::Cable::Adapters::Base
     Fiber.schedule do
       read_redis = @redis_config.new_client
       last_id = (Time.now.to_f * 1000).to_i
-      last_message_uuid = ""
+      last_message_uuid = nil
 
       loop do
         data = read_redis.blocking_call(5, "XREAD", "COUNT", "100", "BLOCK", "5000", "STREAMS", @redis_stream, last_id)
