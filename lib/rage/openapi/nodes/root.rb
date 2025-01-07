@@ -28,10 +28,15 @@ class Rage::OpenAPI::Nodes::Root
     @leaves = []
   end
 
+  # @return [Array<Rage::OpenAPI::Nodes::Parent>]
   def parent_nodes
     @parent_nodes_cache.values
   end
 
+  # @param controller [RageController::API]
+  # @param action [String]
+  # @param parent_nodes [Array<Rage::OpenAPI::Nodes::Parent>]
+  # @return [Rage::OpenAPI::Nodes::Method]
   def new_method_node(controller, action, parent_nodes)
     node = Rage::OpenAPI::Nodes::Method.new(controller, action, parent_nodes)
     @leaves << node
@@ -39,6 +44,8 @@ class Rage::OpenAPI::Nodes::Root
     node
   end
 
+  # @param controller [RageController::API]
+  # @return [Rage::OpenAPI::Nodes::Parent]
   def new_parent_node(controller)
     @parent_nodes_cache[controller] ||= begin
       node = Rage::OpenAPI::Nodes::Parent.new(self, controller)

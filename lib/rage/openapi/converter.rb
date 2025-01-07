@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 class Rage::OpenAPI::Converter
+  # @param nodes [Rage::OpenAPI::Nodes::Root]
   def initialize(nodes)
     @nodes = nodes
     @used_tags = Set.new
@@ -51,8 +52,10 @@ class Rage::OpenAPI::Converter
         "tags" => build_tags(node)
       }
 
-      memo[path][method]["responses"] = if node.responses.any?
-        node.responses.each_with_object({}) do |(status, response), memo|
+      responses = node.parents.reverse.map(&:responses).reduce(&:merge).merge(node.responses)
+
+      memo[path][method]["responses"] = if responses.any?
+        responses.each_with_object({}) do |(status, response), memo|
           memo[status] = if response.nil?
             { "description" => "" }
           elsif response.key?("$ref") && response["$ref"].start_with?("#/components/responses")

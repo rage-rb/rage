@@ -5,6 +5,9 @@ class Rage::OpenAPI::Nodes::Method
   attr_accessor :http_method, :http_path, :summary, :tag, :deprecated, :private, :description,
     :request, :responses, :parameters
 
+  # @param controller [RageController::API]
+  # @param action [String]
+  # @param parents [Array<Rage::OpenAPI::Nodes::Parent>]
   def initialize(controller, action, parents)
     @controller = controller
     @action = action
