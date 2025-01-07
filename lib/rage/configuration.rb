@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "yaml"
+require "erb"
+
 ##
 # `Rage.configure` can be used to adjust the behavior of your Rage application:
 #
@@ -275,6 +278,30 @@ class Rage::Configuration
         origin_middleware + Rage.config.middleware.middlewares.reject do |middleware, _, _|
           middleware == Rage::FiberWrapper
         end
+      end
+    end
+
+    def config
+      @config ||= begin
+        config_file = Rage.root.join("config/cable.yml")
+
+        if config_file.exist?
+          yaml = ERB.new(config_file.read).result
+          YAML.safe_load(yaml, aliases: true, symbolize_names: true)[Rage.env.to_sym] || {}
+        else
+          {}
+        end
+      end
+    end
+
+    def adapter_config
+      config.except(:adapter)
+    end
+
+    def adapter
+      case config[:adapter]
+      when "redis"
+        Rage::Cable::Adapters::Redis.new(adapter_config)
       end
     end
   end

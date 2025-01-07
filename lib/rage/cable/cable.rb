@@ -120,6 +120,11 @@ module Rage::Cable
   #     end
   #   end
 
+  module Adapters
+    autoload :Base, "rage/cable/adapters/base"
+    autoload :Redis, "rage/cable/adapters/redis"
+  end
+
   module Protocol
   end
 end
