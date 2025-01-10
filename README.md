@@ -6,8 +6,7 @@
 ![Tests](https://github.com/rage-rb/rage/actions/workflows/main.yml/badge.svg)
 ![Ruby Requirement](https://img.shields.io/badge/Ruby-3.1%2B-%23f40000)
 
-
-Inspired by [Deno](https://deno.com) and built on top of [Iodine](https://github.com/rage-rb/iodine), this is a Ruby web framework that is based on the following design principles:
+Rage is a high-performance framework compatible with Rails, featuring [WebSocket](https://github.com/rage-rb/rage/wiki/WebSockets-guide) support and automatic generation of [OpenAPI](https://github.com/rage-rb/rage/wiki/OpenAPI-Guide) documentation for your APIs. The framework is built on top of [Iodine](https://github.com/rage-rb/iodine) and is based on the following design principles:
 
 * **Rails compatible API** - Rails' API is clean, straightforward, and simply makes sense. It was one of the reasons why Rails was so successful in the past.
 
