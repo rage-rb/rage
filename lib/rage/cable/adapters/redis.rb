@@ -17,7 +17,7 @@ class Rage::Cable::Adapters::Redis < Rage::Cable::Adapters::Base
 
   def initialize(config)
     @redis_stream = if (prefix = config.delete(:channel_prefix))
-      "#{REDIS_STREAM_NAME}:#{prefix}"
+      "#{prefix}:#{REDIS_STREAM_NAME}"
     else
       REDIS_STREAM_NAME
     end
