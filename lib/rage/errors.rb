@@ -4,4 +4,7 @@ module Rage::Errors
 
   class RouterError < StandardError
   end
+
+  class UnknownHTTPMethod < StandardError
+  end
 end
