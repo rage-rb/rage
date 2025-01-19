@@ -129,7 +129,7 @@ RSpec.describe Rage::Router::Backend do
     router.on("GET", "/photos", ->(_) {}, constraints: { host: "google" })
     expect {
       router.on("GET", "/photos", ->(_) {}, constraints: { host: "google" })
-    }.to raise_error("Method 'GET' already declared for route '/photos' with constraints '{:host=>\"google\"}'")
+    }.to raise_error(/Method 'GET' already declared for route '\/photos' with constraints .+host.+google/)
   end
 
   it "correctly sets constraints for urls with optional parameters" do
