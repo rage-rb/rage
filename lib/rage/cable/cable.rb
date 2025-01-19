@@ -8,11 +8,11 @@ module Rage::Cable
   #     run Rage.cable.application
   #   end
   def self.application
-    protocol = Rage.config.cable.protocol
-    protocol.init(__router)
+    # explicitly initialize the adapter
+    __adapter
 
-    handler = __build_handler(protocol)
-    accept_response = [0, protocol.protocol_definition, []]
+    handler = __build_handler(__protocol)
+    accept_response = [0, __protocol.protocol_definition, []]
 
     application = ->(env) do
       if env["rack.upgrade?"] == :websocket
@@ -29,6 +29,15 @@ module Rage::Cable
   # @private
   def self.__router
     @__router ||= Router.new
+  end
+
+  # @private
+  def self.__protocol
+    @__protocol ||= Rage.config.cable.protocol.tap { |protocol| protocol.init(__router) }
+  end
+
+  def self.__adapter
+    @__adapter ||= Rage.config.cable.adapter
   end
 
   # @private
@@ -94,10 +103,14 @@ module Rage::Cable
   #
   # @param stream [String] the name of the stream
   # @param data [Object] the object to send to the clients. This will later be encoded according to the protocol used.
+  # @return [true]
   # @example
   #   Rage.cable.broadcast("chat", { message: "A new member has joined!" })
   def self.broadcast(stream, data)
-    Rage.config.cable.protocol.broadcast(stream, data)
+    __protocol.broadcast(stream, data)
+    __adapter&.publish(stream, data)
+
+    true
   end
 
   # @!parse [ruby]
@@ -119,6 +132,11 @@ module Rage::Cable
   #     def close
   #     end
   #   end
+
+  module Adapters
+    autoload :Base, "rage/cable/adapters/base"
+    autoload :Redis, "rage/cable/adapters/redis"
+  end
 
   module Protocol
   end

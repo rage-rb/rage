@@ -5,7 +5,7 @@ require "websocket-client-simple"
 module WebSocketHelper
   def with_websocket_connection(url, headers: {})
     client = WebSocketTestClient.new(url, headers:)
-    yield client
+    yield client if block_given?
     client
   end
 

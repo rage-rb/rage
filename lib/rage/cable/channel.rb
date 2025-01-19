@@ -418,7 +418,7 @@ class Rage::Cable::Channel
   #     broadcast("notifications", { message: "A new member has joined!" })
   #   end
   def broadcast(stream, data)
-    Rage.config.cable.protocol.broadcast(stream, data)
+    Rage.cable.broadcast(stream, data)
   end
 
   # Transmit data to the current client.
