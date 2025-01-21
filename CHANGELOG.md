@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [1.12.0] - 2025-01-21
+
+### Added
+
+- Add Redis adapter (#114).
+- Add global response tags (#110).
+- Implement around_action callbacks (#107).
+
+### Fixed
+
+- Support date types in Alba serializers (#112).
+
 ## [1.11.0] - 2024-12-18
 
 ### Added
