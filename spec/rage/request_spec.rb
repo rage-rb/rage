@@ -23,13 +23,14 @@ RSpec.describe Rage::Request do
       "HTTP_ACCEPT_ENCODING" => "gzip, deflate, br, zstd",
       "HTTP_ACCEPT_LANGUAGE" => "en-GB,en-US;q=0.9,en;q=0.8",
       "HTTP_COOKIE" => "test_cookie=1",
-      "HTTP_X_FORWARDED_FOR" => "127.0.0.1"
+      "HTTP_X_FORWARDED_FOR" => "127.0.0.1",
+      "CONTENT_TYPE" => "application/json"
     }
   end
 
-  subject(:request) { described_class.new(env) }
+  subject(:request) { described_class.new(env, custom_proxies: /10.0.0.{3}/) }
 
-  it "returns the full URL" do
+  fit "returns the full URL" do
     expect(request.url).to eq("http://localhost:3000/users?show_archived=true")
   end
 
@@ -113,5 +114,13 @@ RSpec.describe Rage::Request do
 
   fit "handles the env property of a request" do
     expect(request.env).not_to be_nil
+  end
+
+  fit "handles the format property of a request" do
+    expect(request.format).not_to be_nil
+  end
+
+  fit "sets the custom proxies of a request" do
+    puts request.trusted_proxies
   end
 end

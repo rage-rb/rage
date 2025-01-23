@@ -7,4 +7,7 @@ module Rage::Errors
 
   class UnknownHTTPMethod < StandardError
   end
+
+  class InvalidCustomProxy < StandardError
+  end
 end
