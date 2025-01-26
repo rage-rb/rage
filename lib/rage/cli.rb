@@ -151,6 +151,7 @@ module Rage
 
       require "irb"
       environment
+      Fiber.set_scheduler(Rage::FiberScheduler.new)
       ARGV.clear
       IRB.start
     end
