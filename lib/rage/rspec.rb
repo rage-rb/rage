@@ -15,7 +15,6 @@ require_relative "#{Rage.root}/config/application"
 # verify the environment
 abort("The test suite is running in #{Rage.env} mode instead of 'test'!") unless Rage.env.test?
 
-
 # define request helpers
 module RageRequestHelpers
   include Rack::Test::Methods
