@@ -71,7 +71,7 @@ module Rage
 
       server_options = { service: :http, handler: app }
 
-      server_options[:port] = options[:port] || Rage.config.server.port
+      server_options[:port] = options[:port] || ENV["PORT"] || Rage.config.server.port
       server_options[:address] = options[:binding] || (Rage.env.production? ? "0.0.0.0" : "localhost")
       server_options[:timeout] = Rage.config.server.timeout
       server_options[:max_clients] = Rage.config.server.max_clients
