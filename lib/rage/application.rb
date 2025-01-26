@@ -7,7 +7,7 @@ class Rage::Application
   end
 
   def call(env)
-    init_logger
+    init_logger(env)
 
     handler = @router.lookup(env)
 
@@ -33,9 +33,9 @@ class Rage::Application
   DEFAULT_LOG_CONTEXT = {}.freeze
   private_constant :DEFAULT_LOG_CONTEXT
 
-  def init_logger
+  def init_logger(env)
     Thread.current[:rage_logger] = {
-      tags: [Iodine::Rack::Utils.gen_request_tag],
+      tags: [(env["rage.request_id"] ||= Iodine::Rack::Utils.gen_request_tag)],
       context: DEFAULT_LOG_CONTEXT,
       request_start: Process.clock_gettime(Process::CLOCK_MONOTONIC)
     }

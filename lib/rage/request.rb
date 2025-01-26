@@ -76,6 +76,14 @@ class Rage::Request
     @env["HTTP_USER_AGENT"]
   end
 
+  # Returns the unique request ID. By default, this ID is internally generated, and all log entries created during the request
+  # are tagged with it. Alternatively, you can use the {Rage::RequestId} middleware to derive the ID from the `X-Request-Id` header.
+  def request_id
+    @env["rage.request_id"] || Thread.current[:rage_logger]&.dig(:tags, 0)
+  end
+
+  alias_method :uuid, :request_id
+
   private
 
   def if_none_match
