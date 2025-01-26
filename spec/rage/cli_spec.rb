@@ -35,24 +35,4 @@ RSpec.describe Rage::CLI do
       expect { rage_cli.version }.to output("1.0.0\n").to_stdout
     end
   end
-
-  describe "#console" do
-    require "irb"
-
-    let(:fiber_scheduler) do
-      instance_double("Rage::FiberScheduler", block: true, unblock: true, kernel_sleep: true, io_wait: true)
-    end
-
-    before do
-      allow(Rage::FiberScheduler).to receive(:new).and_return(fiber_scheduler)
-      allow(rage_cli).to receive(:environment).and_return(true)
-      allow(IRB).to receive(:start).and_return(true)
-    end
-
-    it "setups FiberScheduler before running console" do
-      expect(Fiber).to receive(:set_scheduler).with(fiber_scheduler)
-
-      rage_cli.console
-    end
-  end
 end

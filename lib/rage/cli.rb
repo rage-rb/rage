@@ -3,6 +3,7 @@
 require "thor"
 require "rack"
 require "rage/version"
+require "rage/sync_fiber"
 
 module Rage
   class CLICodeGenerator < Thor
@@ -151,7 +152,6 @@ module Rage
 
       require "irb"
       environment
-      Fiber.set_scheduler(Rage::FiberScheduler.new)
       ARGV.clear
       IRB.start
     end
