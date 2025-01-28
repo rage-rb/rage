@@ -2,7 +2,6 @@
 
 require "rack/test"
 require "json"
-require "rage/sync_fiber"
 
 # set up environment
 ENV["RAGE_ENV"] ||= "test"
@@ -14,6 +13,23 @@ require_relative "#{Rage.root}/config/application"
 
 # verify the environment
 abort("The test suite is running in #{Rage.env} mode instead of 'test'!") unless Rage.env.test?
+
+# mock fiber methods as RSpec tests don't run concurrently
+class Fiber
+  def self.schedule(&block)
+    fiber = Fiber.new(blocking: true) do
+      Fiber.current.__set_id
+      Fiber.current.__set_result(block.call)
+    end
+    fiber.resume
+
+    fiber
+  end
+
+  def self.await(fibers)
+    Array(fibers).map(&:__get_result)
+  end
+end
 
 # define request helpers
 module RageRequestHelpers
