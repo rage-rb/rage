@@ -4,6 +4,7 @@ RSpec.describe Rage::Request do
       "rack.upgrade?" => nil,
       "rack.upgrade" => nil,
       "rack.version" => [1, 3],
+      "rage.request_id" => "5zfcwiy09bary01l",
       "SCRIPT_NAME" => "",
       "rack.url_scheme" => "http",
       "HTTP_VERSION" => "HTTP/1.1",
@@ -61,5 +62,9 @@ RSpec.describe Rage::Request do
   it "handles missing user agent header" do
     env.delete("HTTP_USER_AGENT")
     expect(request.user_agent).to be_nil
+  end
+
+  it "returns the correct request ID" do
+    expect(request.request_id).to eq("5zfcwiy09bary01l")
   end
 end
