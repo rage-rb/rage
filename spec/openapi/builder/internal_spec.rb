@@ -67,5 +67,31 @@ RSpec.describe Rage::OpenAPI::Builder do
         expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => true, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
       end
     end
+
+    context "with an empty comment" do
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # Returns the list of all users.
+          # @deprecated
+          #
+          # @internal this is an internal comment
+          def index
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "GET /users" => "UsersController#index" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "Returns the list of all users.", "description" => "", "deprecated" => true, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+
+      it "does not log error" do
+        expect(Rage::OpenAPI).not_to receive(:__log_warn)
+        subject
+      end
+    end
   end
 end
