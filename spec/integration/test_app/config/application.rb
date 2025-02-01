@@ -21,6 +21,10 @@ end
 Rage.configure do
   config.middleware.use TestMiddleware
   config.public_file_server.enabled = !!ENV["ENABLE_FILE_SERVER"]
+
+  if ENV["ENABLE_REQUEST_ID_MIDDLEWARE"]
+    config.middleware.use Rage::RequestId
+  end
 end
 
 require "rage/setup"
