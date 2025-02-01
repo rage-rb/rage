@@ -15,6 +15,7 @@ group :test do
   gem "http"
   gem "pg"
   gem "mysql2"
+  gem "bigdecimal"
   gem "connection_pool", "~> 2.0"
   gem "rbnacl"
   gem "domain_name"
