@@ -110,6 +110,23 @@ RSpec.describe Rage::FiberScheduler do
     end
   end
 
+  it "works correctly with persistent connections" do
+    uri = URI(TEST_HTTP_URL)
+
+    within_reactor do
+      connection = Net::HTTP.new(uri.hostname, uri.port)
+      connection.use_ssl = true
+      connection.verify_mode = OpenSSL::SSL::VERIFY_PEER
+      connection.start
+
+      responses = 3.times.map do
+        connection.get("/instant-http-get")
+      end
+
+      -> { expect(responses).to all(be_a(Net::HTTPOK)) }
+    end
+  end
+
   context "with Postgres" do
     let(:conn) { PG.connect(TEST_PG_URL) }
 
