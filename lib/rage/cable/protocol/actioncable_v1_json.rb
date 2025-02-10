@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "zlib"
+require "set"
 
 ##
 # A protocol defines the structure, rules and semantics for exchanging data between the client and the server.
@@ -69,8 +70,8 @@ class Rage::Cable::Protocol::ActioncableV1Json
       end
     end
 
-    # Hash<String(stream name) => Array<Hash>(subscription params)>
-    @subscription_identifiers = Hash.new { |hash, key| hash[key] = [] }
+    # Hash<String(stream name) => Set<Hash>(subscription params)>
+    @subscription_identifiers = Hash.new { |hash, key| hash[key] = Set.new }
 
     # this is a fallback to synchronize subscription identifiers across different worker processes;
     # we expect connections to be distributed among all workers, so this code will almost never be called;
@@ -78,7 +79,7 @@ class Rage::Cable::Protocol::ActioncableV1Json
     # of the crashed ones also had access to the identifiers;
     Iodine.subscribe("cable:synchronize") do |_, subscription_msg|
       stream_name, params = Rage::ParamsParser.json_parse(subscription_msg)
-      @subscription_identifiers[stream_name] << params unless @subscription_identifiers[stream_name].include?(params)
+      @subscription_identifiers[stream_name] << params
     end
 
     Iodine.on_state(:on_finish) do
@@ -181,12 +182,8 @@ class Rage::Cable::Protocol::ActioncableV1Json
   # @param name [String] the stream name
   # @param data [Object] the data to send
   def self.broadcast(name, data)
-    i, identifiers = 0, @subscription_identifiers[name]
-
-    while i < identifiers.length
-      params = identifiers[i]
+    @subscription_identifiers[name].each do |params|
       ::Iodine.publish("cable:#{name}:#{Zlib.crc32(params.to_s)}", serialize(params, data))
-      i += 1
     end
   end
 end
