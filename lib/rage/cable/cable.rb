@@ -51,33 +51,22 @@ module Rage::Cable
         end
 
         @protocol = protocol
+        @default_log_context = {}.freeze
       end
 
       def on_open(connection)
-        Fiber.schedule do
-          @protocol.on_open(connection)
-        rescue => e
-          log_error(e)
-        end
+        connection.env["rage.request_id"] ||= Iodine::Rack::Utils.gen_request_tag
+        schedule_fiber(connection) { @protocol.on_open(connection) }
       end
 
       def on_message(connection, data)
-        Fiber.schedule do
-          @protocol.on_message(connection, data)
-        rescue => e
-          log_error(e)
-        end
+        schedule_fiber(connection) { @protocol.on_message(connection, data) }
       end
 
       if protocol.respond_to?(:on_close)
         def on_close(connection)
           return unless ::Iodine.running?
-
-          Fiber.schedule do
-            @protocol.on_close(connection)
-          rescue => e
-            log_error(e)
-          end
+          schedule_fiber(connection) { @protocol.on_close(connection) }
         end
       end
 
@@ -90,6 +79,15 @@ module Rage::Cable
       end
 
       private
+
+      def schedule_fiber(connection)
+        Fiber.schedule do
+          Thread.current[:rage_logger] = { tags: [connection.env["rage.request_id"]], context: @default_log_context }
+          yield
+        rescue => e
+          log_error(e)
+        end
+      end
 
       def log_error(e)
         Rage.logger.error("Unhandled exception has occured - #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
