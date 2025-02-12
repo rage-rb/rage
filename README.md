@@ -57,13 +57,16 @@ Check out in-depth API docs for more information:
 - [Fiber API](https://rage-rb.pages.dev/Fiber)
 - [Logger API](https://rage-rb.pages.dev/Rage/Logger)
 - [Configuration API](https://rage-rb.pages.dev/Rage/Configuration)
-- [CORS middleware](https://rage-rb.pages.dev/Rage/Cors)
+
+Built-in middlewares:
+- [CORS](https://rage-rb.pages.dev/Rage/Cors)
+- [RequestId](https://rage-rb.pages.dev/Rage/RequestId)
 
 Also, see the following integration guides:
 
-- [Rails integration](https://github.com/rage-rb/rage/wiki/Rails-integration)
-- [RSpec integration](https://github.com/rage-rb/rage/wiki/RSpec-integration)
-- [WebSockets guide](https://github.com/rage-rb/rage/wiki/WebSockets-guide)
+- [Rails Integration](https://github.com/rage-rb/rage/wiki/Rails-integration)
+- [RSpec Integration](https://github.com/rage-rb/rage/wiki/RSpec-integration)
+- [WebSockets Guide](https://github.com/rage-rb/rage/wiki/WebSockets-guide)
 
 If you are a first-time contributor, make sure to check the [overview doc](https://github.com/rage-rb/rage/blob/master/OVERVIEW.md) that shows how Rage's core components interact with each other.
 
