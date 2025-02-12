@@ -8,6 +8,7 @@ Rage.routes.draw do
   delete "delete", to: "application#delete"
   get "empty", to: "application#empty"
   get "raise_error", to: "application#raise_error"
+  get "get_request_id", to: "application#get_request_id"
 
   get "params/digest", to: "params#digest"
   post "params/digest", to: "params#digest"

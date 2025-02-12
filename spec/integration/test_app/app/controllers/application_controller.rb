@@ -25,4 +25,8 @@ class ApplicationController < RageController::API
   def raise_error
     raise "1155 test error"
   end
+
+  def get_request_id
+    render plain: request.request_id
+  end
 end
