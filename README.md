@@ -58,7 +58,7 @@ Check out in-depth API docs for more information:
 - [Logger API](https://rage-rb.pages.dev/Rage/Logger)
 - [Configuration API](https://rage-rb.pages.dev/Rage/Configuration)
 
-Built-in middlewares:
+Built-in middleware:
 - [CORS](https://rage-rb.pages.dev/Rage/Cors)
 - [RequestId](https://rage-rb.pages.dev/Rage/RequestId)
 
