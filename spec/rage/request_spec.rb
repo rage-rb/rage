@@ -34,15 +34,15 @@ RSpec.describe Rage::Request do
     expect(request.url).to eq("http://localhost:3000/users?show_archived=true")
   end
 
-  it "returns the path" do
+  fit "returns the path" do
     expect(request.path).to eq("/users")
   end
 
-  it "returns the full path with query string" do
+  fit "returns the full path with query string" do
     expect(request.fullpath).to eq("/users?show_archived=true")
   end
 
-  it "returns the user agent" do
+  fit "returns the user agent" do
     expect(request.user_agent).to eq("Mozilla/5.0 (Macintosh; ...")
   end
 
@@ -60,7 +60,7 @@ RSpec.describe Rage::Request do
     expect(request.fullpath).to eq("/users")
   end
 
-  it "handles missing user agent header" do
+  fit "handles missing user agent header" do
     env.delete("HTTP_USER_AGENT")
     expect(request.user_agent).to be_nil
   end

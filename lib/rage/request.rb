@@ -5,28 +5,6 @@ require "rack/request"
 require "forwardable"
 
 class Rage::Request
-  extend Forwardable
-  include Rack::Request::Helpers
-  include Rack::Request::Env
-  attr_reader :rack_request
-  def_delegators :@rack_request,
-                 :ssl?,
-                 :host,
-                 :port,
-                 :query_string,
-                 :env,
-                 :get_header,
-                 :get?,
-                 :post?,
-                 :patch?,
-                 :put?,
-                 :delete?,
-                 :head?,
-                 :url
-
-  def_delegator :@rack_request, :content_type, :format
-  def_delegator :@rack_request, :ip, :remote_ip
-
   IP_HOST_REGEXP  = /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
   # HTTP methods from [RFC 2616: Hypertext Transfer Protocol -- HTTP/1.1](https://www.ietf.org/rfc/rfc2616.txt)
   RFC2616 = %w(OPTIONS GET HEAD POST PUT DELETE TRACE CONNECT)
@@ -45,15 +23,16 @@ class Rage::Request
   # HTTP methods from [RFC 5789: PATCH Method for HTTP](https://www.ietf.org/rfc/rfc5789.txt)
   RFC5789 = %w(PATCH)
 
-  HTTP_METHODS = (RFC2616 + RFC2518 + RFC3253 + RFC3648 + RFC3744 + RFC5323 + RFC4791 + RFC5789).to_set
+  HTTP_METHODS_SET = (RFC2616 + RFC2518 + RFC3253 + RFC3648 + RFC3744 + RFC5323 + RFC4791 + RFC5789).to_set
 
+  attr_accessor :env
   # @private
   def initialize(env, custom_proxies: nil)
-    super(env)
-    @rack_request = Rack::Request.new(env)
+    @env = env
+    # super(env)
     after_initialize(custom_proxies) if custom_proxies
   end
-  
+
   def after_initialize(custom_proxies)
     if custom_proxies&.is_a?(Regexp)
       Rack::Request.class_exec do |rage_trusted_proxies|
@@ -61,8 +40,83 @@ class Rage::Request
       end
     else
       raise(Rage::Errors::InvalidCustomProxy, "Custom proxy should be a regexp. You passed in a #{custom_proxies.class}")
-
     end
+  end
+
+  def rack_request
+    @rack_request ||= Rack::Request.new(@env)
+  end
+
+  def ssl?
+    rack_request.ssl?
+  end
+
+  def host
+    rack_request.host
+  end
+
+  def port
+    rack_request.port
+  end
+
+  def query_string
+    rack_request.query_string
+  end
+
+  def env
+    rack_request.env
+  end
+
+  def get_header(name)
+    rack_request.get_header(name)
+  end
+
+  def get?
+    rack_request.get?
+  end
+
+  def post?
+    rack_request.post?
+  end
+
+  def patch?
+    rack_request.patch?
+  end
+
+  def put?
+    rack_request.put?
+  end
+
+  def delete?
+    rack_request.delete?
+  end
+
+  def head?
+    rack_request.head?
+  end
+
+  def url
+    rack_request.url
+  end
+
+  def path
+    rack_request.path
+  end
+
+  def fullpath
+    rack_request.fullpath
+  end
+
+  def user_agent
+    rack_request.user_agent
+  end
+
+  def format
+    rack_request.content_type
+  end
+
+  def remote_ip
+    rack_request.ip
   end
 
   # Get the request headers.
@@ -97,25 +151,25 @@ class Rage::Request
   # Returns the path of the request.
   # @example
   #   request.path # => "/users"
-  def path
-    @env["PATH_INFO"]
-  end
+  # def path
+  #   @env["PATH_INFO"]
+  # end
 
   # Returns the full path including the query string.
   # @example
   #   request.fullpath # => "/users?show_archived=true"
-  def fullpath
-    path = @env["PATH_INFO"]
-    query_string = @env["QUERY_STRING"]
-    query_string.empty? ? path : "#{path}?#{query_string}"
-  end
+  # def fullpath
+  #   path = @env["PATH_INFO"]
+  #   query_string = @env["QUERY_STRING"]
+  #   query_string.empty? ? path : "#{path}?#{query_string}"
+  # end
 
   # Returns the user agent of the request.
   # @example
   #  request.user_agent # => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
-  def user_agent
-    @env["HTTP_USER_AGENT"]
-  end
+  # def user_agent
+  #   @env["HTTP_USER_AGENT"]
+  # end
 
   def domain(tld_length = 1)
     extract_domain(host, tld_length)
@@ -138,12 +192,12 @@ class Rage::Request
   private
 
   def check_method(name)
-    http_methods_set = HTTP_METHODS
+    http_methods_set = HTTP_METHODS_SET
     if name
       if http_methods_set.include?(name)
         name
       else
-        raise(Rage::Errors::UnknownHTTPMethod, "#{name}, accepted HTTP methods are #{http_methods_array}")
+        raise(Rage::Errors::UnknownHTTPMethod, "#{name}, accepted HTTP methods are #{http_methods_set.to_a}")
       end
     end
   end
