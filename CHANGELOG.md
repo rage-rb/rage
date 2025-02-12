@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+## [1.13.0] - 2025-02-12
+
+### Added
+
+- [CLI] Support the PORT ENV variable by [@TheBlackArroVV](https://github.com/TheBlackArroVV) (#124).
+- Add the `RequestId` middleware (#127).
+
+### Fixed
+
+- Correctly process persistent HTTP connections (#128).
+- [OpenAPI] Ignore empty comments (#126).
+- [Cable] Improve the time to connect (#129).
+
 ## [1.12.0] - 2025-01-21
 
 ### Added
