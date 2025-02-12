@@ -98,13 +98,13 @@ RSpec.describe Rage::Cable::Adapters::Redis do
       end
     end
 
-    context "with Redis < 5" do
+    context "with Redis < 6" do
       before do
         allow(mock_redis).to receive(:call).with("INFO").and_return("redis_version:4.0.0")
       end
 
       it "raises an error" do
-        expect { subject }.to raise_error("Redis adapter only supports Redis 5+. Detected Redis version: 4.0.0.")
+        expect { subject }.to raise_error("Redis adapter only supports Redis 6+. Detected Redis version: 4.0.0.")
       end
     end
 

@@ -14,6 +14,7 @@ end
 class Rage::Cable::Adapters::Redis < Rage::Cable::Adapters::Base
   REDIS_STREAM_NAME = "rage:cable:messages"
   DEFAULT_REDIS_OPTIONS = { reconnect_attempts: [0.05, 0.1, 0.5] }
+  REDIS_MIN_VERSION_SUPPORTED = Gem::Version.create(6)
 
   def initialize(config)
     @redis_stream = if (prefix = config.delete(:channel_prefix))
@@ -26,8 +27,8 @@ class Rage::Cable::Adapters::Redis < Rage::Cable::Adapters::Base
     @server_uuid = SecureRandom.uuid
 
     redis_version = get_redis_version
-    if redis_version < Gem::Version.create(5)
-      raise "Redis adapter only supports Redis 5+. Detected Redis version: #{redis_version}."
+    if redis_version < REDIS_MIN_VERSION_SUPPORTED
+      raise "Redis adapter only supports Redis 6+. Detected Redis version: #{redis_version}."
     end
 
     @trimming_strategy = redis_version < Gem::Version.create("6.2.0") ? :maxlen : :minid
@@ -73,7 +74,7 @@ class Rage::Cable::Adapters::Redis < Rage::Cable::Adapters::Base
   rescue RedisClient::Error => e
     puts "FATAL: Couldn't connect to Redis - all broadcasts will be limited to the current server."
     puts e.backtrace.join("\n")
-    Gem::Version.create(5)
+    REDIS_MIN_VERSION_SUPPORTED
 
   ensure
     service_redis.close
