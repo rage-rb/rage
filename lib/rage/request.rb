@@ -258,7 +258,7 @@ class Rage::Request
         if "CONTENT_TYPE" == requested_header || "CONTENT_LENGTH" == requested_header
           @env[requested_header]
         else
-          @env["#{HTTP_}#{requested_header}"]
+          @env["#{HTTP}#{requested_header}"]
         end
       end
     end
