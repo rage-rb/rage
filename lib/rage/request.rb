@@ -2,7 +2,6 @@
 
 require "time"
 require "rack/request"
-require "forwardable"
 
 class Rage::Request
   IP_HOST_REGEXP  = /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
