@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "time"
-require "rack/request"
 
 class Rage::Request
   IP_HOST_REGEXP  = /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
