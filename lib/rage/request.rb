@@ -64,7 +64,7 @@ class Rage::Request
   end
 
   def env
-    rack_request.env
+    @env
   end
 
   def get_header(name)
