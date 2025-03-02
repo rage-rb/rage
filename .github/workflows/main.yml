@@ -80,6 +80,15 @@ jobs:
     - name: Run the routes task
       working-directory: ./my_app
       run: bundle exec rage routes
+    - name: Add a Rake task
+      working-directory: ./my_app
+      run: printf "desc \"Prints From Rake\"\nnamespace :hello do\ntask :print do\nend\nend" > lib/tasks/hello.rake
+    - name: Check available Rake tasks
+      working-directory: ./my_app
+      run: bundle exec rake --tasks | grep "rake hello:print"
+    - name: Run the Rake task
+      working-directory: ./my_app
+      run: bundle exec rake hello:print
   cli-d:
     runs-on: ubuntu-latest
     name: CLI DB
