@@ -33,7 +33,7 @@ jobs:
         TEST_MYSQL_URL: ${{ secrets.TEST_MYSQL_URL }}
         TEST_REDIS_URL: ${{ secrets.TEST_REDIS_URL }}
         ENABLE_EXTERNAL_TESTS: ${{ secrets.ENABLE_EXTERNAL_TESTS }}
-      run: bundle exec rake
+      run: bundle exec appraisal rake
   linter:
     runs-on: ubuntu-latest
     name: Code Style
