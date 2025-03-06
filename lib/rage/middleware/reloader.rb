@@ -2,6 +2,9 @@
 
 class Rage::Reloader
   def initialize(app)
+    Iodine.on_state(:on_start) do
+      Rage.code_loader.check_updated!
+    end
     @app = app
   end
 
