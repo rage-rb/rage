@@ -25,20 +25,23 @@ class Rage::OpenAPI::Converter
     @spec["paths"] = @nodes.leaves.each_with_object({}) do |node, memo|
       next if node.private || node.parents.any?(&:private)
 
-      path_parameters = []
+      path_params = []
       path = node.http_path.gsub(/:(\w+)/) do
-        path_parameters << $1
+        path_params << $1
         "{#{$1}}"
       end
 
       unless memo.key?(path)
         memo[path] = {}
-        path_parameters.each do |parameter|
+        path_params.each do |param|
+          documented_path_param = node.parameters.delete(param)
+
           (memo[path]["parameters"] ||= []) << {
             "in" => "path",
-            "name" => parameter,
+            "name" => param,
             "required" => true,
-            "schema" => { "type" => parameter.end_with?("id") ? "integer" : "string" }
+            "description" => documented_path_param&.dig(:description) || "",
+            "schema" => get_param_type_spec(param, documented_path_param&.dig(:type))
           }
         end
       end
@@ -51,6 +54,10 @@ class Rage::OpenAPI::Converter
         "security" => build_security(node),
         "tags" => build_tags(node)
       }
+
+      if node.parameters.any?
+        memo[path][method]["parameters"] = build_parameters(node)
+      end
 
       responses = node.parents.reverse.map(&:responses).reduce(&:merge).merge(node.responses)
 
@@ -101,6 +108,22 @@ class Rage::OpenAPI::Converter
     basename.capitalize.gsub(/[\s\-_]([a-zA-Z0-9]+)/) { " #{$1.capitalize}" }
   end
 
+  def build_parameters(node)
+    node.parameters.map do |param_name, param_info|
+      if param_info.key?(:ref)
+        param_info[:ref]
+      else
+        {
+          "name" => param_name,
+          "in" => "query",
+          "required" => param_info[:required],
+          "description" => param_info[:description] || "",
+          "schema" => get_param_type_spec(param_name, param_info[:type])
+        }
+      end
+    end
+  end
+
   def build_security(node)
     available_before_actions = node.controller.__before_actions_for(node.action.to_sym)
 
@@ -137,5 +160,19 @@ class Rage::OpenAPI::Converter
     Array(tag).tap do |node_tags|
       @used_tags += node_tags
     end
+  end
+
+  def get_param_type_spec(param_name, param_type)
+    unless param_type
+      param_type = if param_name == "id" || param_name.end_with?("_id")
+        "Integer"
+      elsif param_name.end_with?("_at")
+        "Time"
+      else
+        "String"
+      end
+    end
+
+    Rage::OpenAPI.__type_to_spec(param_type)
   end
 end
