@@ -99,4 +99,44 @@ RSpec.describe Rage::OpenAPI do
       it { is_expected.to eq(Object) }
     end
   end
+
+  describe ".__type_to_spec" do
+    subject { described_class.__type_to_spec(type) }
+
+    context "with Float" do
+      let(:type) { "Float" }
+      it { is_expected.to eq({ "type" => "number", "format" => "float" }) }
+    end
+
+    context "with Boolean" do
+      let(:type) { "Boolean" }
+      it { is_expected.to eq({ "type" => "boolean" }) }
+    end
+
+    context "with String" do
+      let(:type) { "String" }
+      it { is_expected.to eq({ "type" => "string" }) }
+    end
+
+    context "with unknown type" do
+      context "with fallback" do
+        let(:type) { "Symbol" }
+
+        it do
+          expect(Rage::OpenAPI).to receive(:__log_warn).with("unrecognized type Symbol")
+          expect(subject).to eq({ "type" => "string" })
+        end
+      end
+
+      context "without fallback" do
+        subject { described_class.__type_to_spec(type, default: false) }
+        let(:type) { "Symbol" }
+
+        it do
+          expect(Rage::OpenAPI).not_to receive(:__log_warn)
+          expect(subject).to be_nil
+        end
+      end
+    end
+  end
 end
