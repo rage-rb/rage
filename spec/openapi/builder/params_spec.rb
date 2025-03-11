@@ -9,6 +9,25 @@ RSpec.describe Rage::OpenAPI::Builder do
   subject { described_class.new.run }
 
   describe "@params" do
+    let(:shared_components) do
+      YAML.safe_load(
+        <<~YAML
+          components:
+            parameters:
+              perPageParam:
+                in: query
+                name: per_page
+                required: false
+                schema:
+                  type: integer
+                  minimum: 1
+                  maximum: 500
+                  default: 100
+                description: The number of records to return.
+        YAML
+      )
+    end
+
     context "with typed param with description" do
       let_class("UsersController", parent: RageController::API) do
         <<~'RUBY'
@@ -221,22 +240,7 @@ RSpec.describe Rage::OpenAPI::Builder do
 
     context "with shared reference" do
       before do
-        allow(Rage::OpenAPI).to receive(:__shared_components).and_return(YAML.safe_load(
-          <<~YAML
-            components:
-              parameters:
-                perPageParam:
-                  in: query
-                  name: per_page
-                  required: false
-                  schema:
-                    type: integer
-                    minimum: 1
-                    maximum: 500
-                    default: 100
-                  description: The number of records to return.
-          YAML
-        ))
+        allow(Rage::OpenAPI).to receive(:__shared_components).and_return(shared_components)
       end
 
       let_class("UsersController", parent: RageController::API) do
@@ -258,22 +262,7 @@ RSpec.describe Rage::OpenAPI::Builder do
 
     context "with invalid shared reference" do
       before do
-        allow(Rage::OpenAPI).to receive(:__shared_components).and_return(YAML.safe_load(
-          <<~YAML
-            components:
-              parameters:
-                perPageParam:
-                  in: query
-                  name: per_page
-                  required: false
-                  schema:
-                    type: integer
-                    minimum: 1
-                    maximum: 500
-                    default: 100
-                  description: The number of records to return.
-          YAML
-        ))
+        allow(Rage::OpenAPI).to receive(:__shared_components).and_return(shared_components)
       end
 
       let_class("UsersController", parent: RageController::API) do
@@ -300,22 +289,7 @@ RSpec.describe Rage::OpenAPI::Builder do
 
     context "with multiple params" do
       before do
-        allow(Rage::OpenAPI).to receive(:__shared_components).and_return(YAML.safe_load(
-          <<~YAML
-            components:
-              parameters:
-                perPageParam:
-                  in: query
-                  name: per_page
-                  required: false
-                  schema:
-                    type: integer
-                    minimum: 1
-                    maximum: 500
-                    default: 100
-                  description: The number of records to return.
-          YAML
-        ))
+        allow(Rage::OpenAPI).to receive(:__shared_components).and_return(shared_components)
       end
 
       let_class("UsersController", parent: RageController::API) do
