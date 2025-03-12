@@ -383,5 +383,23 @@ RSpec.describe Rage::OpenAPI::Builder do
         expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/{account}/users" => { "parameters" => [{ "in" => "path", "name" => "account", "required" => true, "description" => "ID of the account the users are attached to", "schema" => { "type" => "integer" } }], "get" => { "summary" => "", "description" => "", "deprecated" => false, "parameters" => [{ "name" => "is_active", "in" => "query", "required" => true, "description" => "The status of the user records", "schema" => { "type" => "boolean" } }], "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
       end
     end
+
+    context "with regular and implicit URL params" do
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # @param is_active {Boolean} The status of the user records
+          def index
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "GET /:account/users" => "UsersController#index" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/{account}/users" => { "parameters" => [{ "in" => "path", "name" => "account", "required" => true, "description" => "", "schema" => { "type" => "string" } }], "get" => { "summary" => "", "description" => "", "deprecated" => false, "parameters" => [{ "name" => "is_active", "in" => "query", "required" => true, "description" => "The status of the user records", "schema" => { "type" => "boolean" } }], "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+    end
   end
 end
