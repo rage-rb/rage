@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-gem "rage-rb", "~> <%= Rage::VERSION[0..2] %>"
+gem "rage-rb", "~> <%= Rage::VERSION.match(/\d+.\d+/).to_s %>"
 
 # Build JSON APIs with ease
 # gem "alba"

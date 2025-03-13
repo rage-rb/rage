@@ -186,6 +186,14 @@ class Rage::Request
     check_method(get_header("rack.methodoverride.original_method") || get_header("REQUEST_METHOD"))
   end
 
+  # Returns the unique request ID. By default, this ID is internally generated, and all log entries created during the request
+  # are tagged with it. Alternatively, you can use the {Rage::RequestId} middleware to derive the ID from the `X-Request-Id` header.
+  def request_id
+    @env["rage.request_id"]
+  end
+
+  alias_method :uuid, :request_id
+
   private
 
   def rack_request

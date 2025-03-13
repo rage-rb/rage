@@ -54,7 +54,7 @@ RSpec.describe Rage::Router::Backend do
     expect(TestController).to receive(:__register_action).with(:index).and_return(:registered_index)
     router.on("GET", "/test", "test#index")
 
-    expect { perform_get_request("/test") }.to raise_error(NoMethodError, /undefined method `registered_index'/)
+    expect { perform_get_request("/test") }.to raise_error(NoMethodError, /undefined method .registered_index./)
   end
 
   it "raises an error in case the controller doesn't exist" do

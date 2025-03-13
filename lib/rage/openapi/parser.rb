@@ -16,7 +16,7 @@ class Rage::OpenAPI::Parser
         else
           node.deprecated = true
         end
-        children = find_children(comments[i + 1..])
+        children = find_children(comments[i + 1..], node)
 
       elsif expression =~ /@private\b/
         if node.private
@@ -24,7 +24,7 @@ class Rage::OpenAPI::Parser
         else
           node.private = true
         end
-        children = find_children(comments[i + 1..])
+        children = find_children(comments[i + 1..], node)
 
       elsif expression =~ /@version\s/
         if node.root.version
@@ -45,7 +45,7 @@ class Rage::OpenAPI::Parser
 
       elsif expression =~ /@auth\s/
         method, name, tail_name = expression[6..].split(" ", 3)
-        children = find_children(comments[i + 1..])
+        children = find_children(comments[i + 1..], node)
 
         if tail_name
           Rage::OpenAPI.__log_warn "incorrect `@auth` name detected at #{location_msg(comments[i])}; security scheme name cannot contain spaces"
@@ -83,7 +83,9 @@ class Rage::OpenAPI::Parser
       children = nil
       expression = comments[i].slice.delete_prefix("#").strip
 
-      if !expression.start_with?("@")
+      if expression.empty?
+        # no-op
+      elsif !expression.start_with?("@")
         if node.summary
           Rage::OpenAPI.__log_warn "invalid summary entry detected at #{location_msg(comments[i])}; summary should only be one line"
         else
@@ -96,7 +98,7 @@ class Rage::OpenAPI::Parser
         else
           node.deprecated = true
         end
-        children = find_children(comments[i + 1..])
+        children = find_children(comments[i + 1..], node)
 
       elsif expression =~ /@private\b/
         if node.parents.any?(&:private)
@@ -104,10 +106,10 @@ class Rage::OpenAPI::Parser
         else
           node.private = true
         end
-        children = find_children(comments[i + 1..])
+        children = find_children(comments[i + 1..], node)
 
       elsif expression =~ /@description\s/
-        children = find_children(comments[i + 1..])
+        children = find_children(comments[i + 1..], node)
         node.description = [expression[13..]] + children
 
       elsif expression =~ /@response\s/
@@ -132,7 +134,7 @@ class Rage::OpenAPI::Parser
 
       elsif expression =~ /@internal\b/
         # no-op
-        children = find_children(comments[i + 1..])
+        children = find_children(comments[i + 1..], node)
 
       else
         Rage::OpenAPI.__log_warn "unrecognized `#{expression.split(" ")[0]}` tag detected at #{location_msg(comments[i])}"
@@ -148,15 +150,20 @@ class Rage::OpenAPI::Parser
 
   private
 
-  def find_children(comments)
+  def find_children(comments, node)
     children = []
 
     comments.each do |comment|
-      expression = comment.slice.sub(/^#\s/, "")
+      expression = comment.slice.sub(/^#\s?/, "")
 
-      if expression.start_with?(/\s{2}/)
+      if expression.empty?
+        # no-op
+      elsif expression.start_with?(/\s{2}/)
         children << expression.strip
       elsif expression.start_with?("@")
+        break
+      elsif !node.summary
+        # no-op - this is likely the summary entry
         break
       else
         Rage::OpenAPI.__log_warn "unrecognized expression detected at #{location_msg(comment)}; use two spaces to mark multi-line expressions"

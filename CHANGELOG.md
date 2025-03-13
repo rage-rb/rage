@@ -1,5 +1,40 @@
 ## [Unreleased]
 
+## [1.14.0] - 2025-03-10
+
+### Added
+
+- Detect file updates in development (#132).
+
+### Fixed
+
+- Update app template to include all app rake tasks by [pjb3](https://github.com/pjb3) (#130).
+
+## [1.13.0] - 2025-02-12
+
+### Added
+
+- [CLI] Support the PORT ENV variable by [@TheBlackArroVV](https://github.com/TheBlackArroVV) (#124).
+- Add the `RequestId` middleware (#127).
+
+### Fixed
+
+- Correctly process persistent HTTP connections (#128).
+- [OpenAPI] Ignore empty comments (#126).
+- [Cable] Improve the time to connect (#129).
+
+## [1.12.0] - 2025-01-21
+
+### Added
+
+- Add Redis adapter (#114).
+- Add global response tags (#110).
+- Implement around_action callbacks (#107).
+
+### Fixed
+
+- Support date types in Alba serializers (#112).
+
 ## [1.11.0] - 2024-12-18
 
 ### Added

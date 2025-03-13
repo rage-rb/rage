@@ -6,7 +6,7 @@ module IntegrationHelper
       system("gem build -o rage-local.gem && gem install rage-local.gem --no-document")
       system("bundle install", chdir: "spec/integration/test_app")
       @pid = spawn(env, "bundle exec rage s", chdir: "spec/integration/test_app")
-      sleep(1)
+      sleep(2)
     end
   end
 

@@ -585,27 +585,27 @@ class RageController::API
 
   if !defined?(::ActionController::Parameters)
     # Get the request data. The keys inside the hash are symbols, so `params.keys` returns an array of `Symbol`.<br>
-    # You can also load Strong Params to have Rage automatically wrap `params` in an instance of `ActionController::Parameters`.<br>
+    # You can also load Strong Parameters to have Rage automatically wrap `params` in an instance of `ActionController::Parameters`.<br>
     # At the same time, if you are not implementing complex filtering rules or working with nested structures, consider using native `Hash#fetch` and `Hash#slice` instead.
     #
     # For multipart file uploads, the uploaded files are represented by an instance of {Rage::UploadedFile}.
     #
     # @return [Hash{Symbol=>String,Array,Hash,Numeric,NilClass,TrueClass,FalseClass}]
-    # @example
-    #   # make sure to load strong params before the `require "rage/all"` call
-    #   require "active_support/all"
-    #   require "action_controller/metal/strong_parameters"
+    # @example With Strong Parameters
+    #   # in the Gemfile:
+    #   gem "activesupport", require: "active_support/all"
+    #   gem "actionpack", require: "action_controller/metal/strong_parameters"
     #
-    #   params.permit(:user).require(:full_name, :dob)
-    # @example
-    #   # without strong params
+    #   # in the controller:
+    #   params.require(:user).permit(:full_name, :dob)
+    # @example Without Strong Parameters
     #   params.fetch(:user).slice(:full_name, :dob)
     def params
       @__params
     end
   else
     def params
-      @params ||= ActionController::Parameters.new(@__params)
+      @__params__ ||= ActionController::Parameters.new(@__params)
     end
   end
 
