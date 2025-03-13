@@ -4,12 +4,16 @@ require "erb"
 require "yaml"
 
 if !defined?(Prism)
-  fail <<~ERR
+  begin
+    require "prism"
+  rescue LoadError
+    fail <<~ERR
 
-    rage-rb depends on Prism to build OpenAPI specifications. Add the following line to your Gemfile:
-    gem "prism"
+      Rage::OpenAPI depends on Prism to build OpenAPI specifications. Add the following line to your Gemfile:
+      gem "prism"
 
-  ERR
+    ERR
+  end
 end
 
 module Rage::OpenAPI
