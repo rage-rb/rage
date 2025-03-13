@@ -27,19 +27,8 @@ class Rage::Request
 
   attr_accessor :env
   # @private
-  def initialize(env, custom_proxies: nil)
+  def initialize(env)
     @env = env
-    after_initialize(custom_proxies) if custom_proxies
-  end
-
-  def after_initialize(custom_proxies)
-    if custom_proxies&.is_a?(Regexp)
-      Rack::Request.class_exec do |rage_trusted_proxies|
-        # hook on trusted_proxy? 
-      end
-    else
-      raise(Rage::Errors::InvalidCustomProxy, "Custom proxy should be a regexp. You passed in a #{custom_proxies.class}")
-    end
   end
 
   # Checks if the request was made using TLS/SSL which is if http or https protocol is used inside the URL.
@@ -149,14 +138,6 @@ class Rage::Request
   # @return [String, nil] the MIME type of the request body
   def format
     rack_request.content_type
-  end
-
-  # Gets the client IP address. There is a special consideration here with proxies
-  # or when (`X-Forwarded-For` or `Forwarded`) headers are being used.
-  # See [Rack::Request.ip](https://rubydoc.info/gems/rack/Rack%2FRequest%2FHelpers:ip)
-  # @return [String] the remote IP address
-  def remote_ip
-    rack_request.ip
   end
 
   # Get the request headers.

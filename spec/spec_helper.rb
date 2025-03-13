@@ -12,7 +12,7 @@ require_relative "support/contexts/mocked_rage_routes"
 RSpec.configure do |config|
 
   # Uncomment the line below to enable focused mode
-  config.filter_run focus: true
+  # config.filter_run focus: true
 
   # Enable flags like --only-failures and --next-failure
   config.example_status_persistence_file_path = ".rspec_status"
