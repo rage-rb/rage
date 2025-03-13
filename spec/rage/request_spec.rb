@@ -23,7 +23,9 @@ RSpec.describe Rage::Request do
       "HTTP_ACCEPT" => "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
       "HTTP_ACCEPT_ENCODING" => "gzip, deflate, br, zstd",
       "HTTP_ACCEPT_LANGUAGE" => "en-GB,en-US;q=0.9,en;q=0.8",
-      "HTTP_COOKIE" => "test_cookie=1"
+      "HTTP_COOKIE" => "test_cookie=1",
+      "HTTP_X_FORWARDED_FOR" => "127.0.0.1",
+      "CONTENT_TYPE" => "application/json"
     }
   end
 
@@ -63,7 +65,63 @@ RSpec.describe Rage::Request do
     env.delete("HTTP_USER_AGENT")
     expect(request.user_agent).to be_nil
   end
+  
+  it "handles the host property of a request" do
+    expect(request.host).not_to be_nil
+  end
 
+  it "handles the domain property of a request" do
+    expect(request.domain).not_to be_nil
+  end
+
+  it "handles the method property of a request" do
+    expect(request.method).not_to be_nil
+  end
+
+  it "handles `get?` HTTP verb of a request" do
+    expect(request.get?).not_to be_nil 
+  end
+
+  it "handles `post?` HTTP verb of a request" do
+    expect(request.post?).not_to be_nil 
+  end
+
+  it "handles the `patch?` HTTP verb of a request" do
+    expect(request.patch?).not_to be_nil 
+  end
+
+  it "handles the `put?` HTTP verb of a request" do
+    expect(request.put?).not_to be_nil 
+  end
+
+  it "handles the `delete?` HTTP verb of a request" do
+    expect(request.delete?).not_to be_nil 
+  end
+
+  it "handles the `head?` HTTP verb of a request" do
+    expect(request.head?).not_to be_nil 
+  end
+
+  it "handles the port property of a request" do
+    expect(request.port).not_to be_nil
+  end
+
+  it "handles the protocol property of a request" do
+    expect(request.protocol).not_to be_nil
+  end
+
+  it "handles the query string property of a request" do
+    expect(request.query_string).not_to be_nil
+  end
+
+  it "handles the env property of a request" do
+    expect(request.env).not_to be_nil
+  end
+
+  it "handles the format property of a request" do
+    expect(request.format).not_to be_nil
+  end
+  
   it "returns the correct request ID" do
     expect(request.request_id).to eq("5zfcwiy09bary01l")
   end
