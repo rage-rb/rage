@@ -16,6 +16,15 @@ if !defined?(Prism)
   end
 end
 
+if Gem::Version.create(Prism::VERSION) < Gem::Version.create("0.25.0")
+  fail <<~ERR
+
+    Rage::OpenAPI is only compatible with Prism >= 0.25.0. Detected Prism version: #{Prism::VERSION}. Add the following line to your Gemfile:
+    gem "prism", ">= 0.25.0"
+
+  ERR
+end
+
 module Rage::OpenAPI
   # Create a new OpenAPI application.
   #
