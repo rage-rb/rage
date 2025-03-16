@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 require "time"
+require "set" # required for ruby 3.1
 
 class Rage::Request
   # regexp to match against a ip address
-  IP_HOST_REGEXP  = /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
+  IP_HOST_REGEXP = /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
   # HTTP methods from [RFC 2616: Hypertext Transfer Protocol -- HTTP/1.1](https://www.ietf.org/rfc/rfc2616.txt)
   RFC2616 = %w(OPTIONS GET HEAD POST PUT DELETE TRACE CONNECT)
   # HTTP methods from [RFC 2518: HTTP Extensions for Distributed Authoring -- WEBDAV](https://www.ietf.org/rfc/rfc2518.txt)
@@ -25,7 +26,6 @@ class Rage::Request
   # Set data structure of all RFC defined HTTP headers
   HTTP_METHODS_SET = (RFC2616 + RFC2518 + RFC3253 + RFC3648 + RFC3744 + RFC5323 + RFC4791 + RFC5789).to_set
 
-  attr_accessor :env
   # @private
   def initialize(env)
     @env = env
@@ -35,6 +35,12 @@ class Rage::Request
   # @return [Boolean] true if the request is TLS/SSL, false otherwise
   def ssl?
     rack_request.ssl?
+  end
+
+  # Returns 'https://' if this was an HTTPS request and 'http://' otherwise
+  # @return [String] 'https://' if this was an HTTP request over SSL/TLS or 'http://' if it was an HTTP request
+  def protocol
+    ssl? ? "https://" : "http://"
   end
 
   # Gets the hostname from the request
@@ -186,6 +192,14 @@ class Rage::Request
     check_method(get_header("rack.methodoverride.original_method") || get_header("REQUEST_METHOD"))
   end
 
+  # Returns the unique request ID. By default, this ID is internally generated, and all log entries created during the request
+  # are tagged with it. Alternatively, you can use the {Rage::RequestId} middleware to derive the ID from the `X-Request-Id` header.
+  def request_id
+    @env["rage.request_id"]
+  end
+
+  alias_method :uuid, :request_id
+
   private
 
   def rack_request
@@ -214,7 +228,6 @@ class Rage::Request
   def named_host?(host)
     !IP_HOST_REGEXP.match?(host)
   end
-
 
   def if_none_match
     headers["HTTP_IF_NONE_MATCH"]

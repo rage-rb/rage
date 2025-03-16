@@ -10,7 +10,6 @@ require_relative "support/contexts/mocked_classes"
 require_relative "support/contexts/mocked_rage_routes"
 
 RSpec.configure do |config|
-
   # Uncomment the line below to enable focused mode
   # config.filter_run focus: true
 
