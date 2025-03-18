@@ -4,119 +4,122 @@ require "time"
 require "set" # required for ruby 3.1
 
 class Rage::Request
+  # @private
   # regexp to match against a ip address
   IP_HOST_REGEXP = /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
+  # @private
   # HTTP methods from [RFC 2616: Hypertext Transfer Protocol -- HTTP/1.1](https://www.ietf.org/rfc/rfc2616.txt)
   RFC2616 = %w(OPTIONS GET HEAD POST PUT DELETE TRACE CONNECT)
+  # @private
   # HTTP methods from [RFC 2518: HTTP Extensions for Distributed Authoring -- WEBDAV](https://www.ietf.org/rfc/rfc2518.txt)
   RFC2518 = %w(PROPFIND PROPPATCH MKCOL COPY MOVE LOCK UNLOCK)
+  # @private
   # HTTP methods from [RFC 3253: Versioning Extensions to WebDAV](https://www.ietf.org/rfc/rfc3253.txt)
   RFC3253 = %w(VERSION-CONTROL REPORT CHECKOUT CHECKIN UNCHECKOUT MKWORKSPACE UPDATE LABEL MERGE BASELINE-CONTROL MKACTIVITY)
+  # @private
   # HTTP methods from [RFC 3648: WebDAV Ordered Collections Protocol](https://www.ietf.org/rfc/rfc3648.txt)
   RFC3648 = %w(ORDERPATCH)
+  # @private
   # HTTP methods from [RFC 3744: WebDAV Access Control Protocol](https://www.ietf.org/rfc/rfc3744.txt)
   RFC3744 = %w(ACL)
+  # @private
   # HTTP methods from [RFC 5323: WebDAV SEARCH](https://www.ietf.org/rfc/rfc5323.txt)
   RFC5323 = %w(SEARCH)
+  # @private
   # HTTP methods from [RFC 4791: Calendaring Extensions to WebDAV](https://www.ietf.org/rfc/rfc4791.txt)
   RFC4791 = %w(MKCALENDAR)
+  # @private
   # HTTP methods from [RFC 5789: PATCH Method for HTTP](https://www.ietf.org/rfc/rfc5789.txt)
   RFC5789 = %w(PATCH)
 
+  # @private
   # Set data structure of all RFC defined HTTP headers
-  HTTP_METHODS_SET = (RFC2616 + RFC2518 + RFC3253 + RFC3648 + RFC3744 + RFC5323 + RFC4791 + RFC5789).to_set
+  KNOWN_HTTP_METHODS = (RFC2616 + RFC2518 + RFC3253 + RFC3648 + RFC3744 + RFC5323 + RFC4791 + RFC5789).to_set
 
   # @private
   def initialize(env)
     @env = env
   end
 
-  # Checks if the request was made using TLS/SSL which is if http or https protocol is used inside the URL.
+  # Check if the request was made using TLS/SSL which is if http or https protocol is used inside the URL.
   # @return [Boolean] true if the request is TLS/SSL, false otherwise
   def ssl?
     rack_request.ssl?
   end
 
-  # Returns 'https://' if this was an HTTPS request and 'http://' otherwise
-  # @return [String] 'https://' if this was an HTTP request over SSL/TLS or 'http://' if it was an HTTP request
+  # Returns `https://` if this was an HTTPS request and `http://` otherwise.
+  # @return [String] `https://` if this was an HTTP request over SSL/TLS or `http://` if it was an HTTP request
   def protocol
     ssl? ? "https://" : "http://"
   end
 
-  # Gets the hostname from the request
+  # Get the hostname from the request.
   # @return [String] the hostname
   def host
     rack_request.host
   end
 
-  # Gets the port number from the request
+  # Get the port number from the request.
   # @return [Integer] the port number
   def port
     rack_request.port
   end
 
-  # Gets the query string from the request
+  # Get the query string from the request.
   # @return [String] the query string (empty string if no query)
   def query_string
     rack_request.query_string
   end
 
-  # Gets the environment hash
-  # @return [Hash] the environment variables hash
+  # Get the Rack environment hash.
+  # @return [Hash] the Rack env
   def env
     @env
   end
 
-  # Gets the specified HTTP header value
-  # @param name [String] the name of the header to retrieve
-  # @return [String, nil] the header value or nil if not found
-  def get_header(name)
-    rack_request.get_header(name)
-  end
-
-  # Checks if the request uses GET method
-  # @return [Boolean] true if GET request
+  # Check the HTTP request method to see if it was of type `GET`.
+  # @return [Boolean] true if it was a `GET` request
   def get?
     rack_request.get?
   end
 
-  # Checks if the request uses POST method
-  # @return [Boolean] true if POST request
+  # Check the HTTP request method to see if it was of type `POST`.
+  # @return [Boolean] true if it was a `POST` request
   def post?
     rack_request.post?
   end
 
-  # Checks if the request uses PATCH method
-  # @return [Boolean] true if PATCH request
+  # Check the HTTP request method to see if it was of type `PATCH`.
+  # @return [Boolean] true if it was a `PATCH` request
   def patch?
     rack_request.patch?
   end
 
-  # Checks if the request uses PUT method
-  # @return [Boolean] true if PUT request
+  # Check the HTTP request method to see if it was of type `PUT`.
+  # @return [Boolean] true if it was a `PUT` request
   def put?
     rack_request.put?
   end
 
-  # Checks if the request uses DELETE method
-  # @return [Boolean] true if DELETE request
+  # Check the HTTP request method to see if it was of type `DELETE`.
+  # @return [Boolean] true if it was a `DELETE` request
   def delete?
     rack_request.delete?
   end
 
-  # Checks if the request uses HEAD method
-  # @return [Boolean] true if HEAD request
+  # Check the HTTP request method to see if it was of type `HEAD`.
+  # @return [Boolean] true if it was a `HEAD` request
   def head?
     rack_request.head?
   end
 
-  # Gets the full request URL
+  # Get the full request URL.
   # @return [String] complete URL including protocol, host, path, and query
   def url
     rack_request.url
   end
 
-  # Gets the request path
+  # Get the request path.
   # @return [String] the path component of the URL
   # @example
   #   request.path # => "/users"
@@ -124,7 +127,7 @@ class Rage::Request
     rack_request.path
   end
 
-  # Gets the full path including query string
+  # Get the request path including the query string.
   # @return [String] path with query string (if present)
   # @example
   #   request.fullpath # => "/users?show_archived=true"
@@ -132,7 +135,7 @@ class Rage::Request
     rack_request.fullpath
   end
 
-  # Gets the User-Agent header value
+  # Get the `User-Agent` header value.
   # @return [String, nil] the user agent string or nil
   # @example
   #  request.user_agent # => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
@@ -140,7 +143,7 @@ class Rage::Request
     rack_request.user_agent
   end
 
-  # Gets the content type of the request
+  # Get the content type of the request.
   # @return [String, nil] the MIME type of the request body
   def format
     rack_request.content_type
@@ -175,9 +178,9 @@ class Rage::Request
     )
   end
 
-  # Returns the domain of the request.
-  # @param tld_length [Integer] specify tld_length levels down into domain tree
-  # @example Consider a URL like: "example.foo.gov"
+  # Get the domain part of the request.
+  # @param tld_length [Integer] top-level domain length
+  # @example Consider a URL like: `example.foo.gov`
   #   request.domain => "foo.gov"
   #   request.domain(0) => "gov"
   #   request.domain(2) => "example.foo.gov"
@@ -185,23 +188,16 @@ class Rage::Request
     extract_domain(host, tld_length)
   end
 
-  # Gets the HTTP method of the request. If the client is using `Rack::MethodOverride`
-  # middleware then the `X-HTTP-Method-Override` header is checked before `REQUEST_METHOD`
+  # Get the HTTP method of the request. If the client is using the `Rack::MethodOverride`
+  # middleware, then the `X-HTTP-Method-Override` header is checked first.
   # @return [String] The HTTP Method override header or the request method header
   def method
-    check_method(get_header("rack.methodoverride.original_method") || get_header("REQUEST_METHOD"))
+    check_method(@env["rack.methodoverride.original_method"] || @env["REQUEST_METHOD"])
   end
 
-  # Returns the unique request ID. By default, this ID is internally generated, and all log entries created during the request
+  # Get the unique request ID. By default, this ID is internally generated, and all log entries created during the request
   # are tagged with it. Alternatively, you can use the {Rage::RequestId} middleware to derive the ID from the `X-Request-Id` header.
-  def request_id
-    @env["rage.request_id"]
-  end
-
-  alias_method :uuid, :request_id
-
-  # Returns the unique request ID. By default, this ID is internally generated, and all log entries created during the request
-  # are tagged with it. Alternatively, you can use the {Rage::RequestId} middleware to derive the ID from the `X-Request-Id` header.
+  # @return [String] the request ID
   def request_id
     @env["rage.request_id"]
   end
@@ -215,12 +211,11 @@ class Rage::Request
   end
 
   def check_method(name)
-    http_methods_set = HTTP_METHODS_SET
     if name
-      if http_methods_set.include?(name)
+      if KNOWN_HTTP_METHODS.include?(name)
         name
       else
-        raise(Rage::Errors::UnknownHTTPMethod, "#{name}, accepted HTTP methods are #{http_methods_set.to_a}")
+        raise(Rage::Errors::UnknownHTTPMethod, "#{name}, accepted HTTP methods are #{KNOWN_HTTP_METHODS.to_a}")
       end
     end
   end
