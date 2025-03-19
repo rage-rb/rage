@@ -4,10 +4,23 @@ require "erb"
 require "yaml"
 
 if !defined?(Prism)
+  begin
+    require "prism"
+  rescue LoadError
+    fail <<~ERR
+
+      Rage::OpenAPI depends on Prism to build OpenAPI specifications. Add the following line to your Gemfile:
+      gem "prism"
+
+    ERR
+  end
+end
+
+if Gem::Version.create(Prism::VERSION) < Gem::Version.create("0.25.0")
   fail <<~ERR
 
-    rage-rb depends on Prism to build OpenAPI specifications. Add the following line to your Gemfile:
-    gem "prism"
+    Rage::OpenAPI is only compatible with Prism >= 0.25.0. Detected Prism version: #{Prism::VERSION}. Add the following line to your Gemfile:
+    gem "prism", ">= 0.25.0"
 
   ERR
 end
