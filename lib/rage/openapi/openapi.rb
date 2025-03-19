@@ -131,6 +131,33 @@ module Rage::OpenAPI
   end
 
   # @private
+  def self.__type_to_spec(type, default: true)
+    case type
+    when "Integer"
+      { "type" => "integer" }
+    when "Float"
+      { "type" => "number", "format" => "float" }
+    when "Numeric"
+      { "type" => "number" }
+    when "Boolean"
+      { "type" => "boolean" }
+    when "Hash"
+      { "type" => "object" }
+    when "Date"
+      { "type" => "string", "format" => "date" }
+    when "DateTime", "Time"
+      { "type" => "string", "format" => "date-time" }
+    when "String"
+      { "type" => "string" }
+    else
+      if default
+        __log_warn("unrecognized type #{type}")
+        { "type" => "string" }
+      end
+    end
+  end
+
+  # @private
   def self.__log_warn(log)
     puts "[OpenAPI] WARNING: #{log}"
   end
