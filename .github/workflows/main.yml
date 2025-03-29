@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Ruby ${{ matrix.ruby }}
     strategy:
-      max-parallel: 1
+      max-parallel: 2
       matrix:
         ruby:
           - '3.1'
