@@ -131,7 +131,7 @@ module Rage::OpenAPI
   end
 
   # @private
-  def self.__type_to_spec(type, default: true)
+  def self.__type_to_spec(type, default: false)
     case type
     when "Integer"
       { "type" => "integer" }
@@ -150,10 +150,7 @@ module Rage::OpenAPI
     when "String"
       { "type" => "string" }
     else
-      if default
-        __log_warn("unrecognized type #{type}")
-        { "type" => "string" }
-      end
+      { "type" => "string" } if default
     end
   end
 

@@ -252,11 +252,11 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
 
       it "returns correct schema" do
-        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "parameters" => [{ "name" => "is_active", "in" => "query", "required" => true, "description" => "The status of the user records", "schema" => { "type" => "string" } }], "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
       end
 
       it "logs error" do
-        expect(Rage::OpenAPI).to receive(:__log_warn).with(/unrecognized type Symbol/)
+        expect(Rage::OpenAPI).to receive(:__log_warn).with(/unrecognized type `Symbol` detected at .+:2/)
         subject
       end
     end
@@ -275,11 +275,11 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
 
       it "returns correct schema" do
-        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "parameters" => [{ "name" => "is_active", "in" => "query", "required" => true, "description" => "", "schema" => { "type" => "string" } }], "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
       end
 
       it "logs error" do
-        expect(Rage::OpenAPI).to receive(:__log_warn).with(/unrecognized type Symbol/)
+        expect(Rage::OpenAPI).to receive(:__log_warn).with(/unrecognized type `Symbol` detected at .+:2/)
         subject
       end
     end

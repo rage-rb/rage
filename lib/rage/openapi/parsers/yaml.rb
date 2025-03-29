@@ -42,6 +42,6 @@ class Rage::OpenAPI::Parsers::YAML
   private
 
   def type_to_spec(type)
-    Rage::OpenAPI.__type_to_spec(type, default: false) || { "type" => "string", "enum" => [type] }
+    Rage::OpenAPI.__type_to_spec(type) || { "type" => "string", "enum" => [type] }
   end
 end

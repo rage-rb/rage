@@ -120,20 +120,18 @@ RSpec.describe Rage::OpenAPI do
 
     context "with unknown type" do
       context "with fallback" do
+        subject { described_class.__type_to_spec(type, default: true) }
         let(:type) { "Symbol" }
 
         it do
-          expect(Rage::OpenAPI).to receive(:__log_warn).with("unrecognized type Symbol")
           expect(subject).to eq({ "type" => "string" })
         end
       end
 
       context "without fallback" do
-        subject { described_class.__type_to_spec(type, default: false) }
         let(:type) { "Symbol" }
 
         it do
-          expect(Rage::OpenAPI).not_to receive(:__log_warn)
           expect(subject).to be_nil
         end
       end

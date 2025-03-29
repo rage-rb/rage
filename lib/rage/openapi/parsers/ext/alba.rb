@@ -264,7 +264,7 @@ class Rage::OpenAPI::Parsers::Ext::Alba
     end
 
     def get_type_definition(type_id)
-      Rage::OpenAPI.__type_to_spec(type_id.delete_prefix(":"))
+      Rage::OpenAPI.__type_to_spec(type_id.delete_prefix(":"), default: true)
     end
   end
 end

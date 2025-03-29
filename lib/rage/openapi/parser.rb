@@ -244,12 +244,17 @@ class Rage::OpenAPI::Parser
       is_required = false
     end
 
-    param_type = param_type[1...-1] if param_type&.match?(param_type_regexp)
+    if param_type
+      param_type = param_type[1...-1]
+      parsed_param = Rage::OpenAPI.__type_to_spec(param_type)
+    end
 
     if node.parameters[param_name]
       Rage::OpenAPI.__log_warn "duplicate `@param` tag detected at #{location_msg(comment)}"
+    elsif param_type && parsed_param.nil?
+      Rage::OpenAPI.__log_warn "unrecognized type `#{param_type}` detected at #{location_msg(comment)}"
     else
-      node.parameters[param_name] = { type: param_type, description: param_description, required: is_required }
+      node.parameters[param_name] = { type: parsed_param, description: param_description, required: is_required }
     end
   end
 end

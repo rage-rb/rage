@@ -164,15 +164,17 @@ class Rage::OpenAPI::Converter
 
   def get_param_type_spec(param_name, param_type)
     unless param_type
-      param_type = if param_name == "id" || param_name.end_with?("_id")
+      guessed_type = if param_name == "id" || param_name.end_with?("_id")
         "Integer"
       elsif param_name.end_with?("_at")
         "Time"
       else
         "String"
       end
+
+      return Rage::OpenAPI.__type_to_spec(guessed_type)
     end
 
-    Rage::OpenAPI.__type_to_spec(param_type)
+    param_type
   end
 end
