@@ -82,6 +82,29 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
     end
 
+    context "with invalid typed param" do
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # @param is_active {Boolean}IsActive
+          def index
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "GET /users" => "UsersController#index" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "parameters" => [{ "name" => "is_active", "in" => "query", "required" => true, "description" => "{Boolean}IsActive", "schema" => { "type" => "string" } }], "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+
+      it "doesn't log error" do
+        expect(Rage::OpenAPI).not_to receive(:__log_warn)
+        subject
+      end
+    end
+
     context "with optional typed param" do
       let_class("UsersController", parent: RageController::API) do
         <<~'RUBY'
@@ -115,6 +138,29 @@ RSpec.describe Rage::OpenAPI::Builder do
 
       it "returns correct schema" do
         expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "parameters" => [{ "name" => "is_active", "in" => "query", "required" => true, "description" => "The status of the user records", "schema" => { "type" => "string" } }], "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+    end
+
+    context "with param with one-word description" do
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # @param is_active IsActive
+          def index
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "GET /users" => "UsersController#index" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "parameters" => [{ "name" => "is_active", "in" => "query", "required" => true, "description" => "IsActive", "schema" => { "type" => "string" } }], "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+
+      it "doesn't log error" do
+        expect(Rage::OpenAPI).not_to receive(:__log_warn)
+        subject
       end
     end
 

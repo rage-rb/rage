@@ -229,8 +229,13 @@ class Rage::OpenAPI::Parser
     is_required = true
     param_type_regexp = /^[{\[]\w+[}\]]$/
 
-    if param_type && param_description && !param_type.match?(param_type_regexp)
-      param_description = "#{param_type} #{param_description}"
+    if param_type && !param_type&.match?(param_type_regexp)
+      param_description = if param_description
+        "#{param_type} #{param_description}"
+      else
+        param_type
+      end
+
       param_type = nil
     end
 
