@@ -264,22 +264,7 @@ class Rage::OpenAPI::Parsers::Ext::Alba
     end
 
     def get_type_definition(type_id)
-      case type_id
-      when "Integer"
-        { "type" => "integer" }
-      when "Boolean", ":Boolean"
-        { "type" => "boolean" }
-      when "Numeric"
-        { "type" => "number" }
-      when "Float"
-        { "type" => "number", "format" => "float" }
-      when "Date"
-        { "type" => "string", "format" => "date" }
-      when "DateTime", "Time"
-        { "type" => "string", "format" => "date-time" }
-      else
-        { "type" => "string" }
-      end
+      Rage::OpenAPI.__type_to_spec(type_id.delete_prefix(":"), default: true)
     end
   end
 end

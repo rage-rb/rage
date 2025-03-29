@@ -132,6 +132,9 @@ class Rage::OpenAPI::Parser
           end
         end
 
+      elsif expression =~ /@param\s/
+        parse_param_tag(expression, node, comments[i])
+
       elsif expression =~ /@internal\b/
         # no-op
         children = find_children(comments[i + 1..], node)
@@ -206,6 +209,52 @@ class Rage::OpenAPI::Parser
       else
         Rage::OpenAPI.__log_warn "unrecognized `@response` tag detected at #{location_msg(comment)}"
       end
+    end
+  end
+
+  def parse_param_tag(expression, node, comment)
+    param = expression[7..].strip
+
+    shared_reference_parser = Rage::OpenAPI::Parsers::SharedReference.new
+    if shared_reference_parser.known_definition?(param)
+      if (ref = shared_reference_parser.parse(param))
+        node.parameters[param] = { ref: }
+      else
+        Rage::OpenAPI.__log_warn "invalid shared reference detected at #{location_msg(comment)}"
+      end
+      return
+    end
+
+    param_name, param_type, param_description = param.split(" ", 3)
+    is_required = true
+    param_type_regexp = /^[{\[]\w+[}\]]$/
+
+    if param_type && !param_type&.match?(param_type_regexp)
+      param_description = if param_description
+        "#{param_type} #{param_description}"
+      else
+        param_type
+      end
+
+      param_type = nil
+    end
+
+    if param_name.end_with?("?")
+      param_name = param_name[0...-1]
+      is_required = false
+    end
+
+    if param_type
+      param_type = param_type[1...-1]
+      parsed_param = Rage::OpenAPI.__type_to_spec(param_type)
+    end
+
+    if node.parameters[param_name]
+      Rage::OpenAPI.__log_warn "duplicate `@param` tag detected at #{location_msg(comment)}"
+    elsif param_type && parsed_param.nil?
+      Rage::OpenAPI.__log_warn "unrecognized type `#{param_type}` detected at #{location_msg(comment)}"
+    else
+      node.parameters[param_name] = { type: parsed_param, description: param_description, required: is_required }
     end
   end
 end

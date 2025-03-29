@@ -14,7 +14,7 @@ class Rage::OpenAPI::Nodes::Method
     @parents = parents
 
     @responses = {}
-    @parameters = []
+    @parameters = {}
   end
 
   def root
