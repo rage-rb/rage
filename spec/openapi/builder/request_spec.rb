@@ -67,6 +67,21 @@ RSpec.describe Rage::OpenAPI::Builder do
       it "returns correct schema" do
         expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => { "schemas" => { "User" => { "type" => "object", "properties" => { "id" => { "type" => "integer", "format" => "int64" }, "name" => { "type" => "string" } } } }, "requestBodies" => { "UserBody" => { "description" => "A JSON object containing user information", "required" => true, "content" => { "application/json" => { "schema" => { "$ref" => "#/components/schemas/User" } } } } } }, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "post" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } }, "requestBody" => { "$ref" => "#/components/requestBodies/UserBody" } } } } })
       end
+
+      context "with empty requestBodies component" do
+        before do
+          allow(Rage::OpenAPI).to receive(:__shared_components).and_return(YAML.safe_load(
+            <<~YAML
+              components:
+                requestBodies:
+            YAML
+          ))
+        end
+
+        it "returns correct schema" do
+          expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => { "requestBodies" => {} }, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "post" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+        end
+      end
     end
 
     context "with shared scheme reference" do

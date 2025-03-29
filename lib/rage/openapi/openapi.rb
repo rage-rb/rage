@@ -93,7 +93,7 @@ module Rage::OpenAPI
       else
         case components_file.extname
         when ".yml", ".yaml"
-          YAML.safe_load(components_file.read)
+          YAML.safe_load(components_file.read) || {}
         when ".json"
           JSON.parse(components_file.read)
         else

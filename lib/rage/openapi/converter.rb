@@ -85,7 +85,7 @@ class Rage::OpenAPI::Converter
 
     if (shared_components = Rage::OpenAPI.__shared_components["components"])
       shared_components.each do |definition_type, definitions|
-        (@spec["components"][definition_type] ||= {}).merge!(definitions)
+        (@spec["components"][definition_type] ||= {}).merge!(definitions || {})
       end
     end
 
