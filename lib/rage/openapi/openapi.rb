@@ -58,7 +58,7 @@ module Rage::OpenAPI
     end
 
     app = ->(env) do
-      if env["PATH_INFO"] == ""
+      if env["PATH_INFO"] == "" || env["PATH_INFO"] == "/"
         html_app.call(env)
       elsif env["PATH_INFO"] == "/json"
         json_app.call(env)
