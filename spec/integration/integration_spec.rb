@@ -353,5 +353,15 @@ RSpec.describe "End-to-end" do
       expect(spec["paths"]["/api/v2/users/{id}"]).to match({ "parameters" => [{ "in" => "path", "name" => "id", "required" => true, "schema" => { "type" => "integer" } }], "get" => { "summary" => "Returns a specific user.", "description" => "", "deprecated" => true, "security" => [{ "authenticate_user" => [] }], "tags" => ["v2/Users"], "responses" => { "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "full_name" => { "type" => "string" }, "comments" => { "type" => "array", "items" => { "type" => "object", "properties" => { "content" => { "type" => "string" }, "created_at" => { "type" => "string" } } } } } } } } } } } })
       expect(spec["paths"]["/api/v3/users/{id}"]).to match({ "parameters" => [{ "in" => "path", "name" => "id", "required" => true, "schema" => { "type" => "integer" } }], "get" => { "summary" => "Returns a specific user.", "description" => "", "deprecated" => false, "security" => [{ "authenticate_user" => [] }], "tags" => ["v3/Users"], "responses" => { "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "$ref" => "#/components/schemas/V3_User" } } } }, "404" => { "$ref" => "#/components/responses/404NotFound" } } } })
     end
+
+    it "correctly renders the html page" do
+      response = HTTP.get("http://localhost:3000/publicapi")
+      expect(response.code).to eq(200)
+    end
+
+    it "correctly renders the html page if the path is /" do
+      response = HTTP.get("http://localhost:3000/publicapi/")
+      expect(response.code).to eq(200)
+    end
   end
 end
