@@ -456,5 +456,29 @@ RSpec.describe Rage::OpenAPI::Builder do
         subject
       end
     end
+
+    context "with no before_actions" do
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # @auth authenticate!
+
+          def index
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "GET /users" => "UsersController#index" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+
+      it "logs error" do
+        expect(Rage::OpenAPI).to receive(:__log_warn).with(/referenced before action `authenticate!` is not defined/)
+        subject
+      end
+    end
   end
 end
