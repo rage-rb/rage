@@ -150,7 +150,7 @@ RSpec.describe Rage::FiberScheduler do
     it "correctly performs multiple DB requests" do
       within_reactor do
         results = []
-        ids = 5.times.map { rand(1..800) }
+        ids = [120, 9, 445, 12, 991]
 
         ids.each do |id|
           results << conn.exec("SELECT * FROM tags WHERE id = #{id}").to_a.first
@@ -164,10 +164,9 @@ RSpec.describe Rage::FiberScheduler do
       within_reactor do
         char = ("A".."Z").to_a.sample
         str = char * 50_000
-        id = rand(801..999)
 
-        conn.exec("UPDATE tags SET token = '#{str}' WHERE id = #{id}")
-        result = conn.exec("SELECT * FROM tags WHERE id = #{id}").to_a
+        conn.exec("UPDATE tags SET token = '#{str}' WHERE id = 999")
+        result = conn.exec("SELECT * FROM tags WHERE id = 999").to_a
         -> { expect(result.first["token"]).to eq(str) }
       end
     end
@@ -205,7 +204,7 @@ RSpec.describe Rage::FiberScheduler do
     it "correctly performs multiple DB requests" do
       within_reactor do
         results = []
-        ids = 5.times.map { rand(1..800) }
+        ids = [120, 9, 445, 12, 991]
 
         ids.each do |id|
           results << conn.query("SELECT * FROM tags WHERE id = #{id}").first
@@ -219,10 +218,9 @@ RSpec.describe Rage::FiberScheduler do
       within_reactor do
         char = ("A".."Z").to_a.sample
         str = char * 50_000
-        id = rand(801..999)
 
-        conn.query("UPDATE tags SET token = '#{str}' WHERE id = #{id}")
-        result = conn.query("SELECT * FROM tags WHERE id = #{id}")
+        conn.query("UPDATE tags SET token = '#{str}' WHERE id = 999")
+        result = conn.query("SELECT * FROM tags WHERE id = 999")
         -> { expect(result.first["token"]).to eq(str) }
       end
     end
