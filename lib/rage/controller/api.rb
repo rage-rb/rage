@@ -387,7 +387,7 @@ class RageController::API
 
     # @private
     def __before_action_exists?(name)
-      @__before_actions.any? { |h| h[:name] == name && !h[:around] }
+      @__before_actions&.any? { |h| h[:name] == name && !h[:around] }
     end
 
     # @private
