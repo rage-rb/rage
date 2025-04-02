@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+## [1.15.0] - 2025-04-02
+
+### Added
+
+- Enhance the `Rage::Request` class by [@aaoafk](https://github.com/aaoafk) (#123).
+- [OpenAPI] Support the `@param` tag (#134).
+
+### Fixed
+
+- Fix using `Fiber.schedule` in console by [@lkibbalam](https://github.com/lkibbalam) (#143).
+- Correctly handle regexp origins in `Rage::Cors` (#138).
+- [OpenAPI] Correctly handle trailing slash (#141).
+- [OpenAPI] Correctly handle empty shared components (#139).
+- [OpenAPI] Explicitly load Prism (#136).
+- [OpenAPI] Correctly verify available before actions (#144).
+- [OpenAPI] Correctly handle global comments (#140).
+
 ## [1.14.0] - 2025-03-10
 
 ### Added
