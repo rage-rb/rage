@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [1.14.0] - 2025-03-10
+
+### Added
+
+- Detect file updates in development (#132).
+
+### Fixed
+
+- Update app template to include all app rake tasks by [pjb3](https://github.com/pjb3) (#130).
+
 ## [1.13.0] - 2025-02-12
 
 ### Added

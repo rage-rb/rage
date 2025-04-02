@@ -88,6 +88,86 @@ RSpec.describe Rage::Cors do
     it "sets correct headers" do
       expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://subdomain3.mysite.com", "Vary" => "Origin" }, ["test response"]])
     end
+
+    context "with extra extension" do
+      let(:env) { { "HTTP_ORIGIN" => "http://subdomain3.mysite.com.au" } }
+
+      it "sets correct headers" do
+        expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://subdomain3.mysite.com.au", "Vary" => "Origin" }, ["test response"]])
+      end
+    end
+
+    context "with https" do
+      let(:env) { { "HTTP_ORIGIN" => "https://subdomain3.mysite.com" } }
+
+      it "sets correct headers" do
+        expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "https://subdomain3.mysite.com", "Vary" => "Origin" }, ["test response"]])
+      end
+    end
+
+    context "with multiple subdomains" do
+      let(:env) { { "HTTP_ORIGIN" => "http://new.subdomain3.mysite.com" } }
+
+      it "sets correct headers" do
+        expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://new.subdomain3.mysite.com", "Vary" => "Origin" }, ["test response"]])
+      end
+    end
+
+    context "with invalid extension" do
+      let(:env) { { "HTTP_ORIGIN" => "http://subdomain3.mysite.co" } }
+
+      it "sets correct headers" do
+        expect(subject).to eq([200, {}, ["test response"]])
+      end
+    end
+  end
+
+  context "with regexp origin with protocol" do
+    let(:cors) do
+      described_class.new(app) do
+        allow /\Ahttps:\/\/\w+\.mysite\.com\.au\z/
+      end
+    end
+
+    context "with correct origin" do
+      let(:env) { { "HTTP_ORIGIN" => "https://subdomain3.mysite.com.au" } }
+
+      it "sets correct headers" do
+        expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "https://subdomain3.mysite.com.au", "Vary" => "Origin" }, ["test response"]])
+      end
+    end
+
+    context "with invalid extension" do
+      let(:env) { { "HTTP_ORIGIN" => "https://subdomain3.mysite.com" } }
+
+      it "sets correct headers" do
+        expect(subject).to eq([200, {}, ["test response"]])
+      end
+    end
+
+    context "with extra extension" do
+      let(:env) { { "HTTP_ORIGIN" => "https://subdomain3.mysite.com.au.ms" } }
+
+      it "sets correct headers" do
+        expect(subject).to eq([200, {}, ["test response"]])
+      end
+    end
+
+    context "with invalid protocol" do
+      let(:env) { { "HTTP_ORIGIN" => "http://subdomain3.mysite.com.au" } }
+
+      it "sets correct headers" do
+        expect(subject).to eq([200, {}, ["test response"]])
+      end
+    end
+
+    context "without protocol" do
+      let(:env) { { "HTTP_ORIGIN" => "subdomain3.mysite.com.au" } }
+
+      it "sets correct headers" do
+        expect(subject).to eq([200, {}, ["test response"]])
+      end
+    end
   end
 
   context "with custom protocol origins" do

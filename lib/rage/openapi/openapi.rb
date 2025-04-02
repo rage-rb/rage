@@ -4,10 +4,23 @@ require "erb"
 require "yaml"
 
 if !defined?(Prism)
+  begin
+    require "prism"
+  rescue LoadError
+    fail <<~ERR
+
+      Rage::OpenAPI depends on Prism to build OpenAPI specifications. Add the following line to your Gemfile:
+      gem "prism"
+
+    ERR
+  end
+end
+
+if Gem::Version.create(Prism::VERSION) < Gem::Version.create("0.25.0")
   fail <<~ERR
 
-    rage-rb depends on Prism to build OpenAPI specifications. Add the following line to your Gemfile:
-    gem "prism"
+    Rage::OpenAPI is only compatible with Prism >= 0.25.0. Detected Prism version: #{Prism::VERSION}. Add the following line to your Gemfile:
+    gem "prism", ">= 0.25.0"
 
   ERR
 end
@@ -45,7 +58,7 @@ module Rage::OpenAPI
     end
 
     app = ->(env) do
-      if env["PATH_INFO"] == ""
+      if env["PATH_INFO"] == "" || env["PATH_INFO"] == "/"
         html_app.call(env)
       elsif env["PATH_INFO"] == "/json"
         json_app.call(env)
@@ -80,7 +93,7 @@ module Rage::OpenAPI
       else
         case components_file.extname
         when ".yml", ".yaml"
-          YAML.safe_load(components_file.read)
+          YAML.safe_load(components_file.read) || {}
         when ".json"
           JSON.parse(components_file.read)
         else
@@ -115,6 +128,30 @@ module Rage::OpenAPI
     klass.name =~ /::[^:]+\z/ ? Object.const_get($`) : Object
   rescue NameError
     Object
+  end
+
+  # @private
+  def self.__type_to_spec(type, default: false)
+    case type
+    when "Integer"
+      { "type" => "integer" }
+    when "Float"
+      { "type" => "number", "format" => "float" }
+    when "Numeric"
+      { "type" => "number" }
+    when "Boolean"
+      { "type" => "boolean" }
+    when "Hash"
+      { "type" => "object" }
+    when "Date"
+      { "type" => "string", "format" => "date" }
+    when "DateTime", "Time"
+      { "type" => "string", "format" => "date-time" }
+    when "String"
+      { "type" => "string" }
+    else
+      { "type" => "string" } if default
+    end
   end
 
   # @private

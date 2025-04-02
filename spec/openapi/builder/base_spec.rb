@@ -71,7 +71,7 @@ RSpec.describe Rage::OpenAPI::Builder do
     end
 
     it "returns correct schema" do
-      expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } }, "/users/{id}" => { "parameters" => [{ "in" => "path", "name" => "id", "required" => true, "schema" => { "type" => "integer" } }], "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+      expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } }, "/users/{id}" => { "parameters" => [{ "description" => "", "in" => "path", "name" => "id", "required" => true, "schema" => { "type" => "integer" } }], "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
     end
   end
 
@@ -183,7 +183,7 @@ RSpec.describe Rage::OpenAPI::Builder do
     end
 
     it "returns correct schema" do
-      expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Photos" }], "paths" => { "/users/{user_id}/photos/{id}" => { "parameters" => [{ "in" => "path", "name" => "user_id", "required" => true, "schema" => { "type" => "integer" } }, { "in" => "path", "name" => "id", "required" => true, "schema" => { "type" => "integer" } }], "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Photos"], "responses" => { "200" => { "description" => "" } } } } } })
+      expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Photos" }], "paths" => { "/users/{user_id}/photos/{id}" => { "parameters" => [{ "description" => "", "in" => "path", "name" => "user_id", "required" => true, "schema" => { "type" => "integer" } }, { "description" => "", "in" => "path", "name" => "id", "required" => true, "schema" => { "type" => "integer" } }], "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Photos"], "responses" => { "200" => { "description" => "" } } } } } })
     end
   end
 

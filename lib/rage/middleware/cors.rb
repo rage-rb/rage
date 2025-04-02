@@ -124,7 +124,7 @@ class Rage::Cors
     else
       origins_eval = @origins.map { |origin|
         origin.is_a?(Regexp) ?
-          "origin =~ /#{origin.source}/.freeze" :
+          "origin =~ /#{origin}/.freeze" :
           "origin == '#{origin}'.freeze"
       }.join(" || ")
 

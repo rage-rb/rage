@@ -42,25 +42,6 @@ class Rage::OpenAPI::Parsers::YAML
   private
 
   def type_to_spec(type)
-    case type
-    when "Integer"
-      { "type" => "integer" }
-    when "Float"
-      { "type" => "number", "format" => "float" }
-    when "Numeric"
-      { "type" => "number" }
-    when "Boolean"
-      { "type" => "boolean" }
-    when "Hash"
-      { "type" => "object" }
-    when "Date"
-      { "type" => "string", "format" => "date" }
-    when "DateTime", "Time"
-      { "type" => "string", "format" => "date-time" }
-    when "String"
-      { "type" => "string" }
-    else
-      { "type" => "string", "enum" => [type] }
-    end
+    Rage::OpenAPI.__type_to_spec(type) || { "type" => "string", "enum" => [type] }
   end
 end

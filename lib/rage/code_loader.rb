@@ -5,16 +5,16 @@ require "zeitwerk"
 class Rage::CodeLoader
   def initialize
     @reloading = false
+    @autoload_path = Rage.root.join("app")
   end
 
   def setup
     @loader = Zeitwerk::Loader.new
 
-    autoload_path = "#{Rage.root}/app"
     enable_reloading = Rage.env.development?
     enable_eager_loading = !Rage.env.development? && !Rage.env.test?
 
-    @loader.push_dir(autoload_path)
+    @loader.push_dir(@autoload_path.to_s)
     # The first level of directories in app directory won't be treated as modules
     # e.g. app/controllers/pages_controller.rb will be linked to PagesController class
     # instead of Controllers::PagesController
@@ -61,5 +61,16 @@ class Rage::CodeLoader
 
   def reloading?
     @reloading
+  end
+
+  def check_updated!
+    current_watched = @autoload_path.glob("**/*.rb") + Rage.root.glob("config/routes.rb") + Rage.root.glob("config/openapi_components.*")
+    current_update_at = current_watched.max_by { |path| path.exist? ? path.mtime.to_f : 0 }&.mtime.to_f
+    return false if !@last_watched && !@last_update_at
+
+    current_watched.size != @last_watched.size || current_update_at != @last_update_at
+
+  ensure
+    @last_watched, @last_update_at = current_watched, current_update_at
   end
 end
