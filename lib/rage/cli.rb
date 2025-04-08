@@ -151,6 +151,7 @@ module Rage
 
       require "irb"
       environment
+      patch_fiber_for_irb
       ARGV.clear
       IRB.start
     end
@@ -234,6 +235,25 @@ module Rage
       load "Rakefile"
 
       Rake::Task.tasks.select { |task| !task.comment.nil? && task.name.start_with?("db:") }
+    end
+
+    # Override Fiber.schedule for IRB: Enforce sequential execution of fibers in the IRB environment
+    def patch_fiber_for_irb
+      Fiber.class_eval do
+        def self.schedule(&block)
+          fiber = Fiber.new(blocking: true) do
+            Fiber.current.__set_id
+            Fiber.current.__set_result(block.call)
+          end
+          fiber.resume
+
+          fiber
+        end
+
+        def self.await(fibers)
+          Array(fibers).map(&:__get_result)
+        end
+      end
     end
   end
 

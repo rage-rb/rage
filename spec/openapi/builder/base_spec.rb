@@ -265,4 +265,32 @@ RSpec.describe Rage::OpenAPI::Builder do
       expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "This is", "description" => "This", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" }, "201" => { "description" => "" }, "202" => { "description" => "" }, "404" => { "description" => "" } } } } } })
     end
   end
+
+  context "with global comments after tags with children" do
+    let_class("UsersController", parent: RageController::API) do
+      <<~'RUBY'
+        # @deprecated use V2::UsersController instead
+
+        # this is a test comment
+
+        def index
+        end
+      RUBY
+    end
+
+    let(:routes) do
+      {
+        "GET /users" => "UsersController#index"
+      }
+    end
+
+    it "returns correct schema" do
+      expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => true, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+    end
+
+    it "doesn't log error" do
+      expect(Rage::OpenAPI).not_to receive(:__log_warn)
+      subject
+    end
+  end
 end

@@ -165,11 +165,10 @@ class Rage::OpenAPI::Parser
         children << expression.strip
       elsif expression.start_with?("@")
         break
-      elsif !node.summary
-        # no-op - this is likely the summary entry
+      elsif node.is_a?(Rage::OpenAPI::Nodes::Method) && node.summary
+        Rage::OpenAPI.__log_warn "unrecognized expression detected at #{location_msg(comment)}; use two spaces to mark multi-line expressions"
         break
       else
-        Rage::OpenAPI.__log_warn "unrecognized expression detected at #{location_msg(comment)}; use two spaces to mark multi-line expressions"
         break
       end
     end
