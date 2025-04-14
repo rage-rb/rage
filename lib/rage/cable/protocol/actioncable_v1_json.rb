@@ -73,13 +73,15 @@ class Rage::Cable::Protocol::ActioncableV1Json
     # Hash<String(stream name) => Set<Hash>(subscription params)>
     @subscription_identifiers = Hash.new { |hash, key| hash[key] = Set.new }
 
-    # this is a fallback to synchronize subscription identifiers across different worker processes;
-    # we expect connections to be distributed among all workers, so this code will almost never be called;
-    # we also synchronize subscriptions with the master process so that the forks that are spun up instead
-    # of the crashed ones also had access to the identifiers;
-    Iodine.subscribe("cable:synchronize") do |_, subscription_msg|
-      stream_name, params = Rage::ParamsParser.json_parse(subscription_msg)
-      @subscription_identifiers[stream_name] << params
+    Iodine.on_state(:pre_start) do
+      # this is a fallback to synchronize subscription identifiers across different worker processes;
+      # we expect connections to be distributed among all workers, so this code will almost never be called;
+      # we also synchronize subscriptions with the master process so that the forks that are spun up instead
+      # of the crashed ones also had access to the identifiers;
+      Iodine.subscribe("cable:synchronize") do |_, subscription_msg|
+        stream_name, params = Rage::ParamsParser.json_parse(subscription_msg)
+        @subscription_identifiers[stream_name] << params
+      end
     end
 
     Iodine.on_state(:on_finish) do
