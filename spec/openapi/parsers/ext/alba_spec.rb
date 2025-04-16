@@ -552,6 +552,76 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
         is_expected.to eq({ "type" => "object", "properties" => { "data" => { "type" => "object", "properties" => { "id" => { "type" => "string" }, "created_at" => { "type" => "string" }, "name" => { "type" => "string" }, "email" => { "type" => "string" } } }, "meta" => { "type" => "object", "properties" => { "session_id" => { "type" => "string" } } } } })
       end
     end
+
+    context "with root_key!" do
+      let_class("BaseResource") do
+        <<~'RUBY'
+          include Alba::Resource
+          root_key!
+        RUBY
+      end
+
+      before do
+        stub_const("Alba", double(inflector: double))
+        allow(Alba.inflector).to receive(:demodulize) { |str| str }
+        allow(Alba.inflector).to receive(:underscore) { |str| str.downcase }
+        allow(Alba.inflector).to receive(:pluralize) { |str| "#{str}s" }
+      end
+
+      context "with single resource" do
+        it do
+          is_expected.to eq({ "type" => "object", "properties" => { "user" => { "type" => "object", "properties" => { "name" => { "type" => "string" }, "email" => { "type" => "string" } } } } })
+        end
+      end
+
+      context "with collection" do
+        let(:resource) { "[UserResource]" }
+
+        it do
+          is_expected.to eq({ "type" => "object", "properties" => { "users" => { "type" => "array", "items" => { "type" => "object", "properties" => { "name" => { "type" => "string" }, "email" => { "type" => "string" } } } } } })
+        end
+      end
+
+      context "with root_key! overriding root_key" do
+        let_class("BaseResource") do
+          <<~'RUBY'
+            include Alba::Resource
+            root_key :data, :data
+          RUBY
+        end
+
+        let_class("UserResource", parent: mocked_classes.BaseResource) do
+          <<~'RUBY'
+            attributes :name, :email
+            root_key!
+          RUBY
+        end
+
+        it do
+          is_expected.to eq({ "type" => "object", "properties" => { "user" => { "type" => "object", "properties" => { "name" => { "type" => "string" }, "email" => { "type" => "string" } } } } })
+        end
+      end
+
+      context "with root_key overriding root_key!" do
+        let_class("BaseResource") do
+          <<~'RUBY'
+            include Alba::Resource
+            root_key!
+          RUBY
+        end
+
+        let_class("UserResource", parent: mocked_classes.BaseResource) do
+          <<~'RUBY'
+            attributes :name, :email
+            root_key :data, :data
+          RUBY
+        end
+
+        it do
+          is_expected.to eq({ "type" => "object", "properties" => { "data" => { "type" => "object", "properties" => { "name" => { "type" => "string" }, "email" => { "type" => "string" } } } } })
+        end
+      end
+    end
   end
 
   context "with key transformation" do
@@ -1279,6 +1349,28 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
         it do
           is_expected.to eq({ "type" => "object", "properties" => { "users" => { "type" => "object", "additionalProperties" => { "type" => "object", "properties" => { "id" => { "type" => "string" }, "name" => { "type" => "string" } } } } } })
         end
+      end
+    end
+
+    context "with root_key! in the association" do
+      let_class("UserResource") do
+        <<~'RUBY'
+          include Alba::Resource
+          attributes :id, :name
+          has_many :articles, resource: ArticleResource
+        RUBY
+      end
+
+      let_class("ArticleResource") do
+        <<~'RUBY'
+          include Alba::Resource
+          attributes :title, :content
+          root_key!
+        RUBY
+      end
+
+      it do
+        is_expected.to eq({ "type" => "object", "properties" => { "id" => { "type" => "string" }, "name" => { "type" => "string" }, "articles" => { "type" => "array", "items" => { "type" => "object", "properties" => { "title" => { "type" => "string" }, "content" => { "type" => "string" } } } } } })
       end
     end
   end
