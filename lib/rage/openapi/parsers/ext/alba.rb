@@ -135,12 +135,13 @@ class Rage::OpenAPI::Parsers::Ext::Alba
       when :many, :has_many, :one, :has_one, :association
         is_array = node.name == :many || node.name == :has_many
         context = with_context { visit(node.arguments) }
-        key = context.keywords["key"] || context.symbols[0]
+        association = context.symbols[0]
+        key = context.keywords["key"] || association
 
         if node.block
           with_inner_segment(key, is_array:) { visit(node.block) }
         else
-          resource = context.keywords["resource"] || (::Alba.inflector && "#{::Alba.inflector.classify(key.to_s)}Resource")
+          resource = context.keywords["resource"] || (::Alba.inflector && "#{::Alba.inflector.classify(association.to_s)}Resource")
           is_valid_resource = @parser.namespace.const_get(resource) rescue false
 
           @segment[key] = if is_array
