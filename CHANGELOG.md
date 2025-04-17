@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.15.1] - 2025-04-17
+
+### Fixed
+
+- [Cable] Create a subscription only when the reactor is started (#146).
+
 ## [1.15.0] - 2025-04-02
 
 ### Added
