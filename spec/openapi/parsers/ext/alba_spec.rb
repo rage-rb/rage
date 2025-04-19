@@ -246,6 +246,25 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
       it do
         is_expected.to eq({ "type" => "object", "properties" => { "id" => { "type" => "string" }, "name" => { "type" => "string" }, "my_articles" => { "type" => "array", "items" => { "type" => "object", "properties" => { "title" => { "type" => "string" }, "content" => { "type" => "string" } } } } } })
       end
+
+      context "with inflector set" do
+        before do
+          stub_const("Alba", double(inflector: double))
+          allow(Alba.inflector).to receive(:classify).with("articles").and_return("Article")
+        end
+
+        let_class("UserResource") do
+          <<~'RUBY'
+            include Alba::Resource
+            attributes :id, :name
+            many :articles, key: "my_articles"
+          RUBY
+        end
+
+        it do
+          is_expected.to eq({ "type" => "object", "properties" => { "id" => { "type" => "string" }, "name" => { "type" => "string" }, "my_articles" => { "type" => "array", "items" => { "type" => "object", "properties" => { "title" => { "type" => "string" }, "content" => { "type" => "string" } } } } } })
+        end
+      end
     end
 
     context "with a proc resource" do
@@ -409,6 +428,25 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
 
       it do
         is_expected.to eq({ "type" => "object", "properties" => { "id" => { "type" => "string" }, "name" => { "type" => "string" }, "my_article" => { "type" => "object", "properties" => { "title" => { "type" => "string" }, "body" => { "type" => "string" } } } } })
+      end
+
+      context "with inflector set" do
+        before do
+          stub_const("Alba", double(inflector: double))
+          allow(Alba.inflector).to receive(:classify).with("article").and_return("Article")
+        end
+
+        let_class("UserResource") do
+          <<~'RUBY'
+            include Alba::Resource
+            attributes :id, :name
+            has_one :article, key: "my_article"
+          RUBY
+        end
+
+        it do
+          is_expected.to eq({ "type" => "object", "properties" => { "id" => { "type" => "string" }, "name" => { "type" => "string" }, "my_article" => { "type" => "object", "properties" => { "title" => { "type" => "string" }, "body" => { "type" => "string" } } } } })
+        end
       end
     end
 
