@@ -201,6 +201,18 @@ class Rage::Configuration
     @internal ||= Internal.new
   end
 
+  def hooks
+    @hooks ||= Hooks.new
+  end
+
+  def after_initialize(&block)
+    hooks.push_hook(block, :after_initialize)
+  end
+
+  def run_hooks(hook_family)
+    hooks.run(hook_family)
+  end
+
   class Server
     attr_accessor :port, :workers_count, :timeout, :max_clients
     attr_reader :threads_count
