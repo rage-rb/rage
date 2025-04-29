@@ -20,7 +20,7 @@ class Rage::OpenAPI::Parsers::Ext::Alba
 
   def __parse_nested(klass_str)
     __parse(klass_str).tap { |visitor|
-      visitor.root_key = visitor.root_key_for_collection = visitor.key_transformer = nil
+      visitor.root_key = visitor.root_key_for_collection = visitor.root_key_proc = visitor.key_transformer = nil
     }.build_schema
   end
 
@@ -50,7 +50,7 @@ class Rage::OpenAPI::Parsers::Ext::Alba
   end
 
   class Visitor < Prism::Visitor
-    attr_accessor :schema, :root_key, :root_key_for_collection, :key_transformer, :collection_key, :meta
+    attr_accessor :schema, :root_key, :root_key_for_collection, :root_key_proc, :key_transformer, :collection_key, :meta
 
     def initialize(parser, is_collection)
       @parser = parser
@@ -64,6 +64,7 @@ class Rage::OpenAPI::Parsers::Ext::Alba
       @self_name = nil
       @root_key = nil
       @root_key_for_collection = nil
+      @root_key_proc = nil
       @key_transformer = nil
       @collection_key = false
       @meta = {}
@@ -74,7 +75,7 @@ class Rage::OpenAPI::Parsers::Ext::Alba
 
       if node.name =~ /Resource$|Serializer$/ && node.superclass
         visitor = @parser.__parse(node.superclass.name)
-        @root_key, @root_key_for_collection = visitor.root_key, visitor.root_key_for_collection
+        @root_key, @root_key_for_collection, @root_key_proc = visitor.root_key, visitor.root_key_for_collection, visitor.root_key_proc
         @key_transformer, @collection_key, @meta = visitor.key_transformer, visitor.collection_key, visitor.meta
         @schema.merge!(visitor.schema)
       end
@@ -86,6 +87,13 @@ class Rage::OpenAPI::Parsers::Ext::Alba
       result = { "type" => "object" }
 
       result["properties"] = @schema if @schema.any?
+
+      if @root_key_proc
+        dynamic_root_key, dynamic_root_key_for_collection = @root_key_proc.call(@self_name)
+
+        @root_key = dynamic_root_key
+        @root_key_for_collection = dynamic_root_key_for_collection
+      end
 
       if @is_collection
         result = if @collection_key && @root_key_for_collection
@@ -109,6 +117,7 @@ class Rage::OpenAPI::Parsers::Ext::Alba
     def visit_call_node(node)
       case node.name
       when :root_key
+        @root_key_proc = nil
         context = with_context { visit(node.arguments) }
         @root_key, @root_key_for_collection = context.symbols
 
@@ -160,10 +169,14 @@ class Rage::OpenAPI::Parsers::Ext::Alba
 
       when :root_key!
         if (inflector = ::Alba.inflector)
-          suffix = @self_name.end_with?("Resource") ? "Resource" : "Serializer"
-          name = inflector.demodulize(@self_name).delete_suffix(suffix)
-          @root_key = inflector.underscore(name)
-          @root_key_for_collection = inflector.pluralize(@root_key) if @is_collection
+          @root_key, @root_key_for_collection = nil
+
+          @root_key_proc = ->(resource_name) do
+            suffix = resource_name.end_with?("Resource") ? "Resource" : "Serializer"
+            name = inflector.demodulize(resource_name).delete_suffix(suffix)
+
+            inflector.underscore(name).yield_self { |key| [key, inflector.pluralize(key)] }
+          end
         end
       end
     end
