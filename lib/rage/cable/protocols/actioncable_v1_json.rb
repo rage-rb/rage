@@ -2,7 +2,7 @@
 
 ##
 # A protocol defines the structure, rules and semantics for exchanging data between the client and the server.
-# The protocol class should inherit from {Rage::Cable::Protocol::Base} and respond to the following methods:
+# The protocol class should inherit from {Rage::Cable::Protocols::Base} and respond to the following methods:
 #
 # * `protocol_definition`
 # * `init`
@@ -15,7 +15,7 @@
 # * `on_shutdown`
 # * `on_close`
 #
-class Rage::Cable::Protocol::ActioncableV1Json < Rage::Cable::Protocol::Base
+class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
   module TYPE
     WELCOME = "welcome"
     DISCONNECT = "disconnect"

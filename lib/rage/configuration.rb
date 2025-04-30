@@ -115,7 +115,7 @@ require "erb"
 #
 # • _config.cable.protocol_
 #
-# > Specifies the protocol the server will use. The only value currently supported is `Rage::Cable::Protocol::ActioncableV1Json`. The client application will need to use [@rails/actioncable](https://www.npmjs.com/package/@rails/actioncable) to talk to the server.
+# > Specifies the protocol the server will use. The only value currently supported is `Rage::Cable::Protocols::ActioncableV1Json`. The client application will need to use [@rails/actioncable](https://www.npmjs.com/package/@rails/actioncable) to talk to the server.
 #
 # • _config.cable.allowed_request_origins_
 #
@@ -260,7 +260,7 @@ class Rage::Configuration
     attr_accessor :protocol, :allowed_request_origins, :disable_request_forgery_protection
 
     def initialize
-      @protocol = Rage::Cable::Protocol::ActioncableV1Json
+      @protocol = Rage::Cable::Protocols::ActioncableV1Json
       @allowed_request_origins = if Rage.env.development? || Rage.env.test?
         /localhost/
       end

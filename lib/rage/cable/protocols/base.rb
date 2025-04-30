@@ -3,7 +3,7 @@
 require "zlib"
 require "set"
 
-class Rage::Cable::Protocol::Base
+class Rage::Cable::Protocols::Base
   HANDSHAKE_HEADERS = {}
 
   # @param router [Rage::Cable::Router]

@@ -136,12 +136,12 @@ module Rage::Cable
     autoload :Redis, "rage/cable/adapters/redis"
   end
 
-  module Protocol
+  module Protocols
   end
 end
 
-require_relative "protocol/base"
-require_relative "protocol/actioncable_v1_json"
+require_relative "protocols/base"
+require_relative "protocols/actioncable_v1_json"
 require_relative "channel"
 require_relative "connection"
 require_relative "router"
