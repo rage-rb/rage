@@ -228,7 +228,7 @@ RSpec.describe Rage::Cable::Adapters::Redis do
         proc { raise }
       )
 
-      expect(Rage.config.cable.protocol).to receive(:broadcast).with(
+      expect(Rage.cable.__protocol).to receive(:broadcast).with(
         "test-stream", { "hello" => "world" }
       ).once
 
@@ -246,7 +246,7 @@ RSpec.describe Rage::Cable::Adapters::Redis do
         proc { raise }
       )
 
-      expect(Rage.config.cable.protocol).to receive(:broadcast).with(
+      expect(Rage.cable.__protocol).to receive(:broadcast).with(
         "test-stream", { "hello" => "world" }
       ).once
 
@@ -261,7 +261,7 @@ RSpec.describe Rage::Cable::Adapters::Redis do
         proc { raise }
       )
 
-      expect(Rage.config.cable.protocol).not_to receive(:broadcast)
+      expect(Rage.cable.__protocol).not_to receive(:broadcast)
 
       subject
     end

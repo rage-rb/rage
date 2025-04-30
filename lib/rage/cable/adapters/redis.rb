@@ -107,7 +107,7 @@ class Rage::Cable::Adapters::Redis < Rage::Cable::Adapters::Base
         if data
           data[@redis_stream].each do |id, (_, stream_name, _, serialized_data, _, broadcaster_uuid, _, message_uuid)|
             if broadcaster_uuid != @server_uuid && message_uuid != last_message_uuid
-              Rage.config.cable.protocol.broadcast(stream_name, JSON.parse(serialized_data))
+              Rage.cable.__protocol.broadcast(stream_name, JSON.parse(serialized_data))
             end
 
             last_id = id
