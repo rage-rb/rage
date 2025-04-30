@@ -36,6 +36,7 @@ module Rage::Cable
     @__protocol ||= Rage.config.cable.protocol.tap { |protocol| protocol.init(__router) }
   end
 
+  # @private
   def self.__adapter
     @__adapter ||= Rage.config.cable.adapter
   end
