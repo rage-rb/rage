@@ -1,29 +1,21 @@
 # frozen_string_literal: true
 
-require "zlib"
-require "set"
-
 ##
 # A protocol defines the structure, rules and semantics for exchanging data between the client and the server.
-# The class that defines a protocol should respond to the following methods:
+# The protocol class should inherit from {Rage::Cable::Protocol::Base} and respond to the following methods:
 #
 # * `protocol_definition`
 # * `init`
 # * `on_open`
 # * `on_message`
 # * `serialize`
-# * `subscribe`
-# * `broadcast`
 #
 # The two optional methods are:
 #
 # * `on_shutdown`
 # * `on_close`
 #
-# It is likely that all logic around `@subscription_identifiers` has nothing to do with the protocol itself and
-# should be extracted into another class. We'll refactor this once we start working on a new protocol.
-#
-class Rage::Cable::Protocol::ActioncableV1Json
+class Rage::Cable::Protocol::ActioncableV1Json < Rage::Cable::Protocol::Base
   module TYPE
     WELCOME = "welcome"
     DISCONNECT = "disconnect"
@@ -59,7 +51,7 @@ class Rage::Cable::Protocol::ActioncableV1Json
   #
   # @param router [Rage::Cable::Router]
   def self.init(router)
-    @router = router
+    super
 
     Iodine.on_state(:on_start) do
       ping_counter = Time.now.to_i
@@ -68,24 +60,6 @@ class Rage::Cable::Protocol::ActioncableV1Json
         ping_counter += 1
         Iodine.publish("cable:ping", { type: TYPE::PING, message: ping_counter }.to_json, Iodine::PubSub::PROCESS)
       end
-    end
-
-    # Hash<String(stream name) => Set<Hash>(subscription params)>
-    @subscription_identifiers = Hash.new { |hash, key| hash[key] = Set.new }
-
-    Iodine.on_state(:pre_start) do
-      # this is a fallback to synchronize subscription identifiers across different worker processes;
-      # we expect connections to be distributed among all workers, so this code will almost never be called;
-      # we also synchronize subscriptions with the master process so that the forks that are spun up instead
-      # of the crashed ones also had access to the identifiers;
-      Iodine.subscribe("cable:synchronize") do |_, subscription_msg|
-        stream_name, params = Rage::ParamsParser.json_parse(subscription_msg)
-        @subscription_identifiers[stream_name] << params
-      end
-    end
-
-    Iodine.on_state(:on_finish) do
-      Iodine.unsubscribe("cable:synchronize")
     end
   end
 
@@ -148,7 +122,7 @@ class Rage::Cable::Protocol::ActioncableV1Json
     end
   end
 
-  # The method should process client disconnections and call {Rage::Cable::Router#process_message}.
+  # The method should process client disconnections and call {Rage::Cable::Router#process_disconnection}.
   #
   # @note This method is optional.
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
@@ -163,29 +137,5 @@ class Rage::Cable::Protocol::ActioncableV1Json
   # @param data [Object] the object to serialize
   def self.serialize(params, data)
     { identifier: params.to_json, message: data }.to_json
-  end
-
-  # Subscribe to a stream.
-  #
-  # @param connection [Rage::Cable::WebSocketConnection] the connection object
-  # @param name [String] the stream name
-  # @param params [Hash] parameters associated with the client
-  def self.subscribe(connection, name, params)
-    connection.subscribe("cable:#{name}:#{Zlib.crc32(params.to_s)}")
-
-    unless @subscription_identifiers[name].include?(params)
-      @subscription_identifiers[name] << params
-      ::Iodine.publish("cable:synchronize", [name, params].to_json)
-    end
-  end
-
-  # Broadcast data to all clients connected to a stream.
-  #
-  # @param name [String] the stream name
-  # @param data [Object] the data to send
-  def self.broadcast(name, data)
-    @subscription_identifiers[name].each do |params|
-      ::Iodine.publish("cable:#{name}:#{Zlib.crc32(params.to_s)}", serialize(params, data))
-    end
   end
 end

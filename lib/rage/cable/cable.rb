@@ -140,6 +140,7 @@ module Rage::Cable
   end
 end
 
+require_relative "protocol/base"
 require_relative "protocol/actioncable_v1_json"
 require_relative "channel"
 require_relative "connection"
