@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "time"
-require "set"
 
 class Rage::Request
   # @private
