@@ -145,6 +145,7 @@ end
 
 require_relative "protocols/base"
 require_relative "protocols/actioncable_v1_json"
+require_relative "protocols/raw_websocket_json"
 require_relative "channel"
 require_relative "connection"
 require_relative "router"
