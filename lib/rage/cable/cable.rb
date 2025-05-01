@@ -139,6 +139,8 @@ module Rage::Cable
 
   module Protocols
   end
+
+  Protocol = Protocols
 end
 
 require_relative "protocols/base"
