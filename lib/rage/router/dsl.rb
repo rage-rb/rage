@@ -61,7 +61,8 @@ class Rage::Router::DSL
     def initialize(router)
       @router = router
 
-      @default_actions = %i(index create show update destroy)
+      @default_resources_actions = %i(index create show update destroy)
+      @default_resource_actions = %i(create show update destroy)
       @default_match_methods = %i(get post put patch delete head)
       @scope_opts = %i(module path controller)
 
@@ -350,7 +351,7 @@ class Rage::Router::DSL
 
       _only = Array(_only) if _only
       _except = Array(_except) if _except
-      actions = @default_actions.select do |action|
+      actions = @default_resources_actions.select do |action|
         (_only.nil? || _only.include?(action)) && (_except.nil? || !_except.include?(action))
       end
 
@@ -370,6 +371,53 @@ class Rage::Router::DSL
         delete("/:#{_param}", to: "#{resource}#destroy") if actions.include?(:destroy)
 
         scope(path: ":#{to_singular(resource)}_#{_param}", controller: resource, &block) if block
+      end
+    end
+
+    # Automatically create REST routes for a resource.
+    #
+    # @param [Hash] opts resource options
+    # @option opts [String] :module the namespace for the controller
+    # @option opts [Symbol, Array<Symbol>] :only only generate routes for the given actions
+    # @option opts [Symbol, Array<Symbol>] :except generate all routes except for the given actions
+    # @example Create five REST routes, all mapping to the `Photos` controller:
+    #   resource :photo
+    #   # POST      /photo       => photo#create
+    #   # GET       /photo   => photo#show
+    #   # PATCH/PUT /photo   => photo#update
+    #   # DELETE    /photo   => photo#destroy
+    # @note This helper doesn't generate the `new` and `edit` routes.
+    def resource(*_resources, **opts, &block)
+      # support calls with multiple resources, e.g. `resources :albums, :photos`
+      if _resources.length > 1
+        _resources.each { |_resource| resource(_resource, **opts, &block) }
+        return
+      end
+
+      # raise ArgumentError, ":param option doesn't make sense for resource" if opts.key?(:param)
+
+      _module, _path, _only, _except, _param = opts.values_at(:module, :path, :only, :except, :param)
+      raise ArgumentError, ":param option can't contain colons" if _param.to_s.include?(":")
+
+      _only = Array(_only) if _only
+      _except = Array(_except) if _except
+      actions = @default_resource_actions.select do |action|
+        (_only.nil? || _only.include?(action)) && (_except.nil? || !_except.include?(action))
+      end
+
+      resource = _resources[0].to_s
+      _path ||= resource
+
+      scope_opts = { path: _path }
+      scope_opts[:module] = _module if _module
+      scope(scope_opts) do
+        post("/", to: "#{resource}#create") if actions.include?(:create)
+        get("/", to: "#{resource}#show") if actions.include?(:show)
+        patch("", to: "#{resource}#update") if actions.include?(:update)
+        put("/", to: "#{resource}#update") if actions.include?(:update)
+        delete("/", to: "#{resource}#destroy") if actions.include?(:destroy)
+
+        scope(controller: resource, &block) if block
       end
     end
 
