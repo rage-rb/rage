@@ -1,10 +1,10 @@
-### Boot sequence and request lifecycle
+### API Workflow
 
 The following diagram describes some of Rage's internal components and the way they interact with each other:
 
 ![overview](https://github.com/rage-rb/rage/assets/2270393/0d45bbe3-622c-4b17-b8d8-552c567fecb3)
 
-### Executing controller actions
+### Executing Controller Actions
 
 When `Rage::Router::DSL` parses the `config/routes.rb` file and calls the `Rage::Router::Backend` class, it registers actions and stores handler procs.
 
@@ -51,3 +51,7 @@ After that, Rage will create and store a handler proc that will look exactly lik
 ```
 
 All of this happens at boot time. Once the request comes in at runtime, Rage will only need to retrieve the handler proc defined earlier and call it.
+
+### Cable Workflow
+
+![cable](https://github.com/user-attachments/assets/a903ad02-9002-441f-bcd9-d6274ef8a5bd)
