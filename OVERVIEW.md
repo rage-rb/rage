@@ -1,12 +1,9 @@
-### Design Principles
+### Table of Contents
 
-* **Lean Happy Path:** we try to execute as many operations as possible during server initialization to minimize workload during request processing. Additionally, new features should be designed to avoid impacting the framework performance for users who do not utilize those features.
-
-* **Performance Over Code Style:** we recognize the distinct requirements of framework and client code. Testability, readability, and maintainability are crucial for client code used in application development. Conversely, library code addresses different tasks and should be designed with different objectives. In library code, performance and abstraction to enable future modifications while maintaining backward compatibility take precedence over typical client code concerns, though testability and readability remain important.
-
-* **Rails Compatibility:** Rails compatibility is a key objective to ensure a seamless transition for developers. While it may not be feasible to replicate every method implemented in Rails, the framework should function in a familiar and expected manner.
-
-* **Single-Threaded Fiber-Based Approach:** each request is processed in a separate, isolated execution context (Fiber), pausing whenever it encounters blocking I/O. This single-threaded approach eliminates thread synchronization overhead, leading to enhanced performance and simplified code.
+[API Workflow](#api-workflow)<br>
+[Executing Controller Actions](#executing-controller-actions)<br>
+[Cable Workflow](#cable-workflow)<br>
+[Design Principles](#design-principles)<br>
 
 ### API Workflow
 
@@ -64,4 +61,16 @@ All of this happens at boot time. Once the request comes in at runtime, Rage wil
 
 ### Cable Workflow
 
+The following diagram describes the components of a `Rage::Cable` application:
+
 ![cable](https://github.com/user-attachments/assets/a903ad02-9002-441f-bcd9-d6274ef8a5bd)
+
+### Design Principles
+
+* **Lean Happy Path:** we try to execute as many operations as possible during server initialization to minimize workload during request processing. Additionally, new features should be designed to avoid impacting the framework performance for users who do not utilize those features.
+
+* **Performance Over Code Style:** we recognize the distinct requirements of framework and client code. Testability, readability, and maintainability are crucial for client code used in application development. Conversely, library code addresses different tasks and should be designed with different objectives. In library code, performance and abstraction to enable future modifications while maintaining backward compatibility take precedence over typical client code concerns, though testability and readability remain important.
+
+* **Rails Compatibility:** Rails compatibility is a key objective to ensure a seamless transition for developers. While it may not be feasible to replicate every method implemented in Rails, the framework should function in a familiar and expected manner.
+
+* **Single-Threaded Fiber-Based Approach:** each request is processed in a separate, isolated execution context (Fiber), pausing whenever it encounters blocking I/O. This single-threaded approach eliminates thread synchronization overhead, leading to enhanced performance and simplified code.
