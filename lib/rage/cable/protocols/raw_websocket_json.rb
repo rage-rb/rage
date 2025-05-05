@@ -6,7 +6,11 @@
 # channel subscription. As a result, clients are automatically subscribed to a channel as soon as
 # they establish a connection.
 #
-# @see Rage::Cable::Protocols::ActioncableV1Json
+# Heartbeats are also supported - the server will respond with `pong` to every `ping` message. Additionally,
+# all ping messages are buffered and processed once a second, which means it can take up to a second for
+# the server to respond to a `ping`.
+#
+# @see Rage::Cable::Protocols::Base
 #
 class Rage::Cable::Protocols::RawWebsocketJson < Rage::Cable::Protocols::Base
   # identifiers are used to distinguish between different channels that share a single connection;
@@ -21,6 +25,22 @@ class Rage::Cable::Protocols::RawWebsocketJson < Rage::Cable::Protocols::Base
   end
 
   DEFAULT_PARAMS = {}.freeze
+
+  def self.init(router)
+    super
+
+    @ping_connections = Set.new
+
+    Iodine.on_state(:on_start) do
+      Iodine.run_every(1_000) do
+        @ping_connections.each_slice(500) do |slice|
+          Iodine.defer { slice.each { |connection| connection.write("pong") } }
+        end
+
+        @ping_connections.clear
+      end
+    end
+  end
 
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
   def self.on_open(connection)
@@ -53,7 +73,7 @@ class Rage::Cable::Protocols::RawWebsocketJson < Rage::Cable::Protocols::Base
   # @param raw_data [String] the message body
   def self.on_message(connection, raw_data)
     if raw_data == "ping"
-      connection.write("pong")
+      @ping_connections << connection
       return
     end
 
