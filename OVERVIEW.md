@@ -3,6 +3,7 @@
 [API Workflow](#api-workflow)<br>
 [Executing Controller Actions](#executing-controller-actions)<br>
 [Cable Workflow](#cable-workflow)<br>
+[OpenAPI Workflow](#openapi-workflow)<br>
 [Design Principles](#design-principles)<br>
 
 ### API Workflow
@@ -63,7 +64,13 @@ All of this happens at boot time. Once the request comes in at runtime, Rage wil
 
 The following diagram describes the components of a `Rage::Cable` application:
 
-![cable](https://github.com/user-attachments/assets/a903ad02-9002-441f-bcd9-d6274ef8a5bd)
+![cable](https://github.com/user-attachments/assets/86db2091-f93a-44f8-9512-c4701770d09e)
+
+### OpenAPI Workflow
+
+The following diagram describes the flow of `Rage::OpenAPI`:
+
+<img width="800" src="https://github.com/user-attachments/assets/b4a87b1e-9a0f-4432-a3e9-0106ff546f3f" />
 
 ### Design Principles
 
