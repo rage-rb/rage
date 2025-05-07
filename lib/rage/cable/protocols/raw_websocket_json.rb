@@ -125,4 +125,15 @@ class Rage::Cable::Protocols::RawWebsocketJson < Rage::Cable::Protocols::Base
   def supports_rpc?
     false
   end
+
+  # @private
+  # The base implementation groups connection subscriptions by `params`;
+  # however, with `RawWebsocketJson`, params are not part of the payload (see {serialize})
+  # and we can disable grouping in exchange for better performance
+  #
+  # @param connection [Rage::Cable::WebSocketConnection] the connection object
+  # @param name [String] the stream name
+  def subscribe(connection, name, _)
+    super(connection, name, "")
+  end
 end
