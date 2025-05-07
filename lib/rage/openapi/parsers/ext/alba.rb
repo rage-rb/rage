@@ -37,6 +37,9 @@ class Rage::OpenAPI::Parsers::Ext::Alba
     visitor
   end
 
+  class RequiredParam < String
+  end
+
   class VisitorContext
     attr_accessor :symbols, :hashes, :keywords, :consts, :nil
 
@@ -88,6 +91,7 @@ class Rage::OpenAPI::Parsers::Ext::Alba
 
       result["properties"] = @schema if @schema.any?
 
+      # TODO: root_key
       if @root_key_proc
         dynamic_root_key, dynamic_root_key_for_collection = @root_key_proc.call(@self_name)
 
@@ -109,6 +113,7 @@ class Rage::OpenAPI::Parsers::Ext::Alba
         result = { "type" => "object", "properties" => { @root_key => result, **@meta } }
       end
 
+      result = deep_require_params(result)
       result = deep_transform_keys(result) if @key_transformer
 
       result
@@ -123,12 +128,14 @@ class Rage::OpenAPI::Parsers::Ext::Alba
 
       when :attributes, :attribute
         context = with_context { visit(node.arguments) }
-        context.symbols.each { |symbol| @segment[symbol] = { "type" => "string" } }
-        context.keywords.except("if").each { |key, type| @segment[key] = get_type_definition(type) }
+
+        key_class = !!context.keywords.delete("if") ? String : RequiredParam
+        context.symbols.each { |symbol| @segment[key_class.new(symbol)] = { "type" => "string" } }
+        context.keywords.each { |key, type| @segment[key_class.new(key)] = get_type_definition(type) }
 
       when :nested, :nested_attribute
         context = with_context { visit(node.arguments) }
-        with_inner_segment(context.symbols[0]) { visit(node.block) }
+        with_inner_segment(RequiredParam.new(context.symbols[0])) { visit(node.block) }
 
       when :meta
         context = with_context do
@@ -145,7 +152,9 @@ class Rage::OpenAPI::Parsers::Ext::Alba
         is_array = node.name == :many || node.name == :has_many
         context = with_context { visit(node.arguments) }
         association = context.symbols[0]
-        key = context.keywords["key"] || association
+
+        key_class = context.keywords.has_key?("if") ? String : RequiredParam
+        key = key_class.new(context.keywords["key"] || association)
 
         if node.block
           with_inner_segment(key, is_array:) { visit(node.block) }
@@ -257,9 +266,30 @@ class Rage::OpenAPI::Parsers::Ext::Alba
 
     def deep_transform_keys(schema)
       schema.each_with_object({}) do |(key, value), memo|
+        if key == "required"
+          memo[key] = value.map { |v| @key_transformer.call(v) }
+          next
+        end
+
         transformed_key = %w(type properties items additionalProperties).include?(key) ? key : @key_transformer.call(key)
         memo[transformed_key] = value.is_a?(Hash) ? deep_transform_keys(value) : value
       end
+    end
+
+    def deep_require_params(schema)
+      schema.keys.each do |key|
+        value = schema[key]
+
+        if value.is_a?(Hash)
+          deep_require_params(value)
+
+          if value["type"] == "object"
+            value["required"] = value["properties"].keys.select { |key| key.is_a?(RequiredParam) }
+          end
+        end
+      end
+
+      schema
     end
 
     def get_key_transformer(transformer_id)
