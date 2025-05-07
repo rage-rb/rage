@@ -115,7 +115,7 @@ require "erb"
 #
 # • _config.cable.protocol_
 #
-# > Specifies the protocol the server will use. The only value currently supported is `Rage::Cable::Protocols::ActioncableV1Json`. The client application will need to use [@rails/actioncable](https://www.npmjs.com/package/@rails/actioncable) to talk to the server.
+# > Specifies the protocol the server will use. Supported values include {Rage::Cable::Protocols::ActioncableV1Json :actioncable_v1_json} and {Rage::Cable::Protocols::RawWebsocketJson :raw_websocket_json}. Defaults to {Rage::Cable::Protocols::ActioncableV1Json :actioncable_v1_json}.
 #
 # • _config.cable.allowed_request_origins_
 #
@@ -257,12 +257,26 @@ class Rage::Configuration
   end
 
   class Cable
-    attr_accessor :protocol, :allowed_request_origins, :disable_request_forgery_protection
+    attr_accessor :allowed_request_origins, :disable_request_forgery_protection
+    attr_reader :protocol
 
     def initialize
       @protocol = Rage::Cable::Protocols::ActioncableV1Json
       @allowed_request_origins = if Rage.env.development? || Rage.env.test?
         /localhost/
+      end
+    end
+
+    def protocol=(protocol)
+      @protocol = case protocol
+      when Class
+        protocol
+      when :actioncable_v1_json
+        Rage::Cable::Protocols::ActioncableV1Json
+      when :raw_websocket_json
+        Rage::Cable::Protocols::RawWebsocketJson
+      else
+        raise ArgumentError, "Unknown protocol. Supported values are `:actioncable_v1_json` and `:raw_websocket_json`."
       end
     end
 
