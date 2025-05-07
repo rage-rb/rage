@@ -13,6 +13,8 @@ RSpec.describe Rage::Cable::Adapters::Redis do
 
     allow(mock_redis).to receive(:call).with("INFO").and_return("redis_version:7.0.5")
     allow(mock_redis).to receive(:close)
+
+    allow(Rage.cable).to receive(:__protocol).and_return(double)
   end
 
   describe "#publish" do
