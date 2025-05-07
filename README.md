@@ -4,7 +4,7 @@
 
 [![Gem Version](https://badge.fury.io/rb/rage-rb.svg)](https://badge.fury.io/rb/rage-rb)
 ![Tests](https://github.com/rage-rb/rage/actions/workflows/main.yml/badge.svg)
-![Ruby Requirement](https://img.shields.io/badge/Ruby-3.1%2B-%23f40000)
+![Ruby Requirement](https://img.shields.io/badge/Ruby-3.2%2B-%23f40000)
 
 Rage is a high-performance framework compatible with Rails, featuring [WebSocket](https://github.com/rage-rb/rage/wiki/WebSockets-guide) support and automatic generation of [OpenAPI](https://github.com/rage-rb/rage/wiki/OpenAPI-Guide) documentation for your APIs. The framework is built on top of [Iodine](https://github.com/rage-rb/iodine) and is based on the following design principles:
 
