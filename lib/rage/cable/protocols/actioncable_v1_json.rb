@@ -1,19 +1,37 @@
 # frozen_string_literal: true
 
 ##
-# A protocol defines the structure, rules and semantics for exchanging data between the client and the server.
-# The protocol class should inherit from {Rage::Cable::Protocols::Base} and respond to the following methods:
+# This is an implementation of the `Action Cable` protocol. Clients are expected to use
+# {https://www.npmjs.com/package/@rails/actioncable @rails/actioncable} to connect to the server.
 #
-# * `protocol_definition`
-# * `init`
-# * `on_open`
-# * `on_message`
-# * `serialize`
+# @see Rage::Cable::Protocols::Base
 #
-# The two optional methods are:
+# @example Server side
+#   class TodoItemsChannel
+#     def subscribed
+#       stream_from "todo-items"
+#     end
 #
-# * `on_shutdown`
-# * `on_close`
+#     def add_item(data)
+#       puts "Adding Todo item: #{data}"
+#     end
+#
+#     def remove_item(data)
+#       puts "Removing Todo item: #{data}"
+#     end
+#   end
+#
+# @example Client side
+#   import { createConsumer } from '@rails/actioncable'
+#
+#   const cable = createConsumer('ws://localhost:3000/cable')
+#
+#   const channel = cable.subscriptions.create('TodoItemsChannel', {
+#     connected: () => console.log('connected')
+#   })
+#
+#   channel.perform('add_item', { item: 'New Item' })
+#   channel.perform('remove_item', { item_id: 123 })
 #
 class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
   module TYPE

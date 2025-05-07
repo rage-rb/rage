@@ -12,10 +12,26 @@
 #
 # @see Rage::Cable::Protocols::Base
 #
+# @example Server side
+#   class TodoItemsChannel
+#     def subscribed
+#       stream_from "todo-items-#{params[:user_id]}"
+#     end
+#
+#     def receive(data)
+#       puts "New Todo item: #{data}"
+#     end
+#   end
+#
+# @example Client side
+#   socket = new WebSocket("ws://localhost:3000/cable/todo_items?user_id=123")
+#   socket.send(JSON.stringify({ item: "New Item" }))
+#
 class Rage::Cable::Protocols::RawWebsocketJson < Rage::Cable::Protocols::Base
   # identifiers are used to distinguish between different channels that share a single connection;
   # since the raw protocol uses a single connection for each channel, identifiers are not necessary
   IDENTIFIER = ""
+  private_constant :IDENTIFIER
 
   module MESSAGES
     UNAUTHORIZED = { err: "unauthorized" }.to_json
@@ -23,8 +39,10 @@ class Rage::Cable::Protocols::RawWebsocketJson < Rage::Cable::Protocols::Base
     INVALID = { err: "invalid channel name" }.to_json
     UNKNOWN = { err: "unknown action" }.to_json
   end
+  private_constant :MESSAGES
 
   DEFAULT_PARAMS = {}.freeze
+  private_constant :DEFAULT_PARAMS
 
   def self.init(router)
     super

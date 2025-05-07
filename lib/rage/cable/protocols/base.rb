@@ -3,7 +3,22 @@
 require "zlib"
 require "set"
 
+##
+# A protocol defines the structure, rules and semantics for exchanging data between the client and the server.
+# A protocol class should inherit from {Rage::Cable::Protocols::Base} and implement the following methods:
+#
+# * `on_open`
+# * `on_message`
+# * `serialize`
+#
+# The optional methods are:
+#
+# * `protocol_definition`
+# * `on_shutdown`
+# * `on_close`
+#
 class Rage::Cable::Protocols::Base
+  # @private
   HANDSHAKE_HEADERS = {}
 
   # @param router [Rage::Cable::Router]
