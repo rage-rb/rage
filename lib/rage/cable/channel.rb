@@ -18,6 +18,8 @@ class Rage::Cable::Channel
         public_instance_methods(true) - Rage::Cable::Channel.public_instance_methods(true)
       ).reject { |m| m.start_with?("__rage_tmp") || m.start_with?("__run") }
 
+      actions.reject! { |m| m != :receive } unless Rage.cable.__protocol.supports_rpc?
+
       @__prepared_actions = (INTERNAL_ACTIONS + actions).each_with_object({}) do |action_name, memo|
         memo[action_name] = __register_action_proc(action_name)
       end

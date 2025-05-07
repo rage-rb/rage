@@ -120,4 +120,9 @@ class Rage::Cable::Protocols::RawWebsocketJson < Rage::Cable::Protocols::Base
   def self.serialize(_, data)
     data.to_json
   end
+
+  # @return [Boolean]
+  def supports_rpc?
+    false
+  end
 end
