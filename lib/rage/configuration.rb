@@ -35,6 +35,19 @@ require "erb"
 #
 # > Defines one or several old secrets that need to be rotated. Can accept a single key or an array of keys. Rage will fall back to the `FALLBACK_SECRET_KEY_BASE` environment variable if this is not set.
 #
+# • _config.after_initialize_
+#
+# > Adds given block to be run after application has been initialized, but before routes have been loaded. Please, see {https://github.com/rage-rb/rage/blob/master/OVERVIEW.md OVERVIEW.md} for more information about initialization process.
+# > The config object itself is available inside the block. Please, see examples.
+# > ```
+# Rage.config.after_initialize do
+#   p 'after initialize'
+#
+#   config.server.workers_count = 3
+#   p config.server.workers_count
+# end
+# > ```
+#
 # # Middleware Configuration
 #
 # • _config.middleware.use_
