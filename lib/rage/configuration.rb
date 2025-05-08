@@ -162,10 +162,6 @@ class Rage::Configuration
   # used in DSL
   def config = self
 
-  def initialize
-    initialize_hooks
-  end
-
   def log_formatter=(formatter)
     raise ArgumentError, "Custom log formatter should respond to `#call`" unless formatter.respond_to?(:call)
     @log_formatter = formatter
