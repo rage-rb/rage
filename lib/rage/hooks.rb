@@ -16,16 +16,18 @@ module Hooks
   end
 
   def push_hook(callback, hook_family)
-    @hooks[hook_family] << callback if callback
+    @hooks[hook_family] << callback if callback.is_a?(Proc)
   end
 
-  def run_hooks_for!(hook_family, base = nil)
+  def run_hooks_for!(hook_family, context = nil)
     @hooks[hook_family].each do |callback|
-      if base
-        base.instance_exec(&callback)
+      if context
+        context.instance_exec(&callback)
       else
         callback.call
       end
     end
+
+    true
   end
 end
