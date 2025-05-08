@@ -1,25 +1,20 @@
 # frozen_string_literal: true
 
-class Rage::Configuration
-  class Hooks
-    def initialize
-      @after_initialize = []
-    end
-    def push_hook(callback, hook_family)
-      case hook_family
-      when :after_initialize
-        @after_initialize.push(callback)
-      else
-        Rage.logger.error("Unknown hook family: #{hook_family}. Callback has not been registered")
-      end
-    end
+module Hooks
+  def initialize_hooks
+    @hooks = Hash.new { |h, k| h[k] = [] }
+  end
 
-    def run(hook_family)
-      case hook_family
-      when :after_initialize
-        @after_initialize.each { |callback| callback.call }
+  def push_hook(callback, hook_family)
+    @hooks[hook_family] << callback if callback
+  end
+
+  def run_hooks_for!(hook_family, base = nil)
+    @hooks[hook_family].each do |callback|
+      if base
+        base.instance_exec(&callback)
       else
-        Rage.logger.error("Unknown hook family: #{hook_family}. Callbacks have not been run")
+        callback.call
       end
     end
   end

@@ -15,6 +15,6 @@ require "rage/ext/setup"
 Rage.code_loader.setup
 
 # Run after_initialize hooks
-Rage.config.run_hooks(:after_initialize)
+Rage.config.run_after_initialize!
 
 require_relative "#{Rage.root}/config/routes"

@@ -153,12 +153,18 @@ require "erb"
 # > Instructs Rage to not reuse Active Record connections between different fibers.
 #
 class Rage::Configuration
+  include Hooks
+
   attr_accessor :logger
   attr_reader :log_formatter, :log_level
   attr_writer :secret_key_base, :fallback_secret_key_base
 
   # used in DSL
   def config = self
+
+  def initialize
+    initialize_hooks
+  end
 
   def log_formatter=(formatter)
     raise ArgumentError, "Custom log formatter should respond to `#call`" unless formatter.respond_to?(:call)
@@ -201,16 +207,12 @@ class Rage::Configuration
     @internal ||= Internal.new
   end
 
-  def hooks
-    @hooks ||= Hooks.new
-  end
-
   def after_initialize(&block)
-    hooks.push_hook(block, :after_initialize)
+    push_hook(block, :after_initialize)
   end
 
-  def run_hooks(hook_family)
-    hooks.run(hook_family)
+  def run_after_initialize!
+    run_hooks_for!(:after_initialize, self)
   end
 
   class Server
