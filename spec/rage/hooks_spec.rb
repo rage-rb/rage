@@ -5,8 +5,8 @@ RSpec.describe Hooks do
 
   subject { ClassWithHooks.new }
 
-  describe '#included' do
-    it 'initiates hooks instance variable' do
+  describe "#included" do
+    it "initiates hooks instance variable" do
       p subject.instance_variables
 
       expect(subject.instance_variables).to include(:@hooks)
@@ -14,22 +14,22 @@ RSpec.describe Hooks do
     end
   end
 
-  describe '#push_hook' do
-    it 'stores hook by family' do
-      hook = Proc.new { 1 }
+  describe "#push_hook" do
+    it "stores hook by family" do
+      hook = proc { 1 }
       subject.push_hook(hook, :after)
       subject.push_hook(1, :after)
       subject.push_hook(hook, :before)
       subject.push_hook(nil, :before)
 
-      expect(subject.instance_variable_get(:@hooks)).to eq({after: [hook], before: [hook]})
+      expect(subject.instance_variable_get(:@hooks)).to eq({ after: [hook], before: [hook] })
     end
   end
 
-  describe '#run_hooks_for!' do
-    context 'hooks families' do
-      let(:before_proc) { Proc.new { 2 } }
-      let(:after_proc) { Proc.new { 1 } }
+  describe "#run_hooks_for!" do
+    context "hooks families" do
+      let(:before_proc) { proc { 2 } }
+      let(:after_proc) { proc { 1 } }
 
       before do
         subject.push_hook(after_proc, :after)
@@ -41,23 +41,23 @@ RSpec.describe Hooks do
         subject.run_hooks_for!(:after)
       end
 
-      it 'runs hooks for the given family' do
+      it "runs hooks for the given family" do
         expect(after_proc).to have_received(:call).with(no_args)
       end
 
-      it 'does not run hooks for other families' do
+      it "does not run hooks for other families" do
         expect(before_proc).not_to have_received(:call).with(no_args)
       end
     end
 
-    context 'hooks context' do
-      let(:after_proc) { Proc.new { 1 } }
+    context "hooks context" do
+      let(:after_proc) { proc { 1 } }
 
       before do
         allow(after_proc).to receive(:call).with(no_args)
       end
 
-      context 'when context is given' do
+      context "when context is given" do
         let(:context) { Class.new }
 
         before do
@@ -69,21 +69,21 @@ RSpec.describe Hooks do
           subject.run_hooks_for!(:after, context)
         end
 
-        it 'executes hook in the context of the provided context' do
+        it "executes hook in the context of the provided context" do
           expect(context).to have_received(:instance_exec) do |*_, &block|
             expect(block).to eq(after_proc)
           end
         end
       end
 
-      context 'when context is not given' do
+      context "when context is not given" do
         before do
           subject.push_hook(after_proc, :after)
 
           subject.run_hooks_for!(:after)
         end
 
-        it 'executes hook without context' do
+        it "executes hook without context" do
           expect(after_proc).to have_received(:call)
         end
       end
