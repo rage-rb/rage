@@ -107,6 +107,10 @@ module Rage
     end
   end
 
+  class << self
+    alias configuration config
+  end
+
   module Router
     module Strategies
     end
