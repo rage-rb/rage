@@ -5,15 +5,6 @@ RSpec.describe Hooks do
 
   subject { ClassWithHooks.new }
 
-  describe "#included" do
-    it "initiates hooks instance variable" do
-      p subject.instance_variables
-
-      expect(subject.instance_variables).to include(:@hooks)
-      expect(subject.instance_variable_get(:@hooks)).to eq({})
-    end
-  end
-
   describe "#push_hook" do
     it "stores hook by family" do
       hook = proc { 1 }
@@ -43,6 +34,12 @@ RSpec.describe Hooks do
 
       it "runs hooks for the given family" do
         expect(after_proc).to have_received(:call).with(no_args)
+      end
+
+      it 'clears hooks after run for the executed hooks family ' do
+        hooks = subject.instance_variable_get(:@hooks)
+
+        expect(hooks[:after]).to eq([])
       end
 
       it "does not run hooks for other families" do
