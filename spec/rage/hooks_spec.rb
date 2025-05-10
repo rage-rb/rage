@@ -36,7 +36,7 @@ RSpec.describe Hooks do
         expect(after_proc).to have_received(:call).with(no_args)
       end
 
-      it 'clears hooks after run for the executed hooks family ' do
+      it "clears hooks after run for the executed hooks family" do
         hooks = subject.instance_variable_get(:@hooks)
 
         expect(hooks[:after]).to eq([])

@@ -108,7 +108,7 @@ module Rage
   end
 
   class << self
-    alias configuration config
+    alias_method :configuration, :config
   end
 
   module Router
