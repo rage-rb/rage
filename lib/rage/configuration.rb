@@ -37,14 +37,10 @@ require "erb"
 #
 # • _config.after_initialize_
 #
-# > Adds given block to be run after application has been initialized, but before routes have been loaded. Please, see {https://github.com/rage-rb/rage/blob/master/OVERVIEW.md OVERVIEW.md} for more information about initialization process.
-# > The config object itself is available inside the block. Please, see examples.
+# > Schedule a block of code to run after Rage has finished loading the application code. Use this to reference application-level constants during the initialization process.
 # > ```
 # Rage.config.after_initialize do
-#   p 'after initialize'
-#
-#   config.server.workers_count = 3
-#   p config.server.workers_count
+#   SUPER_USER = User.find_by!(super: true)
 # end
 # > ```
 #
