@@ -122,7 +122,7 @@ class Rage::Cable::Protocols::RawWebsocketJson < Rage::Cable::Protocols::Base
   end
 
   # @return [Boolean]
-  def supports_rpc?
+  def self.supports_rpc?
     false
   end
 
@@ -133,7 +133,7 @@ class Rage::Cable::Protocols::RawWebsocketJson < Rage::Cable::Protocols::Base
   #
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
   # @param name [String] the stream name
-  def subscribe(connection, name, _)
+  def self.subscribe(connection, name, _)
     super(connection, name, "")
   end
 end
