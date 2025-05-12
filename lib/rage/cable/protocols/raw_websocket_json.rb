@@ -71,15 +71,20 @@ class Rage::Cable::Protocols::RawWebsocketJson < Rage::Cable::Protocols::Base
     end
 
     channel_id = connection.env["PATH_INFO"].split("/")[-1]
-    if channel_id.include?("_")
-      tmp = ""
-      channel_id.split("_") { |segment| tmp += segment.capitalize! || segment }
-      channel_id = tmp
-    else
-      channel_id.capitalize!
-    end
 
-    channel_name = "#{channel_id}Channel"
+    channel_name = if channel_id.end_with?("Channel")
+      channel_id
+    else
+      if channel_id.include?("_")
+        tmp = ""
+        channel_id.split("_") { |segment| tmp += segment.capitalize! || segment }
+        channel_id = tmp
+      else
+        channel_id.capitalize!
+      end
+
+      "#{channel_id}Channel"
+    end
 
     query_string = connection.env["QUERY_STRING"]
     params = query_string == "" ? DEFAULT_PARAMS : Iodine::Rack::Utils.parse_nested_query(query_string)
