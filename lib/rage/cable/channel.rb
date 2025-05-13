@@ -1,5 +1,3 @@
-require "set"
-
 class Rage::Cable::Channel
   # @private
   INTERNAL_ACTIONS = [:subscribed, :unsubscribed]

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "time"
-require "set" # required for ruby 3.1
 
 class Rage::Request
   # @private

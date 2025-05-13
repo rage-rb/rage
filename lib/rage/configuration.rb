@@ -35,6 +35,15 @@ require "erb"
 #
 # > Defines one or several old secrets that need to be rotated. Can accept a single key or an array of keys. Rage will fall back to the `FALLBACK_SECRET_KEY_BASE` environment variable if this is not set.
 #
+# • _config.after_initialize_
+#
+# > Schedule a block of code to run after Rage has finished loading the application code. Use this to reference application-level constants during the initialization process.
+# > ```
+# Rage.config.after_initialize do
+#   SUPER_USER = User.find_by!(super: true)
+# end
+# > ```
+#
 # # Middleware Configuration
 #
 # • _config.middleware.use_
@@ -153,6 +162,8 @@ require "erb"
 # > Instructs Rage to not reuse Active Record connections between different fibers.
 #
 class Rage::Configuration
+  include Hooks
+
   attr_accessor :logger
   attr_reader :log_formatter, :log_level
   attr_writer :secret_key_base, :fallback_secret_key_base
@@ -199,6 +210,14 @@ class Rage::Configuration
 
   def internal
     @internal ||= Internal.new
+  end
+
+  def after_initialize(&block)
+    push_hook(block, :after_initialize)
+  end
+
+  def run_after_initialize!
+    run_hooks_for!(:after_initialize, self)
   end
 
   class Server

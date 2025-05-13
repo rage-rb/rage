@@ -48,6 +48,8 @@ module RspecHelpersSpec
 
     get "subdomain", to: "rspec_helpers_spec/test#subdomain", constraints: { host: /rage-test/ }
     get "logger", to: "rspec_helpers_spec/test#logger"
+
+    get "plain", to: ->(env) { [200, {}, "plaintext response"] }
   end
 
   class VeryImportantService
@@ -70,11 +72,18 @@ RSpec.describe "RSpec helpers", type: :request do
     require "rage/rspec"
   end
 
-  it "correctly parses responses" do
+  it "correctly parses JSON responses" do
     get "/"
 
     expect(response.body).to eq('["test_1","test_2","test_3"]')
     expect(response.parsed_body).to eq(%w(test_1 test_2 test_3))
+  end
+
+  it "correctly parses plaintext responses" do
+    get "/plain"
+
+    expect(response.body).to eq("plaintext response")
+    expect(response.parsed_body).to eq("plaintext response")
   end
 
   it "correctly matches http statuses" do

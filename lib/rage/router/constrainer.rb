@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "set"
-
 class Rage::Router::Constrainer
   attr_reader :strategies
 

@@ -1,6 +1,7 @@
 require_relative "../rage-rb"
 
 require_relative "version"
+require_relative "hooks"
 require_relative "application"
 require_relative "fiber"
 require_relative "fiber_scheduler"

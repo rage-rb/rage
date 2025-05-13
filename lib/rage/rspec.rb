@@ -101,7 +101,7 @@ end
 # patch MockResponse class
 class Rack::MockResponse
   def parsed_body
-    if headers["content-type"].start_with?("application/json")
+    if headers["content-type"]&.start_with?("application/json")
       JSON.parse(body)
     else
       body
