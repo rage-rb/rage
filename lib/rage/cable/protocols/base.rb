@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "digest"
-require "set"
 
 ##
 # A protocol defines the structure, rules and semantics for exchanging data between the client and the server.
