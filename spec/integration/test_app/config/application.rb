@@ -25,6 +25,10 @@ Rage.configure do
   if ENV["ENABLE_REQUEST_ID_MIDDLEWARE"]
     config.middleware.use Rage::RequestId
   end
+
+  if ENV["WEBSOCKETS_PROTOCOL"]
+    config.cable.protocol = ENV["WEBSOCKETS_PROTOCOL"].to_sym
+  end
 end
 
 require "rage/setup"
