@@ -124,7 +124,7 @@ require "erb"
 #
 # • _config.cable.protocol_
 #
-# > Specifies the protocol the server will use. Supported values include {Rage::Cable::Protocols::ActioncableV1Json :actioncable_v1_json} and {Rage::Cable::Protocols::RawWebsocketJson :raw_websocket_json}. Defaults to {Rage::Cable::Protocols::ActioncableV1Json :actioncable_v1_json}.
+# > Specifies the protocol the server will use. Supported values include {Rage::Cable::Protocols::ActioncableV1Json :actioncable_v1_json} and {Rage::Cable::Protocols::RawWebSocketJson :raw_websocket_json}. Defaults to {Rage::Cable::Protocols::ActioncableV1Json :actioncable_v1_json}.
 #
 # • _config.cable.allowed_request_origins_
 #
@@ -293,7 +293,7 @@ class Rage::Configuration
       when :actioncable_v1_json
         Rage::Cable::Protocols::ActioncableV1Json
       when :raw_websocket_json
-        Rage::Cable::Protocols::RawWebsocketJson
+        Rage::Cable::Protocols::RawWebSocketJson
       else
         raise ArgumentError, "Unknown protocol. Supported values are `:actioncable_v1_json` and `:raw_websocket_json`."
       end

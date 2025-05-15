@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 ##
-# The `RawWebsocketJson` protocol allows a direct connection to a {Rage::Cable} application using the native
+# The `RawWebSocketJson` protocol allows a direct connection to a {Rage::Cable} application using the native
 # `WebSocket` object. With this protocol, each WebSocket connection directly corresponds to a single
 # channel subscription. As a result, clients are automatically subscribed to a channel as soon as
 # they establish a connection.
@@ -27,7 +27,7 @@
 #   socket = new WebSocket("ws://localhost:3000/cable/todo_items?user_id=123")
 #   socket.send(JSON.stringify({ item: "New Item" }))
 #
-class Rage::Cable::Protocols::RawWebsocketJson < Rage::Cable::Protocols::Base
+class Rage::Cable::Protocols::RawWebSocketJson < Rage::Cable::Protocols::Base
   # identifiers are used to distinguish between different channels that share a single connection;
   # since the raw protocol uses a single connection for each channel, identifiers are not necessary
   IDENTIFIER = ""
@@ -133,7 +133,7 @@ class Rage::Cable::Protocols::RawWebsocketJson < Rage::Cable::Protocols::Base
 
   # @private
   # The base implementation groups connection subscriptions by `params`;
-  # however, with `RawWebsocketJson`, params are not part of the payload (see {serialize})
+  # however, with `RawWebSocketJson`, params are not part of the payload (see {serialize})
   # and we can disable grouping in exchange for better performance
   #
   # @param connection [Rage::Cable::WebSocketConnection] the connection object

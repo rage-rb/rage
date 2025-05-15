@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe "RawWebsocketJson" do
+RSpec.describe "RawWebSocketJson" do
   before :all do
     skip("skipping websocket tests") unless ENV["ENABLE_EXTERNAL_TESTS"] == "true"
   end
