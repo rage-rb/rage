@@ -13,6 +13,8 @@ RSpec.describe Rage::Cable::Adapters::Redis do
 
     allow(mock_redis).to receive(:call).with("INFO").and_return("redis_version:7.0.5")
     allow(mock_redis).to receive(:close)
+
+    allow(Rage.cable).to receive(:__protocol).and_return(double)
   end
 
   describe "#publish" do
@@ -228,7 +230,7 @@ RSpec.describe Rage::Cable::Adapters::Redis do
         proc { raise }
       )
 
-      expect(Rage.config.cable.protocol).to receive(:broadcast).with(
+      expect(Rage.cable.__protocol).to receive(:broadcast).with(
         "test-stream", { "hello" => "world" }
       ).once
 
@@ -246,7 +248,7 @@ RSpec.describe Rage::Cable::Adapters::Redis do
         proc { raise }
       )
 
-      expect(Rage.config.cable.protocol).to receive(:broadcast).with(
+      expect(Rage.cable.__protocol).to receive(:broadcast).with(
         "test-stream", { "hello" => "world" }
       ).once
 
@@ -261,7 +263,7 @@ RSpec.describe Rage::Cable::Adapters::Redis do
         proc { raise }
       )
 
-      expect(Rage.config.cable.protocol).not_to receive(:broadcast)
+      expect(Rage.cable.__protocol).not_to receive(:broadcast)
 
       subject
     end
