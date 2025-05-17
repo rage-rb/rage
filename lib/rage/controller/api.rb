@@ -625,7 +625,9 @@ class RageController::API
   #  end
   #  ```
   def stale?(etag: nil, last_modified: nil)
-    still_fresh = request.fresh?(etag:, last_modified:)
+    response.set_cache_headers(etag:, last_modified:)
+
+    still_fresh = request.fresh?(etag: response.etag, last_modified: response.last_modified)
 
     head :not_modified if still_fresh
     !still_fresh
