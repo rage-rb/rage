@@ -8,6 +8,7 @@ require_relative "support/reactor_helper"
 require_relative "support/websocket_helper"
 require_relative "support/contexts/mocked_classes"
 require_relative "support/contexts/mocked_rage_routes"
+require_relative "support/custom_matchers"
 
 RSpec.configure do |config|
   # Uncomment the line below to enable focused mode

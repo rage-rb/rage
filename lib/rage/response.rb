@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Rage::Response
-  include ::Rage::Http::Response::Cache
+  include Rage::Response::Cache
 
   # @private
   def initialize(headers, body)

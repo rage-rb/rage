@@ -618,6 +618,7 @@ class RageController::API
   #  stale?(etag: "123", last_modified: Time.utc(2023, 12, 15))
   #  stale?(last_modified: Time.utc(2023, 12, 15))
   #  stale?(etag: "123")
+  # @note `stale?` will set ETag and Last-Modified response headers made of passed arguments in the method. Value for ETag will be additionally hashified using SHA2 algo, whereas value for Last-Modified will be converted to the string which represents time as RFC 1123 date of HTTP-date defined by RFC 2616.
   # @note `stale?` will set the response status to 304 if the request is fresh. This side effect will cause a double render error, if `render` gets called after this method. Make sure to implement a proper conditional in your action to prevent this from happening:
   #  ```ruby
   #  if stale?(etag: "123")
@@ -625,7 +626,7 @@ class RageController::API
   #  end
   #  ```
   def stale?(etag: nil, last_modified: nil)
-    response.set_cache_headers(etag:, last_modified:)
+    response.etag, response.last_modified = [etag, last_modified]
 
     still_fresh = request.fresh?(etag: response.etag, last_modified: response.last_modified)
 

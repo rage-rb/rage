@@ -32,12 +32,14 @@ RSpec.describe RageController::API do
   let(:klass) { ControllerApiConditionalGetSpec::TestController }
 
   context "when IF-MODIFIED-SINCE is given" do
+    let(:expected_last_modified) { Time.utc(2023, 12, 1).httpdate }
+
     context "but last_modified is not set in the action" do
       let(:env) { { "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).httpdate } }
 
       it "executes the action normally" do
         expect(run_action(klass, :no_freshness_info_in_response_test, env:)).to match(
-          [200, an_instance_of(Hash), ["test_no_freshness_info_in_response"]]
+          [200, a_hash_excluding_keys([Rage::Response::ETAG_HEADER, Rage::Response::LAST_MODIFIED_HEADER]), ["test_no_freshness_info_in_response"]]
         )
       end
     end
@@ -47,7 +49,7 @@ RSpec.describe RageController::API do
 
       it "returns NOT MODIFIED" do
         expect(run_action(klass, :stale_last_modified_test, env:)).to match(
-          [304, an_instance_of(Hash), []]
+          [304, a_hash_including(Rage::Response::LAST_MODIFIED_HEADER => expected_last_modified), []]
         )
       end
     end
@@ -57,7 +59,7 @@ RSpec.describe RageController::API do
 
       it "renders the requested resource" do
         expect(run_action(klass, :stale_last_modified_test, env:)).to match(
-          [200, an_instance_of(Hash), ["test_last_modified"]]
+          [200, a_hash_including(Rage::Response::LAST_MODIFIED_HEADER => expected_last_modified), ["test_last_modified"]]
         )
       end
     end
@@ -67,7 +69,7 @@ RSpec.describe RageController::API do
 
       it "executes the action normally" do
         expect(run_action(klass, :stale_last_modified_test, env:)).to match(
-          [200, an_instance_of(Hash), ["test_last_modified"]]
+          [200, a_hash_including(Rage::Response::LAST_MODIFIED_HEADER => expected_last_modified), ["test_last_modified"]]
         )
       end
     end
@@ -75,11 +77,12 @@ RSpec.describe RageController::API do
 
   context "when IF-MODIFIED-SINCE is not given" do
     let(:env) { {} }
+    let(:expected_last_modified) { Time.utc(2023, 12, 1).httpdate }
 
     context "and last_modified is not set in the action" do
       it "executes the action normally" do
         expect(run_action(klass, :no_freshness_info_in_response_test, env:)).to match(
-          [200, an_instance_of(Hash), ["test_no_freshness_info_in_response"]]
+          [200, a_hash_excluding_keys([Rage::Response::LAST_MODIFIED_HEADER, Rage::Response::ETAG_HEADER]), ["test_no_freshness_info_in_response"]]
         )
       end
     end
@@ -87,19 +90,21 @@ RSpec.describe RageController::API do
     context "and last_modified is set in the action" do
       it "renders the requested resource" do
         expect(run_action(klass, :stale_last_modified_test, env:)).to match(
-          [200, an_instance_of(Hash), ["test_last_modified"]]
+          [200, a_hash_including(Rage::Response::LAST_MODIFIED_HEADER => expected_last_modified), ["test_last_modified"]]
         )
       end
     end
   end
 
   context "when IF-NONE-MATCH is given" do
+    let(:expected_etag) { Digest::SHA2.hexdigest("123") }
+
     context "but etag is not set in the action" do
       let(:env) { { "HTTP_IF_NONE_MATCH" => Digest::SHA2.hexdigest("123") } }
 
       it "executes the action normally" do
         expect(run_action(klass, :no_freshness_info_in_response_test, env:)).to match(
-          [200, an_instance_of(Hash), ["test_no_freshness_info_in_response"]]
+          [200, a_hash_excluding_keys(Rage::Response::ETAG_HEADER), ["test_no_freshness_info_in_response"]]
         )
       end
     end
@@ -111,7 +116,7 @@ RSpec.describe RageController::API do
 
       it "returns NOT MODIFIED" do
         expect(run_action(klass, :stale_etag_test, env:)).to match(
-          [304, an_instance_of(Hash), []]
+          [304, a_hash_including(Rage::Response::ETAG_HEADER => expected_etag), []]
         )
       end
     end
@@ -123,17 +128,17 @@ RSpec.describe RageController::API do
 
       it "returns NOT MODIFIED" do
         expect(run_action(klass, :stale_etag_test, env:)).to match(
-          [304, an_instance_of(Hash), []]
+          [304, a_hash_including(Rage::Response::ETAG_HEADER => expected_etag), []]
         )
       end
     end
 
     context "and no matching etag is set in the action" do
-      let(:env) { { "HTTP_IF_NONE_MATCH" => "456,789" } }
+      let(:env) { { "HTTP_IF_NONE_MATCH" => [456, 789].map { |etag| Digest::SHA2.hexdigest(etag.to_s) }.join(",") } }
 
       it "renders the requested resource" do
         expect(run_action(klass, :stale_etag_test, env:)).to match(
-          [200, an_instance_of(Hash), ["test_etag"]]
+          [200, a_hash_including(Rage::Response::ETAG_HEADER => expected_etag), ["test_etag"]]
         )
       end
     end
@@ -141,21 +146,23 @@ RSpec.describe RageController::API do
 
   context "when IF-NONE-MATCH contains a wildcard" do
     let(:env) { { "HTTP_IF_NONE_MATCH" => "xyz,*" } }
+    let(:expected_etag) { Digest::SHA2.hexdigest("123") }
 
     it "returns NOT MODIFIED" do
       expect(run_action(klass, :stale_etag_test, env:)).to match(
-        [304, an_instance_of(Hash), []]
+        [304, a_hash_including(Rage::Response::ETAG_HEADER => expected_etag), []]
       )
     end
   end
 
   context "when IF-NONE-MATCH is not given" do
     let(:env) { {} }
+    let(:expected_etag) { Digest::SHA2.hexdigest("123") }
 
     context "and etag is not set in the action" do
       it "executes the action normally" do
         expect(run_action(klass, :no_freshness_info_in_response_test, env:)).to match(
-          [200, an_instance_of(Hash), ["test_no_freshness_info_in_response"]]
+          [200, a_hash_excluding_keys([Rage::Response::LAST_MODIFIED_HEADER, Rage::Response::ETAG_HEADER]), ["test_no_freshness_info_in_response"]]
         )
       end
     end
@@ -163,13 +170,16 @@ RSpec.describe RageController::API do
     context "and etag is set in the action" do
       it "renders the requested resource" do
         expect(run_action(klass, :stale_etag_test, env:)).to match(
-          [200, an_instance_of(Hash), ["test_etag"]]
+          [200, a_hash_including(Rage::Response::ETAG_HEADER => expected_etag), ["test_etag"]]
         )
       end
     end
   end
 
   context "when both IF-MODIFIED-SINCE and IF-NONE-MATCH are given" do
+    let(:expected_last_modified) { Time.utc(2023, 12, 1).httpdate }
+    let(:expected_etag) { Digest::SHA2.hexdigest("123") }
+
     context "and request is fresh" do
       let(:env) do
         {
@@ -180,7 +190,7 @@ RSpec.describe RageController::API do
 
       it "returns NOT MODIFIED" do
         expect(run_action(klass, :stale_last_modified_and_etag_test, env:)).to match(
-          [304, an_instance_of(Hash), []]
+          [304, a_hash_including(Rage::Response::ETAG_HEADER => expected_etag, Rage::Response::LAST_MODIFIED_HEADER => expected_last_modified), []]
         )
       end
     end
@@ -195,7 +205,7 @@ RSpec.describe RageController::API do
 
       it "renders the requested resource" do
         expect(run_action(klass, :stale_last_modified_and_etag_test, env:)).to match(
-          [200, an_instance_of(Hash), ["test_last_modified_and_etag"]]
+          [200, a_hash_including(Rage::Response::ETAG_HEADER => expected_etag, Rage::Response::LAST_MODIFIED_HEADER => expected_last_modified), ["test_last_modified_and_etag"]]
         )
       end
     end
@@ -210,7 +220,7 @@ RSpec.describe RageController::API do
 
       it "renders the requested resource" do
         expect(run_action(klass, :stale_last_modified_and_etag_test, env:)).to match(
-          [200, an_instance_of(Hash), ["test_last_modified_and_etag"]]
+          [200, a_hash_including(Rage::Response::ETAG_HEADER => expected_etag, Rage::Response::LAST_MODIFIED_HEADER => expected_last_modified), ["test_last_modified_and_etag"]]
         )
       end
     end
@@ -225,7 +235,7 @@ RSpec.describe RageController::API do
 
       it "renders the requested resource" do
         expect(run_action(klass, :stale_last_modified_test, env:)).to match(
-          [200, an_instance_of(Hash), ["test_last_modified"]]
+          [200, a_hash_including(Rage::Response::LAST_MODIFIED_HEADER => expected_last_modified), ["test_last_modified"]]
         )
       end
     end
@@ -240,7 +250,7 @@ RSpec.describe RageController::API do
 
       it "renders the requested resource" do
         expect(run_action(klass, :stale_etag_test, env:)).to match(
-          [200, an_instance_of(Hash), ["test_etag"]]
+          [200, a_hash_including(Rage::Response::ETAG_HEADER => expected_etag), ["test_etag"]]
         )
       end
     end
