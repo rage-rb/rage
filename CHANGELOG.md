@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+## [1.16.0] - 2025-05-20
+
+### Added
+
+- [Cable] Add the `RawJSON` protocol (#150).
+- Add the `after_initialize` hook by [@serhii-sadovskyi](https://github.com/serhii-sadovskyi) (#149).
+
+### Fixed
+
+- Correctly parse plaintext responses in RSpec (#151).
+- [OpenAPI] Correctly handle `root_key!` (#148).
+- [OpenAPI] Correctly handle the `key` option in associations (#147).
+
 ## [1.15.1] - 2025-04-17
 
 ### Fixed
