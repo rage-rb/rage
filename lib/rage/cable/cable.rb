@@ -36,6 +36,7 @@ module Rage::Cable
     @__protocol ||= Rage.config.cable.protocol.tap { |protocol| protocol.init(__router) }
   end
 
+  # @private
   def self.__adapter
     @__adapter ||= Rage.config.cable.adapter
   end
@@ -136,11 +137,15 @@ module Rage::Cable
     autoload :Redis, "rage/cable/adapters/redis"
   end
 
-  module Protocol
+  module Protocols
   end
+
+  Protocol = Protocols
 end
 
-require_relative "protocol/actioncable_v1_json"
+require_relative "protocols/base"
+require_relative "protocols/actioncable_v1_json"
+require_relative "protocols/raw_web_socket_json"
 require_relative "channel"
 require_relative "connection"
 require_relative "router"

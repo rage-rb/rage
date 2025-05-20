@@ -16,6 +16,8 @@ class Rage::Cable::Channel
         public_instance_methods(true) - Rage::Cable::Channel.public_instance_methods(true)
       ).reject { |m| m.start_with?("__rage_tmp") || m.start_with?("__run") }
 
+      actions.reject! { |m| m != :receive } unless Rage.cable.__protocol.supports_rpc?
+
       @__prepared_actions = (INTERNAL_ACTIONS + actions).each_with_object({}) do |action_name, memo|
         memo[action_name] = __register_action_proc(action_name)
       end
@@ -404,7 +406,7 @@ class Rage::Cable::Channel
   #
   # @param stream [String] the name of the stream
   def stream_from(stream)
-    Rage.config.cable.protocol.subscribe(@__connection, stream, @__params)
+    Rage.cable.__protocol.subscribe(@__connection, stream, @__params)
   end
 
   # Broadcast data to all the clients subscribed to a stream.
@@ -427,7 +429,7 @@ class Rage::Cable::Channel
   #     transmit({ message: "Hello!" })
   #   end
   def transmit(data)
-    message = Rage.config.cable.protocol.serialize(@__params, data)
+    message = Rage.cable.__protocol.serialize(@__params, data)
 
     if @__is_subscribing
       # we expect a confirmation message to be sent as a result of a successful subscribe call;
