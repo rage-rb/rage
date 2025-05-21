@@ -22,4 +22,5 @@ group :test do
   gem "websocket-client-simple"
   gem "prism"
   gem "redis-client"
+  gem "pry"
 end
