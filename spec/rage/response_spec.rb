@@ -6,52 +6,112 @@ RSpec.describe Rage::Response do
 
   subject { described_class.new(headers, body) }
 
-  describe "cache headers" do
-    let(:raw_cache_key) { "123-456" }
-    let(:etag) { Digest::SHA2.hexdigest(raw_cache_key) }
-    let(:last_modified_time) { Time.parse("2025-10-10") }
-    let(:last_modified_header) { last_modified_time.httpdate }
+  describe "#etag" do
+    let(:etag) { "1234" }
+    let(:headers) { { Rage::Response::ETAG_HEADER => etag } }
 
-    context "when values for header are valid" do
-      subject { described_class.new({}, {}) }
+    it "returns the etag" do
+      expect(subject.etag).to eq(etag)
+    end
+  end
 
-      it "sets ETag header correctly" do
-        subject.etag = raw_cache_key
+  describe "#etag=" do
+    context "when passed ETag value is neither String nor nil" do
+      let(:etag) { {} }
+      let(:expected_error) { "Expected `String` but `#{etag.class}` is received" }
 
-        expect(subject.headers[Rage::Response::ETAG_HEADER]).to eq(etag)
-      end
-
-      it "sets Last-Modified header correctly" do
-        subject.last_modified = last_modified_time
-
-        expect(subject.headers[Rage::Response::LAST_MODIFIED_HEADER]).to eq(last_modified_header)
+      it "raises ArgumentError" do
+        expect { subject.etag = etag }.to raise_error(ArgumentError, expected_error)
       end
     end
 
-    context "when values for header are invalid" do
-      let(:headers) do
-        {
-          Rage::Response::LAST_MODIFIED_HEADER => last_modified_header,
-          Rage::Response::ETAG_HEADER => etag
-        }
+    context "when passed ETag value is nil" do
+      let(:etag) { "1234" }
+      let(:headers) { { Rage::Response::ETAG_HEADER => etag } }
+
+      it "sets ETag header to nil" do
+        expect { subject.etag = nil }.
+          to change { subject.headers[Rage::Response::ETAG_HEADER] }.
+          from(etag).to(nil)
+      end
+    end
+
+    context "when passed ETag value is String" do
+      let(:expected_etag) { "W/\"#{Digest::SHA1.hexdigest("1234")}\"" }
+      let(:etag) { "1234" }
+      let(:headers) { { Rage::Response::ETAG_HEADER => etag } }
+
+      it "sets ETag header to be hash of the given value" do
+        expect { subject.etag = etag }.
+          to change { subject.headers[Rage::Response::ETAG_HEADER] }.
+          to(expected_etag)
+      end
+    end
+  end
+
+  describe "#last_modified" do
+    context "when Last-Modified header has correct format" do
+      let(:last_modified) { Time.utc(2025, 5, 5) }
+      let(:headers) { { Rage::Response::LAST_MODIFIED_HEADER => last_modified.httpdate } }
+
+      it "returns Time object with Last-Modified date in it" do
+        expect(subject.last_modified).to eq(last_modified)
+      end
+    end
+
+    context "when Last-Modified header is nil" do
+      let(:headers) { { Rage::Response::LAST_MODIFIED_HEADER => nil } }
+
+      it "returns nil" do
+        expect(subject.last_modified).to be_nil
+      end
+    end
+
+    context "when Last-Modified header has incorrect format" do
+      let(:headers) { { Rage::Response::LAST_MODIFIED_HEADER => "" } }
+
+      it "raises ArgumentError" do
+        expect { subject.last_modified }.to raise_error(ArgumentError)
+      end
+    end
+  end
+
+  context "#last_modified=" do
+    context "when passed Last-Modified value neither Time nor nil" do
+      let(:last_modified) { {} }
+      let(:last_modified_header) { Time.utc(2025, 5, 5) }
+      let(:headers) { { Rage::Response::LAST_MODIFIED_HEADER => last_modified_header } }
+
+      it "raises ArgumentError" do
+        expect { subject.last_modified = last_modified }.to raise_error(ArgumentError, "Expected `Time` but `#{last_modified.class}` is received")
       end
 
-      it "does not set ETag header" do
-        subject.etag = nil
-
-        expect(subject.headers[Rage::Response::ETAG_HEADER]).to eq(etag)
+      it "does not change value in headers itself" do
+        expect {
+          begin
+            subject.last_modified = last_modified
+          rescue ArgumentError
+            # skip block for testing purposes
+          end
+        }.not_to change { subject.headers[Rage::Response::LAST_MODIFIED_HEADER] }.from(last_modified_header)
       end
+    end
 
-      it "does not set Last-Modified header" do
-        subject.last_modified = nil
+    context "when passed Last-Modified value is Time" do
+      let(:last_modified) { Time.utc(2025, 5, 5) }
 
-        expect(subject.headers[Rage::Response::LAST_MODIFIED_HEADER]).to eq(last_modified_header)
+      it "sets Last-Modified header" do
+        expect { subject.last_modified = last_modified }.to change { subject.headers[Rage::Response::LAST_MODIFIED_HEADER] }.to(last_modified.httpdate)
       end
+    end
 
-      it "does not throw an error" do
-        subject.headers[Rage::Response::LAST_MODIFIED_HEADER] = "invalid time"
+    context "when passed Last-Modified value is nil" do
+      let(:last_modified_header) { Time.utc(2025, 5, 5).httpdate }
+      let(:headers) { { Rage::Response::LAST_MODIFIED_HEADER => last_modified_header } }
 
-        expect { subject.last_modified }.to_not raise_error
+      it "sets Last-Modified header to nil" do
+        expect { subject.last_modified = nil }.to change { subject.headers[Rage::Response::LAST_MODIFIED_HEADER] }.
+          from(last_modified_header).to(nil)
       end
     end
   end
