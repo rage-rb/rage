@@ -629,7 +629,7 @@ class RageController::API
     response.etag = etag
     response.last_modified = last_modified
 
-    still_fresh = request.fresh?(etag: response.etag, last_modified: response.last_modified)
+    still_fresh = request.fresh?(etag: response.etag, last_modified: last_modified)
 
     head :not_modified if still_fresh
     !still_fresh

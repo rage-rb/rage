@@ -37,7 +37,7 @@ RSpec.describe Rage::Response do
     end
 
     context "when passed ETag value is String" do
-      let(:expected_etag) { "W/\"#{Digest::SHA1.hexdigest("1234")}\"" }
+      let(:expected_etag) { %(W/"#{Digest::SHA1.hexdigest("1234")}") }
       let(:etag) { "1234" }
       let(:headers) { { Rage::Response::ETAG_HEADER => etag } }
 
@@ -50,12 +50,12 @@ RSpec.describe Rage::Response do
   end
 
   describe "#last_modified" do
-    context "when Last-Modified header has correct format" do
+    context "when Last-Modified header is String" do
       let(:last_modified) { Time.utc(2025, 5, 5) }
       let(:headers) { { Rage::Response::LAST_MODIFIED_HEADER => last_modified.httpdate } }
 
-      it "returns Time object with Last-Modified date in it" do
-        expect(subject.last_modified).to eq(last_modified)
+      it "returns Last-Modified date" do
+        expect(subject.last_modified).to eq(last_modified.httpdate)
       end
     end
 
@@ -64,14 +64,6 @@ RSpec.describe Rage::Response do
 
       it "returns nil" do
         expect(subject.last_modified).to be_nil
-      end
-    end
-
-    context "when Last-Modified header has incorrect format" do
-      let(:headers) { { Rage::Response::LAST_MODIFIED_HEADER => "" } }
-
-      it "raises ArgumentError" do
-        expect { subject.last_modified }.to raise_error(ArgumentError)
       end
     end
   end

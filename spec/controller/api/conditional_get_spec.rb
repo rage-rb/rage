@@ -121,10 +121,10 @@ RSpec.describe RageController::API do
   end
 
   context "when IF-NONE-MATCH is given" do
-    let(:expected_etag) { "W/\"#{Digest::SHA1.hexdigest("123")}\"" }
+    let(:expected_etag) { %(W/"#{Digest::SHA1.hexdigest("123")}") }
 
     context "but etag is not set in the action" do
-      let(:env) { { "HTTP_IF_NONE_MATCH" => "W/\"#{Digest::SHA1.hexdigest("123")}\"" } }
+      let(:env) { { "HTTP_IF_NONE_MATCH" => %(W/"#{Digest::SHA1.hexdigest("123")}") } }
 
       it "executes the action normally" do
         expect(run_action(klass, :no_freshness_info_in_response_test, env:)).to match(
@@ -135,7 +135,7 @@ RSpec.describe RageController::API do
 
     context "and a matching etag is set in the action" do
       let(:env) do
-        { "HTTP_IF_NONE_MATCH" => [123, 456, 789].map { |etag| "W/\"#{Digest::SHA1.hexdigest(etag.to_s)}\"" }.join(",") }
+        { "HTTP_IF_NONE_MATCH" => [123, 456, 789].map { |etag| %(W/"#{Digest::SHA1.hexdigest(etag.to_s)}") }.join(",") }
       end
 
       it "returns NOT MODIFIED" do
@@ -150,7 +150,7 @@ RSpec.describe RageController::API do
 
     context "and a matching etag with whitespace is set in the action" do
       let(:env) do
-        { "HTTP_IF_NONE_MATCH" => [123, 456, 789, 455, 789].map { |etag| " W/\"#{Digest::SHA1.hexdigest(etag.to_s)}\" " }.join(" , ") }
+        { "HTTP_IF_NONE_MATCH" => [123, 456, 789, 455, 789].map { |etag| %( W/"#{Digest::SHA1.hexdigest(etag.to_s)}" ) }.join(" , ") }
       end
 
       it "returns NOT MODIFIED" do
@@ -164,7 +164,7 @@ RSpec.describe RageController::API do
     end
 
     context "and no matching etag is set in the action" do
-      let(:env) { { "HTTP_IF_NONE_MATCH" => [456, 789].map { |etag| "W/\"#{Digest::SHA1.hexdigest(etag.to_s)}\"" }.join(",") } }
+      let(:env) { { "HTTP_IF_NONE_MATCH" => [456, 789].map { |etag| %(W/"#{Digest::SHA1.hexdigest(etag.to_s)}") }.join(",") } }
 
       it "renders the requested resource" do
         expect(run_action(klass, :stale_etag_test, env:)).to match(
@@ -178,7 +178,7 @@ RSpec.describe RageController::API do
 
     context "and strict If-None-Match is given" do
       let(:env) { { "HTTP_IF_NONE_MATCH" => "\"#{Digest::SHA1.hexdigest("123")}\"" } }
-      let(:expected_etag) { "W/\"#{Digest::SHA1.hexdigest("123")}\"" }
+      let(:expected_etag) { %(W/"#{Digest::SHA1.hexdigest("123")}") }
 
       it "renders the requested resource" do
         expect(run_action(klass, :stale_etag_test, env:)).to match(
@@ -193,7 +193,7 @@ RSpec.describe RageController::API do
 
   context "when IF-NONE-MATCH contains a wildcard" do
     let(:env) { { "HTTP_IF_NONE_MATCH" => "xyz,*" } }
-    let(:expected_etag) { "W/\"#{Digest::SHA1.hexdigest("123")}\"" }
+    let(:expected_etag) { %(W/"#{Digest::SHA1.hexdigest("123")}") }
 
     it "returns NOT MODIFIED" do
       expect(run_action(klass, :stale_etag_test, env:)).to match(
@@ -207,7 +207,7 @@ RSpec.describe RageController::API do
 
   context "when IF-NONE-MATCH is not given" do
     let(:env) { {} }
-    let(:expected_etag) { "W/\"#{Digest::SHA1.hexdigest("123")}\"" }
+    let(:expected_etag) { %(W/"#{Digest::SHA1.hexdigest("123")}") }
 
     context "and etag is not set in the action" do
       it "executes the action normally" do
@@ -231,13 +231,13 @@ RSpec.describe RageController::API do
 
   context "when both IF-MODIFIED-SINCE and IF-NONE-MATCH are given" do
     let(:expected_last_modified) { Time.utc(2023, 12, 1).httpdate }
-    let(:expected_etag) { "W/\"#{Digest::SHA1.hexdigest("123")}\"" }
+    let(:expected_etag) { %(W/"#{Digest::SHA1.hexdigest("123")}") }
 
     context "and request is fresh" do
       let(:env) do
         {
           "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).httpdate,
-          "HTTP_IF_NONE_MATCH" => "W/\"#{Digest::SHA1.hexdigest("123")}\""
+          "HTTP_IF_NONE_MATCH" => %(W/"#{Digest::SHA1.hexdigest("123")}")
         }
       end
 
