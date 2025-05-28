@@ -1,4 +1,146 @@
 require "rage/cli"
+require "tmpdir"
+require "rake"
+require "active_support/inflector"
+
+RSpec.describe Rage::CLICodeGenerator do
+  subject(:rage_cli_code_generator) { described_class.new }
+
+  around(:example) do |example|
+    Dir.mktmpdir do |tmpdir|
+      rage_cli_code_generator.destination_root = tmpdir
+      example.run
+    end
+  end
+
+  shared_examples "file generator" do |expected_file_path:, expected_file_name:, expected_class:|
+    it "creates a file from template" do
+      subject
+
+      expected_path = File.join(rage_cli_code_generator.destination_root, expected_file_path, expected_file_name)
+      expect(File).to exist(expected_path)
+
+      content = File.read(expected_path)
+      expect(content).to include("class #{expected_class}")
+    end
+  end
+
+  describe "#migration" do
+    subject { rage_cli_code_generator.migration(input_name) }
+
+    before do
+      allow(Rake::Task).to receive(:[]).with("db:new_migration").and_return(instance_double(Rake::Task, invoke: true))
+    end
+
+    context "when name is nil" do
+      let(:input_name) { nil }
+
+      it "returns help" do
+        expect(rage_cli_code_generator).to receive(:help).with("migration")
+
+        subject
+      end
+    end
+
+    context "when name is present" do
+      let(:input_name) { "Test" }
+
+      it "generates a migration" do
+        expect(Rake::Task["db:new_migration"]).to receive(:invoke).with("Test")
+
+        subject
+      end
+    end
+  end
+
+  describe "#model" do
+    subject { rage_cli_code_generator.model(input_name) }
+
+    context "when name is nil" do
+      let(:input_name) { nil }
+
+      it "returns help" do
+        expect(rage_cli_code_generator).to receive(:help).with("model")
+
+        subject
+      end
+    end
+
+    context "when name is present" do
+      let(:input_name) { "A::B::Tests" }
+
+      before { allow(rage_cli_code_generator).to receive(:migration) }
+
+      it "generates a migration" do
+        expect(rage_cli_code_generator).to receive(:migration).with("create_A::B::Tests")
+
+        subject
+      end
+
+      it_behaves_like "file generator",
+        expected_file_name: "test.rb",
+        expected_file_path: "app/models/a/b/",
+        expected_class: "A::B::Test"
+    end
+  end
+
+  describe "#controller" do
+    subject { rage_cli_code_generator.controller(input_name) }
+
+    context "when name is nil" do
+      let(:input_name) { nil }
+
+      it "returns help" do
+        expect(rage_cli_code_generator).to receive(:help).with("controller")
+
+        subject
+      end
+    end
+
+    context "when name is present" do
+      context "when ActiveSupport::Inflector is not available" do
+        let(:input_name) { "my_controller" }
+
+        before { hide_const("ActiveSupport::Inflector") }
+
+        it "raises error" do
+          expect { rage_cli_code_generator.controller("test") }.to(
+            raise_error(LoadError, "ActiveSupport::Inflector is required to run this command")
+          )
+        end
+      end
+
+      context "when ActiveSupport::Inflector is available" do
+        context "when input name ends with Controller" do
+          let(:input_name) { "testController" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_controller.rb",
+            expected_file_path: "app/controllers",
+            expected_class: "TestController"
+        end
+
+        context "when input name ends with controller" do
+          let(:input_name) { "testcontroller" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_controller.rb",
+            expected_file_path: "app/controllers",
+            expected_class: "TestController"
+        end
+
+        context "when input name has namespace" do
+          let(:input_name) { "A::B::TestAPI" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_api_controller.rb",
+            expected_file_path: "app/controllers/a/b",
+            expected_class: "A::B::TestAPIController"
+        end
+      end
+    end
+  end
+end
 
 RSpec.describe Rage::CLI do
   subject(:rage_cli) { described_class.new }
