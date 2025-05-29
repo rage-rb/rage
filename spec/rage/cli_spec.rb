@@ -6,7 +6,7 @@ require "active_support/inflector"
 RSpec.describe Rage::CLICodeGenerator do
   subject(:rage_cli_code_generator) { described_class.new }
 
-  around(:example) do |example|
+  around(:example, :with_temp_directory) do |example|
     Dir.mktmpdir do |tmpdir|
       rage_cli_code_generator.destination_root = tmpdir
       example.run
@@ -53,7 +53,7 @@ RSpec.describe Rage::CLICodeGenerator do
     end
   end
 
-  describe "#model" do
+  describe "#model", :with_temp_directory do
     subject { rage_cli_code_generator.model(input_name) }
 
     context "when name is nil" do
@@ -84,7 +84,7 @@ RSpec.describe Rage::CLICodeGenerator do
     end
   end
 
-  describe "#controller" do
+  describe "#controller", :with_temp_directory do
     subject { rage_cli_code_generator.controller(input_name) }
 
     context "when name is nil" do
