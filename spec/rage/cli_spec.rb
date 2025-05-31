@@ -79,7 +79,7 @@ RSpec.describe Rage::CLICodeGenerator do
 
       it_behaves_like "file generator",
         expected_file_name: "test.rb",
-        expected_file_path: "app/models/a/b/",
+        expected_file_path: "app/models/a/b",
         expected_class: "A::B::Test"
     end
   end
@@ -98,7 +98,7 @@ RSpec.describe Rage::CLICodeGenerator do
     end
 
     context "when name is present" do
-      context "when ActiveSupport::Inflector is not available" do
+      context "and ActiveSupport::Inflector is not available" do
         let(:input_name) { "my_controller" }
 
         before { hide_const("ActiveSupport::Inflector") }
@@ -110,9 +110,9 @@ RSpec.describe Rage::CLICodeGenerator do
         end
       end
 
-      context "when ActiveSupport::Inflector is available" do
-        context "when input name ends with Controller" do
-          let(:input_name) { "testController" }
+      context "and ActiveSupport::Inflector is available" do
+        context "with a basic name without any suffix" do
+          let(:input_name) { "test" }
 
           it_behaves_like "file generator",
             expected_file_name: "test_controller.rb",
@@ -120,7 +120,16 @@ RSpec.describe Rage::CLICodeGenerator do
             expected_class: "TestController"
         end
 
-        context "when input name ends with controller" do
+        context "with 'Controller' suffix in CamelCase" do
+          let(:input_name) { "TestController" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_controller.rb",
+            expected_file_path: "app/controllers",
+            expected_class: "TestController"
+        end
+
+        context "with 'controller' suffix in lowercase" do
           let(:input_name) { "testcontroller" }
 
           it_behaves_like "file generator",
@@ -129,13 +138,40 @@ RSpec.describe Rage::CLICodeGenerator do
             expected_class: "TestController"
         end
 
-        context "when input name has namespace" do
+        context "with '_controller' suffix in snake_case" do
+          let(:input_name) { "test_controller" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_controller.rb",
+            expected_file_path: "app/controllers",
+            expected_class: "TestController"
+        end
+
+        context "with slash-separated namespace" do
+          let(:input_name) { "admin/test_controller" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_controller.rb",
+            expected_file_path: "app/controllers/admin",
+            expected_class: "Admin::TestController"
+        end
+
+        context "with a double-colon namespace" do
           let(:input_name) { "A::B::TestAPI" }
 
           it_behaves_like "file generator",
             expected_file_name: "test_api_controller.rb",
             expected_file_path: "app/controllers/a/b",
             expected_class: "A::B::TestAPIController"
+        end
+
+        context "with absolute namespace" do
+          let(:input_name) { "::Admin::Test" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_controller.rb",
+            expected_file_path: "app/controllers/admin",
+            expected_class: "::Admin::TestController"
         end
       end
     end

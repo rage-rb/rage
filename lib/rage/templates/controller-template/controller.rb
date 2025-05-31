@@ -1,2 +1,2 @@
-class <%= @controller_name %> < RageController::API
+class <%= @controller_name %> < ApplicationController
 end

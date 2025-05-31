@@ -40,7 +40,7 @@ module Rage
 
       setup
       # remove trailing Controller if already present
-      normalized_name = name.sub(/Controller$/i, "")
+      normalized_name = name.sub(/_?controller$/i, "")
       @controller_name = "#{normalized_name.classify}Controller"
       file_name = "#{normalized_name.underscore}_controller.rb"
 
