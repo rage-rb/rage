@@ -155,6 +155,11 @@ RSpec.describe "End-to-end" do
       expect(response.code).to eq(500)
       expect(response.to_s).to include("raised from inner fiber")
     end
+
+    it "corrrectly processes short sleep calls" do
+      response = HTTP.get("http://localhost:3000/async/short_sleep")
+      expect(response.code).to eq(200)
+    end
   end
 
   context "with before actions" do

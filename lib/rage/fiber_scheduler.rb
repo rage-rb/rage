@@ -63,6 +63,7 @@ class Rage::FiberScheduler
 
   def kernel_sleep(duration = nil)
     block(nil, duration || 0)
+    Fiber.pause if duration.nil? || duration < 1
   end
 
   # TODO: GC works a little strange with this closure;
