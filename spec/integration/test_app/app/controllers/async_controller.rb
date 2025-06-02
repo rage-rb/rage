@@ -28,4 +28,9 @@ class AsyncController < RageController::API
     end
     Fiber.await f
   end
+
+  def short_sleep
+    sleep 0.0001
+    head :ok
+  end
 end

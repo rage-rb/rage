@@ -338,4 +338,22 @@ RSpec.describe Rage::FiberScheduler do
       -> { expect((1..1.5)).to include(result) }
     end
   end
+
+  it "correctly sleeps with 0" do
+    within_reactor do
+      Fiber.await(Fiber.schedule { sleep(0) })
+      -> {}
+    rescue => e
+      -> { raise e }
+    end
+  end
+
+  it "correctly sleeps with no arguments" do
+    within_reactor do
+      Fiber.await(Fiber.schedule { sleep })
+      -> {}
+    rescue => e
+      -> { raise e }
+    end
+  end
 end
