@@ -105,19 +105,32 @@ RSpec.describe Rage::CLICodeGenerator do
 
         it "raises error" do
           expect { rage_cli_code_generator.controller("test") }.to(
-            raise_error(LoadError, "ActiveSupport::Inflector is required to run this command")
+            raise_error(LoadError, <<~ERR
+              ActiveSupport::Inflector is required to run this command. Add the following line to your Gemfile:
+              gem "activesupport", require: "active_support/inflector"
+            ERR
+            )
           )
         end
       end
 
       context "and ActiveSupport::Inflector is available" do
-        context "with a basic name without any suffix" do
+        context "with a singular name without suffix" do
           let(:input_name) { "test" }
 
           it_behaves_like "file generator",
             expected_file_name: "test_controller.rb",
             expected_file_path: "app/controllers",
             expected_class: "TestController"
+        end
+
+        context "with a plural name without suffix" do
+          let(:input_name) { "tests" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "tests_controller.rb",
+            expected_file_path: "app/controllers",
+            expected_class: "TestsController"
         end
 
         context "with 'Controller' suffix in CamelCase" do

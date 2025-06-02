@@ -34,14 +34,17 @@ module Rage
     def controller(name = nil)
       return help("controller") if name.nil?
 
+      setup
       unless defined?(ActiveSupport::Inflector)
-        raise LoadError, "ActiveSupport::Inflector is required to run this command"
+        raise LoadError, <<~ERR
+          ActiveSupport::Inflector is required to run this command. Add the following line to your Gemfile:
+          gem "activesupport", require: "active_support/inflector"
+        ERR
       end
 
-      setup
       # remove trailing Controller if already present
       normalized_name = name.sub(/_?controller$/i, "")
-      @controller_name = "#{normalized_name.classify}Controller"
+      @controller_name = "#{normalized_name.camelize}Controller"
       file_name = "#{normalized_name.underscore}_controller.rb"
 
       template("controller-template/controller.rb", "app/controllers/#{file_name}")
