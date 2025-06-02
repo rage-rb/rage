@@ -1,4 +1,195 @@
 require "rage/cli"
+require "tmpdir"
+require "rake"
+require "active_support/inflector"
+
+RSpec.describe Rage::CLICodeGenerator do
+  subject(:rage_cli_code_generator) { described_class.new }
+
+  around(:example, :with_temp_directory) do |example|
+    Dir.mktmpdir do |tmpdir|
+      rage_cli_code_generator.destination_root = tmpdir
+      example.run
+    end
+  end
+
+  shared_examples "file generator" do |expected_file_path:, expected_file_name:, expected_class:|
+    it "creates a file from template" do
+      subject
+
+      expected_path = File.join(rage_cli_code_generator.destination_root, expected_file_path, expected_file_name)
+      expect(File).to exist(expected_path)
+
+      content = File.read(expected_path)
+      expect(content).to include("class #{expected_class}")
+    end
+  end
+
+  describe "#migration" do
+    subject { rage_cli_code_generator.migration(input_name) }
+
+    before do
+      allow(Rake::Task).to receive(:[]).with("db:new_migration").and_return(instance_double(Rake::Task, invoke: true))
+    end
+
+    context "when name is nil" do
+      let(:input_name) { nil }
+
+      it "returns help" do
+        expect(rage_cli_code_generator).to receive(:help).with("migration")
+
+        subject
+      end
+    end
+
+    context "when name is present" do
+      let(:input_name) { "Test" }
+
+      it "generates a migration" do
+        expect(Rake::Task["db:new_migration"]).to receive(:invoke).with("Test")
+
+        subject
+      end
+    end
+  end
+
+  describe "#model", :with_temp_directory do
+    subject { rage_cli_code_generator.model(input_name) }
+
+    context "when name is nil" do
+      let(:input_name) { nil }
+
+      it "returns help" do
+        expect(rage_cli_code_generator).to receive(:help).with("model")
+
+        subject
+      end
+    end
+
+    context "when name is present" do
+      let(:input_name) { "A::B::Tests" }
+
+      before { allow(rage_cli_code_generator).to receive(:migration) }
+
+      it "generates a migration" do
+        expect(rage_cli_code_generator).to receive(:migration).with("create_A::B::Tests")
+
+        subject
+      end
+
+      it_behaves_like "file generator",
+        expected_file_name: "test.rb",
+        expected_file_path: "app/models/a/b",
+        expected_class: "A::B::Test"
+    end
+  end
+
+  describe "#controller", :with_temp_directory do
+    subject { rage_cli_code_generator.controller(input_name) }
+
+    context "when name is nil" do
+      let(:input_name) { nil }
+
+      it "returns help" do
+        expect(rage_cli_code_generator).to receive(:help).with("controller")
+
+        subject
+      end
+    end
+
+    context "when name is present" do
+      context "and ActiveSupport::Inflector is not available" do
+        let(:input_name) { "my_controller" }
+
+        before { hide_const("ActiveSupport::Inflector") }
+
+        it "raises error" do
+          expect { rage_cli_code_generator.controller("test") }.to(
+            raise_error(LoadError, <<~ERR
+              ActiveSupport::Inflector is required to run this command. Add the following line to your Gemfile:
+              gem "activesupport", require: "active_support/inflector"
+            ERR
+            )
+          )
+        end
+      end
+
+      context "and ActiveSupport::Inflector is available" do
+        context "with a singular name without suffix" do
+          let(:input_name) { "test" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_controller.rb",
+            expected_file_path: "app/controllers",
+            expected_class: "TestController"
+        end
+
+        context "with a plural name without suffix" do
+          let(:input_name) { "tests" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "tests_controller.rb",
+            expected_file_path: "app/controllers",
+            expected_class: "TestsController"
+        end
+
+        context "with 'Controller' suffix in CamelCase" do
+          let(:input_name) { "TestController" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_controller.rb",
+            expected_file_path: "app/controllers",
+            expected_class: "TestController"
+        end
+
+        context "with 'controller' suffix in lowercase" do
+          let(:input_name) { "testcontroller" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_controller.rb",
+            expected_file_path: "app/controllers",
+            expected_class: "TestController"
+        end
+
+        context "with '_controller' suffix in snake_case" do
+          let(:input_name) { "test_controller" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_controller.rb",
+            expected_file_path: "app/controllers",
+            expected_class: "TestController"
+        end
+
+        context "with slash-separated namespace" do
+          let(:input_name) { "admin/test_controller" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_controller.rb",
+            expected_file_path: "app/controllers/admin",
+            expected_class: "Admin::TestController"
+        end
+
+        context "with a double-colon namespace" do
+          let(:input_name) { "A::B::TestAPI" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_api_controller.rb",
+            expected_file_path: "app/controllers/a/b",
+            expected_class: "A::B::TestAPIController"
+        end
+
+        context "with absolute namespace" do
+          let(:input_name) { "::Admin::Test" }
+
+          it_behaves_like "file generator",
+            expected_file_name: "test_controller.rb",
+            expected_file_path: "app/controllers/admin",
+            expected_class: "::Admin::TestController"
+        end
+      end
+    end
+  end
+end
 
 RSpec.describe Rage::CLI do
   subject(:rage_cli) { described_class.new }

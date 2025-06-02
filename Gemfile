@@ -12,6 +12,7 @@ gem "yard"
 gem "rubocop", "~> 1.65.0", require: false
 
 group :test do
+  gem "activesupport"
   gem "http"
   gem "pg"
   gem "mysql2"

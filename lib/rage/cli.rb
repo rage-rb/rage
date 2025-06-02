@@ -30,6 +30,26 @@ module Rage
       template("model-template/model.rb", "app/models/#{name.singularize.underscore}.rb")
     end
 
+    desc "controller NAME", "Generate a new controller."
+    def controller(name = nil)
+      return help("controller") if name.nil?
+
+      setup
+      unless defined?(ActiveSupport::Inflector)
+        raise LoadError, <<~ERR
+          ActiveSupport::Inflector is required to run this command. Add the following line to your Gemfile:
+          gem "activesupport", require: "active_support/inflector"
+        ERR
+      end
+
+      # remove trailing Controller if already present
+      normalized_name = name.sub(/_?controller$/i, "")
+      @controller_name = "#{normalized_name.camelize}Controller"
+      file_name = "#{normalized_name.underscore}_controller.rb"
+
+      template("controller-template/controller.rb", "app/controllers/#{file_name}")
+    end
+
     private
 
     def setup
