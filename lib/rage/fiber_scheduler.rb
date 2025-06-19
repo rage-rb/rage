@@ -4,15 +4,28 @@ require "resolv"
 
 class Rage::FiberScheduler
   MAX_READ = 65536
+  TIMEOUT_WORKER_INTERVAL = 100 # miliseconds
 
   def initialize
     @root_fiber = Fiber.current
     @dns_cache = {}
+
+    @alive_fibers = {}
+    @timeout_mutex = Mutex.new
+
+    start_timeout_worker
   end
 
   def io_wait(io, events, timeout = nil)
     f = Fiber.current
     ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil) { |err| f.resume(err) }
+
+    timeout_deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+    @alive_fibers[f.__get_id] = {
+      fiber: f,
+      timeout_deadline: timeout_deadline,
+      exception_class: RageTimeout,
+    }
 
     err = Fiber.defer(io.fileno)
     if err == false || (err && err < 0)
@@ -79,6 +92,30 @@ class Rage::FiberScheduler
 
   #   result
   # end
+  def timeout_after(duration, exception_class = Timeout::Error, *exception_arguments, &block)
+    fiber = Fiber.current
+    timeout_deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + duration
+
+    p "duration #{duration}"
+    p "fiber id #{fiber.__get_id}"
+
+    @timeout_mutex.synchronize do
+      @alive_fibers[fiber.__get_id] = {
+        fiber: fiber,
+        timeout_deadline: timeout_deadline,
+        exception_class: exception_class,
+        exception_arguments: exception_arguments,
+      }
+    end
+
+    begin
+      block.call
+    ensure
+      @timeout_mutex.synchronize do
+        @alive_fibers.delete(fiber.__get_id)
+      end
+    end
+  end
 
   def address_resolve(hostname)
     @dns_cache[hostname] ||= begin
@@ -145,4 +182,45 @@ class Rage::FiberScheduler
   def close
     ::Iodine::Scheduler.close
   end
+
+  private
+
+  def start_timeout_worker
+    return unless ::Iodine.running?
+
+    ::Iodine.run_every(Rage::FiberScheduler::TIMEOUT_WORKER_INTERVAL) do
+      @timeout_mutex.synchronize do
+        check_timeouts
+      end
+    end
+  end
+
+  def check_timeouts
+    p @alive_fibers.count
+
+    @alive_fibers.delete_if do |_, fiber_hash|
+      current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+      p current_time
+      p "deadline #{fiber_hash[:timeout_deadline]}"
+      p "fiber id #{fiber_hash[:fiber].__get_id}"
+
+      return false if current_time < fiber_hash[:timeout_deadline]
+
+      p 'after'
+
+      fiber = fiber_hash[:fiber]
+      # unblock(nil, fiber)
+
+      # if fiber.alive?
+        fiber.raise(RageTimeout)
+      # else
+        # fiber.kill
+      # end
+
+      true
+    end
+  end
 end
+
+class RageTimeout < StandardError; end
