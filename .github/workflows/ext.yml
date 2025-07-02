@@ -1,4 +1,4 @@
-name: ActiveRecord Appraisals
+name: Ext Tests
 
 on:
   schedule: [ cron: '0 0 * * *' ]
@@ -41,7 +41,11 @@ jobs:
       - name: Run all versioned appraisals
         if: ${{ github.event_name != 'schedule' }}
         run: bundle exec rake appraise
+        env:
+          TEST_PG_URL: ${{ secrets.TEST_PG_URL }}
 
       - name: Run rails_main appraisal
         if: ${{ github.event_name == 'schedule' }}
         run: bundle exec appraisal rails_main rspec spec/ext/*
+        env:
+          TEST_PG_URL: ${{ secrets.TEST_PG_URL }}
