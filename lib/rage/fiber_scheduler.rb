@@ -11,6 +11,7 @@ class Rage::FiberScheduler
     @dns_cache = {}
 
     @alive_fibers = Hash.new { |h, k| h[k] = {} }
+    @fibers_mutex = Mutex.new
 
     start_timeout_worker
   end
@@ -75,17 +76,21 @@ class Rage::FiberScheduler
     fiber = Fiber.current
     timeout_deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + duration
 
-    @alive_fibers[fiber.__get_id][timeout_deadline] = {
-      fiber: fiber,
-      timeout_deadline: timeout_deadline,
-      exception_class: exception_class,
-      exception_arguments: exception_arguments
-    }
+    @fibers_mutex.synchronize do
+      @alive_fibers[fiber.__get_id][timeout_deadline] = {
+        fiber: fiber,
+        timeout_deadline: timeout_deadline,
+        exception_class: exception_class,
+        exception_arguments: exception_arguments
+      }
+    end
 
     begin
       block.call
     ensure
-      @alive_fibers[fiber.__get_id].delete(timeout_deadline)
+      @fibers_mutex.synchronize do
+        @alive_fibers[fiber.__get_id].delete(timeout_deadline)
+      end
     end
   end
 
@@ -166,25 +171,31 @@ class Rage::FiberScheduler
   end
 
   def check_timeouts
-    @alive_fibers.delete_if do |fiber_id, timeouts|
-      timeouts.delete_if do |timeout_key, fiber_hash|
-        current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    @fibers_mutex.synchronize do
+      @alive_fibers.delete_if do |fiber_id, timeouts|
+        timeouts.delete_if do |timeout_key, fiber_hash|
+          current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-        return false if current_time < fiber_hash[:timeout_deadline]
+          next false if current_time < fiber_hash[:timeout_deadline]
 
-        fiber = fiber_hash[:fiber]
-        unblock(nil, fiber)
+          fiber = fiber_hash[:fiber]
+          unblock(nil, fiber)
 
-        if fiber.alive?
-          fiber.raise(RageTimeout)
-        else
-          timeouts.delete(timeout_key)
+          if fiber.alive?
+            fiber.raise(RageTimeout)
+
+            ::Iodine.run_after(1000) do
+              fiber.kill if fiber.alive?
+            end
+          else
+            timeouts.delete(timeout_key)
+          end
+
+          true
         end
 
-        true
+        timeouts.length == 0
       end
-
-      timeouts.length == 0
     end
   end
 end
