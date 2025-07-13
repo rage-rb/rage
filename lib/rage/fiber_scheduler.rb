@@ -5,6 +5,7 @@ require "resolv"
 class Rage::FiberScheduler
   MAX_READ = 65536
   TIMEOUT_WORKER_INTERVAL = 100 # miliseconds
+  FIBER_KILL_DELAY = 500 # miliseconds
 
   def initialize
     @root_fiber = Fiber.current
@@ -172,32 +173,30 @@ class Rage::FiberScheduler
 
   def check_timeouts
     @fibers_mutex.synchronize do
-      @alive_fibers.delete_if do |fiber_id, timeouts|
-        timeouts.delete_if do |timeout_key, fiber_hash|
+      @alive_fibers.delete_if do |fiber_id, fiber_timeouts|
+        fiber_timeouts.delete_if do |timeout_key, fiber_context|
           current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-          next false if current_time < fiber_hash[:timeout_deadline]
+          next false if current_time < fiber_context[:timeout_deadline]
 
-          fiber = fiber_hash[:fiber]
+          fiber = fiber_context[:fiber]
           unblock(nil, fiber)
 
           if fiber.alive?
-            fiber.raise(RageTimeout)
+            fiber.raise(fiber_context[:exception_class], *fiber_context[:exception_arguments])
 
-            ::Iodine.run_after(1000) do
+            ::Iodine.run_after(FIBER_KILL_DELAY) do
               fiber.kill if fiber.alive?
             end
           else
-            timeouts.delete(timeout_key)
+            fiber_timeouts.delete(timeout_key)
           end
 
           true
         end
 
-        timeouts.length == 0
+        fiber_timeouts.length == 0
       end
     end
   end
 end
-
-class RageTimeout < StandardError; end
