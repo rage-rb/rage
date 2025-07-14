@@ -17,7 +17,7 @@ class Rage::FiberScheduler
 
   def io_wait(io, events, timeout = nil)
     f = Fiber.current
-    ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil) { |err| f.resume(err) }
+    ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil) { |err| f.resume(err) if f.alive? }
 
     err = Fiber.defer(io.fileno)
     if err == false || (err && err < 0)
@@ -105,7 +105,7 @@ class Rage::FiberScheduler
       unless fulfilled
         fulfilled = true
         ::Iodine.defer { ::Iodine.unsubscribe(channel) }
-        f.resume
+        f.resume if f.alive?
       end
     end
 
