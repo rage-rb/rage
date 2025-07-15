@@ -72,10 +72,10 @@ class Rage::FiberScheduler
   end
 
   def timeout_after(duration, exception_class = Timeout::Error, *exception_arguments, &block)
-    fiber = Fiber.current
+    f = Fiber.current
     timeout = Process.clock_gettime(Process::CLOCK_MONOTONIC) + duration
 
-    @fiber_timeouts[fiber][timeout] = {
+    @fiber_timeouts[f][timeout] = {
       exception_class: exception_class,
       exception_arguments: exception_arguments
     }
@@ -83,8 +83,8 @@ class Rage::FiberScheduler
     begin
       block.call
     ensure
-      @fiber_timeouts[fiber].delete(timeout)
-      @fiber_timeouts.delete(fiber) if @fiber_timeouts[fiber].empty?
+      @fiber_timeouts[f].delete(timeout)
+      @fiber_timeouts.delete(f) if @fiber_timeouts[f].empty?
     end
   end
 
@@ -163,13 +163,11 @@ class Rage::FiberScheduler
   end
 
   def check_timeouts
-    @fiber_timeouts.each_pair do |fiber, timeouts|
-      timeouts.delete_if do |timeout, context|
+    @fiber_timeouts.each do |fiber, timeouts|
+      timeouts.each do |timeout, context|
         next false if Process.clock_gettime(Process::CLOCK_MONOTONIC) < timeout
 
-        fiber.raise(context[:exception_class], *context[:exception_arguments]) if fiber.alive?
-
-        true
+        fiber.raise(context[:exception_class], *context[:exception_arguments])
       end
     end
   end
