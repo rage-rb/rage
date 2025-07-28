@@ -212,6 +212,21 @@ module Rage
       end
     end
 
+    desc "openapi:validate", "Validate the API specification."
+    map "openapi:validate" => :openapi_validate
+    def openapi_validate
+      set_env(options)
+      environment
+      Rage::OpenAPI.build
+
+      if Rage::OpenAPI.__warnings.any?
+        puts "OpenAPI validation failed. Warnings: #{Rage::OpenAPI.__warnings}"
+        exit 1
+      else
+        puts "OpenAPI validation passed without warnings."
+      end
+    end
+
     def method_missing(method_name, *, &)
       set_env({})
 

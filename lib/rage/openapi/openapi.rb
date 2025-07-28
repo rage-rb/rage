@@ -80,6 +80,7 @@ module Rage::OpenAPI
   # @param namespace [String, Module] limit the parser to a specific namespace
   # @return [Hash]
   def self.build(namespace: nil)
+    __reset_warnings
     Builder.new(namespace:).run
   end
 
@@ -156,7 +157,18 @@ module Rage::OpenAPI
 
   # @private
   def self.__log_warn(log)
+    __warnings << log
     puts "[OpenAPI] WARNING: #{log}"
+  end
+
+  # @private
+  def self.__warnings
+    @__warnings ||= []
+  end
+
+  # @private
+  def self.__reset_warnings
+    @__warnings = []
   end
 
   module Nodes
