@@ -22,6 +22,8 @@ class Rage::CodeLoader
     @loader.enable_reloading if enable_reloading
     @loader.setup
     @loader.eager_load if enable_eager_loading
+
+    configure_components
   end
 
   # in standalone mode - reload the code and the routes
@@ -34,13 +36,7 @@ class Rage::CodeLoader
     Rage.__router.reset_routes
     load("#{Rage.root}/config/routes.rb")
 
-    unless Rage.autoload?(:Cable) # the `Cable` component is loaded
-      Rage::Cable.__router.reset
-    end
-
-    unless Rage.autoload?(:OpenAPI) # the `OpenAPI` component is loaded
-      Rage::OpenAPI.__reset_data_cache
-    end
+    reload_components
   end
 
   # in Rails mode - reset the routes; everything else will be done by Rails
@@ -50,13 +46,7 @@ class Rage::CodeLoader
     @reloading = true
     Rage.__router.reset_routes
 
-    unless Rage.autoload?(:Cable) # the `Cable` component is loaded
-      Rage::Cable.__router.reset
-    end
-
-    unless Rage.autoload?(:OpenAPI) # the `OpenAPI` component is loaded
-      Rage::OpenAPI.__reset_data_cache
-    end
+    reload_components
   end
 
   def reloading?
@@ -72,5 +62,26 @@ class Rage::CodeLoader
 
   ensure
     @last_watched, @last_update_at = current_watched, current_update_at
+  end
+
+  private
+
+  def configure_components
+    if Rage.env.development? && (Rage.config.deferred.configured? || Rage.config.deferred.has_default_disk_storage?)
+      # if there's at least one task, `Rage::Deferred` will be automatically loaded in production;
+      # in development, however, eager loading is disabled, and we want to automatically load
+      # the module in case it was explicitly configured or if a disk storage exists
+      Rage::Deferred
+    end
+  end
+
+  def reload_components
+    unless Rage.autoload?(:Cable) # the `Cable` component is loaded
+      Rage::Cable.__router.reset
+    end
+
+    unless Rage.autoload?(:OpenAPI) # the `OpenAPI` component is loaded
+      Rage::OpenAPI.__reset_data_cache
+    end
   end
 end

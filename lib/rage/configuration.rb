@@ -145,6 +145,20 @@ require "erb"
 # end
 # > ```
 #
+# # Deferred Configuration
+# • _config.deferred.backend_
+#
+# > Specifies the backend for deferred tasks. Supported values are `:disk`, which uses disk storage, or `nil`, which disables persistence of deferred tasks.
+# > The `:disk` backend accepts the following options:
+# >
+# > - `:path` - the path to the directory where deferred tasks will be stored. Defaults to `storage`.
+# > - `:prefix` - the prefix for the deferred task files. Defaults to `deferred-`.
+# > - `:fsync_frequency` - the frequency of `fsync` calls in seconds. Defaults to `0.5`.
+#
+# > ```ruby
+# config.deferred.backend = :disk, { path: "storage" }
+# > ```
+#
 # # Transient Settings
 #
 # The settings described in this section should be configured using **environment variables** and are either temporary or will become the default in the future.
@@ -206,6 +220,10 @@ class Rage::Configuration
 
   def openapi
     @openapi ||= OpenAPI.new
+  end
+
+  def deferred
+    @deferred ||= Deferred.new
   end
 
   def internal
@@ -345,6 +363,85 @@ class Rage::Configuration
 
   class OpenAPI
     attr_accessor :tag_resolver
+  end
+
+  class Deferred
+    def initialize
+      @backend_class = Rage::Deferred::Backends::Disk
+      @backend_options = parse_disk_backend_options({})
+
+      @configured = false
+    end
+
+    def backend
+      @backend_class.new(**@backend_options)
+    end
+
+    def backend=(config)
+      @configured = true
+
+      backend_id, opts = if config.is_a?(Array)
+        [config[0], config[1]]
+      else
+        [config, {}]
+      end
+
+      @backend_class = case backend_id
+      when :disk
+        @backend_options = parse_disk_backend_options(opts)
+        Rage::Deferred::Backends::Disk
+      when nil
+        Rage::Deferred::Backends::Nil
+      else
+        raise ArgumentError, "unsupported backend value; supported values are `:disk` and `nil`"
+      end
+    end
+
+    def default_disk_storage_path
+      Pathname.new("storage")
+    end
+
+    def default_disk_storage_prefix
+      "deferred-"
+    end
+
+    def has_default_disk_storage?
+      default_disk_storage_path.glob("#{default_disk_storage_prefix}*").any?
+    end
+
+    def configured?
+      @configured
+    end
+
+    private
+
+    def parse_disk_backend_options(opts)
+      if opts.except(:path, :prefix, :fsync_frequency).any?
+        raise ArgumentError, "unsupported backend options; supported values are `:path`, `:prefix`, `:fsync_frequency`"
+      end
+
+      parsed_options = {}
+
+      parsed_options[:path] = if opts[:path]
+        opts[:path].is_a?(Pathname) ? opts[:path] : Pathname.new(opts[:path])
+      else
+        default_disk_storage_path
+      end
+
+      parsed_options[:prefix] = if opts[:prefix]
+        opts[:prefix].end_with?("-") ? opts[:prefix] : "#{opts[:prefix]}-"
+      else
+        default_disk_storage_prefix
+      end
+
+      parsed_options[:fsync_frequency] = if opts[:fsync_frequency]
+        (opts[:fsync_frequency].to_i * 1_000).round
+      else
+        500
+      end
+
+      parsed_options
+    end
   end
 
   # @private
