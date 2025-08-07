@@ -1,9 +1,9 @@
 namespace :openapi do
   task :validate do
-    Rage::OpenAPI.build
+    Rage.openapi.build
 
-    if Rage::OpenAPI.__warnings.any?
-      puts "OpenAPI validation failed. Warnings: #{Rage::OpenAPI.__warnings}"
+    if Rage.openapi.__warnings.any?
+      puts "OpenAPI validation failed. Warnings: #{Rage.openapi.__warnings}"
       exit 1
     else
       puts "OpenAPI validation passed without warnings."
