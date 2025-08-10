@@ -35,6 +35,7 @@ class Rage::Deferred::Queue
           else
             @backend.remove(task_id)
           end
+          Rage.logger.error("#{task.class} deferred task failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
         else
           @backend.remove(task_id)
         ensure
