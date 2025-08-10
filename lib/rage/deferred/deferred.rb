@@ -73,10 +73,7 @@ module Rage::Deferred
     current_time = Time.now.to_i
 
     __backend.pending_tasks.each do |task_id, task, publish_at, attempts|
-      publish_in = if publish_at
-        (publish_at - current_time).clamp(0, nil)
-      end
-
+      publish_in = publish_at - current_time if publish_at
       __queue.schedule(task_id, task, publish_in:, attempts:)
     end
   end

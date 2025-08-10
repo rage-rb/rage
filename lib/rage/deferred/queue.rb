@@ -9,10 +9,10 @@ class Rage::Deferred::Queue
   def enqueue(task, delay: nil, delay_until: nil, attempts: nil, task_id: nil)
     publish_in, publish_at = if delay
       delay_i = delay.to_i
-      [delay_i, Time.now.to_i + delay_i]
+      [delay_i, Time.now.to_i + delay_i] if delay_i > 0
     elsif delay_until
-      delay_until_i = delay_until.to_i
-      [delay_until_i - Time.now.to_i, delay_until_i]
+      delay_until_i, current_time_i = delay_until.to_i, Time.now.to_i
+      [delay_until_i - current_time_i, delay_until_i] if delay_until_i > current_time_i
     end
 
     persisted_task_id = @backend.add(task, publish_at:, attempts:, task_id:)
