@@ -11,17 +11,11 @@
 # class ProcessImage
 #   include Rage::Deferred::Task
 #
-#   def initialize(image_path:)
-#     @image_path = image_path
-#   end
-#
-#   def perform
+#   def perform(image_path:)
 #     # logic to process the image
 #   end
 # end
 # ```
-#
-# The `#perform` method should contain the logic for the task. It does not accept any arguments, as the task instance itself carries all necessary data.
 #
 module Rage::Deferred::Task
   MAX_ATTEMPTS = 5
