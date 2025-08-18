@@ -15,7 +15,6 @@ class Rage::Deferred::Backends::Disk
   STORAGE_SIZE_INCREASE_RATIO = 1.5
 
   DEFAULT_PUBLISH_AT = "0"
-  DEFAULT_ATTEMPTS = "0"
   DEFAULT_STORAGE_SIZE_LIMIT = 2_000_000
 
   def initialize(path:, prefix:, fsync_frequency:)
@@ -77,19 +76,18 @@ class Rage::Deferred::Backends::Disk
   # Add a record to the log representing a new task.
   # @param task [Rage::Deferred::Task]
   # @param publish_at [Integer, nil]
-  # @param attempts [Integer, nil]
   # @param task_id [String, nil]
   # @return [String]
-  def add(task, publish_at: nil, attempts: nil, task_id: nil)
+  def add(task, publish_at: nil, task_id: nil)
     serialized_task = Marshal.dump(task).dump
 
     persisted_task_id = task_id || generate_task_id
 
-    entry = build_add_entry(persisted_task_id, serialized_task, publish_at, attempts)
+    entry = build_add_entry(persisted_task_id, serialized_task, publish_at)
     write_to_storage(entry)
 
     if publish_at
-      @delayed_tasks[persisted_task_id] = [serialized_task, publish_at, attempts]
+      @delayed_tasks[persisted_task_id] = [serialized_task, publish_at]
     else
       @immediate_tasks_in_queue += 1
     end
@@ -149,20 +147,19 @@ class Rage::Deferred::Backends::Disk
     end
 
     tasks.filter_map do |task_id, entry|
-      _, _, _, serialized_publish_at, serialized_attempts, serialized_task = entry.split(":", 6)
+      _, _, _, serialized_publish_at, serialized_task = entry.split(":", 5)
 
       task = Marshal.load(serialized_task.undump)
 
       publish_at = (serialized_publish_at == DEFAULT_PUBLISH_AT ? nil : serialized_publish_at.to_i)
-      attempts = (serialized_attempts == DEFAULT_ATTEMPTS ? nil : serialized_attempts.to_i)
 
       if publish_at
-        @delayed_tasks[task_id] = [serialized_task, publish_at, attempts]
+        @delayed_tasks[task_id] = [serialized_task, publish_at]
       else
         @immediate_tasks_in_queue += 1
       end
 
-      [task_id, task, publish_at, attempts]
+      [task_id, task, publish_at]
 
     rescue ArgumentError, NameError => e
       puts "ERROR: Can't deserialize the task with id #{task_id}: (#{e.class}) #{e.message}"
@@ -217,8 +214,8 @@ class Rage::Deferred::Backends::Disk
         # don't copy the task if it has already been processed during the rotation
         next unless @delayed_tasks.has_key?(task_id)
 
-        serialized_task, publish_at, attempts = @delayed_tasks[task_id]
-        build_add_entry(task_id, serialized_task, publish_at, attempts)
+        serialized_task, publish_at = @delayed_tasks[task_id]
+        build_add_entry(task_id, serialized_task, publish_at)
       end
 
       write_to_storage(entries.join, adjust_size_limit: true)
@@ -233,8 +230,8 @@ class Rage::Deferred::Backends::Disk
     end
   end
 
-  def build_add_entry(task_id, serialized_task, publish_at, attempts)
-    entry = "add:#{task_id}:#{publish_at || DEFAULT_PUBLISH_AT}:#{attempts || DEFAULT_ATTEMPTS}:#{serialized_task}"
+  def build_add_entry(task_id, serialized_task, publish_at)
+    entry = "add:#{task_id}:#{publish_at || DEFAULT_PUBLISH_AT}:#{serialized_task}"
     crc = Zlib.crc32(entry).to_s(16).rjust(8, "0")
 
     "#{crc}:#{entry}\n"

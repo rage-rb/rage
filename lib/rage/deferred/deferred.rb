@@ -72,9 +72,9 @@ module Rage::Deferred
   def self.__load_tasks
     current_time = Time.now.to_i
 
-    __backend.pending_tasks.each do |task_id, task, publish_at, attempts|
+    __backend.pending_tasks.each do |task_id, task_wrapper, publish_at|
       publish_in = publish_at - current_time if publish_at
-      __queue.schedule(task_id, task, publish_in:, attempts:)
+      __queue.schedule(task_id, task_wrapper, publish_in:)
     end
   end
 
@@ -84,6 +84,7 @@ end
 
 require_relative "task"
 require_relative "queue"
+require_relative "metadata"
 require_relative "backends/disk"
 require_relative "backends/nil"
 

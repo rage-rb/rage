@@ -34,12 +34,55 @@ module Rage::Deferred::Task
   end
 
   # @private
-  def __should_retry?(attempts)
-    attempts.to_i < MAX_ATTEMPTS
+  def __with_log_tag(tag)
+    if tag
+      Rage.logger.tagged(tag) { yield }
+    else
+      yield
+    end
   end
 
   # @private
-  def __next_retry_in(attempts)
-    rand(BACKOFF_INTERVAL * 2**attempts.to_i) + 1
+  def __perform(metadata)
+    args = Rage::Deferred::Metadata.get_args(metadata)
+    attempts = Rage::Deferred::Metadata.get_attempts(metadata)
+    request_id = Rage::Deferred::Metadata.get_request_id(metadata)
+
+    context = { task: self.class.name }
+    context[:attempt] = attempts + 1 if attempts
+
+    Rage.logger.with_context(context) do
+      __with_log_tag(request_id) do
+        perform(*args)
+        true
+      rescue Exception => e
+        Rage.logger.error("Deferred task failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+        false
+      end
+    end
+  end
+
+  def self.included(klass)
+    klass.extend(ClassMethods)
+  end
+
+  module ClassMethods
+    def perform_async(*args, delay: nil, delay_until: nil)
+      Rage::Deferred.__queue.enqueue(
+        Rage::Deferred::Metadata.build(self, args),
+        delay:,
+        delay_until:
+      )
+    end
+
+    # @private
+    def __should_retry?(attempts)
+      attempts < MAX_ATTEMPTS
+    end
+
+    # @private
+    def __next_retry_in(attempts)
+      rand(BACKOFF_INTERVAL * 2**attempts.to_i) + 1
+    end
   end
 end
