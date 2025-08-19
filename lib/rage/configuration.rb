@@ -422,7 +422,7 @@ class Rage::Configuration
 
       def initialize(high_water_mark = nil, low_water_mark = nil, timeout = nil)
         @high_water_mark = high_water_mark || 1_000
-        @low_water_mark = low_water_mark || (@high_water_mark * 0.2).round
+        @low_water_mark = low_water_mark || (@high_water_mark * 0.8).round
 
         @timeout = timeout || 2
         @sleep_interval = 0.05
