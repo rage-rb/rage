@@ -25,7 +25,7 @@ class Rage::Deferred::Queue
     task = Rage::Deferred::Metadata.get_task(task_metadata)
 
     Iodine.run_after(publish_in_ms) do
-      unless Iodine.stop_requested?
+      unless Iodine.stopping?
         Fiber.schedule do
           Iodine.task_inc!
 
