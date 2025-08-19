@@ -28,7 +28,7 @@ module Rage::Deferred::Task
   end
 
   # @private
-  def __with_log_tag(tag)
+  def __with_optional_log_tag(tag)
     if tag
       Rage.logger.tagged(tag) { yield }
     else
@@ -39,6 +39,7 @@ module Rage::Deferred::Task
   # @private
   def __perform(metadata)
     args = Rage::Deferred::Metadata.get_args(metadata)
+    kwargs = Rage::Deferred::Metadata.get_kwargs(metadata)
     attempts = Rage::Deferred::Metadata.get_attempts(metadata)
     request_id = Rage::Deferred::Metadata.get_request_id(metadata)
 
@@ -46,8 +47,8 @@ module Rage::Deferred::Task
     context[:attempt] = attempts + 1 if attempts
 
     Rage.logger.with_context(context) do
-      __with_log_tag(request_id) do
-        perform(*args)
+      __with_optional_log_tag(request_id) do
+        perform(*args, **kwargs)
         true
       rescue Exception => e
         Rage.logger.error("Deferred task failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
@@ -61,9 +62,9 @@ module Rage::Deferred::Task
   end
 
   module ClassMethods
-    def perform_async(*args, delay: nil, delay_until: nil)
+    def enqueue(*args, delay: nil, delay_until: nil, **kwargs)
       Rage::Deferred.__queue.enqueue(
-        Rage::Deferred::Metadata.build(self, args),
+        Rage::Deferred::Metadata.build(self, args, kwargs),
         delay:,
         delay_until:
       )
