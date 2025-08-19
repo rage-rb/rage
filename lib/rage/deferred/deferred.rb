@@ -19,19 +19,19 @@
 # Then, push the task to the deferred queue:
 #
 # ```ruby
-# SendWelcomeEmail.perform_async(email: user.email)
+# SendWelcomeEmail.enqueue(email: user.email)
 # ```
 #
 # You can also specify a delay for the task execution using the `delay` option:
 #
 # ```ruby
-# SendWelcomeEmail.perform_async(email: user.email, delay: 10) # execute after 10 seconds
+# SendWelcomeEmail.enqueue(email: user.email, delay: 10) # execute after 10 seconds
 # ```
 #
 # Or you can specify a specific time in the future when the task should be executed:
 #
 # ```ruby
-# SendWelcomeEmail.perform_async(email: user.email, delay_until: Time.now + 3600) # execute in 1 hour
+# SendWelcomeEmail.enqueue(email: user.email, delay_until: Time.now + 3600) # execute in 1 hour
 # ```
 #
 module Rage::Deferred

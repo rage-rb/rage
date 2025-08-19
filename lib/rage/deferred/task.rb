@@ -17,6 +17,19 @@
 # end
 # ```
 #
+# The task can be enqueued using the `enqueue` method:
+#
+# ```ruby
+# ProcessImage.enqueue(image_path: 'path/to/image.jpg')
+# ```
+#
+# The `delay` and `delay_until` options can be used to specify when the task should be executed.
+#
+# ```ruby
+# ProcessImage.enqueue(image_path: 'path/to/image.jpg', delay: 10) # delays execution by 10 seconds
+# ProcessImage.enqueue(image_path: 'path/to/image.jpg', delay_until: Time.now + 3600) # executes after 1 hour
+# ```
+#
 module Rage::Deferred::Task
   MAX_ATTEMPTS = 5
   private_constant :MAX_ATTEMPTS

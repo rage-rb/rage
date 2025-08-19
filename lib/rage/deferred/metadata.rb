@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+##
+# Metadata for deferred tasks.
+# The class encapsulates the metadata associated with a deferred task, and allows to store it without modifying the task instance.
+#
 class Rage::Deferred::Metadata
   def self.build(task, args, kwargs)
     request_id = Thread.current[:rage_logger][:tags][0] if Thread.current[:rage_logger]
