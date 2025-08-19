@@ -159,6 +159,24 @@ require "erb"
 # config.deferred.backend = :disk, { path: "storage" }
 # > ```
 #
+# • _config.deferred.backpressure_
+#
+# > Enables the backpressure for deferred tasks. The backpressure is used to limit the number of pending tasks in the queue. It accepts a hash with the following options:
+# >
+# > - `:high_water_mark` - the maximum number of pending tasks in the queue. Defaults to `1000`.
+# > - `:low_water_mark` - the minimum number of pending tasks in the queue before the backpressure is released. Defaults to `800`.
+# > - `:timeout` - the timeout for the backpressure in seconds. Defaults to `2`.
+#
+# > ```ruby
+# config.deferred.backpressure = { high_water_mark: 1000, low_water_mark: 800, timeout: 2 }
+# > ```
+#
+# > Additionally, you can set the backpressure value to `true` to use the default values:
+#
+# > ```ruby
+# config.deferred.backpressure = true
+# ```
+#
 # # Transient Settings
 #
 # The settings described in this section should be configured using **environment variables** and are either temporary or will become the default in the future.
