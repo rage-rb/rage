@@ -4,7 +4,9 @@ RSpec.describe Rage::Deferred::Task do
   let(:task_class) do
     Class.new do
       include Rage::Deferred::Task
-      def perform(arg, kwarg:); end
+
+      def perform(arg, kwarg:)
+      end
     end
   end
 

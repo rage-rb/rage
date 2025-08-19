@@ -137,7 +137,7 @@ class Rage::Deferred::Backends::Disk
         task_id = entry[13...entry.index(":", 13).to_i]
         tasks[task_id] = entry
       elsif op == "rem"
-        task_id = entry[13..-1]
+        task_id = entry[13..]
         tasks.delete(task_id)
       end
     end

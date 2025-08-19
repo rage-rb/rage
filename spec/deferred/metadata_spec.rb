@@ -1,7 +1,7 @@
 RSpec.describe Rage::Deferred::Metadata do
   describe ".build" do
-    let(:task)   { :dummy_task }
-    let(:args)   { [1, 2, 3] }
+    let(:task) { :dummy_task }
+    let(:args) { [1, 2, 3] }
     let(:kwargs) { { key: "value" } }
 
     after do
