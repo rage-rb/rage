@@ -35,6 +35,22 @@
 # ```
 #
 module Rage::Deferred
+  # Push an instance to the deferred queue without including the `Rage::Deferred::Task` module.
+  # @param instance [Object] the instance to wrap
+  # @param delay [Integer, nil] the delay in seconds before the task is executed
+  # @param delay_until [Time, nil] the specific time when the task should be executed
+  # @example Schedule an arbitrary method to be called in the background
+  #   class SendWelcomeEmail < Struct.new(:email)
+  #     def call
+  #     end
+  #   end
+  #
+  #   email_service = SendWelcomeEmail.new(email: user.email)
+  #   Rage::Deferred.wrap(email_service).call
+  def self.wrap(instance, delay: nil, delay_until: nil)
+    Rage::Deferred::Proxy.new(instance, delay:, delay_until:)
+  end
+
   # @private
   def self.__backend
     @__backend ||= Rage.config.deferred.backend
@@ -64,6 +80,7 @@ end
 
 require_relative "task"
 require_relative "queue"
+require_relative "proxy"
 require_relative "metadata"
 require_relative "backends/disk"
 require_relative "backends/nil"
