@@ -57,6 +57,9 @@ module Rage::Deferred
 
   module Backends
   end
+
+  class PushTimeout < StandardError
+  end
 end
 
 require_relative "task"

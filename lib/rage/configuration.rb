@@ -366,6 +366,8 @@ class Rage::Configuration
   end
 
   class Deferred
+    attr_reader :backpressure
+
     def initialize
       @backend_class = Rage::Deferred::Backends::Disk
       @backend_options = parse_disk_backend_options({})
@@ -393,8 +395,40 @@ class Rage::Configuration
       when nil
         Rage::Deferred::Backends::Nil
       else
-        raise ArgumentError, "unsupported backend value; supported values are `:disk` and `nil`"
+        raise ArgumentError, "unsupported backend value; supported keys are `:disk` and `nil`"
       end
+    end
+
+    class Backpressure
+      attr_reader :high_water_mark, :low_water_mark, :timeout, :sleep_interval, :timeout_iterations
+
+      def initialize(high_water_mark = nil, low_water_mark = nil, timeout = nil)
+        @high_water_mark = high_water_mark || 1_000
+        @low_water_mark = low_water_mark || (@high_water_mark * 0.2).round
+
+        @timeout = timeout || 2
+        @sleep_interval = 0.05
+        @timeout_iterations = (@timeout / @sleep_interval).round
+      end
+    end
+
+    def backpressure=(config)
+      @configured = true
+
+      if config == true
+        @backpressure = Backpressure.new
+        return
+      elsif config == false
+        @backpressure = nil
+        return
+      end
+
+      if opts.except(:high_water_mark, :low_water_mark, :timeout).any?
+        raise ArgumentError, "unsupported backpressure options; supported keys are `:high_water_mark`, `:low_water_mark`, `:timeout`"
+      end
+
+      high_water_mark, low_water_mark, timeout = config.values_at(:high_water_mark, :low_water_mark, :timeout)
+      @backpressure = Backpressure.new(high_water_mark, low_water_mark, timeout)
     end
 
     def default_disk_storage_path
