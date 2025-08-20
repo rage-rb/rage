@@ -38,4 +38,33 @@ RSpec.describe Rage::Deferred do
       end
     end
   end
+
+  describe ".wrap" do
+    let(:instance) { double("instance") }
+    let(:proxy) { instance_double(Rage::Deferred::Proxy) }
+
+    before do
+      allow(Rage::Deferred::Proxy).to receive(:new).and_return(proxy)
+    end
+
+    it "creates a proxy object" do
+      expect(Rage::Deferred::Proxy).to receive(:new).with(instance, delay: nil, delay_until: nil)
+      described_class.wrap(instance)
+    end
+
+    it "returns the proxy object" do
+      expect(described_class.wrap(instance)).to eq(proxy)
+    end
+
+    it "passes the delay option to the proxy" do
+      expect(Rage::Deferred::Proxy).to receive(:new).with(instance, delay: 10, delay_until: nil)
+      described_class.wrap(instance, delay: 10)
+    end
+
+    it "passes the delay_until option to the proxy" do
+      time = Time.now
+      expect(Rage::Deferred::Proxy).to receive(:new).with(instance, delay: nil, delay_until: time)
+      described_class.wrap(instance, delay_until: time)
+    end
+  end
 end

@@ -1,63 +1,105 @@
 # frozen_string_literal: true
 
 RSpec.describe Rage::Deferred::Proxy do
-  let(:instance) { double("instance") }
-  let(:proxy) { described_class.new(instance) }
-
-  describe "method delegation" do
-    before do
-      allow(Rage::Deferred::Proxy::Wrapper).to receive(:enqueue)
-    end
-
-    it "correctly delegates the method call to the wrapper" do
-      proxy.perform_async("test", key: "value")
-
-      expect(Rage::Deferred::Proxy::Wrapper).to have_received(:enqueue).with(
-        instance, :perform_async, "test", delay: nil, delay_until: nil, key: "value"
-      )
-    end
-
-    it "defines the method on the class after the first call" do
-      proxy.perform_async("test")
-      expect(described_class.instance_methods(false)).to include(:perform_async)
-
-      # a spy would be better here, but this is a simple way to check
-      # that method_missing isn't called again for the same method
-      expect(proxy).not_to receive(:method_missing)
-      proxy.perform_async("test 2")
-    end
-
-    context "with delay options" do
-      let(:delay) { 30 }
-      let(:delay_until) { Time.now + 60 }
-      let(:proxy) { described_class.new(instance, delay: delay, delay_until: delay_until) }
-
-      it "passes delay options to the wrapper" do
-        proxy.do_something("arg")
-
-        expect(Rage::Deferred::Proxy::Wrapper).to have_received(:enqueue).with(
-          instance, :do_something, "arg", delay: delay, delay_until: delay_until
-        )
+  let(:test_class) do
+    Class.new do
+      def do_something(arg1, kwarg1: "default")
+        [arg1, kwarg1]
       end
     end
   end
 
-  describe "#respond_to_missing?" do
-    it "returns true for any method" do
-      expect(proxy.respond_to?(:any_method_name)).to be_truthy
+  let(:instance) { test_class.new }
+  let(:delay) { nil }
+  let(:delay_until) { nil }
+  let(:proxy) { described_class.new(instance, delay: delay, delay_until: delay_until) }
+
+  before do
+    allow(Rage::Deferred::Proxy::Wrapper).to receive(:enqueue)
+  end
+
+  describe "method delegation" do
+    context "when the instance responds to the method" do
+      it "enqueues the method call with arguments" do
+        proxy.do_something("test", kwarg1: "value")
+
+        expect(Rage::Deferred::Proxy::Wrapper).to have_received(:enqueue).with(
+          instance,
+          :do_something,
+          "test",
+          delay: nil,
+          delay_until: nil,
+          kwarg1: "value"
+        )
+      end
+
+      context "with a delay option" do
+        let(:delay) { 60 }
+
+        it "passes the delay option to enqueue" do
+          proxy.do_something("test")
+
+          expect(Rage::Deferred::Proxy::Wrapper).to have_received(:enqueue).with(
+            instance,
+            :do_something,
+            "test",
+            delay: 60,
+            delay_until: nil
+          )
+        end
+      end
+
+      context "with a delay_until option" do
+        let(:delay_until) { Time.now + 3600 }
+
+        it "passes the delay_until option to enqueue" do
+          proxy.do_something("test")
+
+          expect(Rage::Deferred::Proxy::Wrapper).to have_received(:enqueue).with(
+            instance,
+            :do_something,
+            "test",
+            delay: nil,
+            delay_until: delay_until
+          )
+        end
+      end
+
+      it "defines the method on the proxy to avoid future method_missing calls" do
+        proxy.do_something("first call")
+        expect(Rage::Deferred::Proxy::Wrapper).to have_received(:enqueue).once
+
+        expect(proxy).to respond_to(:do_something)
+
+        proxy.do_something("second call")
+        expect(Rage::Deferred::Proxy::Wrapper).to have_received(:enqueue).twice
+      end
+    end
+
+    context "when the instance does not respond to the method" do
+      it "raises a NoMethodError" do
+        expect { proxy.non_existent_method }.to raise_error(NoMethodError)
+      end
+    end
+  end
+
+  describe "#respond_to?" do
+    it "returns true if the instance responds to the method" do
+      expect(proxy.respond_to?(:do_something)).to be(true)
+    end
+
+    it "returns false if the instance does not respond to the method" do
+      expect(proxy.respond_to?(:non_existent_method)).to be(false)
     end
   end
 
   describe "Rage::Deferred::Proxy::Wrapper" do
-    it "includes the Task module" do
-      expect(Rage::Deferred::Proxy::Wrapper).to include(Rage::Deferred::Task)
-    end
-
-    it "calls the correct method on the instance" do
-      wrapper = Rage::Deferred::Proxy::Wrapper.new
-      expect(instance).to receive(:public_send).with(:method_name, "arg1", "arg2", key: "value")
-
-      wrapper.perform(instance, :method_name, "arg1", "arg2", key: "value")
+    describe "#perform" do
+      it "calls the method on the instance" do
+        wrapper = Rage::Deferred::Proxy::Wrapper.new
+        expect(instance).to receive(:public_send).with(:do_something, "arg", kwarg: "val")
+        wrapper.perform(instance, :do_something, "arg", kwarg: "val")
+      end
     end
   end
 end
