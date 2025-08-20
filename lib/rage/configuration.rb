@@ -387,13 +387,15 @@ class Rage::Configuration
     attr_reader :backpressure
 
     def initialize
-      @backend_class = Rage::Deferred::Backends::Disk
-      @backend_options = parse_disk_backend_options({})
-
       @configured = false
     end
 
     def backend
+      unless @backend_class
+        @backend_class = Rage::Deferred::Backends::Disk
+        @backend_options = parse_disk_backend_options({})
+      end
+
       @backend_class.new(**@backend_options)
     end
 
