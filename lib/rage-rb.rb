@@ -22,6 +22,10 @@ module Rage
     Rage::OpenAPI
   end
 
+  def self.deferred
+    Rage::Deferred
+  end
+
   def self.routes
     Rage::Router::DSL.new(__router)
   end
@@ -130,6 +134,7 @@ module Rage
   autoload :Session, "rage/session"
   autoload :Cable, "rage/cable/cable"
   autoload :OpenAPI, "rage/openapi/openapi"
+  autoload :Deferred, "rage/deferred/deferred"
 end
 
 module RageController
