@@ -62,11 +62,12 @@ Built-in middleware:
 - [CORS](https://rage-rb.pages.dev/Rage/Cors)
 - [RequestId](https://rage-rb.pages.dev/Rage/RequestId)
 
-Also, see the following integration guides:
+Also, see the following guides:
 
 - [Rails Integration](https://github.com/rage-rb/rage/wiki/Rails-integration)
 - [RSpec Integration](https://github.com/rage-rb/rage/wiki/RSpec-integration)
 - [WebSockets Guide](https://github.com/rage-rb/rage/wiki/WebSockets-guide)
+- [Background Tasks Guide](https://github.com/rage-rb/rage/wiki/Background-Tasks-Guide)
 
 If you are a first-time contributor, make sure to check the [overview doc](https://github.com/rage-rb/rage/blob/master/OVERVIEW.md) that shows how Rage's core components interact with each other.
 

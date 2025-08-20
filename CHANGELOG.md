@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [1.17.0] - 2025-08-20
+
+### Added
+
+- Add `Rage::Deferred` (#164).
+- Add a controller generator by [@alex-rogachev](https://github.com/alex-rogachev) (#160).
+- Update `stale?` to set cache headers by [@serhii-sadovskyi](https://github.com/serhii-sadovskyi) (#159).
+
+### Fixed
+
+- Sub-millisecond sleep results in hang (#161).
+
 ## [1.16.0] - 2025-05-20
 
 ### Added
