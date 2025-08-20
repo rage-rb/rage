@@ -68,6 +68,9 @@ module Rage::Deferred
     __backend.pending_tasks.each do |task_id, task_wrapper, publish_at|
       publish_in = publish_at - current_time if publish_at
       __queue.schedule(task_id, task_wrapper, publish_in:)
+    rescue => e
+      puts "ERROR: Failed to load deferred task #{task_id}: #{e.class} (#{e.message}). Removing task from the queue."
+      __backend.remove(task_id)
     end
   end
 
