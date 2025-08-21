@@ -61,9 +61,7 @@ class Rage::Deferred::Queue
   private
 
   def apply_backpressure
-    if @backlog_size > @backpressure.high_water_mark && !Fiber[:rage_backpressure_applied]
-      Fiber[:rage_backpressure_applied] = true
-
+    if @backlog_size > @backpressure.high_water_mark
       i, target_backlog_size = 0, @backpressure.low_water_mark
       while @backlog_size > target_backlog_size && i < @backpressure.timeout_iterations
         sleep @backpressure.sleep_interval
