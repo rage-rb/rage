@@ -164,7 +164,7 @@ require "erb"
 # > Enables the backpressure for deferred tasks. The backpressure is used to limit the number of pending tasks in the queue. It accepts a hash with the following options:
 # >
 # > - `:high_water_mark` - the maximum number of pending tasks in the queue. Defaults to `1000`.
-# > - `:low_water_mark` - the minimum number of pending tasks in the queue before the backpressure is released. Defaults to `800`.
+# > - `:low_water_mark` - the minimum number of pending tasks in the queue before the backpressure is released. Defaults to `high_water_mark * 0.8`.
 # > - `:timeout` - the timeout for the backpressure in seconds. Defaults to `2`.
 #
 # > ```ruby
