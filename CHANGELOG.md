@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.17.1] - 2025-08-21
+
+### Fixed
+
+- Apply backpressure to every `enqueue` call (#166).
+
 ## [1.17.0] - 2025-08-20
 
 ### Added
