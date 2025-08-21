@@ -443,7 +443,7 @@ class Rage::Configuration
         return
       end
 
-      if opts.except(:high_water_mark, :low_water_mark, :timeout).any?
+      if config.except(:high_water_mark, :low_water_mark, :timeout).any?
         raise ArgumentError, "unsupported backpressure options; supported keys are `:high_water_mark`, `:low_water_mark`, `:timeout`"
       end
 
