@@ -4,15 +4,20 @@ require "resolv"
 
 class Rage::FiberScheduler
   MAX_READ = 65536
+  TIMEOUT_WORKER_INTERVAL = 100 # miliseconds
 
   def initialize
     @root_fiber = Fiber.current
     @dns_cache = {}
+
+    @fiber_timeouts = Hash.new { |h, k| h[k] = {} }
+
+    start_timeout_worker
   end
 
   def io_wait(io, events, timeout = nil)
     f = Fiber.current
-    ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil) { |err| f.resume(err) }
+    ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil) { |err| f.resume(err) if f.alive? }
 
     err = Fiber.defer(io.fileno)
     if err == false || (err && err < 0)
@@ -66,19 +71,22 @@ class Rage::FiberScheduler
     Fiber.pause if duration.nil? || duration < 1
   end
 
-  # TODO: GC works a little strange with this closure;
-  #
-  # def timeout_after(duration, exception_class = Timeout::Error, *exception_arguments, &block)
-  #   fiber, block_status = Fiber.current, :running
-  #   ::Iodine.run_after((duration * 1000).to_i) do
-  #     fiber.raise(exception_class, exception_arguments) if block_status == :running
-  #   end
+  def timeout_after(duration, exception_class = Timeout::Error, *exception_arguments, &block)
+    f = Fiber.current
+    timeout = Process.clock_gettime(Process::CLOCK_MONOTONIC) + duration
 
-  #   result = block.call
-  #   block_status = :finished
+    @fiber_timeouts[f][timeout] = {
+      exception_class: exception_class,
+      exception_arguments: exception_arguments
+    }
 
-  #   result
-  # end
+    begin
+      block.call
+    ensure
+      @fiber_timeouts[f].delete(timeout)
+      @fiber_timeouts.delete(f) if @fiber_timeouts[f].empty?
+    end
+  end
 
   def address_resolve(hostname)
     @dns_cache[hostname] ||= begin
@@ -97,7 +105,7 @@ class Rage::FiberScheduler
       unless fulfilled
         fulfilled = true
         ::Iodine.defer { ::Iodine.unsubscribe(channel) }
-        f.resume
+        f.resume if f.alive?
       end
     end
 
@@ -144,5 +152,23 @@ class Rage::FiberScheduler
 
   def close
     ::Iodine::Scheduler.close
+  end
+
+  private
+
+  def start_timeout_worker
+    ::Iodine.run_every(Rage::FiberScheduler::TIMEOUT_WORKER_INTERVAL) do
+      check_timeouts
+    end
+  end
+
+  def check_timeouts
+    @fiber_timeouts.each do |fiber, timeouts|
+      timeouts.each do |timeout, context|
+        next false if Process.clock_gettime(Process::CLOCK_MONOTONIC) < timeout
+
+        fiber.raise(context[:exception_class], *context[:exception_arguments])
+      end
+    end
   end
 end
