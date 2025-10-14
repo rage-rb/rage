@@ -168,6 +168,9 @@ class Rage::FiberScheduler
         next false if Process.clock_gettime(Process::CLOCK_MONOTONIC) < timeout
 
         fiber.raise(context[:exception_class], *context[:exception_arguments])
+
+        Iodine.unsubscribe(fiber.__block_channel)
+        Iodine.unsubscribe(fiber.__await_channel)
       end
     end
   end
