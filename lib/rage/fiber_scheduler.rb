@@ -163,15 +163,23 @@ class Rage::FiberScheduler
   end
 
   def check_timeouts
+    fibers_to_raise = []
+
     @fiber_timeouts.each do |fiber, timeouts|
       timeouts.each do |timeout, context|
         next false if Process.clock_gettime(Process::CLOCK_MONOTONIC) < timeout
 
-        fiber.raise(context[:exception_class], *context[:exception_arguments])
+        fibers_to_raise << -> do
+          fiber.raise(context[:exception_class], *context[:exception_arguments])
 
-        Iodine.unsubscribe(fiber.__block_channel)
-        Iodine.unsubscribe(fiber.__await_channel)
+          Iodine.unsubscribe(fiber.__block_channel)
+          Iodine.unsubscribe(fiber.__await_channel)
+        end
       end
     end
+
+    fibers_to_raise.each(&:call)
+
+    fibers_to_raise.clear
   end
 end
