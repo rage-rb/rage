@@ -119,6 +119,11 @@ class Fiber
   end
 
   # @private
+  def __await_channel
+    "await:#{object_id}"
+  end
+
+  # @private
   attr_accessor :__awaited_fileno
 
   # @private
@@ -169,7 +174,7 @@ class Fiber
     end
 
     # wait on async fibers; resume right away if one of the fibers errors out
-    Iodine.subscribe("await:#{f.object_id}") do |_, err|
+    Iodine.subscribe(f.__await_channel) do |_, err|
       if err == AWAIT_ERROR_MESSAGE
         f.resume
       else
@@ -179,7 +184,7 @@ class Fiber
     end
 
     Fiber.defer(-1)
-    Iodine.defer { Iodine.unsubscribe("await:#{f.object_id}") }
+    Iodine.defer { Iodine.unsubscribe(f.__await_channel) }
 
     # if num_wait_for is not 0 means we exited prematurely because of an error
     if num_wait_for > 0
