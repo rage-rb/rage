@@ -24,24 +24,6 @@ module Rage::Events
     true
   end
 
-  # Publish multiple events sequentially.
-  # Use this method when the successful handling of one event should trigger the publication of the next.
-  # @param events [Array<Object>] the events to publish
-  # @example
-  #   Rage::Events.publish_ordered(OrderCreated.new, DiscountApplied.new)
-  def self.publish_ordered(*events)
-    if events.none? { |event| __has_deferred_subscribers?(event) }
-      events.each { |event| publish(event) }
-    else
-      events.each do |event|
-        subscribers = __get_subscribers(event)
-        subscribers.each { |subscriber| GroupTask.enqueue(event, subscriber) }
-      end
-    end
-
-    nil
-  end
-
   # A shorthand for building a subscriber module.
   # @example
   #   include Rage::Events::Subscriber(MyEvent)
@@ -84,17 +66,6 @@ module Rage::Events
   end
 
   # @private
-  def self.__has_deferred_subscribers?(event)
-    cache_key = [event.class, :has_deferred_subscribers]
-
-    if __event_subscribers.has_key?(cache_key)
-      __event_subscribers[cache_key]
-    else
-      __event_subscribers[cache_key] = __get_subscribers(event).any?(&:__is_deferred)
-    end
-  end
-
-  # @private
   def self.__reset_subscribers
     __registered_subscribers.clear
     __event_subscribers.clear
@@ -116,9 +87,6 @@ module Rage::Events
     puts "ERROR: Failed to load an event subscriber: #{e.class} (#{e.message})."
     puts e.backtrace.join("\n")
   end
-
-  autoload :GroupTask, "rage/events/group_task"
-  autoload :GroupScheduler, "rage/events/group_scheduler"
 end
 
 require_relative "subscriber"
