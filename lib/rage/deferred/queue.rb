@@ -58,18 +58,6 @@ class Rage::Deferred::Queue
     end
   end
 
-  # Pause a task executing in the current fiber.
-  def pause
-    Iodine.task_dec!
-    Fiber.yield
-  end
-
-  # Resume a task wrapper in the fiber.
-  def resume(fiber)
-    Iodine.task_inc!
-    fiber.resume
-  end
-
   private
 
   def apply_backpressure
