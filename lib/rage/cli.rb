@@ -185,6 +185,34 @@ module Rage
       end
     end
 
+    desc "events [EVENT]", "List all registered events and their subscribers"
+    option :help, aliases: "-h", desc: "Show this message"
+    def events(*event_class_names)
+      return help("events") if options.help?
+
+      environment
+      Rage::Events.__eager_load_subscribers if Rage.env.development?
+
+      event_classes = if event_class_names.any?
+        event_class_names.flat_map { |name| name.split(",") }.map do |event_class_name|
+          @last_event_class_name = event_class_name
+          Object.const_get(event_class_name)
+        end
+      else
+        registered_events = Rage::Events.__registered_subscribers.keys
+        registered_events.reject do |event_class|
+          registered_events.any? { |e| e.ancestors.include?(event_class) && e.ancestors.index(event_class) != 0 }
+        end
+      end
+
+      event_classes.each { |event_class| print_event_subscribers_tree(event_class) }
+
+    rescue NameError
+      spell_checker = DidYouMean::SpellChecker.new(dictionary: Rage::Events.__registered_subscribers.keys)
+      suggestion = DidYouMean.formatter.message_for(spell_checker.correct(@last_event_class_name))
+      puts "Could not find the `#{@last_event_class_name}` event. #{suggestion}"
+    end
+
     desc "version", "Return the current version of the framework"
     def version
       puts Rage::VERSION
@@ -272,6 +300,43 @@ module Rage
 
         def self.await(fibers)
           Array(fibers).map(&:__get_result)
+        end
+      end
+    end
+
+    def print_event_subscribers_tree(event_class)
+      subscribers = Rage::Events.__get_subscribers(event_class)
+
+      tree = event_class.ancestors.each_with_object({}) do |ancestor, memo|
+        level = event_class.ancestors.count { |klass| klass.ancestors.include?(ancestor) } - 1
+        filtered_subscribers = subscribers.select { |subscriber| subscriber.__event_classes.include?(ancestor) }
+
+        memo[ancestor] = { level:, subscribers: filtered_subscribers } if filtered_subscribers.any?
+      end
+
+      padding = " " * 3
+
+      tree.each_with_index do |(event_ancestor, node), i|
+        level, subscribers = node[:level], node[:subscribers]
+        break if event_ancestor == Data || event_ancestor == Object
+        next_level = tree.values.dig(i + 1, :level)
+
+        prefix = if i > 0 && next_level != level
+          "└─"
+        else
+          "├─"
+        end
+
+        event_class_line = "#{padding * level}#{prefix} \e[90m#{event_ancestor}\e[0m"
+        if level == 0
+          puts event_class_line
+        else
+          puts "|#{event_class_line}"
+        end
+
+        subscribers.each do |subscriber|
+          prefix = subscriber == subscribers.last && next_level != level + 1 ? "└─" : "├─"
+          puts "│#{padding * (level + 1)}#{prefix} \e[1m#{subscriber}\e[0m"
         end
       end
     end

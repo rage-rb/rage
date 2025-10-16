@@ -10,7 +10,7 @@ module Rage::Events
   #   # publish the event
   #   Rage::Events.publish(UserRegistered.new(user_id: 1))
   def self.publish(event)
-    subscribers = __get_subscribers(event)
+    subscribers = __get_subscribers(event.class)
     return false if subscribers.empty?
 
     subscribers.each do |subscriber|
@@ -49,16 +49,16 @@ module Rage::Events
   end
 
   # @private
-  def self.__get_subscribers(event)
-    __event_subscribers[event.class] || begin
-      subscribers = event.class.ancestors.take_while { |klass|
+  def self.__get_subscribers(event_class)
+    __event_subscribers[event_class] || begin
+      subscribers = event_class.ancestors.take_while { |klass|
         klass != Object && klass != Data
       }.each_with_object([]) { |klass, memo|
         memo.concat(__registered_subscribers[klass]).uniq! if __registered_subscribers.has_key?(klass)
       }
 
       if subscribers.any?
-        __event_subscribers[event.class] = subscribers
+        __event_subscribers[event_class] = subscribers
       else
         []
       end
