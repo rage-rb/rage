@@ -11,7 +11,8 @@
 #
 # # Define the subscriber class
 # class MySubscriber
-#   include Rage::Events::Subscriber[MyEvent]
+#   include Rage::Events::Subscriber
+#   subscribe_to MyEvent
 #
 #   def handle(event)
 #     puts "Handled event: #{event.inspect}"
@@ -28,7 +29,8 @@
 #
 # ```ruby
 # class MySubscriber
-#   include Rage::Events::Subscriber[EventA, EventB]
+#   include Rage::Events::Subscriber
+#   subscribe_to EventA, EventB
 #
 #   def handle(event)
 #     puts "Handled event: #{event.inspect}"
@@ -36,12 +38,12 @@
 # end
 # ```
 #
-# Subscribers are executed synchronously by default. You can make a subscriber asynchronous by calling `deferred_subscriber`:
+# Subscribers are executed synchronously by default. You can make a subscriber asynchronous by passing the `deferred` option:
 #
 # ```ruby
 # class MySubscriber
-#   include Rage::Events::Subscriber[MyEvent]
-#   deferred_subscriber
+#   include Rage::Events::Subscriber
+#   subscribe_to MyEvent, deferred: true
 #
 #   def handle(event)
 #     puts "Handled event in background: #{event.inspect}"
@@ -51,50 +53,19 @@
 #
 # Such subscriber will be executed in the background using Rage's deferred task system.
 #
-class Rage::Events::Subscriber < Module
-  def self.[](*)
-    new(*)
-  end
-
-  attr_accessor :__event_classes, :__is_deferred
-
-  def initialize(*event_classes)
-    super()
-    @__event_classes = event_classes
-    @__is_deferred = false
-
-    define_singleton_method(:inspect) do
-      events = event_classes.join(", ")
-      "#<#{self.class}[#{events}]>"
-    end
-  end
-
-  def ==(other)
-    other.is_a?(self.class) &&
-      @__event_classes == other.__event_classes &&
-      !!@__is_deferred == !!other.__is_deferred
-  end
-
-  def included(handler_class)
-    handler_class.include Impl
+module Rage::Events::Subscriber
+  def self.included(handler_class)
+    handler_class.include InstanceMethods
     handler_class.extend ClassMethods
-
-    handler_class.__event_classes = @__event_classes
-    handler_class.__is_deferred = @__is_deferred
-
-    @__event_classes.each do |event_class|
-      Rage::Events.__register_subscriber(event_class, handler_class)
-    end
-
-    unless handler_class.method_defined?(:handle)
-      handler_class.define_method(:handle) { |_| }
-    end
   end
 
-  module Impl
-    def __handle(_)
+  module InstanceMethods
+    def handle(...)
+    end
+
+    def __handle(...)
       Rage.logger.with_context(subscriber: self.class.name) do
-        handle(_)
+        handle(...)
         true
       rescue Exception => e
         Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
@@ -107,8 +78,13 @@ class Rage::Events::Subscriber < Module
   module ClassMethods
     attr_accessor :__event_classes, :__is_deferred
 
-    def deferred_subscriber(enabled = true)
-      @__is_deferred = !!enabled
+    def subscribe_to(*event_classes, deferred: false)
+      @__event_classes = event_classes
+      @__is_deferred = !!deferred
+
+      @__event_classes.each do |event_class|
+        Rage::Events.__register_subscriber(event_class, self)
+      end
 
       if @__is_deferred
         include Rage::Deferred::Task

@@ -24,15 +24,6 @@ module Rage::Events
     true
   end
 
-  # A shorthand for building a subscriber module.
-  # @example
-  #   include Rage::Events::Subscriber(MyEvent)
-  # @example
-  #   include Rage::Events::Subscriber[MyEvent]
-  def self.Subscriber(*)
-    Rage::Events::Subscriber.new(*)
-  end
-
   # @private
   def self.__registered_subscribers
     @__registered_subscribers ||= Hash.new { |hash, key| hash[key] = [] }
@@ -76,7 +67,9 @@ module Rage::Events
   # @private
   def self.__eager_load_subscribers
     subscribers = Dir["#{Rage.root}/app/**/*.rb"].select do |path|
-      File.foreach(path).any? { |line| line.include?("include Rage::Events::Subscriber") }
+      File.foreach(path).any? do |line|
+        line.include?("include Rage::Events::Subscriber") || line.include?("subscribe_to")
+      end
     end
 
     subscribers.each do |path|
