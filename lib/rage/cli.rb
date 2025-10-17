@@ -12,7 +12,7 @@ module Rage
       File.expand_path("templates", __dir__)
     end
 
-    desc "migration NAME", "Generate a new migration."
+    desc "migration NAME", "Generate a new migration"
     def migration(name = nil)
       return help("migration") if name.nil?
 
@@ -20,7 +20,7 @@ module Rage
       Rake::Task["db:new_migration"].invoke(name)
     end
 
-    desc "model NAME", "Generate a new model."
+    desc "model NAME", "Generate a new model"
     def model(name = nil)
       return help("model") if name.nil?
 
@@ -30,7 +30,7 @@ module Rage
       template("model-template/model.rb", "app/models/#{name.singularize.underscore}.rb")
     end
 
-    desc "controller NAME", "Generate a new controller."
+    desc "controller NAME", "Generate a new controller"
     def controller(name = nil)
       return help("controller") if name.nil?
 
@@ -65,9 +65,9 @@ module Rage
       true
     end
 
-    desc "new PATH", "Create a new application."
-    option :database, aliases: "-d", desc: "Preconfigure for selected database.", enum: %w(mysql trilogy postgresql sqlite3)
-    option :help, aliases: "-h", desc: "Show this message."
+    desc "new PATH", "Create a new application"
+    option :database, aliases: "-d", desc: "Preconfigure for selected database", enum: %w(mysql trilogy postgresql sqlite3)
+    option :help, aliases: "-h", desc: "Show this message"
     def new(path = nil)
       return help("new") if options.help? || path.nil?
 
@@ -75,12 +75,12 @@ module Rage
       CLINewAppGenerator.start([path, options[:database]])
     end
 
-    desc "s", "Start the app server."
-    option :port, aliases: "-p", desc: "Runs Rage on the specified port - defaults to 3000."
-    option :environment, aliases: "-e", desc: "Specifies the environment to run this server under (test/development/production)."
-    option :binding, aliases: "-b", desc: "Binds Rails to the specified IP - defaults to 'localhost' in development and '0.0.0.0' in other environments."
-    option :config, aliases: "-c", desc: "Uses a custom rack configuration."
-    option :help, aliases: "-h", desc: "Show this message."
+    desc "s", "Start the app server"
+    option :port, aliases: "-p", desc: "Runs Rage on the specified port - defaults to 3000"
+    option :environment, aliases: "-e", desc: "Specifies the environment to run this server under (test/development/production)"
+    option :binding, aliases: "-b", desc: "Binds Rails to the specified IP - defaults to 'localhost' in development and '0.0.0.0' in other environments"
+    option :config, aliases: "-c", desc: "Uses a custom rack configuration"
+    option :help, aliases: "-h", desc: "Show this message"
     def server
       return help("server") if options.help?
 
@@ -104,9 +104,9 @@ module Rage
       ::Iodine.start
     end
 
-    desc "routes", "List all routes."
+    desc "routes", "List all routes"
     option :grep, aliases: "-g", desc: "Filter routes by pattern"
-    option :help, aliases: "-h", desc: "Show this message."
+    option :help, aliases: "-h", desc: "Show this message"
     def routes
       return help("routes") if options.help?
       # the result would be something like this:
@@ -162,8 +162,8 @@ module Rage
       end
     end
 
-    desc "c", "Start the app console."
-    option :help, aliases: "-h", desc: "Show this message."
+    desc "c", "Start the app console"
+    option :help, aliases: "-h", desc: "Show this message"
     def console
       return help("console") if options.help?
 
@@ -219,11 +219,11 @@ module Rage
     end
 
     map "generate" => :g
-    desc "g TYPE", "Generate new code."
+    desc "g TYPE", "Generate new code"
     subcommand "g", CLICodeGenerator
 
     map "--tasks" => :tasks
-    desc "--tasks", "See the list of available tasks."
+    desc "--tasks", "See the list of available tasks"
     def tasks
       require "io/console"
 
