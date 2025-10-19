@@ -33,7 +33,7 @@
 #   subscribe_to EventA, EventB
 #
 #   def handle(event)
-#     puts "Handled event: #{event.inspect}"
+#     puts "Received event: #{event.inspect}"
 #   end
 # end
 # ```
@@ -46,7 +46,7 @@
 #   subscribe_to MyEvent, deferred: true
 #
 #   def handle(event)
-#     puts "Handled event in background: #{event.inspect}"
+#     puts "Received event in background: #{event.inspect}"
 #   end
 # end
 # ```
@@ -60,12 +60,12 @@ module Rage::Events::Subscriber
   end
 
   module InstanceMethods
-    def handle(...)
+    def handle(_)
     end
 
-    def __handle(...)
-      Rage.logger.with_context(subscriber: self.class.name) do
-        handle(...)
+    def __handle(event)
+      Rage.logger.with_context(self.class.__log_context) do
+        handle(event)
         true
       rescue Exception => e
         Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
@@ -76,11 +76,12 @@ module Rage::Events::Subscriber
   end
 
   module ClassMethods
-    attr_accessor :__event_classes, :__is_deferred
+    attr_accessor :__event_classes, :__is_deferred, :__log_context
 
     def subscribe_to(*event_classes, deferred: false)
       @__event_classes = event_classes
       @__is_deferred = !!deferred
+      @__log_context = { subscriber: name }.freeze
 
       @__event_classes.each do |event_class|
         Rage::Events.__register_subscriber(event_class, self)
