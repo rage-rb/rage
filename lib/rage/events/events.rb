@@ -3,25 +3,16 @@
 module Rage::Events
   # Publish an event.
   # @param event [Object] the event to publish
-  # @return [Boolean] whether the event has been published, i.e. whether there are any subscribers
   # @example
   #   # define an event
   #   UserRegistered = Data.define(:user_id)
   #   # publish the event
   #   Rage::Events.publish(UserRegistered.new(user_id: 1))
   def self.publish(event)
-    subscribers = __get_subscribers(event.class)
-    return false if subscribers.empty?
+    handler = __event_handlers[event.class] || __build_event_handler(event.class)
+    handler.call(event)
 
-    subscribers.each do |subscriber|
-      if subscriber.__is_deferred
-        subscriber.enqueue(event)
-      else
-        subscriber.new.__handle(event)
-      end
-    end
-
-    true
+    nil
   end
 
   # @private
@@ -35,31 +26,40 @@ module Rage::Events
   end
 
   # @private
-  def self.__event_subscribers
-    @__event_subscribers ||= {}
+  def self.__get_subscribers(event_class)
+    event_class.ancestors.take_while { |klass|
+      klass != Object && klass != Data
+    }.each_with_object([]) { |klass, memo|
+      memo.concat(__registered_subscribers[klass]).uniq! if __registered_subscribers.has_key?(klass)
+    }
   end
 
   # @private
-  def self.__get_subscribers(event_class)
-    __event_subscribers[event_class] || begin
-      subscribers = event_class.ancestors.take_while { |klass|
-        klass != Object && klass != Data
-      }.each_with_object([]) { |klass, memo|
-        memo.concat(__registered_subscribers[klass]).uniq! if __registered_subscribers.has_key?(klass)
-      }
+  def self.__event_handlers
+    @__event_handlers ||= {}
+  end
 
-      if subscribers.any?
-        __event_subscribers[event_class] = subscribers
+  # @private
+  def self.__build_event_handler(event_class)
+    subscriber_calls = __get_subscribers(event_class).map { |subscriber_class|
+      if subscriber_class.__is_deferred
+        "#{subscriber_class}.enqueue(event)"
       else
-        []
+        "#{subscriber_class}.new.__handle(event)"
       end
+    }.join("; ")
+
+    if subscriber_calls.empty?
+      ->(_) {}
+    else
+      __event_handlers[event_class] = eval("->(event) { #{subscriber_calls} }")
     end
   end
 
   # @private
   def self.__reset_subscribers
     __registered_subscribers.clear
-    __event_subscribers.clear
+    __event_handlers.clear
 
     Rage::Events.__eager_load_subscribers
   end
