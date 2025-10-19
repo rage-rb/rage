@@ -63,9 +63,9 @@ module Rage::Events::Subscriber
     def handle(_)
     end
 
-    def __handle(event)
+    def __handle(event, metadata = nil)
       Rage.logger.with_context(self.class.__log_context) do
-        handle(event)
+        metadata.nil? ? handle(event) : handle(event, metadata: metadata.freeze)
         true
       rescue Exception => e
         Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
@@ -76,7 +76,7 @@ module Rage::Events::Subscriber
   end
 
   module ClassMethods
-    attr_accessor :__event_classes, :__is_deferred, :__log_context
+    attr_reader :__event_classes, :__is_deferred, :__log_context
 
     def subscribe_to(*event_classes, deferred: false)
       @__event_classes = event_classes

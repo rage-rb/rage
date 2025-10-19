@@ -41,18 +41,41 @@ module Rage::Events
 
   # @private
   def self.__build_event_handler(event_class)
-    subscriber_calls = __get_subscribers(event_class).map { |subscriber_class|
-      if subscriber_class.__is_deferred
-        "#{subscriber_class}.enqueue(event)"
-      else
-        "#{subscriber_class}.new.__handle(event)"
+    event_has_callbacks = event_class.ancestors.include?(Rage::Events::Callbacks) &&
+      event_class.__has_before_callbacks?
+
+    subscriber_calls = __get_subscribers(event_class).map do |subscriber_class|
+      arguments = "event"
+
+      if subscriber_class.instance_method(:handle).arity != 1
+        if event_has_callbacks
+          arguments += ", metadata"
+        else
+          arguments += ", {}"
+        end
       end
-    }.join("; ")
+
+      if subscriber_class.__is_deferred
+        "#{subscriber_class}.enqueue(#{arguments})"
+      else
+        "#{subscriber_class}.new.__handle(#{arguments})"
+      end
+    end
 
     if subscriber_calls.empty?
       ->(_) {}
     else
-      __event_handlers[event_class] = eval("->(event) { #{subscriber_calls} }")
+      __event_handlers[event_class] = eval <<-RUBY
+        ->(event) do
+          #{if event_has_callbacks
+            <<-RUBY
+              metadata = event.__run_before_publish_callbacks
+            RUBY
+          end}
+
+          #{subscriber_calls.join("\n")}
+        end
+      RUBY
     end
   end
 
@@ -83,6 +106,7 @@ module Rage::Events
 end
 
 require_relative "subscriber"
+require_relative "callbacks"
 
 if Rage.env.development?
   if Iodine.running?
