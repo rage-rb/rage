@@ -108,6 +108,8 @@ require_relative "subscriber"
 if Rage.env.development?
   if Iodine.running?
     Rage::Events.__eager_load_subscribers
+  elsif Rage.config.internal.console_mode?
+    Rage.config.after_initialize { Rage::Events.__eager_load_subscribers }
   else
     Iodine.on_state(:on_start) { Rage::Events.__eager_load_subscribers }
   end
