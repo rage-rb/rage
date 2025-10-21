@@ -63,7 +63,7 @@ module Rage::Events::Subscriber
     def handle(_)
     end
 
-    def __handle(event, metadata = nil)
+    def __handle(event, metadata: nil)
       Rage.logger.with_context(self.class.__log_context) do
         metadata.nil? ? handle(event) : handle(event, metadata: metadata.freeze)
         true

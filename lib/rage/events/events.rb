@@ -3,14 +3,19 @@
 module Rage::Events
   # Publish an event.
   # @param event [Object] the event to publish
+  # @param metadata [Object] the metadata to publish along with the event
   # @example
   #   # define an event
   #   UserRegistered = Data.define(:user_id)
+  #
   #   # publish the event
   #   Rage::Events.publish(UserRegistered.new(user_id: 1))
-  def self.publish(event)
+  #
+  #   # publish with metadata
+  #   Rage::Events.publish(UserRegistered.new(user_id: 1), metadata: { published_at: Time.now })
+  def self.publish(event, metadata: nil)
     handler = __event_handlers[event.class] || __build_event_handler(event.class)
-    handler.call(event)
+    handler.call(event, metadata)
 
     nil
   end
@@ -41,17 +46,18 @@ module Rage::Events
 
   # @private
   def self.__build_event_handler(event_class)
-    event_has_callbacks = event_class.ancestors.include?(Rage::Events::Callbacks) &&
-      event_class.__has_before_callbacks?
-
     subscriber_calls = __get_subscribers(event_class).map do |subscriber_class|
       arguments = "event"
 
-      if subscriber_class.instance_method(:handle).arity != 1
-        if event_has_callbacks
-          arguments += ", metadata"
+      metadata_type, _ = subscriber_class.instance_method(:handle).parameters.find do |param_type, param_name|
+        param_name == :metadata || param_type == :keyrest
+      end
+
+      if metadata_type
+        if metadata_type == :keyreq
+          arguments += ", metadata: metadata || {}"
         else
-          arguments += ", {}"
+          arguments += ", metadata:"
         end
       end
 
@@ -63,18 +69,10 @@ module Rage::Events
     end
 
     if subscriber_calls.empty?
-      ->(_) {}
+      ->(_, _) {}
     else
       __event_handlers[event_class] = eval <<-RUBY
-        ->(event) do
-          #{if event_has_callbacks
-            <<-RUBY
-              metadata = event.__run_before_publish_callbacks
-            RUBY
-          end}
-
-          #{subscriber_calls.join("\n")}
-        end
+        ->(event, metadata) { #{subscriber_calls.join("; ")} }
       RUBY
     end
   end
@@ -106,7 +104,6 @@ module Rage::Events
 end
 
 require_relative "subscriber"
-require_relative "callbacks"
 
 if Rage.env.development?
   if Iodine.running?
