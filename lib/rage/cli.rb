@@ -170,11 +170,8 @@ module Rage
       set_env(options)
 
       require "irb"
-
-      $__rage_console_mode = true
       environment
       patch_fiber_for_irb
-
       ARGV.clear
       IRB.start
     end

@@ -502,10 +502,6 @@ class Rage::Configuration
   class Internal
     attr_accessor :rails_mode
 
-    def console_mode?
-      !!$__rage_console_mode
-    end
-
     def patch_ar_pool?
       !ENV["RAGE_DISABLE_AR_POOL_PATCH"] && !Rage.env.test?
     end
