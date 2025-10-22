@@ -67,16 +67,19 @@ module Rage::Events::Subscriber
       Rage.logger.with_context(self.class.__log_context) do
         metadata.nil? ? handle(event) : handle(event, metadata: metadata.freeze)
         true
-      rescue Exception => e
-        Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
-        raise Rage::Deferred::TaskFailed if self.class.__is_deferred
-        false
+      rescue Exception => _e
+        e = self.class.__rescue_handlers ? __run_rescue_handlers(_e) : _e
+
+        if e
+          Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+          raise Rage::Deferred::TaskFailed if self.class.__is_deferred
+        end
       end
     end
   end
 
   module ClassMethods
-    attr_reader :__event_classes, :__is_deferred, :__log_context
+    attr_reader :__event_classes, :__is_deferred, :__log_context, :__rescue_handlers
 
     def subscribe_to(*event_classes, deferred: false)
       @__event_classes = event_classes
@@ -91,6 +94,40 @@ module Rage::Events::Subscriber
         include Rage::Deferred::Task
         alias_method :perform, :__handle
       end
+    end
+
+    def rescue_from(*klasses, with: nil, &block)
+      unless with
+        if block_given?
+          with = Rage::Internal.define_dynamic_method(self, block)
+        else
+          raise ArgumentError, "No handler provided. Pass the `with` keyword argument or provide a block."
+        end
+      end
+
+      @__rescue_handlers ||= []
+      @__rescue_handlers.unshift([klasses, with])
+    end
+
+    def __register_rescue_handlers
+      return if method_defined?(:__run_rescue_handlers) || @__rescue_handlers.nil?
+
+      matcher_calls = @__rescue_handlers.map do |klasses, handler|
+        handler_call = instance_method(handler).arity == 0 ? handler : "#{handler}(exception)"
+        "when #{klasses.join(", ")} then #{handler_call}"
+      end
+
+      class_eval <<~RUBY, __FILE__, __LINE__ + 1
+        def __run_rescue_handlers(exception)
+          case exception
+          #{matcher_calls.join("\n")}
+          end
+
+          nil
+        rescue Exception => e
+          e
+        end
+      RUBY
     end
   end
 end

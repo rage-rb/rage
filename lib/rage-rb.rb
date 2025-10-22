@@ -146,3 +146,4 @@ module RageController
 end
 
 require_relative "rage/env"
+require_relative "rage/internal"
