@@ -185,7 +185,7 @@ module Rage
       end
     end
 
-    desc "events [EVENT]", "List all registered events and their subscribers"
+    desc "events [EVENT1, EVENT2]", "List all registered events and their subscribers"
     option :help, aliases: "-h", desc: "Show this message"
     def events(*event_class_names)
       return help("events") if options.help?
