@@ -18,3 +18,5 @@ Rage.code_loader.setup
 Rage.config.run_after_initialize!
 
 require_relative "#{Rage.root}/config/routes"
+
+Rage.config.internal.initialized!
