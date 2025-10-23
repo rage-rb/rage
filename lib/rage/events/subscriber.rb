@@ -55,31 +55,28 @@
 #
 module Rage::Events::Subscriber
   def self.included(handler_class)
-    handler_class.include InstanceMethods
     handler_class.extend ClassMethods
   end
 
-  module InstanceMethods
-    def handle(_)
-    end
+  def handle(_)
+  end
 
-    def __handle(event, metadata: nil)
-      Rage.logger.with_context(self.class.__log_context) do
-        metadata.nil? ? handle(event) : handle(event, metadata: metadata.freeze)
-        true
-      rescue Exception => _e
-        e = self.class.__rescue_handlers ? __run_rescue_handlers(_e) : _e
+  def __handle(event, metadata: nil)
+    Rage.logger.with_context(self.class.__log_context) do
+      metadata.nil? ? handle(event) : handle(event, metadata: metadata.freeze)
+      true
+    rescue Exception => _e
+      e = self.class.__rescue_handlers ? __run_rescue_handlers(_e) : _e
 
-        if e
-          Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
-          raise Rage::Deferred::TaskFailed if self.class.__is_deferred
-        end
+      if e
+        Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+        raise Rage::Deferred::TaskFailed if self.class.__is_deferred
       end
     end
   end
 
   module ClassMethods
-    attr_reader :__event_classes, :__is_deferred, :__log_context, :__rescue_handlers
+    attr_accessor :__event_classes, :__is_deferred, :__log_context, :__rescue_handlers
 
     def subscribe_to(*event_classes, deferred: false)
       @__event_classes = event_classes
@@ -105,12 +102,23 @@ module Rage::Events::Subscriber
         end
       end
 
-      @__rescue_handlers ||= []
+      if @__rescue_handlers.nil?
+        @__rescue_handlers = []
+      elsif @__rescue_handlers.frozen?
+        @__rescue_handlers = @__rescue_handlers.dup
+      end
+
       @__rescue_handlers.unshift([klasses, with])
     end
 
+    # @private
+    def inherited(klass)
+      klass.__rescue_handlers = @__rescue_handlers.freeze
+      klass.subscribe_to(*@__event_classes, deferred: @__is_deferred) if @__event_classes
+    end
+
     def __register_rescue_handlers
-      return if method_defined?(:__run_rescue_handlers) || @__rescue_handlers.nil?
+      return if method_defined?(:__run_rescue_handlers, false) || @__rescue_handlers.nil?
 
       matcher_calls = @__rescue_handlers.map do |klasses, handler|
         handler_call = instance_method(handler).arity == 0 ? handler : "#{handler}(exception)"
