@@ -79,7 +79,7 @@ module Rage::Events::Subscriber
     attr_accessor :__event_classes, :__is_deferred, :__log_context, :__rescue_handlers
 
     def subscribe_to(*event_classes, deferred: false)
-      @__event_classes = event_classes
+      @__event_classes = (@__event_classes || []) | event_classes
       @__is_deferred = !!deferred
       @__log_context = { subscriber: name }.freeze
 
