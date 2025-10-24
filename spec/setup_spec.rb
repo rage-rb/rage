@@ -8,6 +8,7 @@ RSpec.describe "Setup" do
     allow(Rage).to receive(:root).and_return(Pathname.new(File.expand_path("..", __dir__)))
     allow(Rage).to receive_message_chain(:code_loader, :setup).and_return(true)
     allow(Rage).to receive_message_chain(:config, :run_after_initialize!).and_return(true)
+    allow(Rage).to receive_message_chain(:config, :internal, :initialized!)
     allow(Iodine).to receive(:patch_rack).and_return(true)
   end
 

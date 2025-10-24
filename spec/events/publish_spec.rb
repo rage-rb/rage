@@ -12,113 +12,128 @@ module EventsPublishSpec
 
   NoSubscribersEvent = Data.define
 
-  Event1 = Data.define
+  EventWithOneSubscriber = Data.define
 
-  class Subscriber1 < BaseSubscriber
-    subscribe_to Event1
+  class EventWithOneSubscriberSubscriber < BaseSubscriber
+    subscribe_to EventWithOneSubscriber
   end
 
-  Event2_1 = Data.define
-  Event2_2 = Data.define
+  EventWithMultipleEvents_1 = Data.define
+  EventWithMultipleEvents_2 = Data.define
 
-  class Subscriber2 < BaseSubscriber
-    subscribe_to Event2_1, Event2_2
+  class EventWithMultipleEventsSubsciber < BaseSubscriber
+    subscribe_to EventWithMultipleEvents_1, EventWithMultipleEvents_2
   end
 
-  Event3Base = Class.new(Data)
-  Event3 = Event3Base.define
+  EventWithParentBase = Class.new(Data)
+  EventWithParent = EventWithParentBase.define
 
-  class Subscriber3 < BaseSubscriber
-    subscribe_to Event3Base
+  class EventWithParentSubscriber < BaseSubscriber
+    subscribe_to EventWithParentBase
   end
 
-  Event4Mixin = Module.new
-  Event4 = Data.define do
-    include Event4Mixin
+  EventWithMixinBase = Module.new
+  EventWithMixin = Data.define do
+    include EventWithMixinBase
   end
 
-  class Subscriber4 < BaseSubscriber
-    subscribe_to Event4Mixin
+  class EventWithMixinSubscriber < BaseSubscriber
+    subscribe_to EventWithMixinBase
   end
 
-  Event5Mixin = Module.new
-  Event5Base = Class.new(Data) do
-    include Event5Mixin
+  EventWithMultipleSubscribersMixin = Module.new
+  EventWithMultipleSubscribersBase = Class.new(Data) do
+    include EventWithMultipleSubscribersMixin
   end
-  Event5 = Event5Base.define
+  EventWithMultipleSubscribers = EventWithMultipleSubscribersBase.define
 
-  class Subscriber5_1 < BaseSubscriber
-    subscribe_to Event5Mixin
-  end
-
-  class Subscriber5_2 < BaseSubscriber
-    subscribe_to Event5Base
+  class EventWithMultipleSubscribersSubscriber_1 < BaseSubscriber
+    subscribe_to EventWithMultipleSubscribersMixin
   end
 
-  class Subscriber5_3 < BaseSubscriber
-    subscribe_to Event5
+  class EventWithMultipleSubscribersSubscriber_2 < BaseSubscriber
+    subscribe_to EventWithMultipleSubscribersBase
   end
 
-  class Subscriber5_4 < BaseSubscriber
-    subscribe_to Event5
+  class EventWithMultipleSubscribersSubscriber_3 < BaseSubscriber
+    subscribe_to EventWithMultipleSubscribers
   end
 
-  Event6Mixin = Module.new
-  Event6 = Data.define do
-    include Event6Mixin
+  class EventWithMultipleSubscribersSubscriber_4 < BaseSubscriber
+    subscribe_to EventWithMultipleSubscribers
   end
 
-  class Subscriber6_1 < BaseSubscriber
-    subscribe_to Event6Mixin, Event6
+  EventWithDuplicateSubscribeMixin = Module.new
+  EventWithDuplicateSubscribe = Data.define do
+    include EventWithDuplicateSubscribeMixin
   end
 
-  class Subscriber6_2 < BaseSubscriber
-    subscribe_to Event6
+  class EventWithDuplicateSubscribe_1 < BaseSubscriber
+    subscribe_to EventWithDuplicateSubscribeMixin, EventWithDuplicateSubscribe
   end
 
-  Event7 = Data.define
+  class EventWithDuplicateSubscribe_2 < BaseSubscriber
+    subscribe_to EventWithDuplicateSubscribe
+  end
 
-  class Subscriber7_1
+  EventWithException = Data.define
+
+  class EventWithExceptionSubscriber_1
     include Rage::Events::Subscriber
-    subscribe_to Event7
+    subscribe_to EventWithException
 
     def handle(_)
       raise "test error"
     end
   end
 
-  class Subscriber7_2 < BaseSubscriber
-    subscribe_to Event7
+  class EventWithExceptionSubscriber_2 < BaseSubscriber
+    subscribe_to EventWithException
   end
 
-  Event8 = Data.define
-  Event8_1 = Data.define
+  EventWithInheritedSubscriptionBase = Data.define
+  EventWithInheritedSubscription = Data.define
 
-  class Subscriber8 < BaseSubscriber
-    subscribe_to Event8
+  class EventWithInheritedSubscriptionSubscriberBase < BaseSubscriber
+    subscribe_to EventWithInheritedSubscriptionBase
   end
 
-  class Subscriber8_1 < Subscriber8
-    subscribe_to Event8_1
+  class EventWithInheritedSubscriptionSubscriber < EventWithInheritedSubscriptionSubscriberBase
+    subscribe_to EventWithInheritedSubscription
   end
 
-  Event9 = Data.define
-  Event9_1 = Class.new(Event9)
+  EventWithChainBase = Data.define
+  EventWithChain = Class.new(EventWithChainBase)
 
-  class Subscriber9 < BaseSubscriber
-    subscribe_to Event9
+  class EventWithChainBaseSubscriber < BaseSubscriber
+    subscribe_to EventWithChainBase
   end
 
-  class Subscriber9_1 < Subscriber9
-    subscribe_to Event9_1
+  class EventWithChainSubscriber < EventWithChainBaseSubscriber
+    subscribe_to EventWithChain
   end
 
-  class Subscriber10 < BaseSubscriber
+  class SymbolSubscriber < BaseSubscriber
     subscribe_to Symbol
   end
 
-  class Subscriber11 < BaseSubscriber
+  class ExceptionSubscriber < BaseSubscriber
     subscribe_to StandardError
+  end
+
+  EventWithOutsideSubscription = Data.define
+
+  class EventWithOutsideSubscriptionSubscriber < BaseSubscriber
+  end
+
+  EventWithOutsideSubscriptionSubscriber.subscribe_to EventWithOutsideSubscription
+
+  EventWithAppend_1 = Data.define
+  EventWithAppend_2 = Data.define
+
+  class EventWithAppendSubscriber < BaseSubscriber
+    subscribe_to EventWithAppend_1
+    subscribe_to EventWithAppend_2
   end
 end
 
@@ -146,71 +161,71 @@ RSpec.describe Rage::Events do
 
   context "with one subscriber" do
     it "correctly handles events" do
-      described_class.publish(EventsPublishSpec::Event1.new)
+      described_class.publish(EventsPublishSpec::EventWithOneSubscriber.new)
 
-      expect(subscribers).to eq([EventsPublishSpec::Subscriber1])
-      expect(events).to match([instance_of(EventsPublishSpec::Event1)])
+      expect(subscribers).to eq([EventsPublishSpec::EventWithOneSubscriberSubscriber])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithOneSubscriber)])
     end
   end
 
   context "with a subscriber with multiple events" do
     it "correctly handles first event" do
-      described_class.publish(EventsPublishSpec::Event2_1.new)
+      described_class.publish(EventsPublishSpec::EventWithMultipleEvents_1.new)
 
-      expect(subscribers).to eq([EventsPublishSpec::Subscriber2])
-      expect(events).to match([instance_of(EventsPublishSpec::Event2_1)])
+      expect(subscribers).to eq([EventsPublishSpec::EventWithMultipleEventsSubsciber])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithMultipleEvents_1)])
     end
 
     it "correctly handles second event" do
-      described_class.publish(EventsPublishSpec::Event2_2.new)
+      described_class.publish(EventsPublishSpec::EventWithMultipleEvents_2.new)
 
-      expect(subscribers).to eq([EventsPublishSpec::Subscriber2])
-      expect(events).to match([instance_of(EventsPublishSpec::Event2_2)])
+      expect(subscribers).to eq([EventsPublishSpec::EventWithMultipleEventsSubsciber])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithMultipleEvents_2)])
     end
   end
 
   context "with base class subscriber" do
     it "correctly handles events" do
-      described_class.publish(EventsPublishSpec::Event3.new)
+      described_class.publish(EventsPublishSpec::EventWithParent.new)
 
-      expect(subscribers).to eq([EventsPublishSpec::Subscriber3])
-      expect(events).to match([instance_of(EventsPublishSpec::Event3)])
+      expect(subscribers).to eq([EventsPublishSpec::EventWithParentSubscriber])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithParent)])
     end
   end
 
   context "with module subscriber" do
     it "correctly handles events" do
-      described_class.publish(EventsPublishSpec::Event4.new)
+      described_class.publish(EventsPublishSpec::EventWithMixin.new)
 
-      expect(subscribers).to eq([EventsPublishSpec::Subscriber4])
-      expect(events).to match([instance_of(EventsPublishSpec::Event4)])
+      expect(subscribers).to eq([EventsPublishSpec::EventWithMixinSubscriber])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithMixin)])
     end
   end
 
   context "with multiple subscribers" do
     it "correctly handles events" do
-      described_class.publish(EventsPublishSpec::Event5.new)
+      described_class.publish(EventsPublishSpec::EventWithMultipleSubscribers.new)
 
       expect(subscribers).to match_array([
-        EventsPublishSpec::Subscriber5_1,
-        EventsPublishSpec::Subscriber5_2,
-        EventsPublishSpec::Subscriber5_3,
-        EventsPublishSpec::Subscriber5_4
+        EventsPublishSpec::EventWithMultipleSubscribersSubscriber_1,
+        EventsPublishSpec::EventWithMultipleSubscribersSubscriber_2,
+        EventsPublishSpec::EventWithMultipleSubscribersSubscriber_3,
+        EventsPublishSpec::EventWithMultipleSubscribersSubscriber_4
       ])
 
       expect(events.length).to eq(4)
       events.each do |event|
-        expect(event).to be_an_instance_of(EventsPublishSpec::Event5)
+        expect(event).to be_an_instance_of(EventsPublishSpec::EventWithMultipleSubscribers)
       end
     end
   end
 
   context "with duplicate subscribe" do
     it "correctly handles events" do
-      described_class.publish(EventsPublishSpec::Event6.new)
+      described_class.publish(EventsPublishSpec::EventWithDuplicateSubscribe.new)
 
-      expect(subscribers).to match_array([EventsPublishSpec::Subscriber6_1, EventsPublishSpec::Subscriber6_2])
-      expect(events).to match([instance_of(EventsPublishSpec::Event6), instance_of(EventsPublishSpec::Event6)])
+      expect(subscribers).to match_array([EventsPublishSpec::EventWithDuplicateSubscribe_1, EventsPublishSpec::EventWithDuplicateSubscribe_2])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithDuplicateSubscribe), instance_of(EventsPublishSpec::EventWithDuplicateSubscribe)])
     end
   end
 
@@ -219,50 +234,50 @@ RSpec.describe Rage::Events do
       expect(logger).to receive(:error).with(/test error/)
 
       expect {
-        described_class.publish(EventsPublishSpec::Event7.new)
+        described_class.publish(EventsPublishSpec::EventWithException.new)
       }.not_to raise_error
 
-      expect(subscribers).to eq([EventsPublishSpec::Subscriber7_2])
-      expect(events).to match([instance_of(EventsPublishSpec::Event7)])
+      expect(subscribers).to eq([EventsPublishSpec::EventWithExceptionSubscriber_2])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithException)])
     end
   end
 
   context "with inherited subscriptions" do
     it "correctly handles events in base class" do
-      described_class.publish(EventsPublishSpec::Event8.new)
+      described_class.publish(EventsPublishSpec::EventWithInheritedSubscriptionBase.new)
 
-      expect(subscribers).to match_array([EventsPublishSpec::Subscriber8])
-      expect(events).to match([instance_of(EventsPublishSpec::Event8)])
+      expect(subscribers).to match_array([EventsPublishSpec::EventWithInheritedSubscriptionSubscriber, EventsPublishSpec::EventWithInheritedSubscriptionSubscriberBase])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithInheritedSubscriptionBase), instance_of(EventsPublishSpec::EventWithInheritedSubscriptionBase)])
     end
 
     it "correctly handles events in inherited class" do
-      described_class.publish(EventsPublishSpec::Event8_1.new)
+      described_class.publish(EventsPublishSpec::EventWithInheritedSubscription.new)
 
-      expect(subscribers).to match_array([EventsPublishSpec::Subscriber8_1])
-      expect(events).to match([instance_of(EventsPublishSpec::Event8_1)])
+      expect(subscribers).to match_array([EventsPublishSpec::EventWithInheritedSubscriptionSubscriber])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithInheritedSubscription)])
     end
   end
 
   context "with inherited subscriptions and inherited events" do
     it "correctly handles events in base class" do
-      described_class.publish(EventsPublishSpec::Event9.new)
+      described_class.publish(EventsPublishSpec::EventWithChainBase.new)
 
-      expect(subscribers).to match_array([EventsPublishSpec::Subscriber9])
-      expect(events).to match([instance_of(EventsPublishSpec::Event9)])
+      expect(subscribers).to match_array([EventsPublishSpec::EventWithChainSubscriber, EventsPublishSpec::EventWithChainBaseSubscriber])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithChainBase), instance_of(EventsPublishSpec::EventWithChainBase)])
     end
 
     it "correctly handles events in inherited class" do
-      described_class.publish(EventsPublishSpec::Event9_1.new)
+      described_class.publish(EventsPublishSpec::EventWithChain.new)
 
-      expect(subscribers).to match_array([EventsPublishSpec::Subscriber9, EventsPublishSpec::Subscriber9_1])
-      expect(events).to match([instance_of(EventsPublishSpec::Event9_1), instance_of(EventsPublishSpec::Event9_1)])
+      expect(subscribers).to match_array([EventsPublishSpec::EventWithChainBaseSubscriber, EventsPublishSpec::EventWithChainSubscriber])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithChain), instance_of(EventsPublishSpec::EventWithChain)])
     end
   end
 
   context "with symbol subscription" do
     it "correctly handles events" do
       described_class.publish(:test_event)
-      expect(subscribers).to match_array([EventsPublishSpec::Subscriber10])
+      expect(subscribers).to match_array([EventsPublishSpec::SymbolSubscriber])
       expect(events).to match([:test_event])
     end
 
@@ -278,8 +293,33 @@ RSpec.describe Rage::Events do
       error = ZeroDivisionError.new
 
       described_class.publish(error)
-      expect(subscribers).to match_array([EventsPublishSpec::Subscriber11])
+      expect(subscribers).to match_array([EventsPublishSpec::ExceptionSubscriber])
       expect(events).to match([error])
+    end
+  end
+
+  context "with outside subscription" do
+    it "correctly handles events" do
+      described_class.publish(EventsPublishSpec::EventWithOutsideSubscription.new)
+
+      expect(subscribers).to eq([EventsPublishSpec::EventWithOutsideSubscriptionSubscriber])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithOutsideSubscription)])
+    end
+  end
+
+  context "with sequential subscriptions" do
+    it "correctly handles events" do
+      described_class.publish(EventsPublishSpec::EventWithAppend_1.new)
+
+      expect(subscribers).to eq([EventsPublishSpec::EventWithAppendSubscriber])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithAppend_1)])
+    end
+
+    it "correctly handles events" do
+      described_class.publish(EventsPublishSpec::EventWithAppend_2.new)
+
+      expect(subscribers).to eq([EventsPublishSpec::EventWithAppendSubscriber])
+      expect(events).to match([instance_of(EventsPublishSpec::EventWithAppend_2)])
     end
   end
 end
