@@ -64,7 +64,6 @@ module Rage::Events::Subscriber
   def __handle(event, metadata: nil)
     Rage.logger.with_context(self.class.__log_context) do
       metadata.nil? ? handle(event) : handle(event, metadata: metadata.freeze)
-      true
     rescue Exception => _e
       e = self.class.__rescue_handlers ? __run_rescue_handlers(_e) : _e
 
@@ -122,16 +121,21 @@ module Rage::Events::Subscriber
 
       matcher_calls = @__rescue_handlers.map do |klasses, handler|
         handler_call = instance_method(handler).arity == 0 ? handler : "#{handler}(exception)"
-        "when #{klasses.join(", ")} then #{handler_call}"
+
+        <<~RUBY
+          when #{klasses.join(", ")}
+            #{handler_call}
+            nil
+        RUBY
       end
 
       class_eval <<~RUBY, __FILE__, __LINE__ + 1
         def __run_rescue_handlers(exception)
           case exception
           #{matcher_calls.join("\n")}
+          else
+            exception
           end
-
-          nil
         rescue Exception => e
           e
         end
