@@ -307,18 +307,32 @@ module Rage
     def print_event_subscribers_tree(event_class)
       subscribers = Rage::Events.__get_subscribers(event_class)
 
-      tree = event_class.ancestors.each_with_object({}) do |ancestor, memo|
+      event_ancestors = event_class.ancestors.take_while { |klass| klass != Struct && klass != Data && klass != Object }
+
+      # build a tree of all events and their subscribers
+      tree = event_ancestors.each_with_object({}) do |ancestor, memo|
         level = event_class.ancestors.count { |klass| klass.ancestors.include?(ancestor) } - 1
         filtered_subscribers = subscribers.select { |subscriber| subscriber.__event_classes.include?(ancestor) }
 
-        memo[ancestor] = { level:, subscribers: filtered_subscribers } if filtered_subscribers.any?
+        memo[ancestor] = { level:, subscribers: filtered_subscribers }
       end
 
+      # reject events without subscribers located on the last levels
+      i = 0
+      tree = tree.reject do |_, node|
+        level, subscribers = node[:level], node[:subscribers]
+        next_level = tree.values.dig(i + 1, :level)
+        i += 1
+
+        (next_level.nil? || next_level < level) && subscribers.empty?
+      end
+
+      # indentation for each level
       padding = " " * 3
 
+      # print the tree
       tree.each_with_index do |(event_ancestor, node), i|
         level, subscribers = node[:level], node[:subscribers]
-        break if event_ancestor == Data || event_ancestor == Object
         next_level = tree.values.dig(i + 1, :level)
 
         prefix = if i > 0 && next_level != level

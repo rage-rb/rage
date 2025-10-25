@@ -293,4 +293,312 @@ RSpec.describe Rage::CLI do
       end
     end
   end
+
+  describe "#events" do
+    subject { rage_cli.events }
+
+    before do
+      allow(rage_cli).to receive(:environment)
+      Rage::Events.__reset_subscribers
+    end
+
+    after do
+      Rage::Events.__reset_subscribers
+    end
+
+    def cli_event(str) = "\e[90m#{str}\e[0m"
+    def cli_subscriber(str) = "\e[1m#{str}\e[0m"
+
+    def def_event(name, parent: Object, &block)
+      event = Class.new(parent)
+      event.class_eval(&block) if block
+      stub_const(name, event)
+
+      event
+    end
+
+    def def_subscriber(name, subscribe_to:)
+      subscriber = Class.new do
+        include Rage::Events::Subscriber
+      end
+
+      subscriber.subscribe_to(subscribe_to)
+      stub_const(name, subscriber)
+
+      subscriber
+    end
+
+    context "with no subscribers" do
+      it "doesn't error out" do
+        expect { subject }.to output("").to_stdout
+      end
+    end
+
+    context "with one subscriber" do
+      before do
+        user_created = def_event("UserCreated")
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   └─ #{cli_subscriber("SendWelcomeEmail")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+
+    context "with multiple subscribers" do
+      before do
+        user_created = def_event("UserCreated")
+
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("GenerateAvatar", subscribe_to: user_created)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          │   └─ #{cli_subscriber("GenerateAvatar")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+
+    context "with multiple events" do
+      before do
+        user_created = def_event("UserCreated")
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("GenerateAvatar", subscribe_to: user_created)
+
+        order_created = def_event("OrderCreated")
+        def_subscriber("ScheduleDelivery", subscribe_to: order_created)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          │   └─ #{cli_subscriber("GenerateAvatar")}
+          ├─ #{cli_event("OrderCreated")}
+          │   └─ #{cli_subscriber("ScheduleDelivery")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+
+      context "with filtered events" do
+        subject { rage_cli.events("OrderCreated") }
+
+        let(:expected) do
+          <<~CLI
+            ├─ #{cli_event("OrderCreated")}
+            │   └─ #{cli_subscriber("ScheduleDelivery")}
+          CLI
+        end
+
+        it "correctly outputs subscribers tree" do
+          expect { subject }.to output(expected).to_stdout
+        end
+      end
+    end
+
+    context "with two levels" do
+      before do
+        event = def_event("Event")
+        def_subscriber("LogEvent", subscribe_to: event)
+
+        user_event = def_event("UserEvent", parent: event)
+        user_created = def_event("UserCreated", parent: user_event)
+
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("GenerateAvatar", subscribe_to: user_created)
+        def_subscriber("UpdateUsersCache", subscribe_to: user_event)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          │   ├─ #{cli_subscriber("GenerateAvatar")}
+          |   └─ #{cli_event("UserEvent")}
+          │      ├─ #{cli_subscriber("UpdateUsersCache")}
+          |      └─ #{cli_event("Event")}
+          │         └─ #{cli_subscriber("LogEvent")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+
+    context "with three levels" do
+      before do
+        trackable_event = Module.new
+        stub_const("TrackableEvent", trackable_event)
+
+        instrumented_event = Module.new do
+          include TrackableEvent
+        end
+        stub_const("InstrumentedEvent", instrumented_event)
+
+        event = def_event("Event")
+
+        user_event = def_event("UserEvent", parent: event) do
+          include InstrumentedEvent
+        end
+        user_created = def_event("UserCreated", parent: user_event)
+
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("GenerateAvatar", subscribe_to: user_created)
+        def_subscriber("UpdateUsersCache", subscribe_to: user_event)
+
+        def_subscriber("LogEvent", subscribe_to: event)
+        def_subscriber("TrackPublishedAt", subscribe_to: trackable_event)
+        def_subscriber("ReportMetrics", subscribe_to: instrumented_event)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          │   ├─ #{cli_subscriber("GenerateAvatar")}
+          |   └─ #{cli_event("UserEvent")}
+          │      ├─ #{cli_subscriber("UpdateUsersCache")}
+          |      └─ #{cli_event("InstrumentedEvent")}
+          │         ├─ #{cli_subscriber("ReportMetrics")}
+          |         └─ #{cli_event("TrackableEvent")}
+          │            └─ #{cli_subscriber("TrackPublishedAt")}
+          |      └─ #{cli_event("Event")}
+          │         └─ #{cli_subscriber("LogEvent")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+
+    context "with one empty level" do
+      before do
+        event = def_event("Event")
+        def_subscriber("LogEvent", subscribe_to: event)
+
+        user_event = def_event("UserEvent", parent: event)
+        user_created = def_event("UserCreated", parent: user_event)
+
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("GenerateAvatar", subscribe_to: user_created)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          │   ├─ #{cli_subscriber("GenerateAvatar")}
+          |   └─ #{cli_event("UserEvent")}
+          |      └─ #{cli_event("Event")}
+          │         └─ #{cli_subscriber("LogEvent")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+
+    context "with two empty levels" do
+      before do
+        trackable_event = Module.new do
+          include Module.new
+        end
+        stub_const("TrackableEvent", trackable_event)
+
+        instrumented_event = Module.new do
+          include TrackableEvent
+        end
+        stub_const("InstrumentedEvent", instrumented_event)
+
+        event = def_event("Event")
+        user_event = def_event("UserEvent", parent: event) do
+          include InstrumentedEvent
+        end
+        user_created = def_event("UserCreated", parent: user_event)
+
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("TrackPublishedAt", subscribe_to: trackable_event)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          |   └─ #{cli_event("UserEvent")}
+          |      └─ #{cli_event("InstrumentedEvent")}
+          |         └─ #{cli_event("TrackableEvent")}
+          │            └─ #{cli_subscriber("TrackPublishedAt")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+
+    context "with three levels and one empty level" do
+      before do
+        trackable_event = Module.new
+        stub_const("TrackableEvent", trackable_event)
+
+        instrumented_event = Module.new do
+          include TrackableEvent
+        end
+        stub_const("InstrumentedEvent", instrumented_event)
+
+        event = def_event("Event")
+
+        user_event = def_event("UserEvent", parent: event) do
+          include InstrumentedEvent
+        end
+        user_created = def_event("UserCreated", parent: user_event)
+
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("GenerateAvatar", subscribe_to: user_created)
+        def_subscriber("UpdateUsersCache", subscribe_to: user_event)
+
+        def_subscriber("LogEvent", subscribe_to: event)
+        def_subscriber("TrackPublishedAt", subscribe_to: trackable_event)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          │   ├─ #{cli_subscriber("GenerateAvatar")}
+          |   └─ #{cli_event("UserEvent")}
+          │      ├─ #{cli_subscriber("UpdateUsersCache")}
+          |      └─ #{cli_event("InstrumentedEvent")}
+          |         └─ #{cli_event("TrackableEvent")}
+          │            └─ #{cli_subscriber("TrackPublishedAt")}
+          |      └─ #{cli_event("Event")}
+          │         └─ #{cli_subscriber("LogEvent")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+  end
 end
