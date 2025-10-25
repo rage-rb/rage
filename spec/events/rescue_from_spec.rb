@@ -4,7 +4,7 @@ module EventsRescueFromSpec
   class BaseSubscriber
     include Rage::Events::Subscriber
 
-    def handle(_)
+    def call(_)
       raise StandardError, "test"
     end
   end
@@ -92,7 +92,7 @@ module EventsRescueFromSpec
 
     rescue_from ArgumentError, with: :exception_handler
 
-    def handle(event)
+    def call(event)
       if event.type == :argument_error
         raise ArgumentError, "test"
       elsif event.type == :zero_division_error
@@ -126,7 +126,7 @@ module EventsRescueFromSpec
       verifier.rescue_from(e)
     end
 
-    def handle(event)
+    def call(event)
       if event.type == :zero_division_error
         raise ZeroDivisionError, "test"
       elsif event.type == :argument_error
@@ -148,7 +148,7 @@ module EventsRescueFromSpec
       verifier.rescue_from(e)
     end
 
-    def handle(_)
+    def call(_)
       raise ArgumentError, "test"
     end
   end
@@ -162,7 +162,7 @@ module EventsRescueFromSpec
       verifier.rescue_from(e)
     end
 
-    def handle(_)
+    def call(_)
       raise ZeroDivisionError, "test"
     end
   end
@@ -244,7 +244,7 @@ module EventsRescueFromSpec
       verifier.rescue_from_zero_division(e)
     end
 
-    def handle(event)
+    def call(event)
       if event.type == :zero_division_error
         raise ZeroDivisionError, "test"
       elsif event.type == :argument_error

@@ -1,21 +1,41 @@
 # frozen_string_literal: true
 
+##
+# `Rage::Events` provides a simple event-driven system for publishing and subscribing to events.
+# Define events as data structures, register subscriber classes, and publish events to notify all relevant subscribers.
+# Subscribers can handle events and optionally receive additional context with each event.
+#
+# ```ruby
+# # define an event
+# UserRegistered = Data.define(:user_id)
+#
+# # define a subscriber
+# class SendWelcomeEmail
+#   include Rage::Events::Subscriber
+#   subscribe_to UserRegistered
+#
+#   def call(event)
+#     puts "Sending welcome email to user #{event.user_id}"
+#   end
+# end
+#
+# # publish the event
+# Rage::Events.publish(UserRegistered.new(user_id: 1))
+# ```
+#
 module Rage::Events
-  # Publish an event.
+  # Publish an event to all subscribers registered for the event's class or its ancestors.
+  # Optionally, additional context data can be provided and passed to each subscriber.
+  #
   # @param event [Object] the event to publish
-  # @param metadata [Object] the metadata to publish along with the event
-  # @example
-  #   # define an event
-  #   UserRegistered = Data.define(:user_id)
-  #
-  #   # publish the event
-  #   Rage::Events.publish(UserRegistered.new(user_id: 1))
-  #
-  #   # publish with metadata
-  #   Rage::Events.publish(UserRegistered.new(user_id: 1), metadata: { published_at: Time.now })
-  def self.publish(event, metadata: nil)
+  # @param context [Object] additional data to publish along with the event
+  # @example Publish an event
+  #   Rage::Events.publish(MyEvent.new)
+  # @example Publish an event with context
+  #   Rage::Events.publish(MyEvent.new, context: { published_at: Time.now })
+  def self.publish(event, context: nil)
     handler = __event_handlers[event.class] || __build_event_handler(event.class)
-    handler.call(event, metadata)
+    handler.call(event, context)
 
     nil
   end
@@ -51,22 +71,22 @@ module Rage::Events
 
       arguments = "event"
 
-      metadata_type, _ = subscriber_class.instance_method(:handle).parameters.find do |param_type, param_name|
-        param_name == :metadata || param_type == :keyrest
+      context_type, _ = subscriber_class.instance_method(:call).parameters.find do |param_type, param_name|
+        param_name == :context || param_type == :keyrest
       end
 
-      if metadata_type
-        if metadata_type == :keyreq
-          arguments += ", metadata: metadata || {}"
+      if context_type
+        if context_type == :keyreq
+          arguments += ", context: context || {}"
         else
-          arguments += ", metadata:"
+          arguments += ", context:"
         end
       end
 
       if subscriber_class.__is_deferred
         "#{subscriber_class}.enqueue(#{arguments})"
       else
-        "#{subscriber_class}.new.__handle(#{arguments})"
+        "#{subscriber_class}.new.__call(#{arguments})"
       end
     end
 
@@ -74,7 +94,7 @@ module Rage::Events
       ->(_, _) {}
     else
       __event_handlers[event_class] = eval <<-RUBY
-        ->(event, metadata) { #{subscriber_calls.join("; ")} }
+        ->(event, context) { #{subscriber_calls.join("; ")} }
       RUBY
     end
   end

@@ -14,8 +14,8 @@
 #   include Rage::Events::Subscriber
 #   subscribe_to MyEvent
 #
-#   def handle(event)
-#     puts "Handled event: #{event.inspect}"
+#   def call(event)
+#     puts "Received event: #{event.inspect}"
 #   end
 # end
 #
@@ -23,7 +23,7 @@
 # Rage::Events.publish(MyEvent.new)
 # ```
 #
-# When an event matching the specified class is published, the `handle` method will be invoked with the event instance.
+# When an event matching the specified class is published, the `call` method will be invoked with the event instance.
 #
 # You can also subscribe to multiple event classes:
 #
@@ -32,7 +32,7 @@
 #   include Rage::Events::Subscriber
 #   subscribe_to EventA, EventB
 #
-#   def handle(event)
+#   def call(event)
 #     puts "Received event: #{event.inspect}"
 #   end
 # end
@@ -45,7 +45,7 @@
 #   include Rage::Events::Subscriber
 #   subscribe_to MyEvent, deferred: true
 #
-#   def handle(event)
+#   def call(event)
 #     puts "Received event in background: #{event.inspect}"
 #   end
 # end
@@ -53,17 +53,34 @@
 #
 # Such subscriber will be executed in the background using Rage's deferred task system.
 #
+# You can also define custom error handling for exceptions raised during event processing using `rescue_from`:
+#
+# ```ruby
+# class MySubscriber
+#   include Rage::Events::Subscriber
+#   subscribe_to MyEvent
+#
+#   rescue_from StandardError do |exception|
+#     puts "An error occurred: #{exception.message}"
+#   end
+# end
+# ```
+#
+# @see ClassMethods
+#
 module Rage::Events::Subscriber
   def self.included(handler_class)
     handler_class.extend ClassMethods
   end
 
-  def handle(_)
+  # @private
+  def call(_)
   end
 
-  def __handle(event, metadata: nil)
+  # @private
+  def __call(event, context: nil)
     Rage.logger.with_context(self.class.__log_context) do
-      metadata.nil? ? handle(event) : handle(event, metadata: metadata.freeze)
+      context.nil? ? call(event) : call(event, context: context.freeze)
     rescue Exception => _e
       e = self.class.__rescue_handlers ? __run_rescue_handlers(_e) : _e
 
@@ -75,8 +92,13 @@ module Rage::Events::Subscriber
   end
 
   module ClassMethods
+    # @private
     attr_accessor :__event_classes, :__is_deferred, :__log_context, :__rescue_handlers
 
+    # Subscribe the class to one or more events.
+    #
+    # @param event_classes [Class, Array<Class>] one or more event classes to subscribe to
+    # @param deferred [Boolean] whether to process events asynchronously
     def subscribe_to(*event_classes, deferred: false)
       @__event_classes = (@__event_classes || []) | event_classes
       @__is_deferred = !!deferred
@@ -88,10 +110,16 @@ module Rage::Events::Subscriber
 
       if @__is_deferred
         include Rage::Deferred::Task
-        alias_method :perform, :__handle
+        alias_method :perform, :__call
       end
     end
 
+    # Define exception handlers for the subscriber.
+    #
+    # @param klasses [Class, Array<Class>] one or more exception classes to handle
+    # @param with [Symbol, String] the method name to call when an exception is raised
+    # @yield [exception] optional block to handle the exception
+    # @note If you do not re-raise exceptions in deferred subscribers, the subscriber will be marked as successful and Rage will not attempt to retry it.
     def rescue_from(*klasses, with: nil, &block)
       unless with
         if block_given?
@@ -116,6 +144,7 @@ module Rage::Events::Subscriber
       klass.subscribe_to(*@__event_classes, deferred: @__is_deferred) if @__event_classes
     end
 
+    # @private
     def __register_rescue_handlers
       return if method_defined?(:__run_rescue_handlers, false) || @__rescue_handlers.nil?
 

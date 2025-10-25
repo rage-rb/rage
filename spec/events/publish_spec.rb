@@ -4,7 +4,7 @@ module EventsPublishSpec
   class BaseSubscriber
     include Rage::Events::Subscriber
 
-    def handle(event)
+    def call(event)
       subscribers << self.class
       events << event
     end
@@ -82,7 +82,7 @@ module EventsPublishSpec
     include Rage::Events::Subscriber
     subscribe_to EventWithException
 
-    def handle(_)
+    def call(_)
       raise "test error"
     end
   end

@@ -15,13 +15,13 @@ module EventsDeferredSpec
     subscribe_to EventWithoutDeferred, deferred: false
   end
 
-  EventWithDeferredAndMetadata = Data.define
+  EventWithDeferredAndContext = Data.define
 
-  class EventWithDeferredAndMetadataSubscriber
+  class EventWithDeferredAndContextSubscriber
     include Rage::Events::Subscriber
-    subscribe_to EventWithDeferredAndMetadata, deferred: true
+    subscribe_to EventWithDeferredAndContext, deferred: true
 
-    def handle(event, metadata: nil)
+    def call(event, context: nil)
     end
   end
 
@@ -31,7 +31,7 @@ module EventsDeferredSpec
     include Rage::Events::Subscriber
     subscribe_to EventWithException, deferred: true
 
-    def handle(event)
+    def call(event)
       raise "test"
     end
   end
@@ -56,19 +56,19 @@ RSpec.describe Rage::Events do
       described_class.publish(event)
     end
 
-    context "when subscriber doesn't accept metadata" do
-      it "ignores metadata when enqueueing task" do
+    context "when subscriber doesn't accept context" do
+      it "ignores context when enqueueing task" do
         event = EventsDeferredSpec::EventWithDeferred.new
         expect(EventsDeferredSpec::EventWithDeferredSubscriber).to receive(:enqueue).with(event)
-        described_class.publish(event, metadata: "test")
+        described_class.publish(event, context: "test")
       end
     end
 
-    context "when subscriber accepts metadata" do
-      it "doesn't ignore metadata when enqueueing task" do
-        event = EventsDeferredSpec::EventWithDeferredAndMetadata.new
-        expect(EventsDeferredSpec::EventWithDeferredAndMetadataSubscriber).to receive(:enqueue).with(event, metadata: "test")
-        described_class.publish(event, metadata: "test")
+    context "when subscriber accepts context" do
+      it "doesn't ignore context when enqueueing task" do
+        event = EventsDeferredSpec::EventWithDeferredAndContext.new
+        expect(EventsDeferredSpec::EventWithDeferredAndContextSubscriber).to receive(:enqueue).with(event, context: "test")
+        described_class.publish(event, context: "test")
       end
     end
 
@@ -87,7 +87,7 @@ RSpec.describe Rage::Events do
     it "doesn't enqueue the task" do
       expect(EventsDeferredSpec::EventWithoutDeferredSubscriber.ancestors).not_to include(Rage::Deferred::Task)
       expect(EventsDeferredSpec::EventWithoutDeferredSubscriber).not_to receive(:enqueue)
-      expect_any_instance_of(EventsDeferredSpec::EventWithoutDeferredSubscriber).to receive(:handle)
+      expect_any_instance_of(EventsDeferredSpec::EventWithoutDeferredSubscriber).to receive(:call)
 
       described_class.publish(EventsDeferredSpec::EventWithoutDeferred.new)
     end

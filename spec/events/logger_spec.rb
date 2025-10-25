@@ -7,7 +7,7 @@ module EventsLoggerSpec
     include Rage::Events::Subscriber
     subscribe_to EventWithLog
 
-    def handle(_)
+    def call(_)
       Rage.logger.info "test"
     end
   end
@@ -21,7 +21,7 @@ module EventsLoggerSpec
   class InheritedEventSubscriber < InheritedEventSubscriberBase
     subscribe_to InheritedEvent
 
-    def handle(_)
+    def call(_)
       Rage.logger.info "test"
     end
   end
@@ -33,7 +33,7 @@ module EventsLoggerSpec
     include Rage::Events::Subscriber
     subscribe_to EventTriggeringEvent
 
-    def handle(_)
+    def call(_)
       Rage.logger.info "test 1"
       Rage::Events.publish(NestedEvent.new)
       Rage.logger.info "test 3"
@@ -44,7 +44,7 @@ module EventsLoggerSpec
     include Rage::Events::Subscriber
     subscribe_to NestedEvent
 
-    def handle(_)
+    def call(_)
       Rage.logger.info "test 2"
     end
   end
