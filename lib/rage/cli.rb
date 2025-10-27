@@ -208,9 +208,13 @@ module Rage
       event_classes.each { |event_class| print_event_subscribers_tree(event_class) }
 
     rescue NameError
-      spell_checker = DidYouMean::SpellChecker.new(dictionary: Rage::Events.__registered_subscribers.keys)
-      suggestion = DidYouMean.formatter.message_for(spell_checker.correct(@last_event_class_name))
-      puts "Could not find the `#{@last_event_class_name}` event. #{suggestion}"
+      if @last_event_class_name
+        spell_checker = DidYouMean::SpellChecker.new(dictionary: Rage::Events.__registered_subscribers.keys)
+        suggestion = DidYouMean.formatter.message_for(spell_checker.correct(@last_event_class_name))
+        puts "Could not find the `#{@last_event_class_name}` event. #{suggestion}"
+      else
+        raise
+      end
     end
 
     desc "version", "Return the current version of the framework"
