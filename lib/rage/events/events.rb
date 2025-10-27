@@ -1,15 +1,17 @@
 # frozen_string_literal: true
 
 ##
-# `Rage::Events` provides a simple event-driven system for publishing and subscribing to events.
+# `Rage::Events` provides a lightweight event-driven system for publishing and subscribing to events.
 # Define events as data structures, register subscriber classes, and publish events to notify all relevant subscribers.
-# Subscribers can handle events and optionally receive additional context with each event.
+# Subscribers can process events and optionally receive additional context with each event.
 #
+# Define an event:
 # ```ruby
-# # define an event
 # UserRegistered = Data.define(:user_id)
+# ```
 #
-# # define a subscriber
+# Define a subscriber:
+# ```ruby
 # class SendWelcomeEmail
 #   include Rage::Events::Subscriber
 #   subscribe_to UserRegistered
@@ -18,8 +20,10 @@
 #     puts "Sending welcome email to user #{event.user_id}"
 #   end
 # end
+# ```
 #
-# # publish the event
+# Publish an event:
+# ```ruby
 # Rage::Events.publish(UserRegistered.new(user_id: 1))
 # ```
 #
