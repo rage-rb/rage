@@ -8,4 +8,5 @@ Rage.configure do
   # Specify the logger
   config.logger = Rage::Logger.new(STDOUT)
   config.log_level = Logger::INFO
+  config.log_formatter = Rage::JSONFormatter.new
 end
