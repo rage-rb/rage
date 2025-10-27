@@ -33,4 +33,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency "zeitwerk", "~> 2.6"
   spec.add_dependency "rack-test", "~> 2.1"
   spec.add_dependency "rake", ">= 12.0"
+  spec.add_dependency "logger"
 end
