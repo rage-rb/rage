@@ -183,4 +183,14 @@ RSpec.describe Fiber do
       -> { expect(e).to be_a(StandardError) }
     end
   end
+
+  it "correctly processes several awaits in a row" do
+    within_reactor do
+      Fiber.await(Fiber.schedule { sleep 0.1 })
+      Fiber.await(Fiber.schedule { sleep 0.2 })
+      Fiber.await(Fiber.schedule { sleep 0.3 })
+
+      -> {}
+    end
+  end
 end

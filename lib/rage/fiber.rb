@@ -119,6 +119,14 @@ class Fiber
   end
 
   # @private
+  def __await_channel(force = false)
+    @__fiber_channel_i ||= 0
+    @__fiber_channel_i += 1 if force
+
+    "await:#{object_id}:#{@__fiber_channel_i}"
+  end
+
+  # @private
   attr_accessor :__awaited_fileno
 
   # @private
@@ -148,6 +156,7 @@ class Fiber
   # @note This method should only be used when multiple fibers have to be processed in parallel. There's no need to use `Fiber.await` for single IO calls.
   def self.await(fibers)
     f, fibers = Fiber.current, Array(fibers)
+    await_channel = f.__await_channel(true)
 
     # check which fibers are alive (i.e. have yielded) and which have errored out
     i, err, num_wait_for = 0, nil, 0
@@ -169,7 +178,7 @@ class Fiber
     end
 
     # wait on async fibers; resume right away if one of the fibers errors out
-    Iodine.subscribe("await:#{f.object_id}") do |_, err|
+    Iodine.subscribe(await_channel) do |_, err|
       if err == AWAIT_ERROR_MESSAGE
         f.resume
       else
@@ -179,7 +188,7 @@ class Fiber
     end
 
     Fiber.defer(-1)
-    Iodine.defer { Iodine.unsubscribe("await:#{f.object_id}") }
+    Iodine.defer { Iodine.unsubscribe(await_channel) }
 
     # if num_wait_for is not 0 means we exited prematurely because of an error
     if num_wait_for > 0
