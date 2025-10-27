@@ -252,6 +252,30 @@ module EventsRescueFromSpec
       end
     end
   end
+
+  EventWithInheritedPrivateRescueFrom = Data.define(:type)
+
+  class BaseEventWithInheritedPrivateRescueFromSubscriber < BaseSubscriber
+    rescue_from ArgumentError, with: :exception_handler
+
+    private
+
+    def exception_handler(e)
+      verifier.rescue_from_argument(e)
+    end
+  end
+
+  class EventWithInheritedPrivateRescueFromSubscriber < BaseEventWithInheritedPrivateRescueFromSubscriber
+    subscribe_to EventWithInheritedPrivateRescueFrom
+
+    rescue_from ZeroDivisionError do |e|
+      verifier.rescue_from_zero_division(e)
+    end
+
+    def call(_)
+      raise ArgumentError, "test"
+    end
+  end
 end
 
 RSpec.describe Rage::Events do
@@ -396,6 +420,13 @@ RSpec.describe Rage::Events do
     it "correctly catches exceptions" do
       expect(verifier).to receive(:rescue_from_zero_division).with(instance_of(ZeroDivisionError))
       described_class.publish(EventsRescueFromSpec::EventWithMultipleInheritedRescueFrom.new(type: :zero_division_error))
+    end
+  end
+
+  context "with inherited private rescue_from" do
+    it "correctly catches exceptions" do
+      expect(verifier).to receive(:rescue_from_argument).with(instance_of(ArgumentError))
+      described_class.publish(EventsRescueFromSpec::EventWithInheritedPrivateRescueFrom.new(type: :argument_error))
     end
   end
 end
