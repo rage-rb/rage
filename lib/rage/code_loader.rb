@@ -64,6 +64,10 @@ class Rage::CodeLoader
     @last_watched, @last_update_at = current_watched, current_update_at
   end
 
+  def load_file(path)
+    @loader.load_file(path)
+  end
+
   private
 
   def configure_components
@@ -82,6 +86,10 @@ class Rage::CodeLoader
 
     unless Rage.autoload?(:OpenAPI) # the `OpenAPI` component is loaded
       Rage::OpenAPI.__reset_data_cache
+    end
+
+    unless Rage.autoload?(:Events) # the `Events` component is loaded
+      Rage::Events.__reset_subscribers
     end
   end
 end

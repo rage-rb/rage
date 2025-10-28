@@ -26,6 +26,10 @@ module Rage
     Rage::Deferred
   end
 
+  def self.events
+    Rage::Events
+  end
+
   def self.routes
     Rage::Router::DSL.new(__router)
   end
@@ -135,9 +139,11 @@ module Rage
   autoload :Cable, "rage/cable/cable"
   autoload :OpenAPI, "rage/openapi/openapi"
   autoload :Deferred, "rage/deferred/deferred"
+  autoload :Events, "rage/events/events"
 end
 
 module RageController
 end
 
 require_relative "rage/env"
+require_relative "rage/internal"
