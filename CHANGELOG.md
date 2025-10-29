@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [1.18.0] - 2025-10-29
+
+### Added
+
+- Add `Rage::Events` (#167).
+
+### Fixed
+
+- Fix sequential `Fiber.await` calls (#168).
+
 ## [1.17.1] - 2025-08-21
 
 ### Fixed
