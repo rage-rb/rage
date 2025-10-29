@@ -7,6 +7,7 @@ class Rage::Tasks
   class << self
     def init
       load_db_tasks if defined?(StandaloneMigrations)
+      load_rage_tasks
       load_app_tasks
     end
 
@@ -33,6 +34,10 @@ class Rage::Tasks
 
     def load_app_tasks
       Dir[Rage.root.join("lib/tasks/**/*.rake")].each { |file| load file }
+    end
+
+    def load_rage_tasks
+      Dir[File.expand_path("tasks/**/*.rake", __dir__)].each { |file| load file }
     end
   end
 end
