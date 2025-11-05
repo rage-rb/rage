@@ -539,5 +539,9 @@ class Rage::Configuration
     else
       @logger = Rage::Logger.new(nil)
     end
+
+    if defined?(::Rack::Events) && middleware.include?(::Rack::Events) && !middleware.include?(Rage::BodyFinalizer)
+      middleware.insert_after(0, Rage::BodyFinalizer)
+    end
   end
 end
