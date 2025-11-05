@@ -5,7 +5,9 @@ class Rage::Reloader
     Iodine.on_state(:on_start) do
       Rage.code_loader.check_updated!
     end
+
     @app = app
+    @mutex = Mutex.new
   end
 
   def call(env)
@@ -21,13 +23,10 @@ class Rage::Reloader
   private
 
   def with_reload
-    if Rage.code_loader.check_updated!
-      Fiber.new(blocking: true) {
-        Rage.code_loader.reload
-        yield
-      }.resume
-    else
-      yield
+    @mutex.synchronize do
+      Rage.code_loader.reload if Rage.code_loader.check_updated!
     end
+
+    yield
   end
 end
