@@ -139,6 +139,8 @@ class Rage::Cable::Channel
 
       method_name = class_eval <<~RUBY, __FILE__, __LINE__ + 1
         def __run_#{action_name}(data)
+          Fiber[:rage_channel_action] = :#{action_name}
+
           #{if is_subscribing
             <<~RUBY
               @__is_subscribing = true
@@ -387,6 +389,13 @@ class Rage::Cable::Channel
   # @return [Hash{Symbol=>String,Array,Hash,Numeric,NilClass,TrueClass,FalseClass}]
   def params
     @__params
+  end
+
+  # Get the name of the action that is currently being executed.
+  #
+  # @return [Symbol]
+  def action_name
+    Fiber[:rage_channel_action]
   end
 
   # Reject the subscription request. The method should only be called during the subscription

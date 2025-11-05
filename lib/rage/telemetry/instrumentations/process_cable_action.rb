@@ -14,7 +14,7 @@ class Rage::Telemetry::Instrumentations::ProcessCableAction < Rage::Telemetry::I
       id = self.id
 
       ->(data = nil) do
-        { id:, name: "#{self.class}##{action}", payload: { channel: self, data: } }
+        { id:, name: "#{self.class}##{action_name}", payload: { channel: self, data: } }
       end
     end
 
