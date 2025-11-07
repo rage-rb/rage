@@ -26,6 +26,8 @@ Rage.routes.draw do
   get "logs/custom", to: "logs#custom"
   get "logs/fiber", to: "logs#fiber"
 
+  get "reload/verify", to: "reload#verify"
+
   mount ->(_) { [200, {}, ""] }, at: "/admin"
 
   namespace :api do

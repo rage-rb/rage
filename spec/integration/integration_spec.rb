@@ -274,4 +274,79 @@ RSpec.describe "End-to-end" do
       expect(response.code).to eq(200)
     end
   end
+
+  context "with reload" do
+    let(:controller) { Pathname.new("#{__dir__}/test_app/app/controllers/reload_controller.rb") }
+
+    before do
+      @initial = controller.read
+    end
+
+    after do
+      controller.write(@initial)
+    end
+
+    context "with new status" do
+      before do
+        controller.write <<~RUBY
+          class ReloadController < RageController::API
+            def verify
+              head 207
+            end
+          end
+        RUBY
+      end
+
+      it "reloads the app" do
+        response = HTTP.get("http://localhost:3000/reload/verify")
+        expect(response.code).to eq(207)
+      end
+    end
+
+    context "with async code" do
+      before do
+        controller.write <<~RUBY
+          class ReloadController < RageController::API
+            def verify
+              f1 = Fiber.schedule { sleep 0.1 }
+              f2 = Fiber.schedule { sleep 0.2 }
+              Fiber.await([f1, f2])
+
+              head 205
+            end
+          end
+        RUBY
+      end
+
+      it "reloads the app" do
+        response = HTTP.get("http://localhost:3000/reload/verify")
+        expect(response.code).to eq(205)
+      end
+    end
+
+    context "with parallel requests" do
+      before do
+        controller.write <<~RUBY
+          class ReloadController < RageController::API
+            def verify
+              sleep 0.1
+              head 208
+            end
+          end
+        RUBY
+      end
+
+      it "reloads the app" do
+        requests = [
+          Thread.new { HTTP.get("http://localhost:3000/reload/verify") },
+          Thread.new { HTTP.get("http://localhost:3000/reload/verify") }
+        ]
+
+        requests.each(&:join)
+        responses = requests.map(&:value)
+
+        expect(responses.map(&:code).uniq).to eq([208])
+      end
+    end
+  end
 end

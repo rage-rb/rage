@@ -8,4 +8,6 @@ Rage.configure do
   # Specify the logger
   config.logger = Rage::Logger.new("log/development.log")
   config.log_level = Logger::INFO
+
+  config.middleware.use Rage::Reloader
 end
