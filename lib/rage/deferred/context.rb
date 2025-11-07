@@ -13,7 +13,8 @@ class Rage::Deferred::Context
       args.empty? ? nil : args,
       kwargs.empty? ? nil : kwargs,
       nil,
-      request_id
+      request_id,
+      storage
     ]
   end
 
@@ -39,5 +40,9 @@ class Rage::Deferred::Context
 
   def self.get_request_id(context)
     context[4]
+  end
+
+  def self.get_storage(context)
+    context[5]
   end
 end

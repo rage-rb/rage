@@ -85,4 +85,23 @@ RSpec.describe Rage::Deferred::Context do
       expect(context[3]).to eq(4)
     end
   end
+
+  describe ".get_storage" do
+    context "with empty storage" do
+      it "returns the storage object from context" do
+        context = described_class.build(nil, [], {})
+
+        expect(described_class.get_storage(context)).to be_nil
+      end
+    end
+
+    context "wit non-empty storage" do
+      it "returns the storage object from context" do
+        storage = { test: true }
+        context = described_class.build(nil, [], {}, storage: storage)
+
+        expect(described_class.get_storage(context)).to eq(storage)
+      end
+    end
+  end
 end
