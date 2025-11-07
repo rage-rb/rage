@@ -96,6 +96,8 @@ class Rage::Logger
     define_log_methods
   end
 
+  # TODO: add context and tags readers
+
   # Add custom keys to an entry.
   #
   # @param context [Hash] a hash of custom keys

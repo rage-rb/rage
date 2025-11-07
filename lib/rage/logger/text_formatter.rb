@@ -17,11 +17,13 @@ class Rage::TextFormatter
 
     if (final = logger[:final])
       params, env = final[:params], final[:env]
+      tags = tags.map! { |tag| "[#{tag}]" }.join
+
       if params && params[:controller]
-        return "[#{tags[0]}] timestamp=#{timestamp} pid=#{@pid} level=info method=#{env["REQUEST_METHOD"]} path=#{env["PATH_INFO"]} controller=#{Rage::Router::Util.path_to_name(params[:controller])} action=#{params[:action]} #{context_msg}status=#{final[:response][0]} duration=#{final[:duration]}\n"
+        return "#{tags} timestamp=#{timestamp} pid=#{@pid} level=info method=#{env["REQUEST_METHOD"]} path=#{env["PATH_INFO"]} controller=#{Rage::Router::Util.path_to_name(params[:controller])} action=#{params[:action]} #{context_msg}status=#{final[:response][0]} duration=#{final[:duration]}\n"
       else
         # no controller/action keys are written if there are no params
-        return "[#{tags[0]}] timestamp=#{timestamp} pid=#{@pid} level=info method=#{env["REQUEST_METHOD"]} path=#{env["PATH_INFO"]} #{context_msg}status=#{final[:response][0]} duration=#{final[:duration]}\n"
+        return "#{tags} timestamp=#{timestamp} pid=#{@pid} level=info method=#{env["REQUEST_METHOD"]} path=#{env["PATH_INFO"]} #{context_msg}status=#{final[:response][0]} duration=#{final[:duration]}\n"
       end
     end
 
