@@ -85,6 +85,8 @@ module Rage::Deferred::Task
         delay:,
         delay_until:
       )
+
+      nil
     end
 
     # @private

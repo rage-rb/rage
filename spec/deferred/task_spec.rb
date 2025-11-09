@@ -30,6 +30,11 @@ RSpec.describe Rage::Deferred::Task do
       expect(queue).to have_received(:enqueue).with(context, delay: 10, delay_until: nil)
     end
 
+    it "returns nil" do
+      result = task_class.enqueue("value", kwarg: "value2", delay: 10)
+      expect(result).to be_nil
+    end
+
     it "correctly passes delay_until" do
       time = Time.now
       task_class.enqueue(delay_until: time)
