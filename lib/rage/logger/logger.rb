@@ -125,10 +125,11 @@ class Rage::Logger
   #     Rage.logger.info "success"
   #   end
   def tagged(tag)
-    (Thread.current[:rage_logger] ||= { tags: [], context: {} })[:tags] << tag
+    old_tags = (Thread.current[:rage_logger] ||= { tags: [], context: {} })[:tags]
+    Thread.current[:rage_logger][:tags] = [*old_tags, tag]
     yield(self)
   ensure
-    Thread.current[:rage_logger][:tags].pop
+    Thread.current[:rage_logger][:tags] = old_tags
   end
 
   alias_method :with_tag, :tagged
