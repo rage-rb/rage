@@ -27,12 +27,12 @@ RSpec.describe Rage::Deferred::Context do
 
     context "when Thread.current[:rage_logger] is set" do
       before do
-        Thread.current[:rage_logger] = { tags: ["req-123"] }
+        Thread.current[:rage_logger] = { tags: ["req-123", "test"] }
       end
 
-      it "builds context including request_id" do
+      it "builds context including log tags" do
         context = described_class.build(task, args, kwargs)
-        expect(context[4]).to eq("req-123")
+        expect(context[4]).to eq(["req-123", "test"])
       end
     end
   end
@@ -65,10 +65,17 @@ RSpec.describe Rage::Deferred::Context do
     end
   end
 
-  describe ".get_request_id" do
-    it "returns the request id from context" do
-      context = [nil, nil, nil, nil, "req-456"]
-      expect(described_class.get_request_id(context)).to eq("req-456")
+  describe ".get_log_tags" do
+    it "returns log tags from context" do
+      context = [nil, nil, nil, nil, ["tag-1", "tag-2"]]
+      expect(described_class.get_log_tags(context)).to eq(["tag-1", "tag-2"])
+    end
+  end
+
+  describe ".get_log_context" do
+    it "returns log tags from context" do
+      context = [nil, nil, nil, nil, nil, { test: true }]
+      expect(described_class.get_log_context(context)).to eq({ test: true })
     end
   end
 

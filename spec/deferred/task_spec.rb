@@ -75,7 +75,8 @@ RSpec.describe Rage::Deferred::Task do
 
     context "when task succeeds" do
       before do
-        allow(Rage::Deferred::Context).to receive(:get_request_id).with(context).and_return("request-id")
+        allow(Rage::Deferred::Context).to receive(:get_log_tags).with(context).and_return(["request-id"])
+        allow(Rage::Deferred::Context).to receive(:get_log_context).with(context).and_return({})
         allow(task).to receive(:perform)
       end
 
@@ -87,7 +88,7 @@ RSpec.describe Rage::Deferred::Task do
       it "logs with context and tag" do
         task.__perform(context)
         expect(logger).to have_received(:with_context).with({ task: "MyTask", attempt: 2 })
-        expect(logger).to have_received(:tagged).with("request-id")
+        expect(Thread.current[:rage_logger]).to eq({ tags: ["request-id"], context: {} })
       end
 
       it "returns true" do
@@ -102,7 +103,8 @@ RSpec.describe Rage::Deferred::Task do
 
     context "when request_id is not present" do
       before do
-        allow(Rage::Deferred::Context).to receive(:get_request_id).with(context).and_return(nil)
+        allow(Rage::Deferred::Context).to receive(:get_log_tags).with(context).and_return(nil)
+        allow(Rage::Deferred::Context).to receive(:get_log_context).with(context).and_return({})
         allow(task).to receive(:perform)
       end
 
@@ -116,7 +118,8 @@ RSpec.describe Rage::Deferred::Task do
       let(:error) { StandardError.new("Something went wrong") }
 
       before do
-        allow(Rage::Deferred::Context).to receive(:get_request_id).with(context).and_return(nil)
+        allow(Rage::Deferred::Context).to receive(:get_log_tags).with(context).and_return(nil)
+        allow(Rage::Deferred::Context).to receive(:get_log_context).with(context).and_return({})
         allow(task).to receive(:perform).and_raise(error)
         allow(error).to receive(:backtrace).and_return(["line 1", "line 2"])
       end

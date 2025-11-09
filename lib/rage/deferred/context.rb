@@ -6,14 +6,15 @@
 #
 class Rage::Deferred::Context
   def self.build(task, args, kwargs, storage: nil)
-    request_id = Thread.current[:rage_logger][:tags][0] if Thread.current[:rage_logger]
+    logger = Thread.current[:rage_logger]
 
     [
       task,
       args.empty? ? nil : args,
       kwargs.empty? ? nil : kwargs,
       nil,
-      request_id
+      logger&.dig(:tags),
+      logger&.dig(:context)
     ]
   end
 
@@ -37,7 +38,11 @@ class Rage::Deferred::Context
     context[3] = context[3].to_i + 1
   end
 
-  def self.get_request_id(context)
+  def self.get_log_tags(context)
     context[4]
+  end
+
+  def self.get_log_context(context)
+    context[5]
   end
 end
