@@ -65,6 +65,8 @@ class Rage::LogProcessor
     calls = @custom_tags.map.with_index do |tag_object, i|
       if tag_object.is_a?(String)
         "@custom_tags[#{i}]"
+      elsif tag_object.respond_to?(:to_str)
+        "@custom_tags[#{i}].to_str"
       else
         "@custom_tags[#{i}].call"
       end

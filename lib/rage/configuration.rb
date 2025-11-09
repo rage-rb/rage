@@ -300,8 +300,8 @@ class Rage::Configuration
     private
 
     def validate_input!(obj)
-      if !obj.is_a?(Array) && !obj.is_a?(String) && !obj.respond_to?(:call)
-        raise ArgumentError, "custom log tags has to be an Array, String, or Proc"
+      if !obj.respond_to?(:to_str) && !obj.respond_to?(:call)
+        raise ArgumentError, "custom log tags has to be a String or a Proc"
       end
     end
   end
@@ -595,7 +595,7 @@ class Rage::Configuration
     end
 
     if @log_tags
-      Rage.__log_processor.add_custom_tags(@log_tags.objects.flatten)
+      Rage.__log_processor.add_custom_tags(@log_tags.objects)
     end
   end
 end
