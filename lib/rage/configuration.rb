@@ -265,28 +265,26 @@ class Rage::Configuration
   end
 
   class LogContext
-    attr_reader :config
+    attr_reader :objects
 
     def initialize
-      @config = {}
+      @objects = []
     end
 
-    def <<(block_or_hash)
-      add(block_or_hash.object_id, block_or_hash)
-    end
-
-    def add(id, block_or_hash)
-      if @config.has_key?(id)
-        raise ArgumentError, "the log context proc with the '#{id}'' id already exists"
+    def push(block_or_hash)
+      if @objects.include?(block_or_hash)
+        raise ArgumentError, "the log context proc already exists"
       end
 
       validate_input!(block_or_hash)
 
-      @config[id] = block_or_hash
+      @objects << block_or_hash
     end
 
-    def remove(id)
-      @config.delete(id)
+    alias_method :<<, :push
+
+    def delete(block_or_hash)
+      @objects.delete(block_or_hash)
     end
 
     private
@@ -303,7 +301,7 @@ class Rage::Configuration
 
     def validate_input!(obj)
       if !obj.is_a?(Array) && !obj.is_a?(String) && !obj.respond_to?(:call)
-        raise ArgumentError, "custom log context has to be an Array, String, or Proc"
+        raise ArgumentError, "custom log tags has to be an Array, String, or Proc"
       end
     end
   end
@@ -593,11 +591,11 @@ class Rage::Configuration
     end
 
     if @log_context
-      Rage.__log_processor.add_custom_context(@log_context.config.values)
+      Rage.__log_processor.add_custom_context(@log_context.objects)
     end
 
     if @log_tags
-      Rage.__log_processor.add_custom_tags(@log_tags.config.values.flatten)
+      Rage.__log_processor.add_custom_tags(@log_tags.objects.flatten)
     end
   end
 end
