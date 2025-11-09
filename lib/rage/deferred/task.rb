@@ -50,16 +50,16 @@ module Rage::Deferred::Task
   end
 
   # @private
-  def __perform(metadata)
-    args = Rage::Deferred::Metadata.get_args(metadata)
-    kwargs = Rage::Deferred::Metadata.get_kwargs(metadata)
-    attempts = Rage::Deferred::Metadata.get_attempts(metadata)
-    request_id = Rage::Deferred::Metadata.get_request_id(metadata)
+  def __perform(context)
+    args = Rage::Deferred::Context.get_args(context)
+    kwargs = Rage::Deferred::Context.get_kwargs(context)
+    attempts = Rage::Deferred::Context.get_attempts(context)
+    request_id = Rage::Deferred::Context.get_request_id(context)
 
-    context = { task: self.class.name }
-    context[:attempt] = attempts + 1 if attempts
+    log_context = { task: self.class.name }
+    log_context[:attempt] = attempts + 1 if attempts
 
-    Rage.logger.with_context(context) do
+    Rage.logger.with_context(log_context) do
       __with_optional_log_tag(request_id) do
         perform(*args, **kwargs)
         true
@@ -79,7 +79,7 @@ module Rage::Deferred::Task
   module ClassMethods
     def enqueue(*args, delay: nil, delay_until: nil, **kwargs)
       Rage::Deferred.__queue.enqueue(
-        Rage::Deferred::Metadata.build(self, args, kwargs),
+        Rage::Deferred::Context.build(self, args, kwargs),
         delay:,
         delay_until:
       )

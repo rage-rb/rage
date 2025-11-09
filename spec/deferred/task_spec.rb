@@ -16,18 +16,18 @@ RSpec.describe Rage::Deferred::Task do
 
   describe ".enqueue" do
     let(:queue) { instance_double(Rage::Deferred::Queue, enqueue: true) }
-    let(:metadata) { { class: "MyTask" } }
+    let(:context) { { class: "MyTask" } }
 
     before do
       allow(Rage::Deferred).to receive(:__queue).and_return(queue)
-      allow(Rage::Deferred::Metadata).to receive(:build).and_return(metadata)
+      allow(Rage::Deferred::Context).to receive(:build).and_return(context)
     end
 
-    it "builds metadata and enqueues the task" do
+    it "builds context and enqueues the task" do
       task_class.enqueue("value", kwarg: "value2", delay: 10)
 
-      expect(Rage::Deferred::Metadata).to have_received(:build).with(task_class, ["value"], { kwarg: "value2" })
-      expect(queue).to have_received(:enqueue).with(metadata, delay: 10, delay_until: nil)
+      expect(Rage::Deferred::Context).to have_received(:build).with(task_class, ["value"], { kwarg: "value2" })
+      expect(queue).to have_received(:enqueue).with(context, delay: 10, delay_until: nil)
     end
 
     it "correctly passes delay_until" do
@@ -60,7 +60,7 @@ RSpec.describe Rage::Deferred::Task do
 
   describe "#__perform" do
     let(:task) { task_class.new }
-    let(:metadata) { double }
+    let(:context) { double }
     let(:logger) { double(with_context: nil, tagged: nil, error: nil) }
 
     before do
@@ -68,46 +68,46 @@ RSpec.describe Rage::Deferred::Task do
       allow(logger).to receive(:with_context).and_yield
       allow(logger).to receive(:tagged).and_yield
 
-      allow(Rage::Deferred::Metadata).to receive(:get_args).with(metadata).and_return(["arg1"])
-      allow(Rage::Deferred::Metadata).to receive(:get_kwargs).with(metadata).and_return({ kwarg: "kwarg1" })
-      allow(Rage::Deferred::Metadata).to receive(:get_attempts).with(metadata).and_return(1)
+      allow(Rage::Deferred::Context).to receive(:get_args).with(context).and_return(["arg1"])
+      allow(Rage::Deferred::Context).to receive(:get_kwargs).with(context).and_return({ kwarg: "kwarg1" })
+      allow(Rage::Deferred::Context).to receive(:get_attempts).with(context).and_return(1)
     end
 
     context "when task succeeds" do
       before do
-        allow(Rage::Deferred::Metadata).to receive(:get_request_id).with(metadata).and_return("request-id")
+        allow(Rage::Deferred::Context).to receive(:get_request_id).with(context).and_return("request-id")
         allow(task).to receive(:perform)
       end
 
       it "calls perform with correct arguments" do
-        task.__perform(metadata)
+        task.__perform(context)
         expect(task).to have_received(:perform).with("arg1", kwarg: "kwarg1")
       end
 
       it "logs with context and tag" do
-        task.__perform(metadata)
+        task.__perform(context)
         expect(logger).to have_received(:with_context).with({ task: "MyTask", attempt: 2 })
         expect(logger).to have_received(:tagged).with("request-id")
       end
 
       it "returns true" do
-        expect(task.__perform(metadata)).to be(true)
+        expect(task.__perform(context)).to be(true)
       end
 
       it "does not log an error" do
-        task.__perform(metadata)
+        task.__perform(context)
         expect(logger).not_to have_received(:error)
       end
     end
 
     context "when request_id is not present" do
       before do
-        allow(Rage::Deferred::Metadata).to receive(:get_request_id).with(metadata).and_return(nil)
+        allow(Rage::Deferred::Context).to receive(:get_request_id).with(context).and_return(nil)
         allow(task).to receive(:perform)
       end
 
       it "does not add a log tag" do
-        task.__perform(metadata)
+        task.__perform(context)
         expect(logger).not_to have_received(:tagged)
       end
     end
@@ -116,18 +116,18 @@ RSpec.describe Rage::Deferred::Task do
       let(:error) { StandardError.new("Something went wrong") }
 
       before do
-        allow(Rage::Deferred::Metadata).to receive(:get_request_id).with(metadata).and_return(nil)
+        allow(Rage::Deferred::Context).to receive(:get_request_id).with(context).and_return(nil)
         allow(task).to receive(:perform).and_raise(error)
         allow(error).to receive(:backtrace).and_return(["line 1", "line 2"])
       end
 
       it "logs the error" do
-        task.__perform(metadata)
+        task.__perform(context)
         expect(logger).to have_received(:error).with("Deferred task failed with exception: StandardError (Something went wrong):\nline 1\nline 2")
       end
 
       it "returns false" do
-        expect(task.__perform(metadata)).to be(false)
+        expect(task.__perform(context)).to be(false)
       end
     end
   end

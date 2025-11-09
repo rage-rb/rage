@@ -88,7 +88,7 @@ end
 require_relative "task"
 require_relative "queue"
 require_relative "proxy"
-require_relative "metadata"
+require_relative "context"
 require_relative "backends/disk"
 require_relative "backends/nil"
 
