@@ -108,6 +108,19 @@ RSpec.describe Rage::Logger do
 
       expect(result).to eq(:success)
     end
+
+    context "with other process referencing the tags" do
+      it "doesn't mutate the tags storage" do
+        referenced_tags = nil
+
+        subject.tagged("rspec") do
+          referenced_tags = Thread.current[:rage_logger][:tags]
+          subject.info "test passed"
+        end
+
+        expect(referenced_tags).to eq(["my_test_tag", "rspec"])
+      end
+    end
   end
 
   context "with context" do
@@ -152,6 +165,19 @@ RSpec.describe Rage::Logger do
       end
 
       expect(result).to eq(:ok)
+    end
+
+    context "with other process referencing the context" do
+      it "doesn't mutate the context storage" do
+        referenced_context = nil
+
+        subject.with_context(rspec: true) do
+          referenced_context = Thread.current[:rage_logger][:context]
+          subject.info "text"
+        end
+
+        expect(referenced_context).to eq({ rspec: true })
+      end
     end
   end
 

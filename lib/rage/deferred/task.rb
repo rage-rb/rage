@@ -41,34 +41,36 @@ module Rage::Deferred::Task
   end
 
   # @private
-  def __with_optional_log_tag(tag)
-    if tag
-      Rage.logger.tagged(tag) { yield }
-    else
-      yield
-    end
-  end
-
-  # @private
   def __perform(context)
     args = Rage::Deferred::Context.get_args(context)
     kwargs = Rage::Deferred::Context.get_kwargs(context)
     attempts = Rage::Deferred::Context.get_attempts(context)
-    request_id = Rage::Deferred::Context.get_request_id(context)
 
-    log_context = { task: self.class.name }
-    log_context[:attempt] = attempts + 1 if attempts
+    restore_log_info(context)
 
-    Rage.logger.with_context(log_context) do
-      __with_optional_log_tag(request_id) do
-        perform(*args, **kwargs)
-        true
-      rescue Rage::Deferred::TaskFailed
-        false
-      rescue Exception => e
-        Rage.logger.error("Deferred task failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
-        false
-      end
+    task_log_context = { task: self.class.name }
+    task_log_context[:attempt] = attempts + 1 if attempts
+
+    Rage.logger.with_context(task_log_context) do
+      perform(*args, **kwargs)
+      true
+    rescue Rage::Deferred::TaskFailed
+      false
+    rescue Exception => e
+      Rage.logger.error("Deferred task failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+      false
+    end
+  end
+
+  private def restore_log_info(context)
+    log_tags = Rage::Deferred::Context.get_log_tags(context)
+    log_context = Rage::Deferred::Context.get_log_context(context)
+
+    if log_tags.is_a?(Array)
+      Thread.current[:rage_logger] = { tags: log_tags, context: log_context }
+    elsif log_tags
+      # support the previous format where only `request_id` was passed
+      Thread.current[:rage_logger] = { tags: [log_tags], context: {} }
     end
   end
 
@@ -83,6 +85,8 @@ module Rage::Deferred::Task
         delay:,
         delay_until:
       )
+
+      nil
     end
 
     # @private
