@@ -212,6 +212,14 @@ class Rage::Configuration
     @log_level = level.is_a?(Symbol) ? Logger.const_get(level.to_s.upcase) : level
   end
 
+  def log_context
+    @log_context ||= LogContext.new
+  end
+
+  def log_tags
+    @log_tags ||= LogTags.new
+  end
+
   def secret_key_base
     @secret_key_base || ENV["SECRET_KEY_BASE"]
   end
@@ -254,6 +262,48 @@ class Rage::Configuration
 
   def run_after_initialize!
     run_hooks_for!(:after_initialize, self)
+  end
+
+  class LogContext
+    attr_reader :objects
+
+    def initialize
+      @objects = []
+    end
+
+    def push(block_or_hash)
+      if @objects.include?(block_or_hash)
+        raise ArgumentError, "the log context proc already exists"
+      end
+
+      validate_input!(block_or_hash)
+
+      @objects << block_or_hash
+    end
+
+    alias_method :<<, :push
+
+    def delete(block_or_hash)
+      @objects.delete(block_or_hash)
+    end
+
+    private
+
+    def validate_input!(obj)
+      if !obj.is_a?(Hash) && !obj.respond_to?(:call)
+        raise ArgumentError, "custom log context has to be a hash or a Proc"
+      end
+    end
+  end
+
+  class LogTags < LogContext
+    private
+
+    def validate_input!(obj)
+      if !obj.respond_to?(:to_str) && !obj.respond_to?(:call)
+        raise ArgumentError, "custom log tags has to be a String or a Proc"
+      end
+    end
   end
 
   class Server
@@ -538,6 +588,14 @@ class Rage::Configuration
       @logger.level = @log_level if @log_level
     else
       @logger = Rage::Logger.new(nil)
+    end
+
+    if @log_context
+      Rage.__log_processor.add_custom_context(@log_context.objects)
+    end
+
+    if @log_tags
+      Rage.__log_processor.add_custom_tags(@log_tags.objects)
     end
   end
 end
