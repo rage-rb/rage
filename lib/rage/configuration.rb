@@ -244,6 +244,10 @@ class Rage::Configuration
     @deferred ||= Deferred.new
   end
 
+  def telemetry
+    @telemetry ||= Telemetry.new
+  end
+
   def internal
     @internal ||= Internal.new
   end
@@ -267,46 +271,70 @@ class Rage::Configuration
     end
   end
 
-  class Middleware
-    attr_reader :middlewares
+  class Stack
+    attr_reader :stack
 
     def initialize
-      @middlewares = [[Rage::FiberWrapper]]
+      @stack = []
     end
 
-    def use(new_middleware, *args, &block)
-      insert_after(@middlewares.length - 1, new_middleware, *args, &block)
+    def use(new_object, *args, &block)
+      validate!(-1, new_object)
+      @stack.insert(-1, [new_object, args, block])
     end
 
-    def insert_before(existing_middleware, new_middleware, *args, &block)
-      index = find_middleware_index(existing_middleware)
-      if index == 0 && @middlewares[0][0] == Rage::FiberWrapper
-        puts("Warning: inserting #{new_middleware} before Rage::FiberWrapper may lead to undefined behavior.")
-      end
-      @middlewares = (@middlewares[0...index] + [[new_middleware, args, block]] + @middlewares[index..]).uniq(&:first)
+    def insert_before(existing_object, new_object, *args, &block)
+      index = find_object_index(existing_object)
+      validate!(index, new_object)
+      @stack.insert(index, [new_object, args, block]).uniq!(&:first)
     end
 
-    def insert_after(existing_middleware, new_middleware, *args, &block)
-      index = find_middleware_index(existing_middleware)
-      @middlewares = (@middlewares[0..index] + [[new_middleware, args, block]] + @middlewares[index + 1..]).uniq(&:first)
+    def insert_after(existing_object, new_object, *args, &block)
+      index = find_object_index(existing_object) + 1
+      index = 0 if @stack.empty?
+      validate!(index, new_object)
+      @stack.insert(index, [new_object, args, block]).uniq!(&:first)
     end
 
-    def include?(middleware)
-      !!find_middleware_index(middleware) rescue false
+    def include?(object)
+      !!find_object_index(object) rescue false
     end
 
     private
 
-    def find_middleware_index(middleware)
-      if middleware.is_a?(Integer)
-        if middleware < 0 || middleware >= @middlewares.length
-          raise ArgumentError, "Middleware index should be in the (0...#{@middlewares.length}) range"
+    def find_object_index(object)
+      class_name = self.class.name.split("::").last
+
+      if object.is_a?(Integer)
+        if object < 0 || (@stack.any? && object >= @stack.length)
+          raise ArgumentError, "#{class_name} index should be in the (0...#{@stack.length}) range"
         end
-        middleware
+        object
       else
-        @middlewares.index { |m, _, _| m == middleware }.tap do |i|
-          raise ArgumentError, "Couldn't find #{middleware} in the middleware stack" unless i
+        @stack.index { |o, _, _| o == object }.tap do |i|
+          raise ArgumentError, "Couldn't find #{object} in the #{class_name.downcase} stack" unless i
         end
+      end
+    end
+
+    def validate!(_, _)
+    end
+  end
+
+  class Middleware < Stack
+    alias_method :middlewares, :stack
+
+    def initialize
+      super
+      @stack = [[Rage::FiberWrapper]]
+    end
+
+    private
+
+    def validate!(index, middleware)
+      if index == 0 && @stack[0][0] == Rage::FiberWrapper
+        # TODO: add caller
+        puts "WARNING: inserting the #{middleware} middleware before `Rage::FiberWrapper` may lead to undefined behavior."
       end
     end
   end
@@ -495,6 +523,40 @@ class Rage::Configuration
       end
 
       parsed_options
+    end
+  end
+
+  class Telemetry < Stack
+    InstrumenterReference = Data.define(:klass, :method)
+
+    def instrumenters
+      @stack.map(&:first).each_with_object({}) do |instrumenter, memo|
+        instrumenter&.handlers.each do |instrumentation_id, instrumenter_methods|
+          instrumenter_references = instrumenter_methods.map { |method| InstrumenterReference.new(instrumenter, method) }
+
+          if memo.has_key?(instrumentation_id)
+            memo[instrumentation_id] += instrumenter_references
+          else
+            memo[instrumentation_id] = instrumenter_references
+          end
+        end
+      end
+    end
+
+    private
+
+    def validate!(_, instrumenter)
+      unless instrumenter.ancestors.include?(Rage::Telemetry::Instrumenter)
+        raise ArgumentError, "cannot add #{instrumenter} as an instrumenter; should inherit `Rage::Telemetry::Instrumenter`"
+      end
+
+      instrumenter.handlers&.each do |instrumentation_id, instrumenter_methods|
+        instrumenter_methods.each do |instrumenter_method|
+          unless instrumenter.singleton_class.method_defined?(instrumenter_method)
+            raise ArgumentError, "could not find the `#{instrumenter_method}` method when parsing the `#{instrumenter}` instrumenter. Make sure the method is defined on the class level"
+          end
+        end
+      end
     end
   end
 
