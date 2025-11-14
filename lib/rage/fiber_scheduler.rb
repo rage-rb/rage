@@ -5,6 +5,8 @@ require "resolv"
 class Rage::FiberScheduler
   MAX_READ = 65536
 
+  attr_reader :root_fiber
+
   def initialize
     @root_fiber = Fiber.current
     @dns_cache = {}

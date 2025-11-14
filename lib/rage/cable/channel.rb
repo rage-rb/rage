@@ -136,9 +136,16 @@ class Rage::Cable::Channel
 
       is_subscribing = action_name == :subscribed
       should_release_connections = Rage.config.internal.should_manually_release_ar_connections?
+      should_skip_action = if INTERNAL_ACTIONS.include?(action_name)
+        !method_defined?(action_name)
+      else
+        false
+      end
 
       method_name = class_eval <<~RUBY, __FILE__, __LINE__ + 1
         def __run_#{action_name}(data)
+          Fiber[:rage_channel_action] = :#{action_name}
+
           #{if is_subscribing
             <<~RUBY
               @__is_subscribing = true
@@ -148,14 +155,17 @@ class Rage::Cable::Channel
           #{before_subscribe_chunk}
           #{before_unsubscribe_chunk}
 
-          #{if instance_method(action_name).arity == 0
-            <<~RUBY
-              #{action_name}
-            RUBY
-          else
-            <<~RUBY
-              #{action_name}(data)
-            RUBY
+
+          #{unless should_skip_action
+            if instance_method(action_name).arity == 0
+              <<~RUBY
+                #{action_name}
+              RUBY
+            else
+              <<~RUBY
+                #{action_name}(data)
+              RUBY
+            end
           end}
 
           #{after_subscribe_chunk}
@@ -389,6 +399,13 @@ class Rage::Cable::Channel
     @__params
   end
 
+  # Get the name of the action that is currently being executed.
+  #
+  # @return [Symbol]
+  def action_name
+    Fiber[:rage_channel_action]
+  end
+
   # Reject the subscription request. The method should only be called during the subscription
   # process (i.e. inside the {subscribed} method or {before_subscribe}/{after_subscribe} hooks).
   def reject
@@ -440,11 +457,9 @@ class Rage::Cable::Channel
     end
   end
 
-  # Called once a client has become a subscriber of the channel.
-  def subscribed
-  end
+  # @!method subscribed
+  #   Called once a client has become a subscriber of the channel.
 
-  # Called once a client unsubscribes from the channel.
-  def unsubscribed
-  end
+  # @!method unsubscribed
+  #   Called once a client unsubscribes from the channel.
 end

@@ -140,6 +140,7 @@ module Rage
   autoload :OpenAPI, "rage/openapi/openapi"
   autoload :Deferred, "rage/deferred/deferred"
   autoload :Events, "rage/events/events"
+  autoload :Telemetry, "rage/telemetry/telemetry"
 end
 
 module RageController
