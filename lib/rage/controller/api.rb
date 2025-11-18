@@ -448,7 +448,7 @@ class RageController::API
   # Get the request object. See {Rage::Request}.
   # @return [Rage::Request]
   def request
-    @request ||= Rage::Request.new(@__env)
+    @request ||= Rage::Request.new(@__env, controller: self)
   end
 
   # Get the response object. See {Rage::Response}.
@@ -633,6 +633,12 @@ class RageController::API
 
     head :not_modified if still_fresh
     !still_fresh
+  end
+
+  # Get the name of the currently executed action.
+  # @return [String] the name of the currently executed action
+  def action_name
+    @__params[:action]
   end
 
   # @private
