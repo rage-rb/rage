@@ -316,7 +316,9 @@ class Rage::Configuration
     def push(block_or_hash)
       validate_input!(block_or_hash)
       @objects << block_or_hash
-      @objects.tap(&:uniq!).tap(&:flatten!)
+      @objects.tap(&:flatten!).tap(&:uniq!)
+
+      self
     end
 
     alias_method :<<, :push

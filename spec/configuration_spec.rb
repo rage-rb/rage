@@ -41,6 +41,13 @@ RSpec.describe Rage::Configuration do
 
           expect(subject.objects).to eq([context[0], context[1]])
         end
+
+        it "removes duplicates" do
+          context = [{ account_id: 1 }, { profile_id: 2 }]
+          subject << { account_id: 1 } << context
+
+          expect(subject.objects).to eq([context[0], context[1]])
+        end
       end
 
       context "with existing objects" do
