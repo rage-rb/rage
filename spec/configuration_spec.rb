@@ -82,8 +82,6 @@ RSpec.describe Rage::Configuration do
 
       context "with an array with invalid object" do
         it "raises an error" do
-          context = [{ account_id: 1 }, Set.new]
-
           expect {
             subject << Class
           }.to raise_error(ArgumentError)
@@ -223,8 +221,6 @@ RSpec.describe Rage::Configuration do
 
       context "with an array with invalid object" do
         it "raises an error" do
-          context = ["v1.2.3", /test/]
-
           expect {
             subject << Class
           }.to raise_error(ArgumentError)

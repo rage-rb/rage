@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable Lint/LiteralAsCondition
 RSpec.describe Rage::LogProcessor do
   describe "#init_request_logger" do
     subject do
@@ -116,7 +117,7 @@ RSpec.describe Rage::LogProcessor do
       context "with a proc returning nil" do
         context "with one context" do
           before do
-            log_processor.add_custom_context([->() { { account_id: 1234 } if false }])
+            log_processor.add_custom_context([-> { { account_id: 1234 } if false }])
           end
 
           it "correctly initializes the logger" do
@@ -133,7 +134,7 @@ RSpec.describe Rage::LogProcessor do
             log_processor.add_custom_context([
               { user_id: 1234 },
               ->(env) { { account_id: 5678 } if false },
-              ->() { { profile_id: 999 } if false }
+              -> { { profile_id: 999 } if false }
             ])
           end
 
@@ -314,7 +315,7 @@ RSpec.describe Rage::LogProcessor do
       context "with a proc returning nil" do
         context "with one tag" do
           before do
-            log_processor.add_custom_tags([->() { "staging" if false }])
+            log_processor.add_custom_tags([-> { "staging" if false }])
           end
 
           it "correctly initializes the logger" do
@@ -331,7 +332,7 @@ RSpec.describe Rage::LogProcessor do
             log_processor.add_custom_tags([
               "staging",
               ->(env) { "admin_api" if false },
-              ->() { "v1.2.3" if false }
+              -> { "v1.2.3" if false }
             ])
           end
 
@@ -348,7 +349,7 @@ RSpec.describe Rage::LogProcessor do
       context "with a proc returning array" do
         before do
           log_processor.add_custom_tags([
-            ->() { ["staging", "admin_api"] },
+            -> { ["staging", "admin_api"] }
           ])
         end
 
@@ -461,3 +462,4 @@ RSpec.describe Rage::LogProcessor do
     end
   end
 end
+# rubocop:enable all
