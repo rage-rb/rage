@@ -57,7 +57,9 @@ class Rage::LogProcessor
       ->(env) do
         #{build_context_call}
       rescue Exception => e
-        Rage.logger.error("Unhandled exception when building log context: \#{e.class} (\#{e.message}):\\n\#{e.backtrace.join("\\n")}")
+        Rage.logger.tagged(env["rage.request_id"]) do
+          Rage.logger.error("Unhandled exception when building log context: \#{e.class} (\#{e.message}):\\n\#{e.backtrace.join("\\n")}")
+        end
         DEFAULT_LOG_CONTEXT
       end
     RUBY
@@ -78,7 +80,9 @@ class Rage::LogProcessor
       ->(env) do
         [env["rage.request_id"], #{calls.join(", ")}]
       rescue Exception => e
-        Rage.logger.error("Unhandled exception when building log tags: \#{e.class} (\#{e.message}):\\n\#{e.backtrace.join("\\n")}")
+        Rage.logger.tagged(env["rage.request_id"]) do
+          Rage.logger.error("Unhandled exception when building log tags: \#{e.class} (\#{e.message}):\\n\#{e.backtrace.join("\\n")}")
+        end
         [env["rage.request_id"]]
       end
     RUBY

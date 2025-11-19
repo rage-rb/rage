@@ -29,6 +29,18 @@ Rage.configure do
   if ENV["WEBSOCKETS_PROTOCOL"]
     config.cable.protocol = ENV["WEBSOCKETS_PROTOCOL"].to_sym
   end
+
+  if ENV["ENABLE_CUSTOM_LOG_CONTEXT"]
+    config.log_tags << Rage.env
+
+    config.log_context << proc do |env|
+      if env["HTTP_RAISE_LOG_CONTEXT_EXCEPTION"]
+        raise "test"
+      else
+        { current_time: Time.now.to_i }
+      end
+    end
+  end
 end
 
 require "rage/setup"
