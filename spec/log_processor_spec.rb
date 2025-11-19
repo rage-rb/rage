@@ -113,6 +113,40 @@ RSpec.describe Rage::LogProcessor do
         end
       end
 
+      context "with a proc returning nil" do
+        context "with one context" do
+          before do
+            log_processor.add_custom_context([->() { { account_id: 1234 } if false }])
+          end
+
+          it "correctly initializes the logger" do
+            expect(subject).to match({
+              tags: [instance_of(String)],
+              context: {},
+              request_start: instance_of(Float)
+            })
+          end
+        end
+
+        context "with multiple contexts" do
+          before do
+            log_processor.add_custom_context([
+              { user_id: 1234 },
+              ->(env) { { account_id: 5678 } if false },
+              ->() { { profile_id: 999 } if false }
+            ])
+          end
+
+          it "correctly initializes the logger" do
+            expect(subject).to match({
+              tags: [instance_of(String)],
+              context: { user_id: 1234 },
+              request_start: instance_of(Float)
+            })
+          end
+        end
+      end
+
       context "with an exception in a context proc" do
         before do
           allow(Rage).to receive(:logger).and_return(double)
@@ -271,6 +305,56 @@ RSpec.describe Rage::LogProcessor do
         it "correctly initializes the logger" do
           expect(subject).to match({
             tags: [request_tag, "v1.2.3.4"],
+            context: {},
+            request_start: instance_of(Float)
+          })
+        end
+      end
+
+      context "with a proc returning nil" do
+        context "with one tag" do
+          before do
+            log_processor.add_custom_tags([->() { "staging" if false }])
+          end
+
+          it "correctly initializes the logger" do
+            expect(subject).to match({
+              tags: [request_tag],
+              context: {},
+              request_start: instance_of(Float)
+            })
+          end
+        end
+
+        context "with multiple contexts" do
+          before do
+            log_processor.add_custom_tags([
+              "staging",
+              ->(env) { "admin_api" if false },
+              ->() { "v1.2.3" if false }
+            ])
+          end
+
+          it "correctly initializes the logger" do
+            expect(subject).to match({
+              tags: [request_tag, "staging"],
+              context: {},
+              request_start: instance_of(Float)
+            })
+          end
+        end
+      end
+
+      context "with a proc returning array" do
+        before do
+          log_processor.add_custom_tags([
+            ->() { ["staging", "admin_api"] },
+          ])
+        end
+
+        it "correctly initializes the logger" do
+          expect(subject).to match({
+            tags: [request_tag, "staging", "admin_api"],
             context: {},
             request_start: instance_of(Float)
           })

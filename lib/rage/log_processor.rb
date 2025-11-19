@@ -39,7 +39,9 @@ class Rage::LogProcessor
       if context_object.is_a?(Hash)
         "@custom_context[#{i}]"
       else
-        context_object.arity == 0 ? "@custom_context[#{i}].call" : "@custom_context[#{i}].call(env)"
+        context_object.arity == 0 ?
+          "@custom_context[#{i}].call || DEFAULT_LOG_CONTEXT" :
+          "@custom_context[#{i}].call(env) || DEFAULT_LOG_CONTEXT"
       end
     end
 
@@ -68,7 +70,7 @@ class Rage::LogProcessor
       elsif tag_object.respond_to?(:to_str)
         "@custom_tags[#{i}].to_str"
       else
-        tag_object.arity == 0 ? "@custom_tags[#{i}].call" : "@custom_tags[#{i}].call(env)"
+        tag_object.arity == 0 ? "*@custom_tags[#{i}].call" : "*@custom_tags[#{i}].call(env)"
       end
     end
 
