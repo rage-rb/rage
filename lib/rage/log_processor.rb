@@ -39,7 +39,7 @@ class Rage::LogProcessor
       if context_object.is_a?(Hash)
         "@custom_context[#{i}]"
       else
-        "@custom_context[#{i}].call"
+        context_object.arity == 0 ? "@custom_context[#{i}].call" : "@custom_context[#{i}].call(env)"
       end
     end
 
@@ -52,7 +52,7 @@ class Rage::LogProcessor
     end
 
     eval <<~RUBY
-      ->() do
+      ->(env) do
         #{build_context_call}
       rescue Exception => e
         Rage.logger.error("Unhandled exception when building log context: \#{e.class} (\#{e.message}):\\n\#{e.backtrace.join("\\n")}")
@@ -68,7 +68,7 @@ class Rage::LogProcessor
       elsif tag_object.respond_to?(:to_str)
         "@custom_tags[#{i}].to_str"
       else
-        "@custom_tags[#{i}].call"
+        tag_object.arity == 0 ? "@custom_tags[#{i}].call" : "@custom_tags[#{i}].call(env)"
       end
     end
 
@@ -85,7 +85,7 @@ class Rage::LogProcessor
   def rebuild!
     context_call = if @custom_context&.any?
       @custom_log_context_proc = build_custom_context_proc
-      "@custom_log_context_proc.call"
+      "@custom_log_context_proc.call(env)"
     else
       "DEFAULT_LOG_CONTEXT"
     end

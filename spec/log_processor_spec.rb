@@ -97,6 +97,22 @@ RSpec.describe Rage::LogProcessor do
         end
       end
 
+      context "with a proc expecting env" do
+        before do
+          log_processor.add_custom_context([->(env) { { user_id: env["user_id"] } }])
+        end
+
+        let(:env) { { "user_id" => 12345 } }
+
+        it "correctly initializes the logger" do
+          expect(subject).to match({
+            tags: [instance_of(String)],
+            context: { user_id: 12345 },
+            request_start: instance_of(Float)
+          })
+        end
+      end
+
       context "with an exception in a context proc" do
         before do
           allow(Rage).to receive(:logger).and_return(double)
@@ -239,6 +255,22 @@ RSpec.describe Rage::LogProcessor do
         it "correctly initializes the logger" do
           expect(subject).to match({
             tags: [request_tag, "staging", "admin_api", "v1.2.3"],
+            context: {},
+            request_start: instance_of(Float)
+          })
+        end
+      end
+
+      context "with a proc expecting env" do
+        before do
+          log_processor.add_custom_tags([->(env) { env["version"] }])
+        end
+
+        let(:env) { { "version" => "v1.2.3.4" } }
+
+        it "correctly initializes the logger" do
+          expect(subject).to match({
+            tags: [request_tag, "v1.2.3.4"],
             context: {},
             request_start: instance_of(Float)
           })
