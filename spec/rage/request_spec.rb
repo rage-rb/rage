@@ -252,4 +252,29 @@ RSpec.describe Rage::Request do
   it "returns the correct request ID" do
     expect(request.request_id).to eq("5zfcwiy09bary01l")
   end
+
+  context "#route_uri_pattern" do
+    context "with no controller passed" do
+      it "returns the request path" do
+        expect(request.route_uri_pattern).to eq("/users")
+      end
+    end
+
+    context "with controller passed" do
+      subject(:request) { described_class.new(env, controller:) }
+
+      let(:controller) { double }
+
+      it "calls Rage::Router::Util" do
+        expect(controller).to receive(:class).and_return("test-class")
+        expect(controller).to receive(:action_name).and_return("test-action")
+
+        expect(Rage::Router::Util).to receive(:route_uri_pattern).
+          with("test-class", "test-action").
+          and_return("test-uri-pattern")
+
+        expect(request.route_uri_pattern).to eq("test-uri-pattern")
+      end
+    end
+  end
 end

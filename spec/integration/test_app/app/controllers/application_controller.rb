@@ -29,4 +29,12 @@ class ApplicationController < RageController::API
   def get_request_id
     render plain: request.request_id
   end
+
+  def get_action_name_action
+    render plain: action_name
+  end
+
+  def get_route_uri_pattern
+    render plain: request.route_uri_pattern
+  end
 end

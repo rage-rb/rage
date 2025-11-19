@@ -69,6 +69,18 @@ RSpec.describe "End-to-end" do
     expect(response.to_s).to start_with("RuntimeError (1155 test error)")
   end
 
+  it "correctly fetches current action name" do
+    response = HTTP.get("http://localhost:3000/get_action_name")
+    expect(response.code).to eq(200)
+    expect(response.to_s).to eq("get_action_name_action")
+  end
+
+  it "correctly fetches route URI pattern" do
+    response = HTTP.get("http://localhost:3000/get_route_uri_pattern/123")
+    expect(response.code).to eq(200)
+    expect(response.to_s).to eq("/get_route_uri_pattern/:id")
+  end
+
   it "sets correct headers" do
     response = HTTP.get("http://localhost:3000/get")
     expect(response.headers["content-type"]).to eq("text/plain; charset=utf-8")
