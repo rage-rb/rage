@@ -83,14 +83,14 @@ class Rage::LogProcessor
   end
 
   def rebuild!
-    context_call = if @custom_context
+    context_call = if @custom_context&.any?
       @custom_log_context_proc = build_custom_context_proc
       "@custom_log_context_proc.call"
     else
       "DEFAULT_LOG_CONTEXT"
     end
 
-    tags_call = if @custom_tags
+    tags_call = if @custom_tags&.any?
       @custom_log_tags_proc = build_custom_tags_proc
       "@custom_log_tags_proc.call(env)"
     else
@@ -110,8 +110,3 @@ class Rage::LogProcessor
     RUBY
   end
 end
-
-# TODO: benchmarks
-# TODO: tests
-# TODO: pass to deferred tasks
-# TODO: JSON formatter

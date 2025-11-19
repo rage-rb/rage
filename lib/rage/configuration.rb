@@ -272,13 +272,9 @@ class Rage::Configuration
     end
 
     def push(block_or_hash)
-      if @objects.include?(block_or_hash)
-        raise ArgumentError, "the log context proc already exists"
-      end
-
       validate_input!(block_or_hash)
-
       @objects << block_or_hash
+      @objects.tap(&:uniq!).tap(&:flatten!)
     end
 
     alias_method :<<, :push
@@ -290,8 +286,10 @@ class Rage::Configuration
     private
 
     def validate_input!(obj)
-      if !obj.is_a?(Hash) && !obj.respond_to?(:call)
-        raise ArgumentError, "custom log context has to be a hash or a Proc"
+      if obj.is_a?(Array)
+        obj.each { |item| validate_input!(item) }
+      elsif !obj.is_a?(Hash) && !obj.respond_to?(:call)
+        raise ArgumentError, "custom log context has to be a hash, an array of hashes, or a Proc"
       end
     end
   end
@@ -300,8 +298,10 @@ class Rage::Configuration
     private
 
     def validate_input!(obj)
-      if !obj.respond_to?(:to_str) && !obj.respond_to?(:call)
-        raise ArgumentError, "custom log tags has to be a String or a Proc"
+      if obj.is_a?(Array)
+        obj.each { |item| validate_input!(item) }
+      elsif !obj.respond_to?(:to_str) && !obj.respond_to?(:call)
+        raise ArgumentError, "custom log tag has to be a string, an array of strings, or a Proc"
       end
     end
   end
