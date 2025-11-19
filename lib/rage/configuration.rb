@@ -177,6 +177,48 @@ require "erb"
 # config.deferred.backpressure = true
 # ```
 #
+# # Log Context Configuration
+# • _config.log_context_
+#
+# > Allows adding custom context to every log entry. The context can be either a hash or a proc that returns a hash or nil. You can add multiple context objects by calling this method multiple times or by passing an array of hashes/procs.
+#
+# > ```ruby
+# config.log_context << proc { { trace_id: MyObservabilitySDK.trace_id } }
+# > ```
+#
+# > The proc can optionally receive Rack environment as an argument:
+#
+# > ```ruby
+# config.log_context << proc { |env| { trace_id: env["HTTP_TRACE_ID"] } }
+# > ```
+#
+# > Custom log context can also be deleted:
+#
+# > ```ruby
+# config.log_context.delete(MyObservabilitySDK::LOG_CONTEXT)
+# > ```
+#
+# # Log Tags Configuration
+# • _config.log_tags_
+#
+# > Allows adding custom tags to every log entry. Tags can be either a string or a proc that returns a string/array of strings or nil. You can add multiple tags by calling this method multiple times or by passing an array of strings/procs.
+#
+# > ```ruby
+# config.log_tags << Rage.env
+# > ```
+#
+# > The proc can optionally receive Rack environment as an argument:
+#
+# > ```ruby
+# config.log_tags << proc { |env| { "admin" if env["PATH_INFO"].start_with?("/admin") } }
+# > ```
+#
+# > Custom log tags can also be deleted:
+#
+# > ```ruby
+# config.log_tags.delete(MyObservabilitySDK::LOG_TAG)
+# > ```
+#
 # # Transient Settings
 #
 # The settings described in this section should be configured using **environment variables** and are either temporary or will become the default in the future.
