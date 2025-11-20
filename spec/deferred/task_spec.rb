@@ -85,6 +85,10 @@ RSpec.describe Rage::Deferred::Task do
         allow(task).to receive(:perform)
       end
 
+      after do
+        Thread.current[:rage_logger] = nil
+      end
+
       it "calls perform with correct arguments" do
         task.__perform(context)
         expect(task).to have_received(:perform).with("arg1", kwarg: "kwarg1")

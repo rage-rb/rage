@@ -151,6 +151,7 @@ RSpec.describe Rage::LogProcessor do
       context "with an exception in a context proc" do
         before do
           allow(Rage).to receive(:logger).and_return(double)
+          allow(Rage.logger).to receive(:tagged).and_yield
         end
 
         context "with one object" do
@@ -381,6 +382,7 @@ RSpec.describe Rage::LogProcessor do
       context "with an exception in a tag proc" do
         before do
           allow(Rage).to receive(:logger).and_return(double)
+          allow(Rage.logger).to receive(:tagged).and_yield
         end
 
         context "with one object" do
