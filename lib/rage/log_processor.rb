@@ -103,7 +103,7 @@ class Rage::LogProcessor
       "[env[\"rage.request_id\"]]"
     end
 
-    self.class.class_eval <<~RUBY, __FILE__, __LINE__ + 1
+    singleton_class.class_eval <<~RUBY, __FILE__, __LINE__ + 1
       def init_request_logger(env)
         env["rage.request_id"] ||= Iodine::Rack::Utils.gen_request_tag
 
