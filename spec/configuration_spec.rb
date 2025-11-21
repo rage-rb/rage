@@ -25,7 +25,7 @@ RSpec.describe Rage::Configuration do
         end
 
         it "allows to add a callable" do
-          context_class = Struct.new do
+          context_class = Data.define do
             def call
             end
           end
@@ -171,7 +171,7 @@ RSpec.describe Rage::Configuration do
         end
 
         it "allows to add a callable" do
-          tag_class = Struct.new do
+          tag_class = Data.define do
             def call
             end
           end
