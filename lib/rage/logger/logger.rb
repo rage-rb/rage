@@ -52,12 +52,12 @@ require "logger"
 # ```
 class Rage::Logger
   METHODS_MAP = {
-    "debug" => Logger::DEBUG,
-    "info" => Logger::INFO,
-    "warn" => Logger::WARN,
-    "error" => Logger::ERROR,
-    "fatal" => Logger::FATAL,
-    "unknown" => Logger::UNKNOWN
+    debug: Logger::DEBUG,
+    info: Logger::INFO,
+    warn: Logger::WARN,
+    error: Logger::ERROR,
+    fatal: Logger::FATAL,
+    unknown: Logger::UNKNOWN
   }
   private_constant :METHODS_MAP
 
@@ -73,7 +73,12 @@ class Rage::Logger
   # @param shift_period_suffix [String] the log file suffix format for daily, weekly or monthly rotation
   # @param binmode sets whether the logger writes in binary mode
   def initialize(log, level: Logger::DEBUG, formatter: Rage::TextFormatter.new, shift_age: 0, shift_size: 104857600, shift_period_suffix: "%Y%m%d", binmode: false)
-    @logdev = if log && log != File::NULL
+    @logdev = if log.nil? || log == File::NULL
+      nil
+    elsif log.is_a?(Proc)
+      @external_logger = log
+      Logger::LogDevice.new(File::NULL)
+    else
       Logger::LogDevice.new(log, shift_age:, shift_size:, shift_period_suffix:, binmode:)
     end
 
@@ -144,6 +149,8 @@ class Rage::Logger
 
   private
 
+  # TODO: use block_given?
+
   def define_log_methods
     methods = METHODS_MAP.map do |level_name, level_val|
       if @logdev.nil? || level_val < @level
@@ -151,6 +158,18 @@ class Rage::Logger
         <<-RUBY
           def #{level_name}(msg = nil)
             false
+          end
+        RUBY
+      elsif @external_logger
+        # redirect log data to the external logger
+        <<-RUBY
+          def #{level_name}(msg = nil)
+            logger = Thread.current[:rage_logger] || { tags: [], context: {} }
+            @external_logger.call(:#{level_name}, logger[:tags], logger[:context], msg || yield, logger[:final])
+
+          rescue Exception => e
+            tags = logger[:tags].map { |tag| "[\#{tag}]" }.join
+            STDERR.write("\#{tags} Unhandled exception when calling external logger: \#{e.class} (\#{e.message}):\\n\#{e.backtrace.join("\\n")}\\n")
           end
         RUBY
       elsif @formatter.class.name.start_with?("Rage::")

@@ -238,12 +238,21 @@ require "erb"
 class Rage::Configuration
   include Hooks
 
-  attr_accessor :logger
-  attr_reader :log_formatter, :log_level
+  attr_reader :logger, :log_formatter, :log_level
   attr_writer :secret_key_base, :fallback_secret_key_base
 
   # used in DSL
   def config = self
+
+  def logger=(logger)
+    @logger = if logger.nil? || logger.is_a?(Rage::Logger)
+      logger
+    elsif logger.is_a?(Proc)
+      Rage::Logger.new(logger)
+    else
+      raise ArgumentError, "Custom logger should be an instance of `Rage::Logger` or a Proc"
+    end
+  end
 
   def log_formatter=(formatter)
     raise ArgumentError, "Custom log formatter should respond to `#call`" unless formatter.respond_to?(:call)
