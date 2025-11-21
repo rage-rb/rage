@@ -18,6 +18,10 @@ RSpec.describe Rage::Env do
       expect(subject.to_s).to eq("development")
     end
 
+    it "correctly responds to `to_str`" do
+      expect(subject.to_str).to eq("development")
+    end
+
     it "correctly responds to `to_sym`" do
       expect(subject.to_sym).to eq(:development)
     end

@@ -28,6 +28,10 @@ class Rage::Env
     @env.to_sym
   end
 
+  def to_str
+    @env
+  end
+
   def to_s
     @env
   end

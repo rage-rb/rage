@@ -34,8 +34,14 @@ module Rage
     Rage::Router::DSL.new(__router)
   end
 
+  # @private
   def self.__router
     @__router ||= Rage::Router::Backend.new
+  end
+
+  # @private
+  def self.__log_processor
+    @__log_processor ||= Rage::LogProcessor.new
   end
 
   def self.config

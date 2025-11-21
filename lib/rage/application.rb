@@ -4,10 +4,11 @@ class Rage::Application
   def initialize(router)
     @router = router
     @exception_app = build_exception_app
+    @log_processor = Rage.__log_processor
   end
 
   def call(env)
-    init_logger(env)
+    @log_processor.init_request_logger(env)
 
     handler = @router.lookup(env)
 
@@ -25,33 +26,10 @@ class Rage::Application
     response = @exception_app.call(500, e)
 
   ensure
-    finalize_logger(env, response, params)
+    @log_processor.finalize_request_logger(env, response, params)
   end
 
   private
-
-  DEFAULT_LOG_CONTEXT = {}.freeze
-  private_constant :DEFAULT_LOG_CONTEXT
-
-  def init_logger(env)
-    Thread.current[:rage_logger] = {
-      tags: [(env["rage.request_id"] ||= Iodine::Rack::Utils.gen_request_tag)],
-      context: DEFAULT_LOG_CONTEXT,
-      request_start: Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    }
-  end
-
-  def finalize_logger(env, response, params)
-    logger = Thread.current[:rage_logger]
-
-    duration = (
-      (Process.clock_gettime(Process::CLOCK_MONOTONIC) - logger[:request_start]) * 1000
-    ).round(2)
-
-    logger[:final] = { env:, params:, response:, duration: }
-    Rage.logger.info("")
-    logger[:final] = nil
-  end
 
   def build_exception_app
     if Rage.env.development?

@@ -177,6 +177,48 @@ require "erb"
 # config.deferred.backpressure = true
 # ```
 #
+# # Log Context Configuration
+# • _config.log_context_
+#
+# > Allows adding custom context to every log entry. The context can be either a hash or a proc that returns a hash or nil. You can add multiple context objects by calling this method multiple times or by passing an array of hashes/procs.
+#
+# > ```ruby
+# config.log_context << proc { { trace_id: MyObservabilitySDK.trace_id } }
+# > ```
+#
+# > The proc can optionally receive Rack environment as an argument:
+#
+# > ```ruby
+# config.log_context << proc { |env| { trace_id: env["HTTP_TRACE_ID"] } }
+# > ```
+#
+# > Custom log context can also be deleted:
+#
+# > ```ruby
+# config.log_context.delete(MyObservabilitySDK::LOG_CONTEXT)
+# > ```
+#
+# # Log Tags Configuration
+# • _config.log_tags_
+#
+# > Allows adding custom tags to every log entry. Tags can be either a string or a proc that returns a string/array of strings or nil. You can add multiple tags by calling this method multiple times or by passing an array of strings/procs.
+#
+# > ```ruby
+# config.log_tags << Rage.env
+# > ```
+#
+# > The proc can optionally receive Rack environment as an argument:
+#
+# > ```ruby
+# config.log_tags << proc { |env| "admin" if env["PATH_INFO"].start_with?("/admin") }
+# > ```
+#
+# > Custom log tags can also be deleted:
+#
+# > ```ruby
+# config.log_tags.delete(MyObservabilitySDK::LOG_TAG)
+# > ```
+#
 # # Transient Settings
 #
 # The settings described in this section should be configured using **environment variables** and are either temporary or will become the default in the future.
@@ -210,6 +252,14 @@ class Rage::Configuration
 
   def log_level=(level)
     @log_level = level.is_a?(Symbol) ? Logger.const_get(level.to_s.upcase) : level
+  end
+
+  def log_context
+    @log_context ||= LogContext.new
+  end
+
+  def log_tags
+    @log_tags ||= LogTags.new
   end
 
   def secret_key_base
@@ -254,6 +304,50 @@ class Rage::Configuration
 
   def run_after_initialize!
     run_hooks_for!(:after_initialize, self)
+  end
+
+  class LogContext
+    attr_reader :objects
+
+    def initialize
+      @objects = []
+    end
+
+    def push(block_or_hash)
+      validate_input!(block_or_hash)
+      @objects << block_or_hash
+      @objects.tap(&:flatten!).tap(&:uniq!)
+
+      self
+    end
+
+    alias_method :<<, :push
+
+    def delete(block_or_hash)
+      @objects.delete(block_or_hash)
+    end
+
+    private
+
+    def validate_input!(obj)
+      if obj.is_a?(Array)
+        obj.each { |item| validate_input!(item) }
+      elsif !obj.is_a?(Hash) && !obj.respond_to?(:call)
+        raise ArgumentError, "custom log context has to be a hash, an array of hashes, or a Proc"
+      end
+    end
+  end
+
+  class LogTags < LogContext
+    private
+
+    def validate_input!(obj)
+      if obj.is_a?(Array)
+        obj.each { |item| validate_input!(item) }
+      elsif !obj.respond_to?(:to_str) && !obj.respond_to?(:call)
+        raise ArgumentError, "custom log tag has to be a string, an array of strings, or a Proc"
+      end
+    end
   end
 
   class Server
@@ -538,6 +632,14 @@ class Rage::Configuration
       @logger.level = @log_level if @log_level
     else
       @logger = Rage::Logger.new(nil)
+    end
+
+    if @log_context
+      Rage.__log_processor.add_custom_context(@log_context.objects)
+    end
+
+    if @log_tags
+      Rage.__log_processor.add_custom_tags(@log_tags.objects)
     end
   end
 end
