@@ -210,7 +210,7 @@ require "erb"
 # > The proc can optionally receive Rack environment as an argument:
 #
 # > ```ruby
-# config.log_tags << proc { |env| { "admin" if env["PATH_INFO"].start_with?("/admin") } }
+# config.log_tags << proc { |env| "admin" if env["PATH_INFO"].start_with?("/admin") }
 # > ```
 #
 # > Custom log tags can also be deleted:
