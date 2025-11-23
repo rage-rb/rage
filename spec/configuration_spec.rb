@@ -146,6 +146,17 @@ RSpec.describe Rage::Configuration do
         end
       end
     end
+
+    describe "#objects" do
+      it "doesn't allow direct modifications of context" do
+        context = { user_id: 12345 }
+        subject << context
+
+        subject.objects.clear
+
+        expect(subject.objects).to eq([context])
+      end
+    end
   end
 
   describe "#log_tags" do
@@ -281,6 +292,15 @@ RSpec.describe Rage::Configuration do
           expect(Rage.__log_processor).to receive(:add_custom_tags).with(["staging"])
           config.__finalize
         end
+      end
+    end
+
+    describe "#objects" do
+      it "doesn't allow direct modifications of tags" do
+        subject << "staging"
+        subject.objects.clear
+
+        expect(subject.objects).to eq(["staging"])
       end
     end
   end

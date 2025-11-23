@@ -307,10 +307,12 @@ class Rage::Configuration
   end
 
   class LogContext
-    attr_reader :objects
-
     def initialize
       @objects = []
+    end
+
+    def objects
+      @objects.dup
     end
 
     def push(block_or_hash)
