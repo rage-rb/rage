@@ -45,7 +45,7 @@ RSpec.describe "Global log context" do
       current_time_values = request_logs.map do |log|
         log.match(/current_time=(\d+)/)[1]
       end
-      
+
       expect(current_time_values.uniq.size).to eq(4)
     end
 
@@ -130,7 +130,7 @@ RSpec.describe "Global log context" do
 
     it "uses the X-Request-Id value if it is submitted" do
       x_request_id = "my-test-request-id"
-      response = HTTP.headers("X-Request-Id" => x_request_id).get("http://localhost:3000/logs/custom")
+      HTTP.headers("X-Request-Id" => x_request_id).get("http://localhost:3000/logs/custom")
 
       request_logs = logs.last(4)
       request_logs.each do |log|

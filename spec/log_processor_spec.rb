@@ -95,11 +95,11 @@ RSpec.describe Rage::LogProcessor do
 
         it "correctly initializes dynamic logger" do
           values = []
-          
+
           2.times do
             values << log_processor.dynamic_context.call[:user_id]
           end
-          
+
           expect(values.uniq.size).to eq(2)
         end
       end
@@ -380,7 +380,7 @@ RSpec.describe Rage::LogProcessor do
           let(:custom_tags) do
             [
               "staging",
-              ->() { "admin_api" if false },
+              -> { "admin_api" if false },
               -> { "v1.2.3" if false }
             ]
           end
