@@ -15,11 +15,8 @@ RSpec.describe "Cable Redis" do
     stop_server
   end
 
-  let(:subscribe_message) { { identifier: { client: "1", channel: "TimeChannel" }.to_json, command: "subscribe" }.to_json }
-
   it "broadcasts messages using the adapter" do
-    client = with_websocket_connection("ws://localhost:3000/cable?user_id=1", headers: { Origin: "localhost:3000" })
-    client.send(subscribe_message)
+    client = with_websocket_connection("ws://localhost:3000/cable/time?user_id=1", headers: { Origin: "localhost:3000" })
 
     Bundler.with_unbundled_env do
       system({ "ENABLE_REDIS_ADAPTER" => "1" }, "ruby -e 'require_relative(\"config/application\"); Rage.cable.broadcast(\"current_time\", { message: \"hello from another process\" })'", chdir: "spec/integration/test_app")

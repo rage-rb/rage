@@ -119,6 +119,12 @@ RSpec.describe Rage::Configuration do
           expect(Rage.__log_processor).not_to receive(:add_custom_context)
           config.__finalize
         end
+
+        it "doesn't call logger" do
+          allow(Rage.__log_processor).to receive(:dynamic_context).and_return(:test_dynamic_context)
+          config.__finalize
+          expect(config.logger.dynamic_context).to be_nil
+        end
       end
 
       context "with empty context" do
@@ -130,6 +136,12 @@ RSpec.describe Rage::Configuration do
         it "calls log processor with an empty array" do
           expect(Rage.__log_processor).to receive(:add_custom_context).with([])
           config.__finalize
+        end
+
+        it "calls logger" do
+          allow(Rage.__log_processor).to receive(:dynamic_context).and_return(:test_dynamic_context)
+          config.__finalize
+          expect(config.logger.dynamic_context).to eq(:test_dynamic_context)
         end
       end
 
@@ -143,6 +155,12 @@ RSpec.describe Rage::Configuration do
         it "calls log processor with an empty array" do
           expect(Rage.__log_processor).to receive(:add_custom_context).with([context])
           config.__finalize
+        end
+
+        it "calls logger" do
+          allow(Rage.__log_processor).to receive(:dynamic_context).and_return(:test_dynamic_context)
+          config.__finalize
+          expect(config.logger.dynamic_context).to eq(:test_dynamic_context)
         end
       end
     end
@@ -269,6 +287,12 @@ RSpec.describe Rage::Configuration do
           expect(Rage.__log_processor).not_to receive(:add_custom_tags)
           config.__finalize
         end
+
+        it "doesn't call logger" do
+          allow(Rage.__log_processor).to receive(:dynamic_tags).and_return(:test_dynamic_tags)
+          config.__finalize
+          expect(config.logger.dynamic_tags).to be_nil
+        end
       end
 
       context "with empty tags" do
@@ -281,6 +305,12 @@ RSpec.describe Rage::Configuration do
           expect(Rage.__log_processor).to receive(:add_custom_tags).with([])
           config.__finalize
         end
+
+        it "calls logger" do
+          allow(Rage.__log_processor).to receive(:dynamic_tags).and_return(:test_dynamic_tags)
+          config.__finalize
+          expect(config.logger.dynamic_tags).to eq(:test_dynamic_tags)
+        end
       end
 
       context "with non-empty tags" do
@@ -291,6 +321,12 @@ RSpec.describe Rage::Configuration do
         it "calls log processor with an empty array" do
           expect(Rage.__log_processor).to receive(:add_custom_tags).with(["staging"])
           config.__finalize
+        end
+
+        it "calls logger" do
+          allow(Rage.__log_processor).to receive(:dynamic_tags).and_return(:test_dynamic_tags)
+          config.__finalize
+          expect(config.logger.dynamic_tags).to eq(:test_dynamic_tags)
         end
       end
     end

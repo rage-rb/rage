@@ -10,10 +10,6 @@ class Rage::JSONFormatter
     logger = Thread.current[:rage_logger] || { tags: [], context: {} }
     tags, context = logger[:tags], logger[:context]
 
-    if (final = logger[:final])
-      params, env = final[:params], final[:env]
-    end
-
     if !context.empty?
       context_msg = ""
       context.each { |k, v| context_msg << "\"#{k}\":#{v.to_json}," }
