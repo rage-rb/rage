@@ -340,4 +340,85 @@ RSpec.describe Rage::Configuration do
       end
     end
   end
+
+  describe "#logger" do
+    subject { described_class.new }
+
+    context "with nil" do
+      it "correctly sets logger" do
+        subject.logger = nil
+        expect(subject.logger).to be_nil
+
+        subject.__finalize
+        expect(subject.logger).to be_a(Rage::Logger)
+      end
+    end
+
+    context "with Rage::Logger" do
+      it "correctly sets logger" do
+        logger = Rage::Logger.new(nil)
+        subject.logger = logger
+        expect(subject.logger).to equal(logger)
+      end
+    end
+
+    context "with callable" do
+      it "correctly sets logger" do
+        logger = proc {}
+        subject.logger = logger
+
+        expect(subject.logger).to be_a(Rage::Logger)
+        expect(subject.logger.external_logger).to be_a(Rage::Logger::External::Dynamic)
+        expect(subject.logger.external_logger.wrapped).to equal(logger)
+      end
+    end
+
+    context "with logger" do
+      it "correctly sets logger" do
+        logger = ::Logger.new(nil)
+        subject.logger = logger
+
+        expect(subject.logger).to be_a(Rage::Logger)
+        expect(subject.logger.external_logger).to be_a(Rage::Logger::External::Static)
+        expect(subject.logger.external_logger.wrapped).to equal(logger)
+      end
+    end
+
+    context "with invalid logger" do
+      it "raises an error" do
+        expect {
+          subject.logger = "test"
+        }.to raise_error(ArgumentError)
+      end
+    end
+
+    context "with missing methods" do
+      let(:logger_class) do
+        Class.new do
+          def debug(_) = true
+          def warn(_) = true
+          def error(_) = true
+          def fatal(_) = true
+          def unknown(_) = true
+        end
+      end
+
+      it "raises an error" do
+        expect {
+          subject.logger = logger_class.new
+        }.to raise_error(ArgumentError)
+      end
+    end
+
+    context "with formatter set" do
+      it "prints a warning" do
+        subject.logger = proc {}
+        subject.log_formatter = proc {}
+
+        expect {
+          subject.__finalize
+        }.to output(/changing the log formatter via `config.log_formatter=` has no effect/).to_stdout
+      end
+    end
+  end
 end

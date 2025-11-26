@@ -33,6 +33,11 @@ RSpec.describe Rage::Logger do
     expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=debug message=test message\n")
   end
 
+  it "adds a nil entry" do
+    subject.info nil
+    expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info message=\n")
+  end
+
   it "adds a raw entry" do
     subject << "test message"
     expect(io.tap(&:rewind).read).to eq("test message")
@@ -41,6 +46,10 @@ RSpec.describe Rage::Logger do
   it "works with a block" do
     subject.error { "test message" }
     expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=error message=test message\n")
+  end
+
+  it "doesn't set external logger" do
+    expect(subject.external_logger).to be_nil
   end
 
   context "with a custom level" do
@@ -290,6 +299,230 @@ RSpec.describe Rage::Logger do
 
     it "passes options down" do
       expect { subject }.not_to raise_error
+    end
+  end
+
+  context "with external logger" do
+    context "with static logger" do
+      let(:external_logger) { double }
+      let(:io) { Rage::Logger::External::Static[external_logger] }
+
+      it "correctly initializes the logger" do
+        expect(subject.external_logger).to equal(io)
+      end
+
+      it "delegates logger calls to external logger" do
+        expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info message=test\n")
+        subject.info "test"
+
+        expect(external_logger).to receive(:warn).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=warn message=test\n")
+        subject.warn "test"
+      end
+
+      context "with custom context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info rspec=true message=test\n")
+
+          subject.with_context(rspec: true) do
+            subject.info "test"
+          end
+        end
+      end
+
+      context "with custom tags" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:info).with("[my_test_tag][rspec][tags_test] timestamp=very_accurate_timestamp pid=777 level=info message=test\n")
+
+          subject.tagged("rspec", "tags_test") do
+            subject.info "test"
+          end
+        end
+      end
+
+      context "with custom tags and context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:info).with("[my_test_tag][rspec][tags_test] timestamp=very_accurate_timestamp pid=777 level=info rspec=true message=test\n")
+
+          subject.with_context(rspec: true) do
+            subject.tagged("rspec", "tags_test") do
+              subject.info "test"
+            end
+          end
+        end
+      end
+
+      context "with global context" do
+        before do
+          subject.dynamic_context = proc { { id: 12345 } }
+        end
+
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info id=12345 message=test\n")
+          subject.info "test"
+        end
+
+        context "with custom context" do
+          it "correctly builds log entry" do
+            expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info rspec=true id=12345 message=test\n")
+
+            subject.with_context(rspec: true) do
+              subject.info "test"
+            end
+          end
+        end
+
+        context "with custom tags and context" do
+          it "correctly builds log entry" do
+            expect(external_logger).to receive(:info).with("[my_test_tag][rspec][tags_test] timestamp=very_accurate_timestamp pid=777 level=info rspec=true id=12345 message=test\n")
+
+            subject.with_context(rspec: true) do
+              subject.tagged("rspec", "tags_test") do
+                subject.info "test"
+              end
+            end
+          end
+        end
+      end
+    end
+
+    context "with dynamic logger" do
+      let(:external_logger) { double }
+      let(:io) { Rage::Logger::External::Dynamic[external_logger] }
+
+      it "correctly initializes the logger" do
+        expect(subject.external_logger).to equal(io)
+      end
+
+      it "delegates logger calls to external logger" do
+        expect(external_logger).to receive(:call).with(
+          severity: :info,
+          tags: ["my_test_tag"],
+          context: {},
+          message: "test",
+          request_info: nil
+        )
+        subject.info "test"
+
+        expect(external_logger).to receive(:call).with(
+          severity: :warn,
+          tags: ["my_test_tag"],
+          context: {},
+          message: "test",
+          request_info: nil
+        )
+        subject.warn "test"
+      end
+
+      it "freezes log data" do
+        expect(external_logger).to receive(:call) do |_, tags, context, _, _|
+          expect(tags).to be_frozen
+          expect(context).to be_frozen
+        end
+
+        subject.info "test"
+      end
+
+      context "with custom context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag"],
+            context: { rspec: true },
+            message: "test",
+            request_info: nil
+          )
+
+          subject.with_context(rspec: true) do
+            subject.info "test"
+          end
+        end
+      end
+
+      context "with custom tags" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag", "rspec", "tags_test"],
+            context: {},
+            message: "test",
+            request_info: nil
+          )
+
+          subject.tagged("rspec", "tags_test") do
+            subject.info "test"
+          end
+        end
+      end
+
+      context "with custom tags and context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag", "rspec", "tags_test"],
+            context: { rspec: true },
+            message: "test",
+            request_info: nil
+          )
+
+          subject.with_context(rspec: true) do
+            subject.tagged("rspec", "tags_test") do
+              subject.info "test"
+            end
+          end
+        end
+      end
+
+      context "with global context" do
+        before do
+          subject.dynamic_context = proc { { id: 12345 } }
+        end
+
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag"],
+            context: { id: 12345 },
+            message: "test",
+            request_info: nil
+          )
+
+          subject.info "test"
+        end
+
+        context "with custom context" do
+          it "correctly builds log entry" do
+            expect(external_logger).to receive(:call).with(
+              severity: :info,
+              tags: ["my_test_tag"],
+              context: { id: 12345, rspec: true },
+              message: "test",
+              request_info: nil
+            )
+
+            subject.with_context(rspec: true) do
+              subject.info "test"
+            end
+          end
+        end
+
+        context "with custom tags and context" do
+          it "correctly builds log entry" do
+            expect(external_logger).to receive(:call).with(
+              severity: :info,
+              tags: ["my_test_tag", "rspec", "tags_test"],
+              context: { id: 12345, rspec: true },
+              message: "test",
+              request_info: nil
+            )
+
+            subject.with_context(rspec: true) do
+              subject.tagged("rspec", "tags_test") do
+                subject.info "test"
+              end
+            end
+          end
+        end
+      end
     end
   end
 end
