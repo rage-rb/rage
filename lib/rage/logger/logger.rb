@@ -63,6 +63,9 @@ class Rage::Logger
 
   attr_reader :level, :formatter
 
+  # @private
+  attr_reader :dynamic_tags, :dynamic_context
+
   # Create a new logger.
   #
   # @param log [Object] a filename (`String`), IO object (typically `STDOUT`, `STDERR`, or an open file), `nil` (it writes nothing) or `File::NULL` (same as `nil`)
@@ -83,20 +86,39 @@ class Rage::Logger
 
     @formatter = formatter
     @level = @logdev ? level : Logger::UNKNOWN
-    define_log_methods
+    rebuild!
   end
 
+  # Set the logging severity threshold.
+  # @param level [Integer] logging severity threshold
   def level=(level)
     @level = level
-    define_log_methods
+    rebuild!
   end
 
+  # Set the logging formatter.
+  # @param formatter [#call] logging formatter
   def formatter=(formatter)
     @formatter = formatter
-    define_log_methods
+    rebuild!
   end
 
-  # TODO: add context and tags readers
+  # Write the given `msg` to the log with no formatting.
+  def <<(msg)
+    @logdev&.write(msg)
+  end
+
+  # @private
+  def dynamic_tags=(dynamic_tags)
+    @dynamic_tags = dynamic_tags
+    rebuild!
+  end
+
+  # @private
+  def dynamic_context=(dynamic_context)
+    @dynamic_context = dynamic_context
+    rebuild!
+  end
 
   # Add custom keys to an entry.
   #
@@ -121,14 +143,14 @@ class Rage::Logger
 
   # Add a custom tag to an entry.
   #
-  # @param tag [String] the tag to add to an entry
+  # @param tags [String] the tag to add to an entry
   # @example
   #   Rage.logger.tagged("ApiCall") do
   #     Rage.logger.info "success"
   #   end
-  def tagged(tag)
+  def tagged(*tags)
     old_tags = (Thread.current[:rage_logger] ||= { tags: [], context: {} })[:tags]
-    Thread.current[:rage_logger][:tags] = [*old_tags, tag]
+    Thread.current[:rage_logger][:tags] = old_tags + tags
     yield(self)
   ensure
     Thread.current[:rage_logger][:tags] = old_tags
@@ -136,15 +158,22 @@ class Rage::Logger
 
   alias_method :with_tag, :tagged
 
+  # Check if the debug level is enabled.
   def debug? = @level <= Logger::DEBUG
+  # Check if the error level is enabled.
   def error? = @level <= Logger::ERROR
+  # Check if the fatal level is enabled.
   def fatal? = @level <= Logger::FATAL
+  # Check if the info level is enabled.
   def info? = @level <= Logger::INFO
+  # Check if the warn level is enabled.
   def warn? = @level <= Logger::WARN
+  # Check if the unknown level is enabled.
+  def unknown? = @level <= Logger::UNKNOWN
 
   private
 
-  def define_log_methods
+  def rebuild!
     methods = METHODS_MAP.map do |level_name, level_val|
       if @logdev.nil? || level_val < @level
         # logging is disabled or the log level is higher than the current one
@@ -157,26 +186,50 @@ class Rage::Logger
         # the call was made from within the application and a built-in formatter is used;
         # in such case we use the `gen_timestamp` method which is much faster than `Time.now.strftime`;
         # it's not a standard approach however, so it's used with built-in formatters only
-        <<-RUBY
+        <<~RUBY
           def #{level_name}(msg = nil)
-            @logdev.write(
-              @formatter.call("#{level_name}".freeze, Iodine::Rack::Utils.gen_timestamp, nil, msg || yield)
-            )
+            #{with_dynamic_tags_and_context do
+              <<~RUBY
+                @logdev.write(
+                  @formatter.call("#{level_name}".freeze, Iodine::Rack::Utils.gen_timestamp, nil, msg || yield)
+                )
+              RUBY
+            end}
           end
         RUBY
       else
         # the call was made from within the application and a custom formatter is used;
-        # stick to the standard approach of using one of the Log Level constants as sevetiry and `Time.now` as time
-        <<-RUBY
+        # stick to the standard approach of using one of the Log Level constants as severity and `Time.now` as time
+        <<~RUBY
           def #{level_name}(msg = nil)
-            @logdev.write(
-              @formatter.call(#{level_val}, Time.now, nil, msg || yield)
-            )
+            #{with_dynamic_tags_and_context do
+              <<~RUBY
+                @logdev.write(
+                  @formatter.call(#{level_val}, Time.now, nil, msg || yield)
+                )
+              RUBY
+            end}
           end
         RUBY
       end
     end
 
     self.class.class_eval(methods.join("\n"))
+  end
+
+  def with_dynamic_tags_and_context
+    do_calls, end_calls = [], []
+
+    if @dynamic_tags
+      do_calls << "Rage.logger.tagged(*@dynamic_tags.call) do"
+      end_calls << "end"
+    end
+
+    if @dynamic_context
+      do_calls << "Rage.logger.with_context(@dynamic_context.call) do"
+      end_calls << "end"
+    end
+
+    "#{do_calls.join("\n")}\n#{yield}\n#{end_calls.join("\n")}"
   end
 end

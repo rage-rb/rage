@@ -33,6 +33,11 @@ RSpec.describe Rage::Logger do
     expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=debug message=test message\n")
   end
 
+  it "adds a raw entry" do
+    subject << "test message"
+    expect(io.tap(&:rewind).read).to eq("test message")
+  end
+
   it "works with a block" do
     subject.error { "test message" }
     expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=error message=test message\n")
@@ -270,6 +275,12 @@ RSpec.describe Rage::Logger do
     it "doesn't add a block entry" do
       expect {
         subject.fatal { raise }
+      }.not_to raise_error
+    end
+
+    it "doesn't add a raw entry" do
+      expect {
+        subject << "this is a test message"
       }.not_to raise_error
     end
   end

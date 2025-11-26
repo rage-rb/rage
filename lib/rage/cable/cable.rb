@@ -52,11 +52,10 @@ module Rage::Cable
         end
 
         @protocol = protocol
-        @default_log_context = {}.freeze
+        @log_processor = Rage.__log_processor
       end
 
       def on_open(connection)
-        connection.env["rage.request_id"] ||= Iodine::Rack::Utils.gen_request_tag
         schedule_fiber(connection) { @protocol.on_open(connection) }
       end
 
@@ -83,7 +82,7 @@ module Rage::Cable
 
       def schedule_fiber(connection)
         Fiber.schedule do
-          Thread.current[:rage_logger] = { tags: [connection.env["rage.request_id"]], context: @default_log_context }
+          @log_processor.init_request_logger(connection.env)
           yield
         rescue => e
           log_error(e)
