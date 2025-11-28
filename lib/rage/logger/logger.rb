@@ -51,20 +51,29 @@ require "logger"
 # end
 # ```
 class Rage::Logger
+  # @private
   METHODS_MAP = {
-    "debug" => Logger::DEBUG,
-    "info" => Logger::INFO,
-    "warn" => Logger::WARN,
-    "error" => Logger::ERROR,
-    "fatal" => Logger::FATAL,
-    "unknown" => Logger::UNKNOWN
+    debug: Logger::DEBUG,
+    info: Logger::INFO,
+    warn: Logger::WARN,
+    error: Logger::ERROR,
+    fatal: Logger::FATAL,
+    unknown: Logger::UNKNOWN
   }
-  private_constant :METHODS_MAP
 
   attr_reader :level, :formatter
 
   # @private
   attr_reader :dynamic_tags, :dynamic_context
+
+  # @private
+  attr_reader :external_logger
+
+  # @private
+  module External
+    Static = Data.define(:wrapped)
+    Dynamic = Data.define(:wrapped)
+  end
 
   # Create a new logger.
   #
@@ -76,7 +85,10 @@ class Rage::Logger
   # @param shift_period_suffix [String] the log file suffix format for daily, weekly or monthly rotation
   # @param binmode sets whether the logger writes in binary mode
   def initialize(log, level: Logger::DEBUG, formatter: Rage::TextFormatter.new, shift_age: 0, shift_size: 104857600, shift_period_suffix: "%Y%m%d", binmode: false)
-    @logdev = if log && log != File::NULL
+    @logdev = if log.class.name.start_with?("Rage::Logger::External::")
+      @external_logger = log
+      Logger::LogDevice.new(File::NULL)
+    elsif log && log != File::NULL
       Logger::LogDevice.new(log, shift_age:, shift_size:, shift_period_suffix:, binmode:)
     end
 
@@ -182,30 +194,47 @@ class Rage::Logger
             false
           end
         RUBY
-      elsif @formatter.class.name.start_with?("Rage::")
-        # the call was made from within the application and a built-in formatter is used;
-        # in such case we use the `gen_timestamp` method which is much faster than `Time.now.strftime`;
-        # it's not a standard approach however, so it's used with built-in formatters only
+      elsif @external_logger.is_a?(External::Static)
+        # an object that implements Ruby's Logger interface is used as a logger
         <<~RUBY
           def #{level_name}(msg = nil)
             #{with_dynamic_tags_and_context do
               <<~RUBY
-                @logdev.write(
-                  @formatter.call("#{level_name}".freeze, Iodine::Rack::Utils.gen_timestamp, nil, msg || yield)
+                @external_logger.wrapped.#{level_name}(
+                  #{build_formatter_call(level_name, level_val)}
                 )
               RUBY
             end}
           end
         RUBY
+      elsif @external_logger.is_a?(External::Dynamic)
+        # a callable object is used as a logger
+        <<~RUBY
+          def #{level_name}(msg = nil)
+            #{with_dynamic_tags_and_context do
+              <<~RUBY
+                logger = Thread.current[:rage_logger] || { tags: [], context: {} }
+                @external_logger.wrapped.call(
+                  severity: :#{level_name},
+                  tags: logger[:tags].freeze,
+                  context: logger[:context].freeze,
+                  message: block_given? ? yield : msg,
+                  request_info: logger[:final].freeze
+                )
+              RUBY
+            end}
+
+          rescue Exception => e
+            STDERR.write("[\#{logger[:tags][0]}] Unhandled exception when calling external logger: \#{e.class} (\#{e.message}):\\n\#{e.backtrace.join("\\n")}\\n")
+          end
+        RUBY
       else
-        # the call was made from within the application and a custom formatter is used;
-        # stick to the standard approach of using one of the Log Level constants as severity and `Time.now` as time
         <<~RUBY
           def #{level_name}(msg = nil)
             #{with_dynamic_tags_and_context do
               <<~RUBY
                 @logdev.write(
-                  @formatter.call(#{level_val}, Time.now, nil, msg || yield)
+                  #{build_formatter_call(level_name, level_val)}
                 )
               RUBY
             end}
@@ -217,16 +246,32 @@ class Rage::Logger
     self.class.class_eval(methods.join("\n"))
   end
 
+  def build_formatter_call(level_name, level_val)
+    if @formatter.class.name.start_with?("Rage::")
+      # a built-in formatter is used - use the `gen_timestamp` method which is much faster than `Time.now.strftime`;
+      # it's not a standard approach however, so it's used with built-in formatters only
+      <<~RUBY
+        @formatter.call("#{level_name}".freeze, Iodine::Rack::Utils.gen_timestamp, nil, block_given? ? yield : msg)
+      RUBY
+    else
+      # a custom formatter is used - stick to the standard approach of using one of the
+      # Log Level constants as severity and `Time.now` as time
+      <<~RUBY
+        @formatter.call(#{level_val}, Time.now, nil, block_given? ? yield : msg)
+      RUBY
+    end
+  end
+
   def with_dynamic_tags_and_context
     do_calls, end_calls = [], []
 
     if @dynamic_tags
-      do_calls << "Rage.logger.tagged(*@dynamic_tags.call) do"
+      do_calls << "tagged(*@dynamic_tags.call) do"
       end_calls << "end"
     end
 
     if @dynamic_context
-      do_calls << "Rage.logger.with_context(@dynamic_context.call) do"
+      do_calls << "with_context(@dynamic_context.call) do"
       end_calls << "end"
     end
 

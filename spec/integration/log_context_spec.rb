@@ -101,8 +101,8 @@ RSpec.describe "Global log context" do
       request_tag = logs.last.match(/^\[(\w{16})\]/)[1]
       request_logs = logs.select { |log| log.include?(request_tag) }
 
-      expect(request_logs[0]).to match(/^\[#{request_tag}\] Unhandled exception when building log context: RuntimeError \(test\):$/)
-      expect(request_logs[1]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/get controller=ApplicationController action=get status=200 duration=\d+\.\d+$/)
+      expect(request_logs.size).to eq(1)
+      expect(request_logs[0]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/get controller=ApplicationController action=get status=200 duration=\d+\.\d+$/)
     end
   end
 

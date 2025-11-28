@@ -179,15 +179,11 @@ RSpec.describe Rage::LogProcessor do
       end
 
       context "with an exception in a context proc" do
-        before do
-          allow(Rage).to receive(:logger).and_return(double)
-        end
-
         context "with one object" do
           let(:custom_context) { [-> { raise "test" }] }
 
           it "correctly initializes dynamic logger" do
-            expect(Rage.logger).to receive(:<<).with(/^\[#{request_tag}\] Unhandled exception when building log context/)
+            expect(STDERR).to receive(:write).with(/^\[#{request_tag}\] Unhandled exception when building log context/)
 
             expect(log_processor.dynamic_tags).to be_nil
             expect(log_processor.dynamic_context.call).to eq({})
@@ -211,7 +207,7 @@ RSpec.describe Rage::LogProcessor do
           end
 
           it "correctly initializes dynamic logger" do
-            expect(Rage.logger).to receive(:<<).with(/^\[#{request_tag}\] Unhandled exception when building log context/)
+            expect(STDERR).to receive(:write).with(/^\[#{request_tag}\] Unhandled exception when building log context/)
 
             expect(log_processor.dynamic_tags).to be_nil
             expect(log_processor.dynamic_context.call).to eq({})
@@ -428,15 +424,11 @@ RSpec.describe Rage::LogProcessor do
       end
 
       context "with an exception in a tag proc" do
-        before do
-          allow(Rage).to receive(:logger).and_return(double)
-        end
-
         context "with one object" do
           let(:custom_tags) { [-> { raise "test" }] }
 
           it "correctly initializes dynamic logger" do
-            expect(Rage.logger).to receive(:<<).with(/^\[#{request_tag}\] Unhandled exception when building log tags/)
+            expect(STDERR).to receive(:write).with(/^\[#{request_tag}\] Unhandled exception when building log tags/)
 
             expect(log_processor.dynamic_context).to be_nil
             expect(log_processor.dynamic_tags.call).to eq([])
@@ -446,7 +438,7 @@ RSpec.describe Rage::LogProcessor do
             let(:env) { { "rage.request_id" => "custom-test-id" } }
 
             it "correctly initializes dynamic logger" do
-              expect(Rage.logger).to receive(:<<).with(/^\[custom-test-id\] Unhandled exception when building log tags/)
+              expect(STDERR).to receive(:write).with(/^\[custom-test-id\] Unhandled exception when building log tags/)
               expect(log_processor.dynamic_tags.call).to eq([])
             end
           end
@@ -469,7 +461,7 @@ RSpec.describe Rage::LogProcessor do
           end
 
           it "correctly initializes dynamic logger" do
-            expect(Rage.logger).to receive(:<<).with(/Unhandled exception/)
+            expect(STDERR).to receive(:write).with(/Unhandled exception/)
             expect(log_processor.dynamic_tags.call).to eq([])
           end
         end
