@@ -1,3 +1,22 @@
+##
+# JSON formatter for Rage logger.
+#
+# Produces log lines in JSON format, including tags, context, and request details if available.
+#
+# Example log line:
+#
+# ```json
+# {"tags":["fecbba0735355738"],"timestamp":"2025-10-19T11:12:56+00:00","pid":"1825","level":"info","method":"GET","path":"/api/v1/resource","controller":"Api::V1::ResourceController","action":"index","status":200,"duration":0.15}
+# ```
+#
+# Use {Rage.configure Rage.configure} to set the formatter:
+#
+# ```ruby
+# Rage.configure do |config|
+#   config.log_formatter = Rage::JSONFormatter.new
+# end
+# ```
+#
 class Rage::JSONFormatter
   def initialize
     @pid = Process.pid.to_s
