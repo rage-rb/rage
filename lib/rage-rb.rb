@@ -6,30 +6,46 @@ require "iodine"
 require "pathname"
 
 module Rage
+  # Builds the Rage application with the configured middlewares.
   def self.application
     with_middlewares(Application.new(__router), config.middleware.middlewares)
   end
 
+  # Builds the Rage application which delegates Rails requests to `Rails.application`.
   def self.multi_application
     Rage::Router::Util::Cascade.new(application, Rails.application)
   end
 
+  # Shorthand to access {Rage::Cable Rage::Cable}.
+  # @return [Rage::Cable]
   def self.cable
     Rage::Cable
   end
 
+  # Shorthand to access {Rage::OpenAPI Rage::OpenAPI}.
+  # @return [Rage::OpenAPI]
   def self.openapi
     Rage::OpenAPI
   end
 
+  # Shorthand to access {Rage::Deferred Rage::Deferred}.
+  # @return [Rage::Deferred]
   def self.deferred
     Rage::Deferred
   end
 
+  # Shorthand to access {Rage::Events Rage::Events}.
+  # @return [Rage::Events]
   def self.events
     Rage::Events
   end
 
+  # Configure routes for the Rage application.
+  # @return [Rage::Router::DSL::Handler]
+  # @example
+  #   Rage.routes.draw do
+  #     root to: "users#index"
+  #   end
   def self.routes
     Rage::Router::DSL.new(__router)
   end
@@ -44,39 +60,61 @@ module Rage
     @__log_processor ||= Rage::LogProcessor.new
   end
 
+  # Access the Rage configuration.
+  # @return [Rage::Configuration] the Rage configuration instance.
   def self.config
     @config ||= Rage::Configuration.new
   end
 
+  # Configure Rage using a block.
+  # @example
+  #   Rage.configure do |config|
+  #     config.log_level = :debug
+  #   end
   def self.configure(&)
     config.instance_eval(&)
     config.__finalize
   end
 
+  # Access the current Rage environment.
+  # @return [Rage::Env] the Rage environment instance
+  # @example
+  #   if Rage.env.development?
+  #     puts "Running in development mode"
+  #   end
   def self.env
     @__env ||= Rage::Env.new(ENV["RAGE_ENV"] || ENV["RAILS_ENV"] || ENV["RACK_ENV"] || "development")
   end
 
+  # Access the current Gem groups based on the Rage environment.
   def self.groups
     [:default, Rage.env.to_sym]
   end
 
+  # Access the root path of the Rage application.
+  # @return [Pathname] the root path
   def self.root
     @root ||= Pathname.new(".").expand_path
   end
 
+  # Access the Rage logger.
+  # @return [Rage::Logger] the Rage logger instance
   def self.logger
     @logger ||= config.logger
   end
 
+  # Load middlewares into the Rage application.
+  # @deprecated This method is deprecated and has been merged into `Rage.application`.
   def self.load_middlewares(_)
     puts "`Rage.load_middlewares` is deprecated and has been merged into `Rage.application`. Please remove this call."
   end
 
+  # @private
   def self.code_loader
     @code_loader ||= Rage::CodeLoader.new
   end
 
+  # @private
   def self.patch_active_record_connection_pool
     patch = proc do
       is_connected = ActiveRecord::Base.connection_pool rescue false
@@ -100,6 +138,7 @@ module Rage
     end
   end
 
+  # Load Rake tasks for the Rage application.
   def self.load_tasks
     Rage::Tasks.init
   end

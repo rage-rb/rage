@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# @private
 module Hooks
   def hooks
     @hooks ||= Hash.new { |h, k| h[k] = [] }

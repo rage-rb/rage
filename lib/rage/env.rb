@@ -1,5 +1,16 @@
 # frozen_string_literal: true
 
+##
+# {Rage::Env Rage::Env} represents the current environment of the Rage application.
+#
+# The class automatically detects the application's current environment by checking the `RAGE_ENV`, `RAILS_ENV`, and `RACK_ENV` environment variables.
+# It provides predicate methods to check which environment is active.
+#
+# @example
+#   # Start the application with `rage s -e preprod`
+#   Rage.env.development? # => false
+#   Rage.env.preprod?     # => true
+#
 class Rage::Env
   STANDARD_ENVS = %w(development test staging production)
 
