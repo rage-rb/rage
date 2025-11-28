@@ -863,6 +863,10 @@ class Rage::Configuration
       Rage.__log_processor.add_custom_tags(@log_tags.objects)
       @logger.dynamic_tags = Rage.__log_processor.dynamic_tags
     end
+
+    if defined?(::Rack::Events) && middleware.include?(::Rack::Events) && !middleware.include?(Rage::BodyFinalizer)
+      middleware.insert_after(0, Rage::BodyFinalizer)
+    end
   end
 end
 

@@ -830,4 +830,41 @@ RSpec.describe Rage::Configuration do
       end
     end
   end
+
+  describe "Rack::Events" do
+    subject { config.__finalize }
+
+    let(:config) { described_class.new }
+
+    context "without Rack::Events" do
+      it "doesn't add Rage::BodyFinalizer" do
+        subject
+        expect(config.middleware).not_to include(Rage::BodyFinalizer)
+      end
+    end
+
+    context "with Rack::Events" do
+      before do
+        stub_const("Rack::Events", double)
+      end
+
+      context "if Rack::Events is in middleware stack" do
+        before do
+          config.middleware.use Rack::Events
+        end
+
+        it "adds Rage::BodyFinalizer" do
+          subject
+          expect(config.middleware).to include(Rage::BodyFinalizer)
+        end
+      end
+
+      context "if Rack::Events is not in middleware stack" do
+        it "doesn't add Rage::BodyFinalizer" do
+          subject
+          expect(config.middleware).not_to include(Rage::BodyFinalizer)
+        end
+      end
+    end
+  end
 end
