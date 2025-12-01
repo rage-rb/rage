@@ -94,15 +94,10 @@ RSpec.describe "Global log context" do
       stop_server
     end
 
-    it "correctly handles exceptions when building log context" do
+    it "lets exceptions from invalid log contexts bubble up" do
       response = HTTP.get("http://localhost:3000/get")
-      expect(response.code).to eq(200)
-
-      request_tag = logs.last.match(/^\[(\w{16})\]/)[1]
-      request_logs = logs.select { |log| log.include?(request_tag) }
-
-      expect(request_logs.size).to eq(1)
-      expect(request_logs[0]).to match(/^\[#{request_tag}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/get controller=ApplicationController action=get status=200 duration=\d+\.\d+$/)
+      expect(response.code).to eq(500)
+      expect(response.body.to_s).to match(/RuntimeError \(test\)/)
     end
   end
 

@@ -87,7 +87,7 @@ class Rage::Logger
   def initialize(log, level: Logger::DEBUG, formatter: Rage::TextFormatter.new, shift_age: 0, shift_size: 104857600, shift_period_suffix: "%Y%m%d", binmode: false)
     @logdev = if log.class.name.start_with?("Rage::Logger::External::")
       @external_logger = log
-      Logger::LogDevice.new(File::NULL)
+      Logger::LogDevice.new(STDERR)
     elsif log && log != File::NULL
       Logger::LogDevice.new(log, shift_age:, shift_size:, shift_period_suffix:, binmode:)
     end
@@ -209,23 +209,22 @@ class Rage::Logger
         RUBY
       elsif @external_logger.is_a?(External::Dynamic)
         # a callable object is used as a logger
+        parameters = Rage::Internal.build_arguments(@external_logger.wrapped, {
+          severity: ":#{level_name}",
+          tags: "logger[:tags].freeze",
+          context: "logger[:context].freeze",
+          message: "block_given? ? yield : msg",
+          request_info: "logger[:final].freeze"
+        })
+
         <<~RUBY
           def #{level_name}(msg = nil)
             #{with_dynamic_tags_and_context do
               <<~RUBY
                 logger = Thread.current[:rage_logger] || { tags: [], context: {} }
-                @external_logger.wrapped.call(
-                  severity: :#{level_name},
-                  tags: logger[:tags].freeze,
-                  context: logger[:context].freeze,
-                  message: block_given? ? yield : msg,
-                  request_info: logger[:final].freeze
-                )
+                @external_logger.wrapped.call(#{parameters})
               RUBY
             end}
-
-          rescue Exception => e
-            STDERR.write("[\#{logger[:tags][0]}] Unhandled exception when calling external logger: \#{e.class} (\#{e.message}):\\n\#{e.backtrace.join("\\n")}\\n")
           end
         RUBY
       else

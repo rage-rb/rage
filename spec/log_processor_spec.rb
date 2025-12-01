@@ -182,11 +182,10 @@ RSpec.describe Rage::LogProcessor do
         context "with one object" do
           let(:custom_context) { [-> { raise "test" }] }
 
-          it "correctly initializes dynamic logger" do
-            expect(STDERR).to receive(:write).with(/^\[#{request_tag}\] Unhandled exception when building log context/)
-
-            expect(log_processor.dynamic_tags).to be_nil
-            expect(log_processor.dynamic_context.call).to eq({})
+          it "lets the exception bubble up" do
+            expect {
+              log_processor.dynamic_context.call
+            }.to raise_error(RuntimeError, "test")
           end
         end
 
@@ -206,11 +205,10 @@ RSpec.describe Rage::LogProcessor do
             })
           end
 
-          it "correctly initializes dynamic logger" do
-            expect(STDERR).to receive(:write).with(/^\[#{request_tag}\] Unhandled exception when building log context/)
-
-            expect(log_processor.dynamic_tags).to be_nil
-            expect(log_processor.dynamic_context.call).to eq({})
+          it "lets the exception bubble up" do
+            expect {
+              log_processor.dynamic_context.call
+            }.to raise_error(RuntimeError, "test")
           end
         end
       end
@@ -427,20 +425,10 @@ RSpec.describe Rage::LogProcessor do
         context "with one object" do
           let(:custom_tags) { [-> { raise "test" }] }
 
-          it "correctly initializes dynamic logger" do
-            expect(STDERR).to receive(:write).with(/^\[#{request_tag}\] Unhandled exception when building log tags/)
-
-            expect(log_processor.dynamic_context).to be_nil
-            expect(log_processor.dynamic_tags.call).to eq([])
-          end
-
-          context "with custom request_id" do
-            let(:env) { { "rage.request_id" => "custom-test-id" } }
-
-            it "correctly initializes dynamic logger" do
-              expect(STDERR).to receive(:write).with(/^\[custom-test-id\] Unhandled exception when building log tags/)
-              expect(log_processor.dynamic_tags.call).to eq([])
-            end
+          it "lets the exception bubble up" do
+            expect {
+              log_processor.dynamic_tags.call
+            }.to raise_error(RuntimeError, "test")
           end
         end
 
@@ -460,14 +448,15 @@ RSpec.describe Rage::LogProcessor do
             })
           end
 
-          it "correctly initializes dynamic logger" do
-            expect(STDERR).to receive(:write).with(/Unhandled exception/)
-            expect(log_processor.dynamic_tags.call).to eq([])
+          it "lets the exception bubble up" do
+            expect {
+              log_processor.dynamic_tags.call
+            }.to raise_error(RuntimeError, "test")
           end
         end
       end
 
-      context "with a reset tags" do
+      context "with reset tags" do
         let(:custom_tags) do
           [
             "staging",
@@ -495,20 +484,23 @@ RSpec.describe Rage::LogProcessor do
       end
     end
 
-    # context "with custom context and tags" do
-    #   before do
-    #     log_processor.add_custom_context([{ user_id: 1234, account_id: 5678 }])
-    #     log_processor.add_custom_tags([-> { "staging" }])
-    #   end
+    context "with custom context and tags" do
+      let(:custom_context) { [{ user_id: 1234, account_id: 5678 }, -> { { profile_id: 999 } }] }
+      let(:custom_tags) { [-> { "staging" }] }
 
-    #   it "correctly initializes static logger" do
-    #     expect(subject).to match({
-    #       tags: [instance_of(String), "staging"],
-    #       context: { user_id: 1234, account_id: 5678 },
-    #       request_start: instance_of(Float)
-    #     })
-    #   end
-    # end
+      it "correctly initializes static logger" do
+        expect(log_context).to match({
+          tags: [request_tag],
+          context: { user_id: 1234, account_id: 5678 },
+          request_start: instance_of(Float)
+        })
+      end
+
+      it "correctly initializes dynamic logger" do
+        expect(log_processor.dynamic_context.call).to eq({ profile_id: 999 })
+        expect(log_processor.dynamic_tags.call).to eq(["staging"])
+      end
+    end
   end
 end
 # rubocop:enable all

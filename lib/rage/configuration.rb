@@ -50,7 +50,8 @@ class Rage::Configuration
   #   @example
   #     config.logger = Rage::Logger.new(STDOUT)
   # @overload logger=(callable)
-  #   Set an external logger. This allows you to send Rage's raw structured logging data directly to external observability platforms without serializing it to text first.<br>
+  #   Set an external logger. This allows you to send Rage's raw structured logging data directly to external observability platforms without serializing it to text first.
+  #
   #   The external logger receives pre-parsed structured data (severity, tags, context) rather than formatted strings. This differs from `config.log_formatter` in that formatters control how logs are formatted (text vs JSON), while the external logger controls where logs are sent and how they integrate with external platforms.
   #   @param callable [ExternalLoggerInterface]
   #   @example
@@ -238,6 +239,7 @@ class Rage::Configuration
     #     Rage.configure do
     #       config.log_context << proc { { trace_id: MyObservabilitySDK.trace_id } if MyObservabilitySDK.active? }
     #     end
+    #   @note Exceptions from dynamic context callables will cause the entire request to fail. Make sure to handle exceptions inside the callable if necessary.
     def <<(block_or_hash)
       validate_input!(block_or_hash)
       @objects << block_or_hash
@@ -286,6 +288,7 @@ class Rage::Configuration
     #       Rage.configure do
     #         config.log_tags << proc { Current.tenant.slug }
     #       end
+    #     @note Exceptions from dynamic tag callables will cause the entire request to fail. Make sure to handle exceptions inside the callable if necessary.
 
     # @!method delete(block_or_string)
     #   Remove a custom log tag object.
@@ -832,6 +835,8 @@ end
 #   # @note This class does not exist at runtime and is used for documentation purposes only. Do not inherit external loggers from it.
 #   class ExternalLoggerInterface
 #     # Called whenever a log entry is created.
+#     #
+#     # Rage automatically detects which parameters your external logger's `#call` method accepts, and only passes those parameters. You can omit any of the described parameters in your implementation.
 #     #
 #     # @param severity [:debug, :info, :warn, :error, :fatal, :unknown] the log severity
 #     # @param tags [Array] the log tags submitted via {Rage::Logger#tagged Rage::Logger#tagged}. The first tag is always the request ID

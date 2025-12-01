@@ -389,6 +389,10 @@ RSpec.describe Rage::Logger do
       let(:external_logger) { double }
       let(:io) { Rage::Logger::External::Dynamic[external_logger] }
 
+      before do
+        allow(external_logger).to receive(:parameters).and_return([[:keyrest, :**]])
+      end
+
       it "correctly initializes the logger" do
         expect(subject.external_logger).to equal(io)
       end
@@ -469,6 +473,21 @@ RSpec.describe Rage::Logger do
               subject.info "test"
             end
           end
+        end
+      end
+
+      context "with subset of parameters" do
+        before do
+          allow(external_logger).to receive(:parameters).and_return([[:keyreq, :message], [:keyreq, :context]])
+        end
+
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            context: {},
+            message: "test"
+          )
+
+          subject.info "test"
         end
       end
 
