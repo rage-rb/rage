@@ -209,18 +209,20 @@ class Rage::Logger
         RUBY
       elsif @external_logger.is_a?(External::Dynamic)
         # a callable object is used as a logger
+        parameters = Rage::Internal.build_arguments(@external_logger.wrapped, {
+          severity: ":#{level_name}",
+          tags: "logger[:tags].freeze",
+          context: "logger[:context].freeze",
+          message: "block_given? ? yield : msg",
+          request_info: "logger[:final].freeze"
+        })
+
         <<~RUBY
           def #{level_name}(msg = nil)
             #{with_dynamic_tags_and_context do
               <<~RUBY
                 logger = Thread.current[:rage_logger] || { tags: [], context: {} }
-                @external_logger.wrapped.call(
-                  severity: :#{level_name},
-                  tags: logger[:tags].freeze,
-                  context: logger[:context].freeze,
-                  message: block_given? ? yield : msg,
-                  request_info: logger[:final].freeze
-                )
+                @external_logger.wrapped.call(#{parameters})
               RUBY
             end}
           end

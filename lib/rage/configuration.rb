@@ -836,6 +836,8 @@ end
 #   class ExternalLoggerInterface
 #     # Called whenever a log entry is created.
 #     #
+#     # Rage automatically detects which parameters your external logger's `#call` method accepts, and only passes those parameters. You can omit any of the described parameters in your implementation.
+#     #
 #     # @param severity [:debug, :info, :warn, :error, :fatal, :unknown] the log severity
 #     # @param tags [Array] the log tags submitted via {Rage::Logger#tagged Rage::Logger#tagged}. The first tag is always the request ID
 #     # @param context [Hash] the log context submitted via {Rage::Logger#with_context Rage::Logger#with_context}
