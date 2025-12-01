@@ -484,20 +484,23 @@ RSpec.describe Rage::LogProcessor do
       end
     end
 
-    # context "with custom context and tags" do
-    #   before do
-    #     log_processor.add_custom_context([{ user_id: 1234, account_id: 5678 }])
-    #     log_processor.add_custom_tags([-> { "staging" }])
-    #   end
+    context "with custom context and tags" do
+      let(:custom_context) { [{ user_id: 1234, account_id: 5678 }, -> { { profile_id: 999 } }] }
+      let(:custom_tags) { [-> { "staging" }] }
 
-    #   it "correctly initializes static logger" do
-    #     expect(subject).to match({
-    #       tags: [instance_of(String), "staging"],
-    #       context: { user_id: 1234, account_id: 5678 },
-    #       request_start: instance_of(Float)
-    #     })
-    #   end
-    # end
+      it "correctly initializes static logger" do
+        expect(log_context).to match({
+          tags: [request_tag],
+          context: { user_id: 1234, account_id: 5678 },
+          request_start: instance_of(Float)
+        })
+      end
+
+      it "correctly initializes dynamic logger" do
+        expect(log_processor.dynamic_context.call).to eq({ profile_id: 999 })
+        expect(log_processor.dynamic_tags.call).to eq(["staging"])
+      end
+    end
   end
 end
 # rubocop:enable all
