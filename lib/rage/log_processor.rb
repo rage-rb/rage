@@ -78,9 +78,6 @@ class Rage::LogProcessor
     eval <<~RUBY
       ->() do
         [#{calls.join(", ")}]
-      rescue Exception => e
-        STDERR.write("[\#{Thread.current[:rage_logger]&.dig(:tags, 0)}] Unhandled exception when building log tags: \#{e.class} (\#{e.message}):\\n\#{e.backtrace.join("\\n")}\n")
-        []
       end
     RUBY
   end
@@ -97,9 +94,6 @@ class Rage::LogProcessor
     eval <<~RUBY
       ->() do
         {}.merge!(#{calls.join(", ")})
-      rescue Exception => e
-        STDERR.write("[\#{Thread.current[:rage_logger]&.dig(:tags, 0)}] Unhandled exception when building log context: \#{e.class} (\#{e.message}):\\n\#{e.backtrace.join("\\n")}\n")
-        {}
       end
     RUBY
   end

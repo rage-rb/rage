@@ -223,9 +223,6 @@ class Rage::Logger
                 )
               RUBY
             end}
-
-          rescue Exception => e
-            STDERR.write("[\#{logger[:tags][0]}] Unhandled exception when calling external logger: \#{e.class} (\#{e.message}):\\n\#{e.backtrace.join("\\n")}\\n")
           end
         RUBY
       else

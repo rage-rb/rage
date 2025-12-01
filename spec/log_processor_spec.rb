@@ -182,11 +182,10 @@ RSpec.describe Rage::LogProcessor do
         context "with one object" do
           let(:custom_context) { [-> { raise "test" }] }
 
-          it "correctly initializes dynamic logger" do
-            expect(STDERR).to receive(:write).with(/^\[#{request_tag}\] Unhandled exception when building log context/)
-
-            expect(log_processor.dynamic_tags).to be_nil
-            expect(log_processor.dynamic_context.call).to eq({})
+          it "lets the exception bubble up" do
+            expect {
+              log_processor.dynamic_context.call
+            }.to raise_error(RuntimeError, "test")
           end
         end
 
@@ -206,11 +205,10 @@ RSpec.describe Rage::LogProcessor do
             })
           end
 
-          it "correctly initializes dynamic logger" do
-            expect(STDERR).to receive(:write).with(/^\[#{request_tag}\] Unhandled exception when building log context/)
-
-            expect(log_processor.dynamic_tags).to be_nil
-            expect(log_processor.dynamic_context.call).to eq({})
+          it "lets the exception bubble up" do
+            expect {
+              log_processor.dynamic_context.call
+            }.to raise_error(RuntimeError, "test")
           end
         end
       end
@@ -427,20 +425,10 @@ RSpec.describe Rage::LogProcessor do
         context "with one object" do
           let(:custom_tags) { [-> { raise "test" }] }
 
-          it "correctly initializes dynamic logger" do
-            expect(STDERR).to receive(:write).with(/^\[#{request_tag}\] Unhandled exception when building log tags/)
-
-            expect(log_processor.dynamic_context).to be_nil
-            expect(log_processor.dynamic_tags.call).to eq([])
-          end
-
-          context "with custom request_id" do
-            let(:env) { { "rage.request_id" => "custom-test-id" } }
-
-            it "correctly initializes dynamic logger" do
-              expect(STDERR).to receive(:write).with(/^\[custom-test-id\] Unhandled exception when building log tags/)
-              expect(log_processor.dynamic_tags.call).to eq([])
-            end
+          it "lets the exception bubble up" do
+            expect {
+              log_processor.dynamic_tags.call
+            }.to raise_error(RuntimeError, "test")
           end
         end
 
@@ -460,14 +448,15 @@ RSpec.describe Rage::LogProcessor do
             })
           end
 
-          it "correctly initializes dynamic logger" do
-            expect(STDERR).to receive(:write).with(/Unhandled exception/)
-            expect(log_processor.dynamic_tags.call).to eq([])
+          it "lets the exception bubble up" do
+            expect {
+              log_processor.dynamic_tags.call
+            }.to raise_error(RuntimeError, "test")
           end
         end
       end
 
-      context "with a reset tags" do
+      context "with reset tags" do
         let(:custom_tags) do
           [
             "staging",
