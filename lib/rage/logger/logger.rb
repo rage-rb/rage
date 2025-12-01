@@ -87,7 +87,7 @@ class Rage::Logger
   def initialize(log, level: Logger::DEBUG, formatter: Rage::TextFormatter.new, shift_age: 0, shift_size: 104857600, shift_period_suffix: "%Y%m%d", binmode: false)
     @logdev = if log.class.name.start_with?("Rage::Logger::External::")
       @external_logger = log
-      Logger::LogDevice.new(File::NULL)
+      Logger::LogDevice.new(STDERR)
     elsif log && log != File::NULL
       Logger::LogDevice.new(log, shift_age:, shift_size:, shift_period_suffix:, binmode:)
     end
