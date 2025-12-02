@@ -421,4 +421,413 @@ RSpec.describe Rage::Configuration do
       end
     end
   end
+
+  describe "MiddlewareRegistry" do
+    subject { described_class::MiddlewareRegistry.new }
+
+    context "#use" do
+      context "with no middleware" do
+        it "correctly adds a middleware" do
+          subject.use :test_middleware
+          expect(subject.objects).to match([[:test_middleware, anything, anything]])
+        end
+
+        context "with one middleware" do
+          before do
+            subject.use :first_middleware
+          end
+
+          it "correctly adds a middleware" do
+            subject.use :second_middleware
+
+            expect(subject.objects).to match([
+              [:first_middleware, anything, anything],
+              [:second_middleware, anything, anything]
+            ])
+          end
+        end
+
+        context "with two middleware" do
+          before do
+            subject.use :first_middleware
+            subject.use :second_middleware
+          end
+
+          it "correctly adds a middleware" do
+            subject.use :third_middleware
+
+            expect(subject.objects).to match([
+              [:first_middleware, anything, anything],
+              [:second_middleware, anything, anything],
+              [:third_middleware, anything, anything]
+            ])
+          end
+        end
+
+        context "with arguments" do
+          it "correctly adds a middleware" do
+            test_block = proc {}
+            subject.use :test_middleware, 11, 22, 33, &test_block
+
+            expect(subject.objects).to match([[:test_middleware, [11, 22, 33], test_block]])
+          end
+        end
+      end
+    end
+
+    context "#insert_before" do
+      context "with no middleware" do
+        context "with index" do
+          it "correctly adds a middleware before 0" do
+            subject.insert_before(0, :test_middleware)
+            expect(subject.objects).to match([[:test_middleware, anything, anything]])
+          end
+
+          it "checks for existing index" do
+            expect {
+              subject.insert_before(-1, :test_middleware)
+            }.to raise_error(ArgumentError, /Could not find middleware at index -1/)
+          end
+        end
+
+        context "with middleware" do
+          it "checks for existing middleware" do
+            expect {
+              subject.insert_before(:first_middleware, :second_middleware)
+            }.to raise_error(ArgumentError, /Could not find `first_middleware`/)
+          end
+        end
+      end
+
+      context "with one middleware" do
+        before do
+          subject.use :first_middleware
+        end
+
+        context "with index" do
+          it "correctly adds a middleware before 0" do
+            subject.insert_before(0, :second_middleware)
+            expect(subject.objects).to match([
+              [:second_middleware, anything, anything],
+              [:first_middleware, anything, anything]
+            ])
+          end
+
+          it "correctly adds a middleware before -1" do
+            subject.insert_before(-1, :second_middleware)
+            expect(subject.objects).to match([
+              [:first_middleware, anything, anything],
+              [:second_middleware, anything, anything]
+            ])
+          end
+
+          it "raises error with incorrect index" do
+            expect {
+              subject.insert_before(10, :second_middleware)
+            }.to raise_error(ArgumentError, /Could not find middleware at index 10/)
+          end
+        end
+
+        context "with middleware" do
+          it "correctly adds a middleware before existing middleware" do
+            subject.insert_before(:first_middleware, :second_middleware)
+            expect(subject.objects).to match([
+              [:second_middleware, anything, anything],
+              [:first_middleware, anything, anything]
+            ])
+          end
+
+          it "checks for existing middleware" do
+            expect {
+              subject.insert_before(:third_middleware, :second_middleware)
+            }.to raise_error(ArgumentError, /Could not find `third_middleware`/)
+          end
+        end
+      end
+
+      context "with two middleware" do
+        before do
+          subject.use :first_middleware
+          subject.use :second_middleware
+        end
+
+        context "with index" do
+          it "correctly adds a middleware before 0" do
+            subject.insert_before(0, :third_middleware)
+            expect(subject.objects).to match([
+              [:third_middleware, anything, anything],
+              [:first_middleware, anything, anything],
+              [:second_middleware, anything, anything]
+            ])
+          end
+
+          it "correctly adds a middleware before -1" do
+            subject.insert_before(-1, :third_middleware)
+            expect(subject.objects).to match([
+              [:first_middleware, anything, anything],
+              [:second_middleware, anything, anything],
+              [:third_middleware, anything, anything]
+            ])
+          end
+
+          it "correctly adds a middleware before 1" do
+            subject.insert_before(1, :third_middleware)
+            expect(subject.objects).to match([
+              [:first_middleware, anything, anything],
+              [:third_middleware, anything, anything],
+              [:second_middleware, anything, anything]
+            ])
+          end
+        end
+
+        context "with middleware" do
+          it "correctly adds a middleware before existing middleware" do
+            subject.insert_before(:second_middleware, :third_middleware)
+            expect(subject.objects).to match([
+              [:first_middleware, anything, anything],
+              [:third_middleware, anything, anything],
+              [:second_middleware, anything, anything]
+            ])
+          end
+
+          it "correctly adds a middleware before existing middleware" do
+            subject.insert_before(:first_middleware, :third_middleware)
+            expect(subject.objects).to match([
+              [:third_middleware, anything, anything],
+              [:first_middleware, anything, anything],
+              [:second_middleware, anything, anything]
+            ])
+          end
+        end
+      end
+    end
+
+    context "#insert_after" do
+      context "with no middleware" do
+        context "with index" do
+          it "correctly adds a middleware before 0" do
+            subject.insert_after(0, :test_middleware)
+            expect(subject.objects).to match([[:test_middleware, anything, anything]])
+          end
+
+          it "checks for existing index" do
+            expect {
+              subject.insert_after(-1, :test_middleware)
+            }.to raise_error(ArgumentError, /Could not find middleware at index -1/)
+          end
+        end
+
+        context "with middleware" do
+          it "checks for existing middleware" do
+            expect {
+              subject.insert_after(:first_middleware, :second_middleware)
+            }.to raise_error(ArgumentError, /Could not find `first_middleware`/)
+          end
+        end
+      end
+
+      context "with one middleware" do
+        before do
+          subject.use :first_middleware
+        end
+
+        context "with index" do
+          it "correctly adds a middleware after 0" do
+            subject.insert_after(0, :second_middleware)
+            expect(subject.objects).to match([
+              [:first_middleware, anything, anything],
+              [:second_middleware, anything, anything]
+            ])
+          end
+
+          it "correctly adds a middleware after -1" do
+            subject.insert_after(-1, :second_middleware)
+            expect(subject.objects).to match([
+              [:second_middleware, anything, anything],
+              [:first_middleware, anything, anything]
+            ])
+          end
+
+          it "raises error with incorrect index" do
+            expect {
+              subject.insert_after(10, :second_middleware)
+            }.to raise_error(ArgumentError, /Could not find middleware at index 10/)
+          end
+        end
+
+        context "with middleware" do
+          it "correctly adds a middleware after existing middleware" do
+            subject.insert_after(:first_middleware, :second_middleware)
+            expect(subject.objects).to match([
+              [:first_middleware, anything, anything],
+              [:second_middleware, anything, anything]
+            ])
+          end
+
+          it "checks for existing middleware" do
+            expect {
+              subject.insert_after(:third_middleware, :second_middleware)
+            }.to raise_error(ArgumentError, /Could not find `third_middleware`/)
+          end
+        end
+      end
+
+      context "with two middleware" do
+        before do
+          subject.use :first_middleware
+          subject.use :second_middleware
+        end
+
+        context "with index" do
+          it "correctly adds a middleware after 0" do
+            subject.insert_after(0, :third_middleware)
+            expect(subject.objects).to match([
+              [:first_middleware, anything, anything],
+              [:third_middleware, anything, anything],
+              [:second_middleware, anything, anything]
+            ])
+          end
+
+          it "correctly adds a middleware after -1" do
+            subject.insert_after(-1, :third_middleware)
+            expect(subject.objects).to match([
+              [:third_middleware, anything, anything],
+              [:first_middleware, anything, anything],
+              [:second_middleware, anything, anything]
+            ])
+          end
+
+          it "correctly adds a middleware after 1" do
+            subject.insert_after(1, :third_middleware)
+            expect(subject.objects).to match([
+              [:first_middleware, anything, anything],
+              [:second_middleware, anything, anything],
+              [:third_middleware, anything, anything]
+            ])
+          end
+        end
+
+        context "with middleware" do
+          it "correctly adds a middleware after existing middleware" do
+            subject.insert_after(:second_middleware, :third_middleware)
+            expect(subject.objects).to match([
+              [:first_middleware, anything, anything],
+              [:second_middleware, anything, anything],
+              [:third_middleware, anything, anything]
+            ])
+          end
+
+          it "correctly adds a middleware after existing middleware" do
+            subject.insert_after(:first_middleware, :third_middleware)
+            expect(subject.objects).to match([
+              [:first_middleware, anything, anything],
+              [:third_middleware, anything, anything],
+              [:second_middleware, anything, anything]
+            ])
+          end
+        end
+      end
+    end
+
+    context "#include?" do
+      context "with no middleware" do
+        it "correctly checks if a middleware is in the stack" do
+          expect(subject).not_to include(:first_middleware)
+        end
+      end
+
+      context "with existing middleware" do
+        before do
+          subject.use :first_middleware
+        end
+
+        it "correctly checks if a middleware is in the stack" do
+          expect(subject).to include(:first_middleware)
+        end
+
+        it "correctly checks if a middleware is not in the stack" do
+          expect(subject).not_to include(:second_middleware)
+        end
+      end
+
+      context "with arguments" do
+        before do
+          subject.use :first_middleware, 111 do
+          end
+        end
+
+        it "correctly checks if a middleware is in the stack" do
+          expect(subject).to include(:first_middleware)
+        end
+      end
+    end
+
+    context "#delete" do
+      context "with no middleware" do
+        it "doesn't raise error" do
+          expect {
+            subject.delete :test_middleware
+          }.not_to raise_error
+        end
+      end
+
+      context "with existing middleware" do
+        before do
+          subject.use :first_middleware
+        end
+
+        it "correctly deletes existing middleware" do
+          subject.delete :first_middleware
+          expect(subject.objects).to be_empty
+        end
+
+        it "doesn't raise with unknown middleware" do
+          subject.delete :second_middleware
+          expect(subject.objects).to match([[:first_middleware, anything, anything]])
+        end
+      end
+
+      context "with duplicates" do
+        before do
+          subject.use :first_middleware
+          subject.use :second_middleware
+          subject.use :first_middleware, 111 do
+          end
+        end
+
+        it "correctly deletes existing middleware" do
+          subject.delete :first_middleware
+          expect(subject.objects).to match([[:second_middleware, anything, anything]])
+        end
+      end
+    end
+  end
+
+  describe "Middleware" do
+    subject { described_class::Middleware.new }
+
+    context "with new object" do
+      it "returns default middleware" do
+        expect(subject.middlewares).to eq([[Rage::FiberWrapper]])
+      end
+
+      it "allows to add middleware" do
+        subject.use :new_middleware
+        expect(subject.middlewares).to match([[Rage::FiberWrapper], [:new_middleware, anything, anything]])
+      end
+
+      it "allows to append middleware" do
+        subject.insert_after(Rage::FiberWrapper, :new_middleware)
+        expect(subject.middlewares).to match([[Rage::FiberWrapper], [:new_middleware, anything, anything]])
+      end
+
+      it "allows to prepend middleware" do
+        expect {
+          subject.insert_before(Rage::FiberWrapper, :new_middleware)
+        }.to output(/WARNING: inserting the `new_middleware` middleware before `Rage::FiberWrapper` may cause undefined behavior/).to_stdout
+
+        expect(subject.middlewares).to match([[:new_middleware, anything, anything], [Rage::FiberWrapper]])
+      end
+    end
+  end
 end
