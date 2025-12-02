@@ -2,7 +2,7 @@
 
 RSpec.describe Rage::Response do
   let(:headers) { {} }
-  let(:body) { {} }
+  let(:body) { [] }
 
   subject { described_class.new(headers, body) }
 
@@ -104,6 +104,22 @@ RSpec.describe Rage::Response do
       it "sets Last-Modified header to nil" do
         expect { subject.last_modified = nil }.to change { subject.headers[Rage::Response::LAST_MODIFIED_HEADER] }.
           from(last_modified_header).to(nil)
+      end
+    end
+  end
+
+  context "#body" do
+    context "with empty body" do
+      it "returns empty string" do
+        expect(subject.body).to be_empty
+      end
+    end
+
+    context "with non-empty body" do
+      let(:body) { [:test_body] }
+
+      it "returns the body" do
+        expect(subject.body).to eq(:test_body)
       end
     end
   end
