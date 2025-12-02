@@ -9,7 +9,7 @@ class RageController::API
     # returns the name of the newly defined method;
     # rubocop:disable Layout/IndentationWidth, Layout/EndAlignment, Layout/HeredocIndentation
     def __register_action(action)
-      raise Rage::Errors::RouterError, "The action '#{action}' could not be found for #{self}" unless method_defined?(action)
+      raise Rage::Errors::RouterError, "The action `#{action}` could not be found in the `#{self}` controller. This is likely due to route helpers pointing to non-existent actions in the controller. Please check your routes and ensure that all referenced actions exist." unless method_defined?(action)
 
       around_actions_total = 0
 
