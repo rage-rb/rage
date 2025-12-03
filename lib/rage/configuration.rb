@@ -368,13 +368,13 @@ class Rage::Configuration
     end
   end
 
-  class Middleware
+  class MiddlewareRegistry
     # @private
-    attr_reader :middlewares
+    attr_reader :objects
 
     # @private
     def initialize
-      @middlewares = [[Rage::FiberWrapper]]
+      @objects = []
     end
 
     # Add a new middleware to the end of the stack.
@@ -392,7 +392,8 @@ class Rage::Configuration
     #     end
     #   end
     def use(new_middleware, *args, &block)
-      insert_after(@middlewares.length - 1, new_middleware, *args, &block)
+      validate!(-1, new_middleware)
+      @objects.insert(-1, [new_middleware, args, block])
     end
 
     # Insert a new middleware before an existing middleware in the stack.
@@ -411,11 +412,9 @@ class Rage::Configuration
     #     end
     #   end
     def insert_before(existing_middleware, new_middleware, *args, &block)
-      index = find_middleware_index(existing_middleware)
-      if index == 0 && @middlewares[0][0] == Rage::FiberWrapper
-        puts("Warning: inserting #{new_middleware} before Rage::FiberWrapper may lead to undefined behavior.")
-      end
-      @middlewares = (@middlewares[0...index] + [[new_middleware, args, block]] + @middlewares[index..]).uniq(&:first)
+      index = find_object_index(existing_middleware)
+      validate!(index, new_middleware)
+      @objects.insert(index, [new_middleware, args, block])
     end
 
     # Insert a new middleware after an existing middleware in the stack.
@@ -433,29 +432,65 @@ class Rage::Configuration
     #     end
     #   end
     def insert_after(existing_middleware, new_middleware, *args, &block)
-      index = find_middleware_index(existing_middleware)
-      @middlewares = (@middlewares[0..index] + [[new_middleware, args, block]] + @middlewares[index + 1..]).uniq(&:first)
+      index = find_object_index(existing_middleware) + 1
+      index = 0 if @objects.empty?
+      validate!(index, new_middleware)
+      @objects.insert(index, [new_middleware, args, block])
     end
 
     # Check if a middleware is included in the stack.
-    # @param middleware [Class, Integer] the middleware class or its index in the stack
+    # @param middleware [Class] the middleware class
     # @return [Boolean]
     def include?(middleware)
-      !!find_middleware_index(middleware) rescue false
+      @objects.any? { |o, _, _| o == middleware }
+    end
+
+    # Delete a middleware from the stack.
+    # @param middleware [Class] the middleware class
+    # @example
+    #   Rage.configure do
+    #     config.middleware.delete Rack::Cors
+    #   end
+    def delete(middleware)
+      @objects.reject! { |o, _, _| o == middleware }
     end
 
     private
 
-    def find_middleware_index(middleware)
-      if middleware.is_a?(Integer)
-        if middleware < 0 || middleware >= @middlewares.length
-          raise ArgumentError, "Middleware index should be in the (0...#{@middlewares.length}) range"
+    def find_object_index(object)
+      if object.is_a?(Integer)
+        if @objects[object] || object == 0
+          object
+        else
+          raise ArgumentError, "Could not find middleware at index #{object}"
         end
-        middleware
       else
-        @middlewares.index { |m, _, _| m == middleware }.tap do |i|
-          raise ArgumentError, "Couldn't find #{middleware} in the middleware stack" unless i
-        end
+        index = @objects.index { |o, _, _| o == object }
+        raise ArgumentError, "Could not find `#{object}` in the middleware registry" unless index
+        index
+      end
+    end
+
+    def validate!(_, _)
+    end
+  end
+
+  # See {Rage::Configuration::MiddlewareRegistry Rage::Configuration::MiddlewareRegistry} for details on available methods.
+  class Middleware < MiddlewareRegistry
+    # @private
+    alias_method :middlewares, :objects
+
+    # @private
+    def initialize
+      super
+      @objects = [[Rage::FiberWrapper]]
+    end
+
+    private
+
+    def validate!(index, middleware)
+      if index == 0 && @objects[0][0] == Rage::FiberWrapper
+        puts "WARNING: inserting the `#{middleware}` middleware before `Rage::FiberWrapper` may cause undefined behavior."
       end
     end
   end
