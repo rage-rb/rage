@@ -386,12 +386,8 @@ RSpec.describe Rage::Logger do
     end
 
     context "with dynamic logger" do
-      let(:external_logger) { double }
+      let(:external_logger) { proc { |**| } }
       let(:io) { Rage::Logger::External::Dynamic[external_logger] }
-
-      before do
-        allow(external_logger).to receive(:parameters).and_return([[:keyrest, :**]])
-      end
 
       it "correctly initializes the logger" do
         expect(subject.external_logger).to equal(io)
@@ -477,9 +473,7 @@ RSpec.describe Rage::Logger do
       end
 
       context "with subset of parameters" do
-        before do
-          allow(external_logger).to receive(:parameters).and_return([[:keyreq, :message], [:keyreq, :context]])
-        end
+        let(:external_logger) { proc { |message:, context:| } }
 
         it "correctly builds log entry" do
           expect(external_logger).to receive(:call).with(
@@ -539,6 +533,52 @@ RSpec.describe Rage::Logger do
                 subject.info "test"
               end
             end
+          end
+        end
+      end
+
+      context "with external logger as an instance" do
+        let(:external_logger_class) do
+          Class.new do
+            def call(**)
+            end
+          end
+        end
+
+        let(:external_logger) { external_logger_class.new }
+
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag"],
+            context: {},
+            message: "test",
+            request_info: nil
+          )
+
+          subject.info "test"
+        end
+
+        context "with subset of parameters" do
+          let(:external_logger_class) do
+            Class.new do
+              def call(message:, tags:)
+                verifier.call(message:, tags:)
+              end
+            end
+          end
+
+          before do
+            allow(external_logger).to receive(:verifier).and_return(double)
+          end
+
+          it "correctly builds log entry" do
+            expect(external_logger.verifier).to receive(:call).with(
+              tags: ["my_test_tag"],
+              message: "test"
+            )
+
+            subject.info "test"
           end
         end
       end

@@ -209,7 +209,13 @@ class Rage::Logger
         RUBY
       elsif @external_logger.is_a?(External::Dynamic)
         # a callable object is used as a logger
-        parameters = Rage::Internal.build_arguments(@external_logger.wrapped, {
+        call_method = if @external_logger.wrapped.is_a?(Proc)
+          @external_logger.wrapped
+        else
+          @external_logger.wrapped.method(:call)
+        end
+
+        parameters = Rage::Internal.build_arguments(call_method, {
           severity: ":#{level_name}",
           tags: "logger[:tags].freeze",
           context: "logger[:context].freeze",
