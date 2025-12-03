@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+## [1.19.0] - 2025-12-03
+
+### Added
+
+- Add ability to specify external loggers (#178).
+- Pass all of log data to deferred tasks (#173).
+- Add the `Request#route_uri_pattern` method (#175).
+- Support global log tags and context (#171, #177).
+
+### Fixed
+
+- Fix reloading in dev with user-level fibers (#170).
+
 ## [1.18.0] - 2025-10-29
 
 ### Added
