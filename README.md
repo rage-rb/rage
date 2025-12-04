@@ -6,7 +6,7 @@
 ![Tests](https://github.com/rage-rb/rage/actions/workflows/main.yml/badge.svg)
 ![Ruby Requirement](https://img.shields.io/badge/Ruby-3.2%2B-%23f40000)
 
-Rage is a high-performance framework compatible with Rails, featuring [WebSocket](https://github.com/rage-rb/rage/wiki/WebSockets-guide) support and automatic generation of [OpenAPI](https://github.com/rage-rb/rage/wiki/OpenAPI-Guide) documentation for your APIs. The framework is built on top of [Iodine](https://github.com/rage-rb/iodine) and is based on the following design principles:
+Rage is a high-performance framework compatible with Rails, featuring [WebSocket](https://rage-rb.dev/docs/websockets) support and automatic generation of [OpenAPI](https://rage-rb.dev/docs/openapi) documentation for your APIs. The framework is built on top of [Iodine](https://github.com/rage-rb/iodine) and is based on the following design principles:
 
 * **Rails compatible API** - Rails' API is clean, straightforward, and simply makes sense. It was one of the reasons why Rails was so successful in the past.
 
@@ -47,8 +47,8 @@ This gem is designed to be a drop-in replacement for Rails in API mode. Public A
 
 A Rage application can operate in two modes:
 
-* **Rails Mode**: Integrate Rage into an existing Rails application to improve throughput and better handle traffic spikes. For more information, see [Rails Integration](https://github.com/rage-rb/rage/wiki/Rails-integration).
 * **Standalone Mode**: Build high-performance services with minimal setup using Rage. To get started, run `rage new --help` for more details.
+* **Rails Mode**: Integrate Rage into an existing Rails application to improve throughput and better handle traffic spikes. For more information, see [Rails Integration](https://rage-rb.dev/docs/rails).
 
 Check out in-depth API docs for more information:
 
@@ -58,18 +58,7 @@ Check out in-depth API docs for more information:
 - [Logger API](https://rage-rb.pages.dev/Rage/Logger)
 - [Configuration API](https://rage-rb.pages.dev/Rage/Configuration)
 
-Built-in middleware:
-- [CORS](https://rage-rb.pages.dev/Rage/Cors)
-- [RequestId](https://rage-rb.pages.dev/Rage/RequestId)
-
-Also, see the following guides:
-
-- [Rails Integration](https://github.com/rage-rb/rage/wiki/Rails-integration)
-- [RSpec Integration](https://github.com/rage-rb/rage/wiki/RSpec-integration)
-- [WebSockets Guide](https://github.com/rage-rb/rage/wiki/WebSockets-guide)
-- [Background Tasks Guide](https://github.com/rage-rb/rage/wiki/Background-Tasks-Guide)
-
-If you are a first-time contributor, make sure to check the [overview doc](https://github.com/rage-rb/rage/blob/master/OVERVIEW.md) that shows how Rage's core components interact with each other.
+If you are a first-time contributor, make sure to check the [architecture doc](https://github.com/rage-rb/rage/blob/master/ARCHITECTURE.md) that shows how Rage's core components interact with each other.
 
 ### Example
 
