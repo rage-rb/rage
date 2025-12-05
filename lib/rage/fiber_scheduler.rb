@@ -4,15 +4,12 @@ require "resolv"
 
 class Rage::FiberScheduler
   MAX_READ = 65536
-  TIMEOUT_WORKER_INTERVAL = 100 # miliseconds
 
   def initialize
     @root_fiber = Fiber.current
     @dns_cache = {}
 
     @fiber_timeouts = Hash.new { |h, k| h[k] = {} }
-
-    start_timeout_worker
   end
 
   def io_wait(io, events, timeout = nil)
@@ -79,6 +76,8 @@ class Rage::FiberScheduler
       exception_class: exception_class,
       exception_arguments: exception_arguments
     }
+
+    schedule_timeout_check
 
     begin
       block.call
@@ -156,9 +155,25 @@ class Rage::FiberScheduler
 
   private
 
-  def start_timeout_worker
-    ::Iodine.run_every(Rage::FiberScheduler::TIMEOUT_WORKER_INTERVAL) do
+  def schedule_timeout_check
+    return if @fiber_timeouts.empty?
+
+    closest_timeout = nil
+    @fiber_timeouts.each_value do |timeouts|
+      timeouts.each_key do |timeout|
+        closest_timeout = timeout if closest_timeout.nil? || timeout < closest_timeout
+      end
+    end
+
+    return unless closest_timeout
+
+    now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    delay_ms = ((closest_timeout - now) * 1000).ceil
+    delay_ms = 0 if delay_ms < 0
+
+    ::Iodine.run_after(delay_ms) do
       check_timeouts
+      schedule_timeout_check
     end
   end
 
