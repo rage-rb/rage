@@ -33,6 +33,7 @@ require_relative "middleware/fiber_wrapper"
 require_relative "middleware/cors"
 require_relative "middleware/reloader"
 require_relative "middleware/request_id"
+require_relative "middleware/body_finalizer"
 
 if defined?(Sidekiq)
   require_relative "sidekiq_session"
