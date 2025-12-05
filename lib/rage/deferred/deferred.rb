@@ -74,6 +74,20 @@ module Rage::Deferred
     end
   end
 
+  # @private
+  def self.__middleware_chain
+    @__middleware_chain ||= MiddlewareChain.new(
+      enqueue_middleware: Rage.config.deferred.enqueue_middleware.objects,
+      perform_middleware: Rage.config.deferred.perform_middleware.objects
+    )
+  end
+
+  # @private
+  def self.__initialize
+    __middleware_chain
+    __load_tasks
+  end
+
   module Backends
   end
 
@@ -89,11 +103,12 @@ require_relative "task"
 require_relative "queue"
 require_relative "proxy"
 require_relative "context"
+require_relative "middleware_chain"
 require_relative "backends/disk"
 require_relative "backends/nil"
 
 if Iodine.running?
-  Rage::Deferred.__load_tasks
+  Rage::Deferred.__initialize
 else
-  Iodine.on_state(:on_start) { Rage::Deferred.__load_tasks }
+  Iodine.on_state(:on_start) { Rage::Deferred.__initialize }
 end

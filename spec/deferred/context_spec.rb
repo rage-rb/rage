@@ -92,4 +92,48 @@ RSpec.describe Rage::Deferred::Context do
       expect(context[3]).to eq(4)
     end
   end
+
+  describe ".get_user_context" do
+    subject { described_class.get_user_context(context) }
+
+    context "with no context" do
+      let(:context) { [nil, nil, nil, nil, nil, nil, nil] }
+
+      it "returns nil" do
+        expect(subject).to be_nil
+      end
+    end
+
+    context "with context" do
+      let(:context) { [nil, nil, nil, nil, nil, nil, :test_context] }
+
+      it "returns nil" do
+        expect(subject).to eq(:test_context)
+      end
+    end
+  end
+
+  describe ".get_or_create_user_context" do
+    subject { described_class.get_or_create_user_context(context) }
+
+    context "with no context" do
+      let(:context) { [nil, nil, nil, nil, nil, nil, nil] }
+
+      it "returns nil" do
+        expect(subject).to eq({})
+      end
+
+      it "changes context" do
+        expect { subject }.to change { context.last }
+      end
+    end
+
+    context "with context" do
+      let(:context) { [nil, nil, nil, nil, nil, nil, :test_context] }
+
+      it "returns nil" do
+        expect(subject).to eq(:test_context)
+      end
+    end
+  end
 end

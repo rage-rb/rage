@@ -757,6 +757,48 @@ class Rage::Configuration
       @backpressure = Backpressure.new(high_water_mark, low_water_mark, timeout)
     end
 
+    # Allows configuring middleware used by `Rage::Deferred`. See {MiddlewareRegistry} for details on available methods.
+    # @example
+    #   Rage.configure do
+    #     config.deferred.enqueue_middleware.use MyEnqueueMiddleware
+    #     config.deferred.enqueue_middleware.insert_before MyEnqueueMiddleware, MyLoggingMiddleware
+    #   end
+    class Middleware < Rage::Configuration::MiddlewareRegistry
+      private
+
+      def validate!(_, middleware)
+        unless middleware.is_a?(Class)
+          raise ArgumentError, "Deferred middleware has to be a class"
+        end
+
+        unless middleware.method_defined?(:call)
+          raise ArgumentError, "Deferred middleware has to implement the `#call` method"
+        end
+      end
+    end
+
+    # Configure enqueue middleware used by `Rage::Deferred`.
+    # See {EnqueueMiddlewareInterface} for details on the arguments passed to the middleware.
+    # @return [Rage::Configuration::Deferred::Middleware]
+    # @example
+    #   Rage.configure do
+    #     config.deferred.enqueue_middleware.use MyCustomMiddleware
+    #   end
+    def enqueue_middleware
+      @enqueue_middleware ||= Middleware.new
+    end
+
+    # Configure perform middleware used by `Rage::Deferred`.
+    # See {PerformMiddlewareInterface} for details on the arguments passed to the middleware.
+    # @return [Rage::Configuration::Deferred::Middleware]
+    # @example
+    #   Rage.configure do
+    #     config.deferred.perform_middleware.use MyCustomMiddleware
+    #   end
+    def perform_middleware
+      @perform_middleware ||= Middleware.new
+    end
+
     # @private
     def default_disk_storage_path
       Pathname.new("storage")
@@ -900,5 +942,68 @@ end
 #     #     end
 #     #   end
 #     def call(severity:, tags:, context:, message:, request_info:)
+#     end
+#   end
+
+# @!parse [ruby]
+#   # @note This class does not exist at runtime and is used for documentation purposes only. Do not inherit your middleware classes from it.
+#   class EnqueueMiddlewareInterface
+#     # Called whenever a deferred task is enqueued.
+#     #
+#     # The middleware is expected to call `yield` to pass control to the next middleware in the stack. If the middleware does not call `yield`, the task will not be enqueued.
+#     #
+#     # Rage automatically detects which parameters your middleware's `#call` method accepts, and only passes those parameters. You can omit any of the described parameters in your implementation.
+#     #
+#     # @param task_class [Class] the deferred task class
+#     # @param delay [Integer, nil] the delay in seconds before the task is executed
+#     # @param delay_until [Time, Integer, nil] the time at which the task should be executed
+#     # @param phase [:enqueue] the middleware phase. Useful for middlewares that are shared between enqueue and perform phases
+#     # @param args [Array] the positional arguments passed to the task
+#     # @param kwargs [Hash] the keyword arguments passed to the task
+#     # @param context [Hash] the context is serialized together with the task and allows passing data between middlewares without exposing it to the task itself
+#     # @example
+#     #   class EncryptArgumentsMiddleware
+#     #     def call(args:, kwargs:)
+#     #       args.map! { |arg| MyEncryptionSDK.encrypt(arg) }
+#     #       kwargs.transform_values! { |value| MyEncryptionSDK.encrypt(value) }
+#     #
+#     #       yield
+#     #     end
+#     #   end
+#     def call(task_class:, delay:, delay_until:, phase:, args:, kwargs:, context:)
+#     end
+#   end
+
+# @!parse [ruby]
+#   # @note This class does not exist at runtime and is used for documentation purposes only. Do not inherit your middleware classes from it.
+#   class PerformMiddlewareInterface
+#     # Called whenever a deferred task is performed.
+#     #
+#     # The middleware is expected to call `yield` to pass control to the next middleware in the stack. If the middleware does not call `yield`, the task will not be performed.
+#     #
+#     # Rage automatically detects which parameters your middleware's `#call` method accepts, and only passes those parameters. You can omit any of the described parameters in your implementation.
+#     #
+#     # @param task_class [Class] the deferred task class
+#     # @param task [Rage::Deferred::Task] the deferred task instance
+#     # @param phase [:perform] the middleware phase. Useful for middlewares that are shared between enqueue and perform phases
+#     # @param args [Array] the positional arguments passed to the task
+#     # @param kwargs [Hash] the keyword arguments passed to the task
+#     # @param context [Hash] the context is serialized together with the task and allows passing data between middlewares without exposing it to the task itself
+#     # @example
+#     #   class DecryptArgumentsMiddleware
+#     #     def call(args:, kwargs:)
+#     #       args.map! { |arg| MyEncryptionSDK.decrypt(arg) }
+#     #       kwargs.transform_values! { |value| MyEncryptionSDK.decrypt(value) }
+#     #
+#     #       yield
+#     #
+#     #     rescue
+#     #       # Re-encrypt the arguments in case of an error
+#     #       args.map! { |arg| MyEncryptionSDK.encrypt(arg) }
+#     #       kwargs.transform_values! { |value| MyEncryptionSDK.encrypt(value) }
+#     #       raise
+#     #     end
+#     #   end
+#     def call(task_class:, task:, phase:, args:, kwargs:, context:)
 #     end
 #   end

@@ -42,17 +42,20 @@ module Rage::Deferred::Task
 
   # @private
   def __perform(context)
-    args = Rage::Deferred::Context.get_args(context)
-    kwargs = Rage::Deferred::Context.get_kwargs(context)
-    attempts = Rage::Deferred::Context.get_attempts(context)
-
     restore_log_info(context)
 
+    attempts = Rage::Deferred::Context.get_attempts(context)
     task_log_context = { task: self.class.name }
     task_log_context[:attempt] = attempts + 1 if attempts
 
     Rage.logger.with_context(task_log_context) do
-      perform(*args, **kwargs)
+      Rage::Deferred.__middleware_chain.with_perform_middleware(context, task: self) do
+        args = Rage::Deferred::Context.get_args(context)
+        kwargs = Rage::Deferred::Context.get_kwargs(context)
+
+        perform(*args, **kwargs)
+      end
+
       true
     rescue Rage::Deferred::TaskFailed
       false
@@ -80,11 +83,11 @@ module Rage::Deferred::Task
 
   module ClassMethods
     def enqueue(*args, delay: nil, delay_until: nil, **kwargs)
-      Rage::Deferred.__queue.enqueue(
-        Rage::Deferred::Context.build(self, args, kwargs),
-        delay:,
-        delay_until:
-      )
+      context = Rage::Deferred::Context.build(self, args, kwargs)
+
+      Rage::Deferred.__middleware_chain.with_enqueue_middleware(context, delay:, delay_until:) do
+        Rage::Deferred.__queue.enqueue(context, delay:, delay_until:)
+      end
 
       nil
     end
