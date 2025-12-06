@@ -93,10 +93,6 @@ module Rage::Deferred
 
   class PushTimeout < StandardError
   end
-
-  # @private
-  class TaskFailed < StandardError
-  end
 end
 
 require_relative "task"

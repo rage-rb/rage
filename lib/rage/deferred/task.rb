@@ -57,10 +57,10 @@ module Rage::Deferred::Task
       end
 
       true
-    rescue Rage::Deferred::TaskFailed
-      false
     rescue Exception => e
-      Rage.logger.error("Deferred task failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+      unless respond_to?(:__deferred_suppress_exception_logging?, true) && __deferred_suppress_exception_logging?
+        Rage.logger.error("Deferred task failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+      end
       false
     end
   end
