@@ -30,6 +30,8 @@ Rage.routes.draw do
 
   get "reload/verify", to: "reload#verify"
 
+  post "deferred/create_file", to: "deferred#create"
+
   mount ->(_) { [200, {}, ""] }, at: "/admin"
 
   namespace :api do

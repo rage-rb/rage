@@ -16,6 +16,7 @@ module IntegrationHelper
       Process.wait
       system("rm spec/integration/test_app/Gemfile.lock")
       system("rm spec/integration/test_app/log/development.log")
+      system("rm spec/integration/test_app/storage/deferred-*")
     end
   end
 end

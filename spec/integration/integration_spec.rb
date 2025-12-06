@@ -376,4 +376,22 @@ RSpec.describe "End-to-end" do
       end
     end
   end
+
+  context "with deferred tasks" do
+    it "correctly processes deferred tasks" do
+      file = Tempfile.create
+      response = nil
+
+      time_spent = Benchmark.realtime do
+        response = HTTP.post("http://localhost:3000/deferred/create_file", json: { file_path: file.path })
+      end
+
+      expect(response.code).to eq(200)
+      expect(time_spent).to be < 0.1
+
+      expect(file.read).to be_empty
+      sleep 1
+      expect(file.read).to eq("EnqueueMiddleware1->EnqueueMiddleware2->PerformMiddleware1->PerformMiddleware2")
+    end
+  end
 end

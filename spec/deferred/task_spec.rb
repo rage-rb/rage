@@ -141,6 +141,28 @@ RSpec.describe Rage::Deferred::Task do
       it "returns false" do
         expect(task.__perform(context)).to be(false)
       end
+
+      context "with suppressed exception logging" do
+        let(:task_class) do
+          Class.new do
+            include Rage::Deferred::Task
+
+            def perform(arg, kwarg:)
+            end
+
+            private
+
+            def __deferred_suppress_exception_logging?
+              true
+            end
+          end
+        end
+
+        it "doesn't log the error" do
+          task.__perform(context)
+          expect(logger).not_to have_received(:error).with(/Deferred task failed with exception: StandardError/)
+        end
+      end
     end
   end
 end

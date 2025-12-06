@@ -67,4 +67,18 @@ RSpec.describe Rage::Deferred do
       described_class.wrap(instance, delay_until: time)
     end
   end
+
+  describe ".__middleware_chain" do
+    it "initializes middleware chain" do
+      allow(Rage.config.deferred.enqueue_middleware).to receive(:objects).and_return(:test_enqueue_middleware_objects)
+      allow(Rage.config.deferred.perform_middleware).to receive(:objects).and_return(:test_perform_middleware_objects)
+
+      expect(Rage::Deferred::MiddlewareChain).to receive(:new).with(
+        enqueue_middleware: :test_enqueue_middleware_objects,
+        perform_middleware: :test_perform_middleware_objects
+      )
+
+      described_class.__middleware_chain
+    end
+  end
 end

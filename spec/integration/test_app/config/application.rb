@@ -45,6 +45,14 @@ Rage.configure do
       raise "test"
     end
   end
+
+  config.after_initialize do
+    config.deferred.enqueue_middleware.use EnqueueMiddleware1
+    config.deferred.enqueue_middleware.use EnqueueMiddleware2
+
+    config.deferred.perform_middleware.use PerformMiddleware1
+    config.deferred.perform_middleware.use PerformMiddleware2
+  end
 end
 
 require "rage/setup"
