@@ -86,9 +86,13 @@ module Rage::Events::Subscriber
 
       if e
         Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
-        raise Rage::Deferred::TaskFailed if self.class.__is_deferred
+        raise e if self.class.__is_deferred
       end
     end
+  end
+
+  private def __deferred_suppress_exception_logging?
+    true
   end
 
   module ClassMethods

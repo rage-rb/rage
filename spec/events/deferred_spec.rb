@@ -73,12 +73,12 @@ RSpec.describe Rage::Events do
     end
 
     context "with exception" do
-      it "it raises Deferred::TaskFailed" do
-        expect(logger).to receive(:error).with(/failed with exception: RuntimeError/)
+      it "it re-raises the exception" do
+        expect(logger).to receive(:error).with(/Subscriber failed with exception: RuntimeError/)
 
         expect {
           EventsDeferredSpec::EventWithExceptionSubscriber.new.perform(EventsDeferredSpec::EventWithException.new)
-        }.to raise_error(Rage::Deferred::TaskFailed)
+        }.to raise_error(RuntimeError, "test")
       end
     end
   end

@@ -867,4 +867,88 @@ RSpec.describe Rage::Configuration do
       end
     end
   end
+
+  describe "#deferred" do
+    context "#enqueue_middleware" do
+      subject { described_class.new.deferred.enqueue_middleware }
+
+      it "adds a middleware" do
+        middleware_class = Class.new do
+          def call
+          end
+        end
+
+        expect { subject.use(middleware_class) }.to change { subject.objects }.to([[middleware_class, [], nil]])
+      end
+
+      it "adds a middleware with arguments" do
+        middleware_class = Class.new do
+          def call
+          end
+        end
+
+        expect {
+          subject.use(middleware_class, option_1: 11, option_2: 222) do
+          end
+        }.to change {
+          subject.objects
+        }.to([[middleware_class, [{ option_1: 11, option_2: 222 }], instance_of(Proc)]])
+      end
+
+      it "doesn't accept instances" do
+        middleware_class = Class.new do
+          def call
+          end
+        end
+
+        expect { subject.use(middleware_class.new) }.to raise_error(ArgumentError, /has to be a class/)
+      end
+
+      it "doesn't accept classes without the call method" do
+        middleware_class = Class.new
+        expect { subject.use(middleware_class) }.to raise_error(ArgumentError, /has to implement the `#call` method/)
+      end
+    end
+
+    context "#perform_middleware" do
+      subject { described_class.new.deferred.perform_middleware }
+
+      it "adds a middleware" do
+        middleware_class = Class.new do
+          def call
+          end
+        end
+
+        expect { subject.use(middleware_class) }.to change { subject.objects }.to([[middleware_class, anything, anything]])
+      end
+
+      it "adds a middleware with arguments" do
+        middleware_class = Class.new do
+          def call
+          end
+        end
+
+        expect {
+          subject.use(middleware_class, option_1: 11, option_2: 222) do
+          end
+        }.to change {
+          subject.objects
+        }.to([[middleware_class, [{ option_1: 11, option_2: 222 }], instance_of(Proc)]])
+      end
+
+      it "doesn't accept instances" do
+        middleware_class = Class.new do
+          def call
+          end
+        end
+
+        expect { subject.use(middleware_class.new) }.to raise_error(ArgumentError, /has to be a class/)
+      end
+
+      it "doesn't accept classes without the call method" do
+        middleware_class = Class.new
+        expect { subject.use(middleware_class) }.to raise_error(ArgumentError, /has to implement the `#call` method/)
+      end
+    end
+  end
 end
