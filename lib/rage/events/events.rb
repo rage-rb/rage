@@ -71,8 +71,6 @@ module Rage::Events
   # @private
   def self.__build_event_handler(event_class)
     subscriber_calls = __get_subscribers(event_class).map do |subscriber_class|
-      subscriber_class.__register_rescue_handlers
-
       arguments = "event"
 
       context_type, _ = subscriber_class.instance_method(:call).parameters.find do |param_type, param_name|
