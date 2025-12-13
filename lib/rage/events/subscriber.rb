@@ -80,19 +80,23 @@ module Rage::Events::Subscriber
   # @private
   def __call(event, context: nil)
     Rage.logger.with_context(self.class.__log_context) do
-      context.nil? ? call(event) : call(event, context: context.freeze)
-    rescue Exception => _e
-      e = self.class.__rescue_handlers ? __run_rescue_handlers(_e) : _e
-
-      if e
-        Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
-        raise e if self.class.__is_deferred
+      with_exception_handler do
+        context.nil? ? call(event) : call(event, context: context.freeze)
       end
+    rescue Exception => e
+      Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+      raise e if self.class.__is_deferred
     end
   end
 
-  private def __deferred_suppress_exception_logging?
+  private
+
+  def __deferred_suppress_exception_logging?
     true
+  end
+
+  def with_exception_handler
+    yield
   end
 
   module ClassMethods
@@ -140,6 +144,8 @@ module Rage::Events::Subscriber
       end
 
       @__rescue_handlers.unshift([klasses, with])
+
+      rebuild_exception_handler!
     end
 
     # @private
@@ -148,29 +154,20 @@ module Rage::Events::Subscriber
       klass.subscribe_to(*@__event_classes, deferred: @__is_deferred) if @__event_classes
     end
 
-    # @private
-    def __register_rescue_handlers
-      return if method_defined?(:__run_rescue_handlers, false) || @__rescue_handlers.nil?
+    private
 
-      matcher_calls = @__rescue_handlers.map do |klasses, handler|
-        handler_call = instance_method(handler).arity == 0 ? handler : "#{handler}(exception)"
-
+    def rebuild_exception_handler!
+      rescue_calls = @__rescue_handlers.map do |klasses, handler|
         <<~RUBY
-          when #{klasses.join(", ")}
-            #{handler_call}
-            nil
+          rescue #{klasses.join(", ")} => e
+            method(:#{handler}).arity == 0 ? #{handler} : #{handler}(e)
         RUBY
       end
 
       class_eval <<~RUBY, __FILE__, __LINE__ + 1
-        def __run_rescue_handlers(exception)
-          case exception
-          #{matcher_calls.join("\n")}
-          else
-            exception
-          end
-        rescue Exception => e
-          e
+        private def with_exception_handler
+          yield
+          #{rescue_calls.join("\n")}
         end
       RUBY
     end
