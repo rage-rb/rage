@@ -15,7 +15,9 @@ class Rage::Cable::Router
   # @return [false] if the connection was rejected
   def process_connection(connection)
     cable_connection = @connection_class.new(connection.env)
-    cable_connection.connect
+    Rage::Telemetry.tracer.span_cable_connection_process(connection: cable_connection) do
+      cable_connection.connect
+    end
 
     if cable_connection.rejected?
       Rage.logger.debug { "An unauthorized connection attempt was rejected" }

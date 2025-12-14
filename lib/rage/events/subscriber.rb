@@ -80,8 +80,10 @@ module Rage::Events::Subscriber
   # @private
   def __call(event, context: nil)
     Rage.logger.with_context(self.class.__log_context) do
-      with_exception_handler do
-        context.nil? ? call(event) : call(event, context: context.freeze)
+      Rage::Telemetry.tracer.span_events_subscriber_process(event:, context:, subscriber: self) do
+        with_exception_handler do
+          context.nil? ? call(event) : call(event, context: context.freeze)
+        end
       end
     rescue Exception => e
       Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")

@@ -39,7 +39,9 @@ module Rage::Events
   #   Rage::Events.publish(MyEvent.new, context: { published_at: Time.now })
   def self.publish(event, context: nil)
     handler = __event_handlers[event.class] || __build_event_handler(event.class)
-    handler.call(event, context)
+    Rage::Telemetry.tracer.span_events_event_publish(event:, context:) do
+      handler.call(event, context)
+    end
 
     nil
   end
