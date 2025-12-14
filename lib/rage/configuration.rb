@@ -203,6 +203,14 @@ class Rage::Configuration
   end
   # @!endgroup
 
+  # @!group Telemetry Configuration
+  # Allows configuring telemetry settings.
+  # @return [Rage::Configuration::Telemetry]
+  def telemetry
+    @telemetry ||= Telemetry.new
+  end
+  # @!endgroup
+
   # @private
   def internal
     @internal ||= Internal.new
@@ -847,6 +855,51 @@ class Rage::Configuration
       end
 
       parsed_options
+    end
+  end
+
+  # The class allows configuring telemetry handlers. See {MiddlewareRegistry} for details on available methods.
+  # @example
+  #   Rage.configure do
+  #     config.telemetry.use MyTelemetryHandler.new
+  #   end
+  # @see Rage::Configuration::MiddlewareRegistry
+  # @see Rage::Telemetry
+  class Telemetry < MiddlewareRegistry
+    # @private
+    # @return [Hash{String => Array<Rage::Telemetry::HandlerRef>}] a map of span IDs to handler references
+    def handlers_map
+      @objects.map(&:first).each_with_object({}) do |handler_instance, memo|
+        handler_instance.class.handlers_map.each do |span_id, handler_methods|
+          handler_refs = handler_methods.map do |handler_method|
+            Rage::Telemetry::HandlerRef[handler_instance, handler_method]
+          end
+
+          if memo[span_id]
+            memo[span_id] += handler_refs
+          else
+            memo[span_id] = handler_refs
+          end
+        end
+      end
+    end
+
+    private
+
+    def validate!(_, handler)
+      unless handler.is_a?(Rage::Telemetry::Handler)
+        raise ArgumentError, "Cannot add `#{handler}` as a telemetry handler; should be an instance of `Rage::Telemetry::Handler`"
+      end
+
+      unless handler.class.handlers_map&.any?
+        raise ArgumentError, "Telemetry handler `#{handler.class}` does not define any handlers"
+      end
+
+      handler.class.handlers_map.values.reduce(&:+).each do |handler_method|
+        unless handler.respond_to?(handler_method, true)
+          raise ArgumentError, "Telemetry handler `#{handler.class}` does not implement the `#{handler_method}` handler method"
+        end
+      end
     end
   end
 
