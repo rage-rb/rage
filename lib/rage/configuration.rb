@@ -869,10 +869,12 @@ class Rage::Configuration
     # @private
     # @return [Hash{String => Array<Rage::Telemetry::HandlerRef>}] a map of span IDs to handler references
     def handlers_map
-      @objects.map(&:first).each_with_object({}) do |handler_instance, memo|
-        handler_instance.class.handlers_map.each do |span_id, handler_methods|
+      @objects.map(&:first).each_with_object({}) do |handler, memo|
+        handlers_map = handler.is_a?(Class) ? handler.handlers_map : handler.class.handlers_map
+
+        handlers_map.each do |span_id, handler_methods|
           handler_refs = handler_methods.map do |handler_method|
-            Rage::Telemetry::HandlerRef[handler_instance, handler_method]
+            Rage::Telemetry::HandlerRef[handler, handler_method]
           end
 
           if memo[span_id]
@@ -887,16 +889,24 @@ class Rage::Configuration
     private
 
     def validate!(_, handler)
-      unless handler.is_a?(Rage::Telemetry::Handler)
+      if handler.is_a?(Class)
+        is_handler = handler.ancestors.include?(Rage::Telemetry::Handler)
+        handlers_map = handler.handlers_map
+      else
+        is_handler = handler.is_a?(Rage::Telemetry::Handler)
+        handlers_map = handler.class.handlers_map
+      end
+
+      unless is_handler
         raise ArgumentError, "Cannot add `#{handler}` as a telemetry handler; should be an instance of `Rage::Telemetry::Handler`"
       end
 
-      unless handler.class.handlers_map&.any?
+      unless handlers_map&.any?
         raise ArgumentError, "Telemetry handler `#{handler.class}` does not define any handlers"
       end
 
-      handler.class.handlers_map.values.reduce(&:+).each do |handler_method|
-        unless handler.respond_to?(handler_method, true)
+      handlers_map.values.reduce(&:+).each do |handler_method|
+        unless handler.respond_to?(handler_method)
           raise ArgumentError, "Telemetry handler `#{handler.class}` does not implement the `#{handler_method}` handler method"
         end
       end
