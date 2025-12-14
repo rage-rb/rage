@@ -104,7 +104,7 @@ class Rage::Telemetry::Handler
 
       # validate and resolve wildcard span IDs
       wildcard_span_ids.each do |span_id|
-        matcher = Regexp.new(span_id.gsub("*", "\w+").gsub(".", "\\."))
+        matcher = Regexp.new(span_id.gsub("*", "\\w+").gsub(".", "\\."))
         matched_span_ids = all_span_ids.select { |id| id.match?(matcher) }
 
         unless matched_span_ids.any?
@@ -114,7 +114,7 @@ class Rage::Telemetry::Handler
         resolved_span_ids += matched_span_ids
       end
 
-      resolved_span_ids.uniq
+      resolved_span_ids
     end
   end
 end

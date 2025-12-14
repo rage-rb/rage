@@ -889,16 +889,20 @@ class Rage::Configuration
     private
 
     def validate!(_, handler)
-      if handler.is_a?(Class)
-        is_handler = handler.ancestors.include?(Rage::Telemetry::Handler)
-        handlers_map = handler.handlers_map
+      is_handler = if handler.is_a?(Class)
+        handler.ancestors.include?(Rage::Telemetry::Handler)
       else
-        is_handler = handler.is_a?(Rage::Telemetry::Handler)
-        handlers_map = handler.class.handlers_map
+        handler.is_a?(Rage::Telemetry::Handler)
       end
 
       unless is_handler
-        raise ArgumentError, "Cannot add `#{handler}` as a telemetry handler; should be an instance of `Rage::Telemetry::Handler`"
+        raise ArgumentError, "Cannot add `#{handler}` as a telemetry handler; should inherit `Rage::Telemetry::Handler`"
+      end
+
+      handlers_map = if handler.is_a?(Class)
+        handler.handlers_map
+      else
+        handler.class.handlers_map
       end
 
       unless handlers_map&.any?
