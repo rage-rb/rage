@@ -35,7 +35,7 @@ class Rage::Telemetry::Spans::PublishEvent
     #   # @param name [String] human-readable name of the operation (e.g., `Events.publish(UpdateRecommendations)`)
     #   # @param event [Object] the event being published
     #   # @param context [Object, nil] the additional context passed along with the event
-    #   # @param subscriber_classes [Array<Class>] the list of subscriber classes that will receive the event
+    #   # @param subscriber_classes [Array<Rage::Events::Subscriber>] the list of subscriber classes that will receive the event
     #   # @yieldreturn [Rage::Telemetry::SpanResult]
     #   #
     #   # @example

@@ -23,8 +23,7 @@ class Rage::Telemetry::Spans::DispatchFiber
     # @private
     def handler_arguments
       {
-        name: '"Fiber.dispatch"',
-        parent: "parent"
+        name: '"Fiber.dispatch"'
       }
     end
 

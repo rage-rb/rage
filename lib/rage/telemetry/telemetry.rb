@@ -33,7 +33,7 @@ module Rage::Telemetry
   # @private
   def self.__registry
     @__registry ||= Spans.constants.each_with_object({}) do |const, memo|
-      span = Rage::Telemetry::Spans.const_get(const)
+      span = Spans.const_get(const)
       memo[span.id] = span
     end
   end

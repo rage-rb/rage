@@ -54,7 +54,7 @@ class Rage::Telemetry::Tracer
       handler_method = handler_ref.instance.method(handler_ref.method_name)
       handler_arguments = Rage::Internal.build_arguments(
         handler_method,
-        { **span.handler_arguments, id: "#{span}.id" }
+        { **span.handler_arguments, id: "\"#{span.id}\".freeze" }
       )
 
       <<~RUBY

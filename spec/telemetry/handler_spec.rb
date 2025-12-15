@@ -199,6 +199,23 @@ RSpec.describe Rage::Telemetry::Handler do
       end
     end
 
+    context "with array except" do
+      let(:handler) do
+        Class.new(Rage::Telemetry::Handler) do
+          handle "*.process",
+            except: ["cable.*", "controller.action.process"],
+            with: :test
+        end
+      end
+
+      it "correctly registers handlers" do
+        expect(subject).to match({
+          "deferred.task.process" => [:test],
+          "events.subscriber.process" => [:test]
+        })
+      end
+    end
+
     context "with all spans and except" do
       let(:handler) do
         Class.new(Rage::Telemetry::Handler) do
