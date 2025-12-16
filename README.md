@@ -6,63 +6,64 @@
 ![Tests](https://github.com/rage-rb/rage/actions/workflows/main.yml/badge.svg)
 ![Ruby Requirement](https://img.shields.io/badge/Ruby-3.2%2B-%23f40000)
 
-Rage is a high-performance framework compatible with Rails, featuring [WebSocket](https://rage-rb.dev/docs/websockets) support and automatic generation of [OpenAPI](https://rage-rb.dev/docs/openapi) documentation for your APIs. The framework is built on top of [Iodine](https://github.com/rage-rb/iodine) and is based on the following design principles:
+Rage is a high-performance Ruby web framework that combines the developer experience of Rails with the scalability of fiber-based concurrency. Designed for API-first applications, it allows you to handle massive traffic loads using standard synchronous Ruby code - no complex async/await syntax required.
 
-* **Rails compatible API** - Rails' API is clean, straightforward, and simply makes sense. It was one of the reasons why Rails was so successful in the past.
+If you love Rails but need better performance for I/O-heavy workloads, Rage provides the perfect balance: familiar conventions, low overhead, and a commitment to stability.
 
-* **High performance** - some think performance is not a major metric for a framework, but it's not true. Poor performance is a risk, and in today's world, companies refuse to use risky technologies.
+## Why Rage?
 
-* **API-only** - separation of concerns is one of the most fundamental principles in software development. Backend and frontend are very different layers with different goals and paths to those goals. Separating BE code from FE code results in a much more sustainable architecture compared with classic Rails monoliths.
+Building high-performance APIs in Ruby shouldn't mean abandoning the conventions you know. Rage gives you Rails-like controllers, routing, and patterns, but runs on **fiber-based concurrency** that makes your application naturally non-blocking. When your code waits on database queries, HTTP calls, or other I/O, Rage automatically handles thousands of other requests instead of sitting idle.
 
-* **Acceptance of modern Ruby** - the framework includes a fiber scheduler, which means your code never blocks while waiting on I/O.
+**Key capabilities:**
+
+- **Rails compatibility** - Familiar controller API, routing DSL, and conventions. Migrate gradually or start fresh.
+- **True concurrency** - Fiber-based architecture handles I/O without threads, locks, or async/await syntax. Your code looks synchronous but runs concurrently.
+- **Built-in WebSockets** - Real-time features through Action Cable-compatible API with optional Redis-backed scaling.
+- **Auto-generated OpenAPI** - Documentation generated from your controllers using simple comment tags.
+- **Background jobs** - In-process queue with persistence and retries, no Redis required.
+- **Stable and focused** - A narrow, well-defined scope means predictable updates without major rewrites or breaking changes.
+- **Production-ready** - Battle-tested design principles focused on performance and maintainability.
+
+Rage is API-only by design. Modern applications benefit from clear separation between backend and frontend, and Rage focuses exclusively on doing APIs well.
 
 ## Installation
 
 Install the gem:
+
 ```
 $ gem install rage-rb
 ```
 
 Create a new app:
+
 ```
 $ rage new my_app
 ```
 
 Switch to your new application and install dependencies:
+
 ```
 $ cd my_app
 $ bundle
 ```
 
 Start up the server and visit http://localhost:3000.
+
 ```
 $ rage s
 ```
 
 Start coding!
 
-## Getting Started
+## How It Works
 
-This gem is designed to be a drop-in replacement for Rails in API mode. Public API is expected to fully match Rails.
+Rage runs each request in a separate fiber. When your code performs I/O operations - HTTP requests, database queries, file reads - the fiber automatically pauses, and Rage processes other requests. When the I/O completes, the fiber resumes exactly where it left off.
 
-A Rage application can operate in two modes:
-
-* **Standalone Mode**: Build high-performance services with minimal setup using Rage. To get started, run `rage new --help` for more details.
-* **Rails Mode**: Integrate Rage into an existing Rails application to improve throughput and better handle traffic spikes. For more information, see [Rails Integration](https://rage-rb.dev/docs/rails).
-
-Check out in-depth API docs for more information:
-
-- [Controller API](https://rage-rb.pages.dev/RageController/API)
-- [Routing API](https://rage-rb.pages.dev/Rage/Router/DSL/Handler)
-- [Fiber API](https://rage-rb.pages.dev/Fiber)
-- [Logger API](https://rage-rb.pages.dev/Rage/Logger)
-- [Configuration API](https://rage-rb.pages.dev/Rage/Configuration)
-
-If you are a first-time contributor, make sure to check the [architecture doc](https://github.com/rage-rb/rage/blob/master/ARCHITECTURE.md) that shows how Rage's core components interact with each other.
+This happens transparently. You write normal Ruby code, and Rage handles the concurrency.
 
 ### Example
 
-A sample controller could look like this:
+Here's a controller that fetches data from an external API:
 
 ```ruby
 require "net/http"
@@ -87,9 +88,9 @@ class PagesController < RageController::API
 end
 ```
 
-Apart from `RageController::API` as a parent class, this is mostly a regular Rails controller. However, the main difference is under the hood - Rage runs every request in a separate fiber. During the call to `Net::HTTP.get`, the fiber is automatically paused, enabling the server to process other requests. Once the HTTP request is finished, the fiber will be resumed, potentially allowing to process hundreds of requests simultaneously.
+This looks like a standard Rails controller, and it is - except during `Net::HTTP.get`, Rage automatically pauses this fiber and processes other requests. When the HTTP call completes, Rage resumes exactly where it left off. This happens automatically for HTTP requests, PostgreSQL, MySQL, and other I/O operations.
 
-To make this controller work, we would also need to update `config/routes.rb`. In this case, the file would look the following way:
+The routes are equally familiar:
 
 ```ruby
 Rage.routes.draw do
@@ -97,9 +98,9 @@ Rage.routes.draw do
 end
 ```
 
-:information_source: **Note**: Rage will automatically pause a fiber and continue to process other fibers on HTTP, PostgreSQL, and MySQL calls. Calls to `Thread.join` and `Ractor.join` will also automatically pause the current fiber.
+### Parallel Execution
 
-Additionally, `Fiber.await` can be used to run several requests in parallel:
+Need to make multiple I/O calls? Use `Fiber.await` to run them concurrently:
 
 ```ruby
 require "net/http"
@@ -116,11 +117,31 @@ class PagesController < RageController::API
 end
 ```
 
-:information_source: **Note**: When using `Fiber.await`, it is important to wrap every argument into a fiber using `Fiber.schedule`.
+Instead of waiting for each request sequentially, Rage executes them concurrently and waits for all to complete.
 
-## Benchmarks
+## Two Ways to Use Rage
 
-#### Hello World
+**Standalone**: Create new services with `rage new`. You get a clean project structure, CLI tools, and everything needed to build high-performance APIs from scratch.
+
+**Rails Integration**: Add Rage to existing Rails applications for gradual migration. Use Rage for new endpoints or high-traffic routes while keeping the rest of your Rails app unchanged. See the [Rails Integration guide](https://rage-rb.dev/docs/rails) for details.
+
+## Documentation
+
+- [Getting Started](https://rage-rb.dev/docs/intro/) - Core concepts and setup
+- [Controllers](https://rage-rb.dev/docs/controllers/) - Request handling and callbacks
+- [Routing](https://rage-rb.dev/docs/routing/) - RESTful routes and namespaces
+- [WebSockets](https://rage-rb.dev/docs/websockets/) - Real-time communication
+- [OpenAPI](https://rage-rb.dev/docs/openapi/) - Auto-generated documentation
+- [Background Jobs](https://rage-rb.dev/docs/deferred/) - In-process queue system
+- [API Reference](https://rage-rb.dev/api/) - Detailed API documentation
+
+For contributors, check the [architecture doc](https://github.com/rage-rb/rage/blob/master/ARCHITECTURE.md) to understand how Rage's components work together.
+
+## Performance
+
+Rage's fiber-based architecture delivers tangible performance improvements, especially for I/O-heavy workloads.
+
+#### Simple JSON responses
 
 ```ruby
 class BenchmarksController < ApplicationController
@@ -130,13 +151,12 @@ class BenchmarksController < ApplicationController
 end
 ```
 
-![Requests per second](https://github.com/user-attachments/assets/a7f864ae-0dfb-4628-a420-265a10d8591d)
+![Requests per second](https://github.com/user-attachments/assets/7bb783f8-5d1b-4e7d-b14d-dafe370d1acc)
 
-#### Waiting on I/O
+
+#### I/O-bound operations
 
 ```ruby
-require "net/http"
-
 class BenchmarksController < ApplicationController
   def index
     Net::HTTP.get(URI("<endpoint-that-responds-in-one-second>"))
@@ -145,9 +165,9 @@ class BenchmarksController < ApplicationController
 end
 ```
 
-![Time to complete 100 requests](https://github.com/user-attachments/assets/4f4feda3-bd88-43d8-8999-268534c2f9de)
+![Time to complete 100 requests](https://github.com/user-attachments/assets/5155a65f-2f11-4303-b5e4-a74d3d123c16)
 
-#### Using ActiveRecord
+#### Database Queries
 
 ```ruby
 class BenchmarksController < ApplicationController
@@ -157,21 +177,7 @@ class BenchmarksController < ApplicationController
 end
 ```
 
-![Requests per second](https://github.com/user-attachments/assets/04678788-0034-4db4-9582-d0bc16fd9e28)
-
-## Upcoming releases
-
-Status | Changes
--- | ------------
-:white_check_mark: | ~~Gem configuration by env.<br>Add `skip_before_action`.<br>Add `rescue_from`.<br>Router updates:<br>&emsp;• make the `root` helper work correctly with `scope`;<br>&emsp;• support the `defaults` option;~~
-:white_check_mark: | ~~CLI updates:<br>&emsp;• `routes` task;<br>&emsp;• `console` task;<br>Support the `:if` and `:unless` options in `before_action`.<br>Allow to set response headers.~~
-:white_check_mark: | ~~Expose the `params` object.<br>Support header authentication with `authenticate_with_http_token`.<br>Router updates:<br>&emsp;• add the `resources` route helper;<br>&emsp;• add the `namespace` route helper;~~
-:white_check_mark:  | ~~Add request logging.~~
-:white_check_mark: | ~~Automatic code reloading in development with Zeitwerk.~~
-:white_check_mark: | ~~Support conditional get with `etag` and `last_modified`.~~
-:white_check_mark: | ~~Expose the `cookies` and `session` objects.~~
-:white_check_mark: | ~~Implement Iodine-based equivalent of Action Cable.~~
-⏳ | Expose the `send_data` and `send_file` methods.
+![Requests per second-2](https://github.com/user-attachments/assets/06f64a08-316f-4b24-ba2d-39ac395366aa)
 
 ## Development
 
