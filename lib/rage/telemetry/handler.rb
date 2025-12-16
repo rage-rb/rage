@@ -25,7 +25,7 @@
 class Rage::Telemetry::Handler
   class << self
     # @private
-    attr_reader :handlers_map
+    attr_accessor :handlers_map
 
     # Defines which spans the handler will observe and which method to invoke for those spans.
     #
@@ -68,10 +68,21 @@ class Rage::Telemetry::Handler
         resolved_span_ids -= resolve_span_ids(Array(except))
       end
 
-      @handlers_map ||= Hash.new { |hash, key| hash[key] = Set.new }
+      if @handlers_map.nil?
+        @handlers_map = {}
+      elsif @handlers_map.frozen?
+        @handlers_map = @handlers_map.transform_values(&:dup)
+      end
+
       resolved_span_ids.each do |span_id|
+        @handlers_map[span_id] ||= Set.new
         @handlers_map[span_id] << with
       end
+    end
+
+    # @private
+    def inherited(klass)
+      klass.handlers_map = @handlers_map.freeze
     end
 
     private

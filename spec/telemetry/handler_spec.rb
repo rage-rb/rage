@@ -46,7 +46,7 @@ RSpec.describe Rage::Telemetry::Handler do
       end
     end
 
-    context "with multiple handlers" do
+    context "with multiple handler methods" do
       let(:handler) do
         Class.new(Rage::Telemetry::Handler) do
           handle "controller.action.process", "cable.action.process", with: :test_1
@@ -60,6 +60,41 @@ RSpec.describe Rage::Telemetry::Handler do
           "controller.action.process" => [:test_1, :test_2],
           "cable.action.process" => [:test_1],
           "core.fiber.spawn" => [:test_3]
+        })
+      end
+    end
+
+    context "with inherited handlers" do
+      let(:base_handler) do
+        Class.new(Rage::Telemetry::Handler) do
+          handle "controller.action.process", "cable.action.process", with: :test_1
+          handle "core.fiber.spawn", with: :test_2
+        end
+      end
+
+      let(:handler) do
+        Class.new(base_handler) do
+          handle "core.fiber.dispatch", with: :test_2
+          handle "controller.action.process", with: :test_3
+        end
+      end
+
+      it "correctly registers handlers" do
+        expect(subject).to match({
+          "controller.action.process" => [:test_1, :test_3],
+          "cable.action.process" => [:test_1],
+          "core.fiber.spawn" => [:test_2],
+          "core.fiber.dispatch" => [:test_2]
+        })
+      end
+
+      it "doesn't change base class handlers" do
+        subject
+
+        expect(base_handler.handlers_map).to match({
+          "controller.action.process" => [:test_1],
+          "cable.action.process" => [:test_1],
+          "core.fiber.spawn" => [:test_2]
         })
       end
     end
