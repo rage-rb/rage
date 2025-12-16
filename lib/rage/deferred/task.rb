@@ -48,23 +48,25 @@ module Rage::Deferred::Task
     task_log_context = { task: self.class.name }
     task_log_context[:attempt] = attempts + 1 if attempts
 
-    Rage.logger.with_context(task_log_context) do
-      Rage::Telemetry.tracer.span_deferred_task_process(task: self) do
-        Rage::Deferred.__middleware_chain.with_perform_middleware(context, task: self) do
+    Rage::Telemetry.tracer.span_deferred_task_process(task: self) do
+      Rage::Deferred.__middleware_chain.with_perform_middleware(context, task: self) do
+        Rage.logger.with_context(task_log_context) do
           args = Rage::Deferred::Context.get_args(context)
           kwargs = Rage::Deferred::Context.get_kwargs(context)
 
           perform(*args, **kwargs)
         end
       end
+    end
 
-      true
-    rescue Exception => e
-      unless respond_to?(:__deferred_suppress_exception_logging?, true) && __deferred_suppress_exception_logging?
+    true
+  rescue Exception => e
+    unless respond_to?(:__deferred_suppress_exception_logging?, true) && __deferred_suppress_exception_logging?
+      Rage.logger.with_context(task_log_context) do
         Rage.logger.error("Deferred task failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
       end
-      false
     end
+    false
   end
 
   private def restore_log_info(context)
