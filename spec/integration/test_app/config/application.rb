@@ -18,6 +18,25 @@ class TestMiddleware
   end
 end
 
+class TestControllerObserver < Rage::Telemetry::Handler
+  handle "controller.action.process", with: :monitor_controllers
+
+  def self.monitor_controllers(name:)
+    Rage.logger.tagged(name) do
+      yield
+    end
+  end
+end
+
+class TestExceptionRecorder < Rage::Telemetry::Handler
+  handle "controller.action.process", with: :record_exceptions
+
+  def self.record_exceptions
+    result = yield
+    Rage.logger.error("telemetry recorded exception #{result.exception.message}") if result.error?
+  end
+end
+
 Rage.configure do
   config.middleware.use TestMiddleware
   config.public_file_server.enabled = !!ENV["ENABLE_FILE_SERVER"]
@@ -44,6 +63,11 @@ Rage.configure do
     config.log_context << proc do
       raise "test"
     end
+  end
+
+  if ENV["ENABLE_TELEMETRY"]
+    config.telemetry.use TestControllerObserver
+    config.telemetry.use TestExceptionRecorder
   end
 
   config.after_initialize do
