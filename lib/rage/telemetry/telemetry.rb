@@ -67,7 +67,8 @@ module Rage::Telemetry
   # | `core.fiber.spawn` | {SpawnFiber} | Wraps the scheduling and processing of application-level fibers created via {Fiber.schedule} |
   # | `core.fiber.await` | {AwaitFiber} | Wraps the processing of the {Fiber.await} calls |
   # | `controller.action.process` | {ProcessControllerAction} | Wraps the processing of controller actions |
-  # | `cable.connection.process` | {ProcessCableConnection} | Wraps the processing of connection actions in {Rage::Cable Rage::Cable} |
+  # | `cable.websocket.handshake` | {CreateWebsocketConnection} | Wraps the WebSocket connection handshake process |
+  # | `cable.connection.process` | {ProcessCableConnection} | Wraps the processing of connect actions in {Rage::Cable Rage::Cable} |
   # | `cable.action.process` | {ProcessCableAction} | Wraps the processing of {Rage::Cable Rage::Cable} channel actions |
   # | `deferred.task.enqueue` | {EnqueueDeferredTask} | Wraps the enqueuing of deferred tasks |
   # | `deferred.task.process` | {ProcessDeferredTask} | Wraps the processing of deferred tasks |

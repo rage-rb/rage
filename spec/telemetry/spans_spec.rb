@@ -337,4 +337,16 @@ RSpec.describe Rage::Telemetry::Spans do
       end
     end
   end
+
+  describe described_class::CreateWebsocketConnection do
+    let(:env) { { "HTTP_ORIGIN" => "localhost" } }
+
+    it "passes correct arguments" do
+      expect(verifier).to receive(:call).with({
+        id: "cable.websocket.handshake", name: "WebSocket.handshake", env: env
+      })
+
+      Rage::Cable.application.call(env)
+    end
+  end
 end

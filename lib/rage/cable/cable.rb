@@ -15,11 +15,13 @@ module Rage::Cable
     accept_response = [0, __protocol.protocol_definition, []]
 
     application = ->(env) do
-      if env["rack.upgrade?"] == :websocket
-        env["rack.upgrade"] = handler
-        accept_response
-      else
-        [426, { "Connection" => "Upgrade", "Upgrade" => "websocket" }, []]
+      Rage::Telemetry.tracer.span_cable_websocket_handshake(env:) do
+        if env["rack.upgrade?"] == :websocket
+          env["rack.upgrade"] = handler
+          accept_response
+        else
+          [426, { "Connection" => "Upgrade", "Upgrade" => "websocket" }, []]
+        end
       end
     end
 
