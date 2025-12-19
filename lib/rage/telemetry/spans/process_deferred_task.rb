@@ -17,14 +17,16 @@ class Rage::Telemetry::Spans::ProcessDeferredTask
 
     # @private
     def span_parameters
-      %w[task:]
+      %w[task: context:]
     end
 
     # @private
     def handler_arguments
       {
         name: '"#{task.class}#perform"',
-        task: "task"
+        task: "task",
+        task_class: "task.class",
+        task_context: "Rage::Deferred::Context.get_or_create_user_context(context)"
       }
     end
 
@@ -32,19 +34,21 @@ class Rage::Telemetry::Spans::ProcessDeferredTask
     #   # @param id ["deferred.task.process"] ID of the span
     #   # @param name [String] human-readable name of the operation (e.g., `SendConfirmationEmail#perform`)
     #   # @param task [Rage::Deferred::Task] the deferred task being processed
+    #   # @param task_class [Class] the class of the deferred task being processed
+    #   # @param task_context [Hash] the context is serialized together with the deferred task and allows passing data between telemetry handlers or deferred middleware without exposing it to the task itself
     #   # @yieldreturn [Rage::Telemetry::SpanResult]
     #   #
     #   # @example
     #   #   class MyTelemetryHandler < Rage::Telemetry::Handler
     #   #     handle "deferred.task.process", with: :my_handler
     #   #
-    #   #     def my_handler(id:, name:, task:)
+    #   #     def my_handler(id:, name:, task:, task_class:, task_context:)
     #   #       yield
     #   #     end
     #   #   end
     #   # @note Rage automatically detects which parameters your handler method accepts and only passes those parameters.
     #   #   You can omit any of the parameters described here.
-    #   def handle(id:, name:, task:)
+    #   def handle(id:, name:, task:, task_class:, task_context:)
     #   end
   end
 end

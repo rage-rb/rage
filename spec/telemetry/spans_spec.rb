@@ -99,11 +99,12 @@ RSpec.describe Rage::Telemetry::Spans do
     before do
       stub_const("MyTestTask", task_class)
       allow_any_instance_of(Rage::Deferred::Queue).to receive(:enqueue)
+      allow(Rage::Deferred::Context).to receive(:get_or_create_user_context).and_return(:test_user_context)
     end
 
     it "passes correct arguments" do
       expect(verifier).to receive(:call).with({
-        id: "deferred.task.enqueue", name: "MyTestTask#enqueue", task_class: MyTestTask
+        id: "deferred.task.enqueue", name: "MyTestTask#enqueue", task_class: MyTestTask, task_context: :test_user_context
       })
 
       MyTestTask.enqueue
@@ -120,13 +121,14 @@ RSpec.describe Rage::Telemetry::Spans do
     before do
       stub_const("MyTestTask", task_class)
       allow(Rage).to receive(:logger).and_return(Rage::Logger.new(STDOUT))
+      allow(Rage::Deferred::Context).to receive(:get_or_create_user_context).and_return(:test_user_context)
     end
 
     it "passes correct arguments" do
       task = MyTestTask.new
 
       expect(verifier).to receive(:call).with({
-        id: "deferred.task.process", name: "MyTestTask#perform", task: task
+        id: "deferred.task.process", name: "MyTestTask#perform", task: task, task_class: MyTestTask, task_context: :test_user_context
       })
 
       task.__perform(Rage::Deferred::Context.build(nil, [], {}))
