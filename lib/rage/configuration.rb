@@ -906,12 +906,12 @@ class Rage::Configuration
       end
 
       unless handlers_map&.any?
-        raise ArgumentError, "Telemetry handler `#{handler.class}` does not define any handlers"
+        raise ArgumentError, "Telemetry handler `#{handler}` does not define any handlers"
       end
 
       handlers_map.values.reduce(&:+).each do |handler_method|
         unless handler.respond_to?(handler_method)
-          raise ArgumentError, "Telemetry handler `#{handler.class}` does not implement the `#{handler_method}` handler method"
+          raise ArgumentError, "Telemetry handler `#{handler}` does not implement the `#{handler_method}` handler method"
         end
       end
     end
