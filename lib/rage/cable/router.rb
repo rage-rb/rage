@@ -14,16 +14,18 @@ class Rage::Cable::Router
   # @return [true] if the connection was accepted
   # @return [false] if the connection was rejected
   def process_connection(connection)
-    cable_connection = @connection_class.new(connection.env)
-    Rage::Telemetry.tracer.span_cable_connection_process(connection: cable_connection) do
+    env = connection.env
+
+    cable_connection = @connection_class.new(env)
+    Rage::Telemetry.tracer.span_cable_connection_process(connection: cable_connection, env:) do
       cable_connection.connect
     end
 
     if cable_connection.rejected?
       Rage.logger.debug { "An unauthorized connection attempt was rejected" }
     else
-      connection.env["rage.identified_by"] = cable_connection.__identified_by_map
-      connection.env["rage.cable"] = {}
+      env["rage.identified_by"] = cable_connection.__identified_by_map
+      env["rage.cable"] = {}
     end
 
     !cable_connection.rejected?

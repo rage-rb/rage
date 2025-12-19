@@ -271,6 +271,8 @@ RSpec.describe Rage::Telemetry::Spans do
       end
     end
 
+    let(:ws_connection) { double(env: {}) }
+
     before do
       stub_const("RageCable::Connection", connection_class)
     end
@@ -281,10 +283,11 @@ RSpec.describe Rage::Telemetry::Spans do
       expect(verifier).to receive(:call).with({
         id: "cable.connection.process",
         name: "RageCable::Connection#connect",
-        connection: instance_of(RageCable::Connection)
+        connection: instance_of(RageCable::Connection),
+        env: equal(ws_connection.env)
       })
 
-      router.process_connection(double(env: {}))
+      router.process_connection(ws_connection)
     end
   end
 
@@ -296,16 +299,18 @@ RSpec.describe Rage::Telemetry::Spans do
       end
     end
 
+    let(:ws_connection) { double(env: :test_rack_env) }
+
     before do
       stub_const("MyTestChannel", channel_class)
       channel_class.__register_actions
     end
 
     it "passes correct arguments" do
-      channel = MyTestChannel.new(nil, nil, nil)
+      channel = MyTestChannel.new(ws_connection, nil, nil)
 
       expect(verifier).to receive(:call).with({
-        id: "cable.action.process", name: "MyTestChannel#receive", channel: channel, data: nil
+        id: "cable.action.process", name: "MyTestChannel#receive", channel: channel, env: :test_rack_env, data: nil
       })
 
       channel.__run_action(:receive)
@@ -320,10 +325,10 @@ RSpec.describe Rage::Telemetry::Spans do
       end
 
       it "passes correct arguments" do
-        channel = MyTestChannel.new(nil, nil, nil)
+        channel = MyTestChannel.new(ws_connection, nil, nil)
 
         expect(verifier).to receive(:call).with({
-          id: "cable.action.process", name: "MyTestChannel#receive", channel: channel, data: { message: "test" }
+          id: "cable.action.process", name: "MyTestChannel#receive", channel: channel, env: :test_rack_env, data: { message: "test" }
         })
 
         channel.__run_action(:receive, { message: "test" })

@@ -384,6 +384,9 @@ class Rage::Cable::Channel
     @__identified_by = identified_by
   end
 
+  # @private
+  attr_reader :__connection
+
   # Get the params hash passed in during the subscription process.
   #
   # @return [Hash{Symbol=>String,Array,Hash,Numeric,NilClass,TrueClass,FalseClass}]

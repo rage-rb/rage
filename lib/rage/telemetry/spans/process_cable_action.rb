@@ -25,7 +25,8 @@ class Rage::Telemetry::Spans::ProcessCableAction
       {
         name: '"#{channel.class}##{action_name}"',
         channel: "channel",
-        data: "data"
+        data: "data",
+        env: "channel.__connection.env"
       }
     end
 
@@ -34,19 +35,20 @@ class Rage::Telemetry::Spans::ProcessCableAction
     #   # @param name [String] human-readable name of the operation (e.g., `ChatChannel#receive`)
     #   # @param channel [Rage::Cable::Channel] the channel instance processing the action
     #   # @param data [Hash, nil] the data payload sent with the action
+    #   # @param env [Hash] the Rack environment associated with the WebSocket connection
     #   # @yieldreturn [Rage::Telemetry::SpanResult]
     #   #
     #   # @example
     #   #   class MyTelemetryHandler < Rage::Telemetry::Handler
     #   #     handle "cable.action.process", with: :my_handler
     #   #
-    #   #     def my_handler(id:, name:, channel:, data:)
+    #   #     def my_handler(id:, name:, channel:, data:, env:)
     #   #       yield
     #   #     end
     #   #   end
     #   # @note Rage automatically detects which parameters your handler method accepts and only passes those parameters.
     #   #   You can omit any of the parameters described here.
-    #   def handle(id:, name:, channel:, data:)
+    #   def handle(id:, name:, channel:, data:, env:)
     #   end
   end
 end
