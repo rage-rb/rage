@@ -152,6 +152,12 @@ module Rage::Events::Subscriber
       rebuild_exception_handler!
     end
 
+    # Check if the subscriber is executed in the background.
+    # @return [Boolean] `true` if the subscriber is deferred, `false` otherwise
+    def deferred?
+      @__is_deferred
+    end
+
     # @private
     def inherited(klass)
       klass.__rescue_handlers = @__rescue_handlers.freeze
