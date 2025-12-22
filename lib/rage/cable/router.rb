@@ -109,12 +109,15 @@ class Rage::Cable::Router
   #
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
   def process_disconnection(connection)
-    connection.env["rage.cable"]&.each do |_, channel|
+    env = connection.env
+
+    env["rage.cable"]&.each do |_, channel|
       channel.__run_action(:unsubscribed)
     end
 
-    if @connection_can_disconnect
-      cable_connection = @connection_class.new(connection.env, connection.env["rage.identified_by"])
+    cable_connection = @connection_class.new(env, env["rage.identified_by"])
+
+    Rage::Telemetry.tracer.span_cable_connection_process(connection: cable_connection, action: :disconnect, env:) do
       cable_connection.disconnect
     end
   end
@@ -136,7 +139,5 @@ class Rage::Cable::Router
       puts "WARNING: Could not find the RageCable connection class! All connections will be accepted by default."
       Rage::Cable::Connection
     end
-
-    @connection_can_disconnect = @connection_class.method_defined?(:disconnect)
   end
 end

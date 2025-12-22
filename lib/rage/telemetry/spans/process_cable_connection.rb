@@ -23,7 +23,7 @@ class Rage::Telemetry::Spans::ProcessCableConnection
     # @private
     def handler_arguments
       {
-        name: '"#{connection.class}#connect"',
+        name: '"#{connection.class}##{action}"',
         connection: "connection",
         action: "action",
         env: "env"
@@ -32,7 +32,7 @@ class Rage::Telemetry::Spans::ProcessCableConnection
 
     # @!parse [ruby]
     #   # @param id ["cable.connection.process"] ID of the span
-    #   # @param name [String] human-readable name of the operation (e.g., `RageCable::Connection#receive`)
+    #   # @param name [String] human-readable name of the operation (e.g., `RageCable::Connection#connect`)
     #   # @param connection [Rage::Cable::Connection] the connection being processed
     #   # @param action [:connect, :disconnect] the action being performed on the connection
     #   # @param env [Hash] the Rack environment associated with the WebSocket connection
