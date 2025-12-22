@@ -17,7 +17,7 @@ class Rage::Cable::Router
     env = connection.env
 
     cable_connection = @connection_class.new(env)
-    Rage::Telemetry.tracer.span_cable_connection_process(connection: cable_connection, env:) do
+    Rage::Telemetry.tracer.span_cable_connection_process(connection: cable_connection, action: :connect, env:) do
       cable_connection.connect
     end
 

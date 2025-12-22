@@ -286,6 +286,7 @@ RSpec.describe Rage::Telemetry::Spans do
         id: "cable.connection.process",
         name: "RageCable::Connection#connect",
         connection: instance_of(RageCable::Connection),
+        action: :connect,
         env: equal(ws_connection.env)
       })
 
