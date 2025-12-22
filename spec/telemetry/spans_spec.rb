@@ -391,6 +391,18 @@ RSpec.describe Rage::Telemetry::Spans do
     end
   end
 
+  describe described_class::BroadcastCableStream do
+    it "passes correct arguments" do
+      expect(verifier).to receive(:call).with({
+        id: "cable.stream.broadcast",
+        name: "Rage::Cable.broadcast",
+        stream: "my_test_stream"
+      })
+
+      Rage::Cable.broadcast("my_test_stream", {})
+    end
+  end
+
   describe described_class::CreateWebsocketConnection do
     let(:env) { { "HTTP_ORIGIN" => "localhost" } }
 

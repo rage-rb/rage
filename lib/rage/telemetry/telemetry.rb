@@ -70,6 +70,7 @@ module Rage::Telemetry
   # | `cable.websocket.handshake` | {CreateWebsocketConnection} | Wraps the WebSocket connection handshake process |
   # | `cable.connection.process` | {ProcessCableConnection} | Wraps the processing of connect actions in {Rage::Cable Rage::Cable} |
   # | `cable.action.process` | {ProcessCableAction} | Wraps the processing of {Rage::Cable Rage::Cable} channel actions |
+  # | `cable.stream.broadcast` | {BroadcastCableStream} | Wraps the broadcasting of messages to {Rage::Cable Rage::Cable} streams |
   # | `deferred.task.enqueue` | {EnqueueDeferredTask} | Wraps the enqueuing of deferred tasks |
   # | `deferred.task.process` | {ProcessDeferredTask} | Wraps the processing of deferred tasks |
   # | `events.event.publish` | {PublishEvent} | Wraps the publishing of events via {Rage::Events Rage::Events} |
