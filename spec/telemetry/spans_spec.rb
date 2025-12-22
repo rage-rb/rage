@@ -313,7 +313,12 @@ RSpec.describe Rage::Telemetry::Spans do
       channel = MyTestChannel.new(ws_connection, nil, nil)
 
       expect(verifier).to receive(:call).with({
-        id: "cable.action.process", name: "MyTestChannel#receive", channel: channel, env: :test_rack_env, data: nil
+        id: "cable.action.process",
+        name: "MyTestChannel#receive",
+        channel: channel,
+        action: :receive,
+        env: :test_rack_env,
+        data: nil
       })
 
       channel.__run_action(:receive)
@@ -331,10 +336,39 @@ RSpec.describe Rage::Telemetry::Spans do
         channel = MyTestChannel.new(ws_connection, nil, nil)
 
         expect(verifier).to receive(:call).with({
-          id: "cable.action.process", name: "MyTestChannel#receive", channel: channel, env: :test_rack_env, data: { message: "test" }
+          id: "cable.action.process",
+          name: "MyTestChannel#receive",
+          channel: channel,
+          action: :receive,
+          env: :test_rack_env,
+          data: { message: "test" }
         })
 
         channel.__run_action(:receive, { message: "test" })
+      end
+    end
+
+    context "with custom action" do
+      let(:channel_class) do
+        Class.new(Rage::Cable::Channel) do
+          def appear
+          end
+        end
+      end
+
+      it "passes correct arguments" do
+        channel = MyTestChannel.new(ws_connection, nil, nil)
+
+        expect(verifier).to receive(:call).with({
+          id: "cable.action.process",
+          name: "MyTestChannel#appear",
+          channel: channel,
+          action: :appear,
+          env: :test_rack_env,
+          data: nil
+        })
+
+        channel.__run_action(:appear)
       end
     end
   end

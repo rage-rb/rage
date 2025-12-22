@@ -372,7 +372,7 @@ class Rage::Cable::Channel
 
   # @private
   def __run_action(action_name, data = nil)
-    Rage::Telemetry.tracer.span_cable_action_process(channel: self, data:, action_name:) do
+    Rage::Telemetry.tracer.span_cable_action_process(channel: self, action: action_name, data:) do
       self.class.__prepared_actions[action_name].call(self, data)
     end
   end
