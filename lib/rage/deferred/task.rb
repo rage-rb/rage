@@ -37,7 +37,24 @@ module Rage::Deferred::Task
   BACKOFF_INTERVAL = 5
   private_constant :BACKOFF_INTERVAL
 
+  # @private
+  CONTEXT_KEY = :__rage_deferred_execution_context
+
   def perform
+  end
+
+  # Access metadata for the current task execution.
+  # @return [Rage::Deferred::Metadata] the metadata object for the current task execution
+  # @example
+  #   class MyTask
+  #     include Rage::Deferred::Task
+  #
+  #     def perform
+  #       puts meta.retries
+  #     end
+  #   end
+  def meta
+    Rage::Deferred::Metadata
   end
 
   # @private
@@ -47,6 +64,8 @@ module Rage::Deferred::Task
     attempts = Rage::Deferred::Context.get_attempts(context)
     task_log_context = { task: self.class.name }
     task_log_context[:attempt] = attempts + 1 if attempts
+
+    Fiber[CONTEXT_KEY] = context
 
     Rage.logger.with_context(task_log_context) do
       Rage::Deferred.__middleware_chain.with_perform_middleware(context, task: self) do
