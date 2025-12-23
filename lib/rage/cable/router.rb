@@ -14,14 +14,18 @@ class Rage::Cable::Router
   # @return [true] if the connection was accepted
   # @return [false] if the connection was rejected
   def process_connection(connection)
-    cable_connection = @connection_class.new(connection.env)
-    cable_connection.connect
+    env = connection.env
+
+    cable_connection = @connection_class.new(env)
+    Rage::Telemetry.tracer.span_cable_connection_process(connection: cable_connection, action: :connect, env:) do
+      cable_connection.connect
+    end
 
     if cable_connection.rejected?
       Rage.logger.debug { "An unauthorized connection attempt was rejected" }
     else
-      connection.env["rage.identified_by"] = cable_connection.__identified_by_map
-      connection.env["rage.cable"] = {}
+      env["rage.identified_by"] = cable_connection.__identified_by_map
+      env["rage.cable"] = {}
     end
 
     !cable_connection.rejected?
@@ -105,12 +109,15 @@ class Rage::Cable::Router
   #
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
   def process_disconnection(connection)
-    connection.env["rage.cable"]&.each do |_, channel|
+    env = connection.env
+
+    env["rage.cable"]&.each do |_, channel|
       channel.__run_action(:unsubscribed)
     end
 
-    if @connection_can_disconnect
-      cable_connection = @connection_class.new(connection.env, connection.env["rage.identified_by"])
+    cable_connection = @connection_class.new(env, env["rage.identified_by"])
+
+    Rage::Telemetry.tracer.span_cable_connection_process(connection: cable_connection, action: :disconnect, env:) do
       cable_connection.disconnect
     end
   end
@@ -132,7 +139,5 @@ class Rage::Cable::Router
       puts "WARNING: Could not find the RageCable connection class! All connections will be accepted by default."
       Rage::Cable::Connection
     end
-
-    @connection_can_disconnect = @connection_class.method_defined?(:disconnect)
   end
 end

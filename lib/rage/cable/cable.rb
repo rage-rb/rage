@@ -43,11 +43,13 @@ module Rage::Cable
     accept_response = [0, __protocol.protocol_definition, []]
 
     application = ->(env) do
-      if env["rack.upgrade?"] == :websocket
-        env["rack.upgrade"] = handler
-        accept_response
-      else
-        [426, { "Connection" => "Upgrade", "Upgrade" => "websocket" }, []]
+      Rage::Telemetry.tracer.span_cable_websocket_handshake(env:) do
+        if env["rack.upgrade?"] == :websocket
+          env["rack.upgrade"] = handler
+          accept_response
+        else
+          [426, { "Connection" => "Upgrade", "Upgrade" => "websocket" }, []]
+        end
       end
     end
 
@@ -133,8 +135,10 @@ module Rage::Cable
   # @example
   #   Rage.cable.broadcast("chat", { message: "A new member has joined!" })
   def self.broadcast(stream, data)
-    __protocol.broadcast(stream, data)
-    __adapter&.publish(stream, data)
+    Rage::Telemetry.tracer.span_cable_stream_broadcast(stream:) do
+      __protocol.broadcast(stream, data)
+      __adapter&.publish(stream, data)
+    end
 
     true
   end

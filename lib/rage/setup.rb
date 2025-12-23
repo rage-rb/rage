@@ -14,9 +14,11 @@ require "rage/ext/setup"
 # Load application classes
 Rage.code_loader.setup
 
+require_relative "#{Rage.root}/config/routes"
+
 # Run after_initialize hooks
 Rage.config.run_after_initialize!
 
-require_relative "#{Rage.root}/config/routes"
+Rage::Telemetry.__setup
 
 Rage.config.internal.initialized!

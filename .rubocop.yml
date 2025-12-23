@@ -430,9 +430,6 @@ Lint/InheritException:
   Enabled: true
   EnforcedStyle: runtime_error
 
-Lint/InterpolationCheck:
-  Enabled: true
-
 Lint/ItWithoutArgumentsInBlock:
   Enabled: true
 

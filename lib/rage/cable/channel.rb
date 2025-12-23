@@ -372,7 +372,9 @@ class Rage::Cable::Channel
 
   # @private
   def __run_action(action_name, data = nil)
-    self.class.__prepared_actions[action_name].call(self, data)
+    Rage::Telemetry.tracer.span_cable_action_process(channel: self, action: action_name, data:) do
+      self.class.__prepared_actions[action_name].call(self, data)
+    end
   end
 
   # @private
@@ -381,6 +383,9 @@ class Rage::Cable::Channel
     @__params = params
     @__identified_by = identified_by
   end
+
+  # @private
+  attr_reader :__connection
 
   # Get the params hash passed in during the subscription process.
   #
