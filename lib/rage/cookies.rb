@@ -12,6 +12,92 @@ if !defined?(DomainName)
   ERR
 end
 
+##
+# Cookies provide a convenient way to store small amounts of data on the client side that persists across requests.
+# They are commonly used for session management, personalization, and tracking user preferences.
+#
+# Rage cookies support both simple string-based cookies and encrypted cookies for sensitive data.
+#
+# To use cookies, add the `domain_name` gem to your `Gemfile`:
+#
+# ```bash
+# bundle add domain_name
+# ```
+#
+# Additionally, if you need to use encrypted cookies, see {Session} for setup steps.
+#
+# ## Usage
+#
+# ### Basic Cookies
+#
+# Read and write simple string values:
+#
+# ```ruby
+# # Set a cookie
+# cookies[:user_name] = "Alice"
+#
+# # Read a cookie
+# cookies[:user_name] # => "Alice"
+#
+# # Delete a cookie
+# cookies.delete(:user_name)
+# ```
+#
+# ### Cookie Options
+#
+# Set cookies with additional options for security and control:
+#
+# ```ruby
+# cookies[:user_id] = {
+#   value: "12345",
+#   expires: 1.year.from_now,
+#   secure: true,
+#   httponly: true,
+#   same_site: :lax
+# }
+# ```
+#
+# ### Encrypted Cookies
+#
+# Store sensitive data securely with automatic encryption:
+#
+# ```ruby
+# # Set an encrypted cookie
+# cookies.encrypted[:api_token] = "secret-token"
+#
+# # Read an encrypted cookie
+# cookies.encrypted[:api_token] # => "secret-token"
+#
+# ```
+#
+# ### Permanent Cookies
+#
+# Create cookies that expire 20 years from now:
+#
+# ```ruby
+# cookies.permanent[:remember_token] = "token-value"
+#
+# # Can be combined with encrypted
+# cookies.permanent.encrypted[:user_id] = current_user.id
+# ```
+#
+# ### Domain Configuration
+#
+# Control which domains can access your cookies:
+#
+# ```ruby
+# # Specific domain
+# cookies[:cross_domain] = { value: "data", domain: "example.com" }
+#
+# # All subdomains
+# cookies[:shared] = { value: "data", domain: :all }
+#
+# # Multiple allowed domains
+# cookies[:limited] = { value: "data", domain: ["app.example.com", "api.example.com"] }
+# ```
+#
+# @see Session
+#
 class Rage::Cookies
   # @private
   def initialize(env, headers)

@@ -108,6 +108,11 @@ RSpec.describe Rage::Deferred::Task do
         task.__perform(context)
         expect(logger).not_to have_received(:error)
       end
+
+      it "stores current context" do
+        task.__perform(context)
+        expect(Fiber[described_class::CONTEXT_KEY]).to eq(context)
+      end
     end
 
     context "when request_id is not present" do
@@ -163,6 +168,14 @@ RSpec.describe Rage::Deferred::Task do
           expect(logger).not_to have_received(:error).with(/Deferred task failed with exception: StandardError/)
         end
       end
+    end
+  end
+
+  describe "#meta" do
+    let(:task) { task_class.new }
+
+    it "returns Rage::Deferred::Metadata" do
+      expect(task.meta).to eq(Rage::Deferred::Metadata)
     end
   end
 end

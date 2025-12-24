@@ -2,6 +2,63 @@
 
 require "json"
 
+##
+# Sessions securely store data between requests using cookies and are typically one of the most convenient and secure
+# authentication mechanisms for browser-based clients.
+#
+# Rage sessions are encrypted using a secret key. This prevents clients from reading or tampering with session data.
+#
+# ## Setup
+#
+# 1. Add the required gems to your `Gemfile`:
+#
+#     ```bash
+#     bundle add base64 domain_name rbnacl
+#     ```
+#
+# 2. Generate a secret key base (keep this value private and out of version control):
+#
+#     ```bash
+#     ruby -r securerandom -e 'puts SecureRandom.hex(64)'
+#     ```
+#
+# 3. Configure your application to use the generated key, either via configuration:
+#
+#     ```ruby
+#     Rage.configure do |config|
+#       config.secret_key_base = "my-secret-key"
+#     end
+#     ```
+#
+#     or via the `SECRET_KEY_BASE` environment variable:
+#
+#     ```bash
+#     export SECRET_KEY_BASE="my-secret-key"
+#     ```
+#
+# ## System Dependencies
+#
+# Rage sessions use libsodium (via RbNaCl) for encryption. On many Debian-based systems
+# it is installed by default; if not, install it with:
+#
+# - Ubuntu / Debian:
+#
+#     ```bash
+#     sudo apt install libsodium23
+#     ```
+#
+# - Fedora / RHEL / Amazon Linux:
+#
+#     ```bash
+#     sudo yum install libsodium
+#     ```
+#
+# - macOS (using Homebrew):
+#
+#     ```bash
+#     brew install libsodium
+#     ```
+#
 class Rage::Session
   # @private
   KEY = Rack::RACK_SESSION.to_sym
