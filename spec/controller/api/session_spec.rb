@@ -51,6 +51,10 @@ RSpec.describe RageController::API do
   context "when reading an invalid session" do
     let(:encoded_session) { "MDDTFjPTyaIdJjZG2C-RJmDPC_5fMyBMT-OJwakyxFQUhoSlxwqdLRw4npvm08F0=" }
 
+    before do
+      allow(Rage).to receive(:logger).and_return(double(debug: nil))
+    end
+
     it "correctly reads values" do
       expect(subject.session[:a]).to be_nil
     end
@@ -88,6 +92,10 @@ RSpec.describe RageController::API do
       Rage::Cookies::EncryptedJar.load(
         Rack::Utils.unescape(session_value, Encoding::UTF_8)
       )
+    end
+
+    before do
+      allow(Rage).to receive(:logger).and_return(double(debug: nil))
     end
 
     it "correctly updates the session" do

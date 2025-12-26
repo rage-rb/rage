@@ -159,6 +159,7 @@ class Rage::Session
       session_value = @cookies[self.class.key] || @cookies[Rack::RACK_SESSION.to_sym] || "{}"
       JSON.parse(session_value, symbolize_names: true)
     rescue JSON::ParserError
+      Rage.logger.debug("Failed to parse session cookie, resetting session")
       {}
     end
   end
