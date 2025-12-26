@@ -62,7 +62,7 @@ require "json"
 class Rage::Session
   # @private
   def self.key
-    @key ||= :"_#{Rage.root.basename.to_s.gsub(/\W/, "_").downcase}_session"
+    @key ||= Rage.config.session.key&.to_sym || :"_#{Rage.root.basename.to_s.gsub(/\W/, "_").downcase}_session"
   end
 
   # @private

@@ -135,7 +135,7 @@ RSpec.describe RageController::API do
     end
   end
 
-  context "with session key" do
+  context "with standard session key" do
     subject { Class.new(Rage::Session).key }
 
     before do
@@ -172,6 +172,18 @@ RSpec.describe RageController::API do
       it "builds correct key" do
         expect(subject).to eq(:__ession_key_t_est__session)
       end
+    end
+  end
+
+  context "with custom session key" do
+    subject { Class.new(Rage::Session).key }
+
+    before do
+      allow(Rage.config).to receive(:session).and_return(double(key: "custom_key"))
+    end
+
+    it "builds correct key" do
+      expect(subject).to eq(:custom_key)
     end
   end
 end
