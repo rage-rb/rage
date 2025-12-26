@@ -7,7 +7,7 @@ RSpec.describe RageController::API do
   subject { described_class.new(headers, nil) }
 
   let(:encoded_session) { "" }
-  let(:headers) { { "HTTP_COOKIE" => "#{Rage::Session::KEY}=#{encoded_session}" } }
+  let(:headers) { { "HTTP_COOKIE" => "#{Rage::Session.key}=#{encoded_session}" } }
 
   before do
     allow(Rage.config).to receive(:secret_key_base).and_return("rage-test-key")
@@ -83,7 +83,7 @@ RSpec.describe RageController::API do
   context "when writing a session" do
     let(:new_session) do
       _, session_cookie = subject.headers.find { |k, _| k == "Set-Cookie" }
-      session_value = session_cookie.match(/#{Rage::Session::KEY}=(\S+);/)[1]
+      session_value = session_cookie.match(/#{Rage::Session.key}=(\S+);/)[1]
 
       Rage::Cookies::EncryptedJar.load(
         Rack::Utils.unescape(session_value, Encoding::UTF_8)
@@ -124,6 +124,46 @@ RSpec.describe RageController::API do
     it "calls clear" do
       expect(subject.session).to receive(:clear).once
       subject.reset_session
+    end
+  end
+
+  context "with session key" do
+    subject { Class.new(Rage::Session).key }
+
+    before do
+      allow(Rage).to receive(:root).and_return(double(basename: basename))
+    end
+
+    context "with valid name" do
+      let(:basename) { "test" }
+
+      it "builds correct key" do
+        expect(subject).to eq(:_test_session)
+      end
+    end
+
+    context "with spaces" do
+      let(:basename) { "my test" }
+
+      it "builds correct key" do
+        expect(subject).to eq(:_my_test_session)
+      end
+    end
+
+    context "with uppercase characters" do
+      let(:basename) { "MY test" }
+
+      it "builds correct key" do
+        expect(subject).to eq(:_my_test_session)
+      end
+    end
+
+    context "with special characters" do
+      let(:basename) { "$ession+key=t est!" }
+
+      it "builds correct key" do
+        expect(subject).to eq(:__ession_key_t_est__session)
+      end
     end
   end
 end
