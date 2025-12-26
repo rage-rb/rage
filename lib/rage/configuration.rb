@@ -203,6 +203,14 @@ class Rage::Configuration
   end
   # @!endgroup
 
+  # @!group Session Configuration
+  # Allows configuring session settings.
+  # @return [Rage::Configuration::Session]
+  def session
+    @session ||= Session.new
+  end
+  # @!endgroup
+
   # @private
   def internal
     @internal ||= Internal.new
@@ -771,6 +779,17 @@ class Rage::Configuration
 
       parsed_options
     end
+  end
+
+  class Session
+    # @!attribute key
+    #   Specify the name of the session cookie.
+    #   @return [String]
+    #   @example Change the session cookie name
+    #     Rage.configure do
+    #       config.session.key = "_myapp_session"
+    #     end
+    attr_accessor :key
   end
 
   # @private

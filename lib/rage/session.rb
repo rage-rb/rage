@@ -2,9 +2,68 @@
 
 require "json"
 
+##
+# Sessions securely store data between requests using cookies and are typically one of the most convenient and secure
+# authentication mechanisms for browser-based clients.
+#
+# Rage sessions are encrypted using a secret key. This prevents clients from reading or tampering with session data.
+#
+# ## Setup
+#
+# 1. Add the required gems to your `Gemfile`:
+#
+#     ```bash
+#     bundle add base64 domain_name rbnacl
+#     ```
+#
+# 2. Generate a secret key base (keep this value private and out of version control):
+#
+#     ```bash
+#     ruby -r securerandom -e 'puts SecureRandom.hex(64)'
+#     ```
+#
+# 3. Configure your application to use the generated key, either via configuration:
+#
+#     ```ruby
+#     Rage.configure do |config|
+#       config.secret_key_base = "my-secret-key"
+#     end
+#     ```
+#
+#     or via the `SECRET_KEY_BASE` environment variable:
+#
+#     ```bash
+#     export SECRET_KEY_BASE="my-secret-key"
+#     ```
+#
+# ## System Dependencies
+#
+# Rage sessions use libsodium (via RbNaCl) for encryption. On many Debian-based systems
+# it is installed by default; if not, install it with:
+#
+# - Ubuntu / Debian:
+#
+#     ```bash
+#     sudo apt install libsodium23
+#     ```
+#
+# - Fedora / RHEL / Amazon Linux:
+#
+#     ```bash
+#     sudo yum install libsodium
+#     ```
+#
+# - macOS (using Homebrew):
+#
+#     ```bash
+#     brew install libsodium
+#     ```
+#
 class Rage::Session
   # @private
-  KEY = Rack::RACK_SESSION.to_sym
+  def self.key
+    @key ||= Rage.config.session.key&.to_sym || :"_#{Rage.root.basename.to_s.gsub(/\W/, "_").downcase}_session"
+  end
 
   # @private
   def initialize(cookies)
@@ -92,13 +151,15 @@ class Rage::Session
       read_session.clear
     end
 
-    @cookies[KEY] = { httponly: true, same_site: :lax, value: read_session.to_json }
+    @cookies[self.class.key] = { httponly: true, same_site: :lax, value: read_session.to_json }
   end
 
   def read_session
     @session ||= begin
-      JSON.parse(@cookies[KEY] || "{}", symbolize_names: true)
+      session_value = @cookies[self.class.key] || @cookies[Rack::RACK_SESSION.to_sym] || "{}"
+      JSON.parse(session_value, symbolize_names: true)
     rescue JSON::ParserError
+      Rage.logger.debug("Failed to parse session cookie, resetting session")
       {}
     end
   end
