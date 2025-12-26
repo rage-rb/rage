@@ -18,6 +18,7 @@ jobs:
           - '3.2'
           - '3.3'
           - '3.4'
+          - '4.0'
     steps:
     - uses: actions/checkout@v3
     - name: Set up Ruby
@@ -41,7 +42,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: ruby
+        ruby-version: 3.4
         bundler-cache: true
     - name: Run Linter
       run: bundle exec rubocop
@@ -53,7 +54,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: ruby
+        ruby-version: 3.4
         bundler-cache: true
     - name: Run YARD
       run: bundle exec yardoc --fail-on-warning
@@ -65,7 +66,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: ruby
+        ruby-version: 3.4
         bundler-cache: true
     - name: Build the gem
       run: gem build -o rage-local.gem && gem install rage-local.gem --no-document
@@ -96,7 +97,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: ruby
+        ruby-version: 3.4
         bundler-cache: true
     - name: Build the gem
       run: gem build -o rage-local.gem && gem install rage-local.gem --no-document
