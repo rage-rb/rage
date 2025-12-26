@@ -61,7 +61,9 @@ require "json"
 #
 class Rage::Session
   # @private
-  KEY = Rack::RACK_SESSION.to_sym
+  def self.key
+    @key ||= Rage.config.session.key&.to_sym || :"_#{Rage.root.basename.to_s.gsub(/\W/, "_").downcase}_session"
+  end
 
   # @private
   def initialize(cookies)
@@ -149,13 +151,15 @@ class Rage::Session
       read_session.clear
     end
 
-    @cookies[KEY] = { httponly: true, same_site: :lax, value: read_session.to_json }
+    @cookies[self.class.key] = { httponly: true, same_site: :lax, value: read_session.to_json }
   end
 
   def read_session
     @session ||= begin
-      JSON.parse(@cookies[KEY] || "{}", symbolize_names: true)
+      session_value = @cookies[self.class.key] || @cookies[Rack::RACK_SESSION.to_sym] || "{}"
+      JSON.parse(session_value, symbolize_names: true)
     rescue JSON::ParserError
+      Rage.logger.debug("Failed to parse session cookie, resetting session")
       {}
     end
   end

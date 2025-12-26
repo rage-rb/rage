@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.19.1] - 2025-12-26
+
+### Changed
+
+- Use app-specific cookie keys for sessions (#189).
+
 ## [1.19.0] - 2025-12-03
 
 ### Added

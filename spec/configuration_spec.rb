@@ -951,4 +951,19 @@ RSpec.describe Rage::Configuration do
       end
     end
   end
+
+  describe "#session" do
+    subject { described_class.new.session }
+
+    context "#key" do
+      it "returns nil by default" do
+        expect(subject.key).to be_nil
+      end
+
+      it "persists configuration" do
+        subject.key = "_my_test"
+        expect(subject.key).to eq("_my_test")
+      end
+    end
+  end
 end

@@ -276,10 +276,13 @@ class Rage::Cookies
         begin
           box.decrypt(Base64.urlsafe_decode64(value).byteslice(2..))
         rescue ArgumentError
+          Rage.logger.debug("Failed to decode encrypted cookie")
           nil
         rescue RbNaCl::CryptoError
+          Rage.logger.debug("Failed to decrypt encrypted cookie")
           i ||= 0
           if (box = fallback_boxes[i])
+            Rage.logger.debug("Trying to decrypt with fallback key ##{i + 1}")
             i += 1
             retry
           end

@@ -74,6 +74,10 @@ RSpec.describe RageController::API do
         { session: "MDC9exZmtbHuQ0hKQbfuf69gBQE0oER1y0DInAq686395nMYPVRxt0D3W8wt0jjegw1LNu4MSvQf1LSWdw==" }
       end
 
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
+      end
+
       it "correctly decrypts data" do
         expect(subject.cookies.encrypted[:session]).to eq("fallback-test-value")
       end
@@ -82,6 +86,10 @@ RSpec.describe RageController::API do
     context "with incorrectly encrypted data" do
       let(:cookies) { { session: "MDC9exZmtbHuQ0hK" } }
 
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
+      end
+
       it "return nil" do
         expect(subject.cookies.encrypted[:session]).to be_nil
       end
@@ -89,6 +97,10 @@ RSpec.describe RageController::API do
 
     context "with incorrectly base64 encoded data" do
       let(:cookies) { { session: ";;;;;;;" } }
+
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
+      end
 
       it "return nil" do
         expect(subject.cookies.encrypted[:session]).to be_nil
