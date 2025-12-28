@@ -1,5 +1,33 @@
 # frozen_string_literal: true
 
+##
+# `Rage::Cable` provides built-in WebSocket support for Rage apps, similar to Action Cable in Rails. It lets you mount a separate WebSocket application, define channels and connections, subscribe clients to named streams, and broadcast messages in real time.
+#
+# Define a channel:
+# ```ruby
+# class ChatChannel < Rage::Cable::Channel
+#   def subscribed
+#     stream_from "chat"
+#   end
+#
+#   def receive(data)
+#     puts "Received message: #{data['message']}"
+#   end
+# end
+# ```
+#
+# Mount the Cable application:
+# ```ruby
+# Rage.routes.draw do
+#   mount Rage::Cable.application, at: "/cable"
+# end
+# ```
+#
+# Broadcast a message to a stream:
+# ```ruby
+# Rage.cable.broadcast("chat", { message: "Hello, world!" })
+# ```
+#
 module Rage::Cable
   # Create a new Cable application.
   #

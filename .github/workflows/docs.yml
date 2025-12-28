@@ -14,7 +14,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: ruby
+          ruby-version: 3.4
           bundler-cache: true
       - name: Generate documentation
         run: bundle exec yardoc
