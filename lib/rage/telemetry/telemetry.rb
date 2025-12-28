@@ -30,6 +30,12 @@
 # @see Rage::Telemetry::Spans Rage::Telemetry::Spans
 #
 module Rage::Telemetry
+  # Returns the list of all available telemetry spans.
+  # @return [Array<String>] the list of available telemetry spans
+  def self.available_spans
+    __registry.keys
+  end
+
   # @private
   def self.__registry
     @__registry ||= Spans.constants.each_with_object({}) do |const, memo|

@@ -22,6 +22,12 @@ RSpec.describe Rage::Telemetry do
     it "correctly builds span registry" do
       expect(described_class.__registry).to eq({ "test.span.1" => span1, "test.span.2" => span2 })
     end
+
+    context ".available_spans" do
+      it "returns available span IDs" do
+        expect(described_class.available_spans).to match_array(["test.span.1", "test.span.2"])
+      end
+    end
   end
 
   describe ".tracer" do
