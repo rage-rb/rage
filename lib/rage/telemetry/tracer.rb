@@ -43,7 +43,7 @@ class Rage::Telemetry::Tracer
         yield_called = true
         yield_result = yield
         span_result = DEFAULT_SPAN_RESULT
-      rescue => e
+      rescue Exception => e
         yield_error = e
         span_result = Rage::Telemetry::SpanResult.new(e).freeze
     RUBY

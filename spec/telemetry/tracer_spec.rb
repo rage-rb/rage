@@ -242,6 +242,16 @@ RSpec.describe Rage::Telemetry::Tracer do
         rescue
         end
       end
+
+      context "with Exception class" do
+        it "re-raises the exception" do
+          allow(verifier).to receive(:call)
+
+          expect {
+            subject.span_cable_action_process { raise SyntaxError, "test error" }
+          }.to raise_error("test error")
+        end
+      end
     end
 
     context "with exception inside handler" do
