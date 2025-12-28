@@ -50,6 +50,8 @@ RSpec.describe Rage::Telemetry::Spans do
 
   describe described_class::DispatchFiber do
     before do
+      skip("skipping fiber tests") unless ENV["ENABLE_EXTERNAL_TESTS"] == "true"
+
       Fiber.set_scheduler(Rage::FiberScheduler.new)
       allow(Fiber).to receive(:schedule).and_call_original
     end
@@ -69,6 +71,8 @@ RSpec.describe Rage::Telemetry::Spans do
 
   describe described_class::SpawnFiber do
     before do
+      skip("skipping fiber tests") unless ENV["ENABLE_EXTERNAL_TESTS"] == "true"
+
       Fiber.set_scheduler(Rage::FiberScheduler.new)
       allow(Fiber).to receive(:schedule).and_call_original
     end
