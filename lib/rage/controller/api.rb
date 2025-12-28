@@ -112,56 +112,58 @@ class RageController::API
 
       class_eval <<~RUBY, __FILE__, __LINE__ + 1
         def __run_#{action}
-          #{if query_cache_enabled
-            <<~RUBY
-              ActiveRecord::Base.connection_pool.enable_query_cache!
-            RUBY
-          end}
+          Rage::Telemetry.tracer.span_controller_action_process(controller: self, params: @__params) do
+            #{if query_cache_enabled
+              <<~RUBY
+                ActiveRecord::Base.connection_pool.enable_query_cache!
+              RUBY
+            end}
 
-          #{wrap_parameters_chunk}
-          #{before_actions_chunk}
-          #{action} unless @__before_callback_rendered
-          #{around_actions_end_chunk}
+            #{wrap_parameters_chunk}
+            #{before_actions_chunk}
+            #{action} unless @__before_callback_rendered
+            #{around_actions_end_chunk}
 
-          #{if !after_actions_chunk.empty?
-            <<~RUBY
-              unless @__before_callback_rendered
-                @__rendered = true
-                #{after_actions_chunk}
-              end
-            RUBY
-          end}
+            #{if !after_actions_chunk.empty?
+              <<~RUBY
+                unless @__before_callback_rendered
+                  @__rendered = true
+                  #{after_actions_chunk}
+                end
+              RUBY
+            end}
 
-          [@__status, @__headers, @__body]
+            [@__status, @__headers, @__body]
 
-          #{rescue_handlers_chunk}
+            #{rescue_handlers_chunk}
 
-        ensure
-          #{if query_cache_enabled
-            <<~RUBY
-              ActiveRecord::Base.connection_pool.disable_query_cache!
-            RUBY
-          end}
+          ensure
+            #{if query_cache_enabled
+              <<~RUBY
+                ActiveRecord::Base.connection_pool.disable_query_cache!
+              RUBY
+            end}
 
-          #{if should_release_connections
-            <<~RUBY
-              ActiveRecord::Base.connection_handler.clear_active_connections!(:all)
-            RUBY
-          end}
+            #{if should_release_connections
+              <<~RUBY
+                ActiveRecord::Base.connection_handler.clear_active_connections!(:all)
+              RUBY
+            end}
 
-          #{if method_defined?(:append_info_to_payload) || private_method_defined?(:append_info_to_payload)
-            <<~RUBY
-              context = {}
-              append_info_to_payload(context)
+            #{if method_defined?(:append_info_to_payload) || private_method_defined?(:append_info_to_payload)
+              <<~RUBY
+                context = {}
+                append_info_to_payload(context)
 
-              log_context = Thread.current[:rage_logger][:context]
-              if log_context.empty?
-                Thread.current[:rage_logger][:context] = context
-              else
-                Thread.current[:rage_logger][:context] = log_context.merge(context)
-              end
-            RUBY
-          end}
+                log_context = Thread.current[:rage_logger][:context]
+                if log_context.empty?
+                  Thread.current[:rage_logger][:context] = context
+                else
+                  Thread.current[:rage_logger][:context] = log_context.merge(context)
+                end
+              RUBY
+            end}
+          end
         end
       RUBY
     end
@@ -452,7 +454,7 @@ class RageController::API
   end
 
   # @private
-  attr_reader :__status, :__headers, :__body
+  attr_reader :__env, :__status, :__headers, :__body
 
   # Get the request object. See {Rage::Request}.
   # @return [Rage::Request]

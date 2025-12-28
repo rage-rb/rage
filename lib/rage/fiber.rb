@@ -158,43 +158,45 @@ class Fiber
     f, fibers = Fiber.current, Array(fibers)
     await_channel = f.__await_channel(true)
 
-    # check which fibers are alive (i.e. have yielded) and which have errored out
-    i, err, num_wait_for = 0, nil, 0
-    while i < fibers.length
-      if fibers[i].alive?
-        num_wait_for += 1
-      else
-        err = fibers[i].__get_err
-        break if err
+    Rage::Telemetry.tracer.span_core_fiber_await(fibers:) do
+      # check which fibers are alive (i.e. have yielded) and which have errored out
+      i, err, num_wait_for = 0, nil, 0
+      while i < fibers.length
+        if fibers[i].alive?
+          num_wait_for += 1
+        else
+          err = fibers[i].__get_err
+          break if err
+        end
+        i += 1
       end
-      i += 1
-    end
 
-    # raise if one of the fibers has errored out or return the result if none have yielded
-    if err
-      raise err
-    elsif num_wait_for == 0
-      return fibers.map!(&:__get_result)
-    end
-
-    # wait on async fibers; resume right away if one of the fibers errors out
-    Iodine.subscribe(await_channel) do |_, err|
-      if err == AWAIT_ERROR_MESSAGE
-        f.resume
-      else
-        num_wait_for -= 1
-        f.resume if num_wait_for == 0
+      # raise if one of the fibers has errored out or return the result if none have yielded
+      if err
+        raise err
+      elsif num_wait_for == 0
+        return fibers.map!(&:__get_result)
       end
-    end
 
-    Fiber.defer(-1)
-    Iodine.defer { Iodine.unsubscribe(await_channel) }
+      # wait on async fibers; resume right away if one of the fibers errors out
+      Iodine.subscribe(await_channel) do |_, err|
+        if err == AWAIT_ERROR_MESSAGE
+          f.resume
+        else
+          num_wait_for -= 1
+          f.resume if num_wait_for == 0
+        end
+      end
 
-    # if num_wait_for is not 0 means we exited prematurely because of an error
-    if num_wait_for > 0
-      raise fibers.find(&:__get_err).__get_err
-    else
-      fibers.map!(&:__get_result)
+      Fiber.defer(-1)
+      Iodine.defer { Iodine.unsubscribe(await_channel) }
+
+      # if num_wait_for is not 0 means we exited prematurely because of an error
+      if num_wait_for > 0
+        raise fibers.find(&:__get_err).__get_err
+      else
+        fibers.map!(&:__get_result)
+      end
     end
   end
 

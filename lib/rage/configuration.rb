@@ -203,13 +203,20 @@ class Rage::Configuration
   end
   # @!endgroup
 
+  # @!group Telemetry Configuration
+  # Allows configuring telemetry settings.
+  # @return [Rage::Configuration::Telemetry]
+  def telemetry
+    @telemetry ||= Telemetry.new
+  end
+  # @!endgroup
+
   # @!group Session Configuration
   # Allows configuring session settings.
   # @return [Rage::Configuration::Session]
   def session
     @session ||= Session.new
   end
-  # @!endgroup
 
   # @private
   def internal
@@ -855,6 +862,65 @@ class Rage::Configuration
       end
 
       parsed_options
+    end
+  end
+
+  # The class allows configuring telemetry handlers. See {MiddlewareRegistry} for details on available methods.
+  # @example
+  #   Rage.configure do
+  #     config.telemetry.use MyTelemetryHandler.new
+  #   end
+  # @see Rage::Configuration::MiddlewareRegistry
+  # @see Rage::Telemetry
+  class Telemetry < MiddlewareRegistry
+    # @private
+    # @return [Hash{String => Array<Rage::Telemetry::HandlerRef>}] a map of span IDs to handler references
+    def handlers_map
+      @objects.map(&:first).each_with_object({}) do |handler, memo|
+        handlers_map = handler.is_a?(Class) ? handler.handlers_map : handler.class.handlers_map
+
+        handlers_map.each do |span_id, handler_methods|
+          handler_refs = handler_methods.map do |handler_method|
+            Rage::Telemetry::HandlerRef[handler, handler_method]
+          end
+
+          if memo[span_id]
+            memo[span_id] += handler_refs
+          else
+            memo[span_id] = handler_refs
+          end
+        end
+      end
+    end
+
+    private
+
+    def validate!(_, handler)
+      is_handler = if handler.is_a?(Class)
+        handler.ancestors.include?(Rage::Telemetry::Handler)
+      else
+        handler.is_a?(Rage::Telemetry::Handler)
+      end
+
+      unless is_handler
+        raise ArgumentError, "Cannot add `#{handler}` as a telemetry handler; should inherit `Rage::Telemetry::Handler`"
+      end
+
+      handlers_map = if handler.is_a?(Class)
+        handler.handlers_map
+      else
+        handler.class.handlers_map
+      end
+
+      unless handlers_map&.any?
+        raise ArgumentError, "Telemetry handler `#{handler}` does not define any handlers"
+      end
+
+      handlers_map.values.reduce(&:+).each do |handler_method|
+        unless handler.respond_to?(handler_method)
+          raise ArgumentError, "Telemetry handler `#{handler}` does not implement the `#{handler_method}` handler method"
+        end
+      end
     end
   end
 

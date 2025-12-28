@@ -952,6 +952,168 @@ RSpec.describe Rage::Configuration do
     end
   end
 
+  describe "#telemetry" do
+    subject { described_class.new.telemetry }
+
+    context "with no telemetry handlers" do
+      it "returns empty object" do
+        expect(subject.handlers_map).to be_empty
+        expect(subject.handlers_map["controller.action.process"]).to be_nil
+      end
+    end
+
+    context "with one telemetry handler" do
+      let(:handler) do
+        Class.new(Rage::Telemetry::Handler) do
+          handle "controller.action.process", with: :test_handler
+
+          def test_handler
+          end
+        end
+      end
+
+      it "correctly adds handler" do
+        handler_instance = handler.new
+
+        subject.use(handler_instance)
+
+        expect(subject.handlers_map).to eq({
+          "controller.action.process" => [Rage::Telemetry::HandlerRef[handler_instance, :test_handler]]
+        })
+      end
+    end
+
+    context "with multiple telemetry handlers" do
+      let(:handler_1) do
+        Class.new(Rage::Telemetry::Handler) do
+          handle "controller.action.process", with: :test_handler_1
+
+          def test_handler_1
+          end
+        end
+      end
+
+      let(:handler_2) do
+        Class.new(Rage::Telemetry::Handler) do
+          handle "controller.action.process", with: :test_handler_2
+          handle "events.event.publish", with: :test_handler_3
+
+          def test_handler_2
+          end
+
+          def test_handler_3
+          end
+        end
+      end
+
+      it "correctly adds handlers" do
+        handler_instance_1 = handler_1.new
+        handler_instance_2 = handler_2.new
+
+        subject.use(handler_instance_1)
+        subject.use(handler_instance_2)
+
+        expect(subject.handlers_map).to eq({
+          "controller.action.process" => [
+            Rage::Telemetry::HandlerRef[handler_instance_1, :test_handler_1],
+            Rage::Telemetry::HandlerRef[handler_instance_2, :test_handler_2]
+          ],
+          "events.event.publish" => [
+            Rage::Telemetry::HandlerRef[handler_instance_2, :test_handler_3]
+          ]
+        })
+      end
+    end
+
+    context "with handler class" do
+      let(:handler) do
+        Class.new(Rage::Telemetry::Handler) do
+          handle "controller.action.process", with: :test_handler
+
+          def self.test_handler
+          end
+        end
+      end
+
+      it "correctly adds handler" do
+        subject.use(handler)
+
+        expect(subject.handlers_map).to eq({
+          "controller.action.process" => [Rage::Telemetry::HandlerRef[handler, :test_handler]]
+        })
+      end
+    end
+
+    context "with no handler methods" do
+      let(:handler) do
+        Class.new(Rage::Telemetry::Handler) do
+        end
+      end
+
+      context "with handler class" do
+        it "raises an exception" do
+          expect {
+            subject.use(handler)
+          }.to raise_error(/does not define any handlers/)
+        end
+      end
+
+      context "with handler instance" do
+        it "raises an exception" do
+          expect {
+            subject.use(handler.new)
+          }.to raise_error(/does not define any handlers/)
+        end
+      end
+    end
+
+    context "with incorrect handler" do
+      let(:handler) do
+        Class.new
+      end
+
+      context "with handler class" do
+        it "raises an exception" do
+          expect {
+            subject.use(handler)
+          }.to raise_error(/should inherit `Rage::Telemetry::Handler`/)
+        end
+      end
+
+      context "with handler instance" do
+        it "raises an exception" do
+          expect {
+            subject.use(handler.new)
+          }.to raise_error(/should inherit `Rage::Telemetry::Handler`/)
+        end
+      end
+    end
+
+    context "with incorrect handler method" do
+      let(:handler) do
+        Class.new(Rage::Telemetry::Handler) do
+          handle "controller.action.process", with: :test_handler
+        end
+      end
+
+      context "with handler class" do
+        it "raises an exception" do
+          expect {
+            subject.use(handler)
+          }.to raise_error(/does not implement the `test_handler` handler method/)
+        end
+      end
+
+      context "with handler instance" do
+        it "raises an exception" do
+          expect {
+            subject.use(handler.new)
+          }.to raise_error(/does not implement the `test_handler` handler method/)
+        end
+      end
+    end
+  end
+
   describe "#session" do
     subject { described_class.new.session }
 

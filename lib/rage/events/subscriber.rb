@@ -79,14 +79,18 @@ module Rage::Events::Subscriber
 
   # @private
   def __call(event, context: nil)
-    Rage.logger.with_context(self.class.__log_context) do
-      with_exception_handler do
-        context.nil? ? call(event) : call(event, context: context.freeze)
+    Rage::Telemetry.tracer.span_events_subscriber_process(event:, context:, subscriber: self) do
+      Rage.logger.with_context(self.class.__log_context) do
+        with_exception_handler do
+          context.nil? ? call(event) : call(event, context: context.freeze)
+        end
       end
-    rescue Exception => e
-      Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
-      raise e if self.class.__is_deferred
     end
+  rescue Exception => e
+    Rage.logger.with_context(self.class.__log_context) do
+      Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+    end
+    raise e if self.class.__is_deferred
   end
 
   private
@@ -146,6 +150,12 @@ module Rage::Events::Subscriber
       @__rescue_handlers.unshift([klasses, with])
 
       rebuild_exception_handler!
+    end
+
+    # Check if the subscriber is executed in the background.
+    # @return [Boolean] `true` if the subscriber is deferred, `false` otherwise
+    def deferred?
+      @__is_deferred
     end
 
     # @private

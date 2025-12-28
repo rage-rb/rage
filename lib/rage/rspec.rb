@@ -14,23 +14,6 @@ require_relative "#{Rage.root}/config/application"
 # verify the environment
 abort("The test suite is running in #{Rage.env} mode instead of 'test'!") unless Rage.env.test?
 
-# mock fiber methods as RSpec tests don't run concurrently
-class Fiber
-  def self.schedule(&block)
-    fiber = Fiber.new(blocking: true) do
-      Fiber.current.__set_id
-      Fiber.current.__set_result(block.call)
-    end
-    fiber.resume
-
-    fiber
-  end
-
-  def self.await(fibers)
-    Array(fibers).map(&:__get_result)
-  end
-end
-
 # define request helpers
 module RageRequestHelpers
   include Rack::Test::Methods
@@ -96,6 +79,23 @@ end
 # include request helpers
 RSpec.configure do |config|
   config.include(RageRequestHelpers, type: :request)
+
+  # mock fiber methods as RSpec tests don't run concurrently
+  config.before do
+    allow(Fiber).to receive(:schedule) do |&block|
+      fiber = Fiber.new(blocking: true) do
+        Fiber.current.__set_id
+        Fiber.current.__set_result(block.call)
+      end
+      fiber.resume
+
+      fiber
+    end
+
+    allow(Fiber).to receive(:await) do |fibers|
+      Array(fibers).map(&:__get_result)
+    end
+  end
 end
 
 # patch MockResponse class

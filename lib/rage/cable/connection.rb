@@ -32,6 +32,10 @@ class Rage::Cable::Connection
   def connect
   end
 
+  # @private
+  def disconnect
+  end
+
   # Reject the WebSocket connection.
   def reject_unauthorized_connection
     @rejected = true

@@ -66,10 +66,15 @@ module RspecHelpersSpec
 end
 
 RSpec.describe "RSpec helpers", type: :request do
-  before do
-    allow(Rage).to receive(:root).and_return(Pathname.new(__dir__).expand_path)
-    allow(Rage).to receive(:env).and_return(Rage::Env.new("test"))
+  before :context do
+    Rage.instance_variable_set(:@root, Pathname.new(__dir__).expand_path)
+    Rage.instance_variable_set(:@env, Rage::Env.new("test"))
     require "rage/rspec"
+  end
+
+  after :context do
+    Rage.instance_variable_set(:@root, nil)
+    Rage.instance_variable_set(:@env, nil)
   end
 
   it "correctly parses JSON responses" do
