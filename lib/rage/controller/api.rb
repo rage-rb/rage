@@ -454,7 +454,7 @@ class RageController::API
   end
 
   # @private
-  attr_reader :__env
+  attr_reader :__env, :__status, :__headers, :__body
 
   # Get the request object. See {Rage::Request}.
   # @return [Rage::Request]
@@ -465,7 +465,7 @@ class RageController::API
   # Get the response object. See {Rage::Response}.
   # @return [Rage::Response]
   def response
-    @response ||= Rage::Response.new(@__headers, @__body)
+    @response ||= Rage::Response.new(self)
   end
 
   # Get the cookie object. See {Rage::Cookies}.
