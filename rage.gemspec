@@ -6,10 +6,10 @@ Gem::Specification.new do |spec|
   spec.name = "rage-rb"
   spec.version = Rage::VERSION
   spec.authors = ["Roman Samoilov"]
-  spec.email = ["rsamoi@icloud.com"]
+  spec.email = ["developers@rage-rb.dev"]
 
   spec.summary = "Fast web framework compatible with Rails."
-  spec.homepage = "https://github.com/rage-rb/rage"
+  spec.homepage = "https://rage-rb.dev"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
 
