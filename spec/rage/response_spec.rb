@@ -1,10 +1,16 @@
 # frozen_string_literal: true
 
 RSpec.describe Rage::Response do
-  let(:headers) { {} }
-  let(:body) { [] }
+  subject { described_class.new(controller) }
 
-  subject { described_class.new(headers, body) }
+  let(:controller) { RageController::API.new(nil, nil) }
+  let(:headers) { {} }
+
+  before do
+    headers.each do |key, value|
+      controller.headers[key] = value
+    end
+  end
 
   describe "#etag" do
     let(:etag) { "1234" }
@@ -116,11 +122,35 @@ RSpec.describe Rage::Response do
     end
 
     context "with non-empty body" do
-      let(:body) { [:test_body] }
+      before do
+        controller.render plain: "test_body"
+      end
 
       it "returns the body" do
-        expect(subject.body).to eq(:test_body)
+        expect(subject.body).to eq("test_body")
       end
+    end
+  end
+
+  context "#status" do
+    it "defaults to 204" do
+      expect(subject.status).to eq(204)
+    end
+
+    it "tracks status updates via head" do
+      controller.head 401
+      expect(subject.status).to eq(401)
+
+      controller.head 403
+      expect(subject.status).to eq(403)
+    end
+
+    it "tracks status updates via render" do
+      controller.render status: 401
+      expect(subject.status).to eq(401)
+
+      controller.head 403
+      expect(subject.status).to eq(403)
     end
   end
 end
