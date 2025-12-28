@@ -24,7 +24,10 @@ class Rage::Telemetry::Spans::ProcessControllerAction
     def handler_arguments
       {
         name: '"#{controller.class}##{params[:action]}"',
-        controller: "controller"
+        controller: "controller",
+        request: "controller.request",
+        response: "controller.response",
+        env: "controller.__env"
       }
     end
 
@@ -32,19 +35,22 @@ class Rage::Telemetry::Spans::ProcessControllerAction
     #   # @param id ["controller.action.process"] ID of the span
     #   # @param name [String] human-readable name of the operation (e.g., `"UsersController#index"`)
     #   # @param controller [RageController::API] the controller instance being executed
+    #   # @param request [Rage::Request] the request object associated with the action
+    #   # @param response [Rage::Response] the response object associated with the action
+    #   # @param env [Hash] the Rack environment
     #   # @yieldreturn [Rage::Telemetry::SpanResult]
     #   #
     #   # @example
     #   #   class MyTelemetryHandler < Rage::Telemetry::Handler
     #   #     handle "controller.action.process", with: :my_handler
     #   #
-    #   #     def my_handler(id:, name:, controller:)
+    #   #     def my_handler(id:, name:, controller:, request:, response:, env:)
     #   #       yield
     #   #     end
     #   #   end
     #   # @note Rage automatically detects which parameters your handler method accepts and only passes those parameters.
     #   #   You can omit any of the parameters described here.
-    #   def handle(id:, name:, controller:)
+    #   def handle(id:, name:, controller:, request:, response:, env:)
     #   end
   end
 end

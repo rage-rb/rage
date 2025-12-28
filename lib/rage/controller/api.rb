@@ -453,6 +453,9 @@ class RageController::API
     @__rendered = false
   end
 
+  # @private
+  attr_reader :__env
+
   # Get the request object. See {Rage::Request}.
   # @return [Rage::Request]
   def request

@@ -257,10 +257,15 @@ RSpec.describe Rage::Telemetry::Spans do
     end
 
     it "passes correct arguments" do
-      controller = MyTestController.new({}, { action: :index })
+      controller = MyTestController.new(:test_rack_env, { action: :index })
 
       expect(verifier).to receive(:call).with({
-        id: "controller.action.process", name: "MyTestController#index", controller: controller
+        id: "controller.action.process",
+        name: "MyTestController#index",
+        controller: controller,
+        request: instance_of(Rage::Request),
+        response: instance_of(Rage::Response),
+        env: :test_rack_env
       })
 
       controller.__run_index
@@ -288,7 +293,8 @@ RSpec.describe Rage::Telemetry::Spans do
           name: "RageCable::Connection#connect",
           connection: instance_of(RageCable::Connection),
           action: :connect,
-          env: equal(ws_connection.env)
+          env: equal(ws_connection.env),
+          request: instance_of(Rage::Request)
         })
 
         router.process_connection(ws_connection)
@@ -304,7 +310,8 @@ RSpec.describe Rage::Telemetry::Spans do
           name: "RageCable::Connection#disconnect",
           connection: instance_of(RageCable::Connection),
           action: :disconnect,
-          env: equal(ws_connection.env)
+          env: equal(ws_connection.env),
+          request: instance_of(Rage::Request)
         })
 
         router.process_disconnection(ws_connection)
