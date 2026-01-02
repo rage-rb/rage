@@ -19,6 +19,4 @@ require_relative "#{Rage.root}/config/routes"
 # Run after_initialize hooks
 Rage.config.run_after_initialize!
 
-Rage::Telemetry.__setup
-
 Rage.config.internal.initialized!

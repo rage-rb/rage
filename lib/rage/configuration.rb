@@ -995,6 +995,8 @@ class Rage::Configuration
       middleware.delete(Rage::BodyFinalizer)
       middleware.insert_before(::Rack::Events, Rage::BodyFinalizer)
     end
+
+    Rage::Telemetry.__setup if @telemetry
   end
 end
 
