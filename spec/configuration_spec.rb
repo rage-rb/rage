@@ -857,12 +857,41 @@ RSpec.describe Rage::Configuration do
           subject
           expect(config.middleware).to include(Rage::BodyFinalizer)
         end
+
+        it "places Rage::BodyFinalizer before Rack::Events" do
+          subject
+
+          rack_events_index = config.middleware.objects.index { |middleware, _, _| middleware == Rack::Events }
+          body_finalizer_index = config.middleware.objects.index { |middleware, _, _| middleware == Rage::BodyFinalizer }
+
+          expect(body_finalizer_index).to be < rack_events_index
+        end
       end
 
       context "if Rack::Events is not in middleware stack" do
         it "doesn't add Rage::BodyFinalizer" do
           subject
           expect(config.middleware).not_to include(Rage::BodyFinalizer)
+        end
+      end
+
+      context "if Rack::Events is moved" do
+        before do
+          config.middleware.use proc {}
+          config.middleware.use proc {}
+          config.middleware.use Rack::Events
+        end
+
+        it "updates the position of Rage::BodyFinalizer" do
+          config.__finalize
+          config.middleware.delete(Rack::Events)
+          config.middleware.insert_after(0, Rack::Events)
+          config.__finalize
+
+          rack_events_index = config.middleware.objects.index { |middleware, _, _| middleware == Rack::Events }
+          body_finalizer_index = config.middleware.objects.index { |middleware, _, _| middleware == Rage::BodyFinalizer }
+
+          expect(body_finalizer_index).to be < rack_events_index
         end
       end
     end

@@ -991,8 +991,9 @@ class Rage::Configuration
       @logger.dynamic_tags = Rage.__log_processor.dynamic_tags
     end
 
-    if defined?(::Rack::Events) && middleware.include?(::Rack::Events) && !middleware.include?(Rage::BodyFinalizer)
-      middleware.insert_after(0, Rage::BodyFinalizer)
+    if defined?(::Rack::Events) && middleware.include?(::Rack::Events)
+      middleware.delete(Rage::BodyFinalizer)
+      middleware.insert_before(::Rack::Events, Rage::BodyFinalizer)
     end
   end
 end
