@@ -14,15 +14,16 @@ If you love Rails but need better performance for I/O-heavy workloads, Rage prov
 
 Building high-performance APIs in Ruby shouldn't mean abandoning the conventions you know. Rage gives you Rails-like controllers, routing, and patterns, but runs on **fiber-based concurrency** that makes your application naturally non-blocking. When your code waits on database queries, HTTP calls, or other I/O, Rage automatically handles thousands of other requests instead of sitting idle.
 
+Rage was built to solve the performance and stability gaps that often drive teams to migrate away from Ruby, providing a modern engine that keeps the ecosystem competitive.
+
 **Key capabilities:**
 
 - **Rails compatibility** - Familiar controller API, routing DSL, and conventions. Migrate gradually or start fresh.
 - **True concurrency** - Fiber-based architecture handles I/O without threads, locks, or async/await syntax. Your code looks synchronous but runs concurrently.
-- **Built-in WebSockets** - Real-time features through Action Cable-compatible API with optional Redis-backed scaling.
+- **Zero-dependency WebSockets** - Action Cable-compatible real-time features that work out-of-the-box without Redis, even in multi-process mode.
 - **Auto-generated OpenAPI** - Documentation generated from your controllers using simple comment tags.
-- **Background jobs** - In-process queue with persistence and retries, no Redis required.
-- **Stable and focused** - A narrow, well-defined scope means predictable updates without major rewrites or breaking changes.
-- **Production-ready** - Battle-tested design principles focused on performance and maintainability.
+- **In-process Background jobs** - A durable, persistent queue that runs inside your app process. No Redis or separate worker processes required.
+- **Stable and focused** - Our goal is that the task "Upgrade Rage" never appears in your ticketing system. We focus strictly on APIs, maintain long-term deprecation cycles, and ensure that most updates are as simple as a `bundle update`.
 
 Rage is API-only by design. Modern applications benefit from clear separation between backend and frontend, and Rage focuses exclusively on doing APIs well.
 
@@ -139,7 +140,7 @@ For contributors, check the [architecture doc](https://github.com/rage-rb/rage/b
 
 ## Performance
 
-Rage's fiber-based architecture delivers tangible performance improvements, especially for I/O-heavy workloads.
+Rage's fiber-based architecture delivers high throughput with minimal overhead. By stripping away the "framework tax", Rage gives your team more leeway to write slow-but-maintainable Ruby code without compromising the end-user experience.
 
 #### Simple JSON responses
 
