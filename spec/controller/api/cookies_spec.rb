@@ -120,9 +120,17 @@ RSpec.describe RageController::API do
     let(:cookies) { [] }
     let(:response_cookies) do
       subject.headers.each_with_object({}) do |(header, value), memo|
-        if header == "Set-Cookie"
-          k, v = value.split("=", 2)
-          memo[k.to_sym] = v
+        if header.downcase == "set-cookie"
+          cookie_values = if Gem::Version.new(Rack.release) < Gem::Version.new(3)
+            value.split("\n")
+          else
+            Array(value)
+          end
+
+          cookie_values.each do |cookie|
+            k, v = cookie.split("=", 2)
+            memo[k.to_sym] = v
+          end
         end
       end
     end
@@ -148,7 +156,7 @@ RSpec.describe RageController::API do
         value: 110
       }
 
-      expect(response_cookies[:user_id]).to eq("110; path=/users; secure; HttpOnly; SameSite=Lax")
+      expect(response_cookies[:user_id].downcase).to eq("110; path=/users; secure; httponly; samesite=lax")
     end
 
     it "correctly sets multiple values" do
@@ -172,7 +180,7 @@ RSpec.describe RageController::API do
       subject.cookies.delete(:user_id)
       subject.cookies[:user_id] = 200
 
-      expect(subject.headers.count { |k, _| k == "Set-Cookie" }).to eq(1)
+      expect(subject.headers.count { |k, _| k.downcase == "set-cookie" }).to eq(1)
     end
 
     context "with string domain" do

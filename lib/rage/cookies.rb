@@ -131,12 +131,8 @@ class Rage::Cookies
   # @param path [String]
   # @param domain [String]
   def delete(key, path: "/", domain: nil)
-    @headers.compare_by_identity
-
     @request_cookies[key] = nil
-    @headers[set_cookie_key(key)] = Rack::Utils.add_cookie_to_header(nil, key, {
-      value: "", expires: Time.at(0), path: path, domain: domain
-    })
+    Rack::Utils.delete_cookie_header!(@headers, key, { path: path, domain: domain })
   end
 
   # Returns a jar that'll automatically encrypt cookie values before sending them to the client and will decrypt them
@@ -174,19 +170,17 @@ class Rage::Cookies
   # @example
   #   cookie[:user_id] = { value: current_user.id, httponly: true, secure: true }
   def []=(key, value)
-    @headers.compare_by_identity
-
     unless value.is_a?(Hash)
       serialized_value = @jar.dump(value)
       @request_cookies[key] = serialized_value
-      @headers[set_cookie_key(key)] = Rack::Utils.add_cookie_to_header(nil, key, { value: serialized_value, expires: @expires })
+      Rack::Utils.set_cookie_header!(@headers, key, { value: serialized_value, expires: @expires })
       return
     end
 
     if (domain = value[:domain])
       host = @env["HTTP_HOST"]
 
-      _domain = if domain.is_a?(String)
+      processed_domain = if domain.is_a?(String)
         domain
       elsif domain == :all
         DomainName(host).domain
@@ -196,18 +190,13 @@ class Rage::Cookies
     end
 
     serialized_value = @jar.dump(value[:value])
-    cookie = Rack::Utils.add_cookie_to_header(nil, key, {
-      path: value[:path],
-      secure: value[:secure],
-      expires: value[:expires] || @expires,
-      httponly: value[:httponly],
-      same_site: value[:same_site],
+    Rack::Utils.set_cookie_header!(@headers, key, {
+      **value,
       value: serialized_value,
-      domain: _domain
+      domain: processed_domain,
+      expires: value[:expires] || @expires
     })
-
     @request_cookies[key] = serialized_value
-    @headers[set_cookie_key(key)] = cookie
   end
 
   def inspect
@@ -238,11 +227,6 @@ class Rage::Cookies
     end
 
     @request_cookies
-  end
-
-  def set_cookie_key(key)
-    @set_cookie_keys ||= Hash.new { |hash, key| hash[key] = "Set-Cookie".dup }
-    @set_cookie_keys[key]
   end
 
   protected

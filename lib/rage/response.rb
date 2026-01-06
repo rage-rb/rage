@@ -4,8 +4,8 @@ require "digest"
 require "time"
 
 class Rage::Response
-  ETAG_HEADER = "ETag"
-  LAST_MODIFIED_HEADER = "Last-Modified"
+  ETAG_HEADER = "etag"
+  LAST_MODIFIED_HEADER = "last-modified"
 
   # @private
   def initialize(headers, body)
