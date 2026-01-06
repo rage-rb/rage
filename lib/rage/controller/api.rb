@@ -585,7 +585,7 @@ class RageController::API
 
   # Render an HTTP header requesting the client to send a Bearer token for authentication.
   def request_http_token_authentication
-    headers["Www-Authenticate"] = "Token"
+    headers["www-authenticate"] = "Token"
     render plain: "HTTP Token: Access denied.", status: 401
   end
 

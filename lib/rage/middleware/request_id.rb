@@ -24,7 +24,7 @@ class Rage::RequestId
   def call(env)
     env["rage.request_id"] = validate_external_request_id(env["HTTP_X_REQUEST_ID"])
     response = @app.call(env)
-    response[1]["X-Request-Id"] = env["rage.request_id"]
+    response[1]["x-request-id"] = env["rage.request_id"]
 
     response
   end

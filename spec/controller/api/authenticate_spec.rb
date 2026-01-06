@@ -125,12 +125,12 @@ RSpec.describe RageController::API do
 
     it "doesn't request authentication if login procedure returns non nil" do
       subject.authenticate_or_request_with_http_token { :request_authenticated }
-      expect(subject.response.headers).not_to have_key("Www-Authenticate")
+      expect(subject.response.headers).not_to have_key("www-authenticate")
     end
 
     it "doesn't request authentication if login procedure returns nil" do
       subject.authenticate_or_request_with_http_token {}
-      expect(subject.response.headers["Www-Authenticate"]).to eq("Token")
+      expect(subject.response.headers["www-authenticate"]).to eq("Token")
     end
   end
 
@@ -141,7 +141,7 @@ RSpec.describe RageController::API do
       subject.request_http_token_authentication {}
 
       expect(subject.response.body).to eq("HTTP Token: Access denied.")
-      expect(subject.response.headers["Www-Authenticate"]).to eq("Token")
+      expect(subject.response.headers["www-authenticate"]).to eq("Token")
     end
   end
 end
