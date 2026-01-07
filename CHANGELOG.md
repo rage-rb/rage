@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.19.2] - 2026-01-06
+
+### Changed
+
+- Compatibility with Rack 3 (#193).
+
 ## [1.19.1] - 2025-12-26
 
 ### Changed

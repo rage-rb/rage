@@ -86,8 +86,18 @@ RSpec.describe RageController::API do
 
   context "when writing a session" do
     let(:new_session) do
-      _, session_cookie = subject.headers.find { |k, _| k == "Set-Cookie" }
-      session_value = session_cookie.match(/#{Rage::Session.key}=(\S+);/)[1]
+      _, session_cookie = subject.headers.find { |k, _| k.downcase == "set-cookie" }
+
+      session_cookie_values = if Gem::Version.new(Rack.release) < Gem::Version.new(3)
+        session_cookie.split("\n")
+      else
+        Array(session_cookie)
+      end
+
+      session_value = nil
+      session_cookie_values.each do |cookie_val|
+        session_value = cookie_val.match(/#{Rage::Session.key}=(\S+);/)[1]
+      end
 
       Rage::Cookies::EncryptedJar.load(
         Rack::Utils.unescape(session_value, Encoding::UTF_8)
@@ -122,9 +132,14 @@ RSpec.describe RageController::API do
 
     it "sets correct attributes" do
       subject.session[:abc] = 123
-      _, session_cookie = subject.headers.find { |k, _| k == "Set-Cookie" }
+      _, session_cookie = subject.headers.find { |k, _| k.downcase == "set-cookie" }
 
-      expect(session_cookie).to match(/.+; HttpOnly; SameSite=Lax/)
+      session_value = nil
+      Array(session_cookie).each do |cookie_val|
+        session_value = cookie_val.match(/#{Rage::Session.key}=(\S+);/)[1]
+      end
+
+      expect(session_cookie).to match(/.+; httponly; samesite=lax/i)
     end
   end
 

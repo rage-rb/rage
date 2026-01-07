@@ -48,7 +48,7 @@ module Rage::Cable
           env["rack.upgrade"] = handler
           accept_response
         else
-          [426, { "Connection" => "Upgrade", "Upgrade" => "websocket" }, []]
+          [426, { "connection" => "upgrade", "upgrade" => "websocket" }, []]
         end
       end
     end

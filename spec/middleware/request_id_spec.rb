@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe Rage::RequestId do
-  subject { described_class.new(app).call(env)[1]["X-Request-Id"] }
+  subject { described_class.new(app).call(env)[1]["x-request-id"] }
 
   let(:app) { double }
   let(:response) { [200, {}, ["test response"]] }
@@ -44,7 +44,7 @@ RSpec.describe Rage::RequestId do
 
       it "adds the ID to the response" do
         subject
-        expect(response[1]["X-Request-Id"]).to eq("test-x-request-id")
+        expect(response[1]["x-request-id"]).to eq("test-x-request-id")
       end
     end
 
@@ -58,7 +58,7 @@ RSpec.describe Rage::RequestId do
 
       it "adds the truncated ID to the response" do
         subject
-        expect(response[1]["X-Request-Id"]).to eq(env["rage.request_id"])
+        expect(response[1]["x-request-id"]).to eq(env["rage.request_id"])
       end
     end
 
@@ -72,7 +72,7 @@ RSpec.describe Rage::RequestId do
 
       it "adds the sanitized ID to the response" do
         subject
-        expect(response[1]["X-Request-Id"]).to eq("testxrequestid")
+        expect(response[1]["x-request-id"]).to eq("testxrequestid")
       end
     end
 
@@ -87,7 +87,7 @@ RSpec.describe Rage::RequestId do
 
       it "adds the sanitized ID to the response" do
         subject
-        expect(response[1]["X-Request-Id"]).to eq(env["rage.request_id"])
+        expect(response[1]["x-request-id"]).to eq(env["rage.request_id"])
       end
     end
   end

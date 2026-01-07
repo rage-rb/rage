@@ -217,6 +217,7 @@ class Rage::Configuration
   def session
     @session ||= Session.new
   end
+  # @!endgroup
 
   # @private
   def internal

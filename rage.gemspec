@@ -28,7 +28,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "thor", "~> 1.0"
-  spec.add_dependency "rack", "~> 2.0"
+  spec.add_dependency "rack", "< 4"
   spec.add_dependency "rage-iodine", "~> 4.3"
   spec.add_dependency "zeitwerk", "~> 2.6"
   spec.add_dependency "rack-test", "~> 2.1"
