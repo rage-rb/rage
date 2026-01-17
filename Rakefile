@@ -8,15 +8,15 @@ RSpec::Core::RakeTask.new(:spec)
 task default: :spec
 
 task :appraise do |_, args|
-  # Pulls all the Rails versions from the Appraisal file
-  rails_versions = `appraisal list`.split("\n")
-  # Since we want to test against the main branch separately,
-  # we remove it from the list.
-  rails_versions.delete("rails_main")
+  ext_versions = `appraisal list`.split("\n")
 
-  rails_versions.each do |rails_version|
-    puts ">> Appraising #{rails_version}"
+  # Since we want to test against the main branch separately, we remove it from the list.
+  ext_versions.reject! { |version| version.end_with?("_head") }
 
-    system("bundle exec appraisal #{rails_version} rspec spec/ext/*")
+  ext_versions.each do |ext_version|
+    puts ">> Appraising #{ext_version}"
+
+    gem_name = ext_version.sub(/_\d+(_\d+)*$/, "")
+    system "bundle exec appraisal #{ext_version} rspec spec/ext/#{gem_name}/"
   end
 end
