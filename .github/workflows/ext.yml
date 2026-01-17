@@ -8,12 +8,12 @@ jobs:
   appraise:
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 1
       matrix:
         ruby:
           - '3.2'
           - '3.3'
           - '3.4'
+          - '4.0'
 
     steps:
       - uses: actions/checkout@v3
@@ -42,10 +42,12 @@ jobs:
         if: ${{ github.event_name != 'schedule' }}
         run: bundle exec rake appraise
         env:
+          ENABLE_EXTERNAL_TESTS: ${{ secrets.ENABLE_EXTERNAL_TESTS }}
           TEST_PG_URL: ${{ secrets.TEST_PG_URL }}
 
       - name: Run rails_main appraisal
         if: ${{ github.event_name == 'schedule' }}
         run: bundle exec appraisal rails_main rspec spec/ext/*
         env:
+          ENABLE_EXTERNAL_TESTS: ${{ secrets.ENABLE_EXTERNAL_TESTS }}
           TEST_PG_URL: ${{ secrets.TEST_PG_URL }}
