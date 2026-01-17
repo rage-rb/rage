@@ -6,9 +6,12 @@ gem "rake", "~> 13.0"
 gem "rspec", "~> 3.0"
 gem "yard"
 gem "rubocop", "~> 1.65.0", require: false
-gem "activerecord", "~> 7.1.0"
+gem "activerecord", "~> 8.1.0"
 
 group :test do
+  gem "ostruct"
+  gem "benchmark"
+  gem "activesupport"
   gem "http"
   gem "pg"
   gem "mysql2"
