@@ -7,7 +7,7 @@ RSpec.describe Rage::Ext::ActiveRecord::ConnectionPool do
 
   before :all do
     Fiber.set_scheduler(Rage::FiberScheduler.new)
-    ActiveRecord::Base.establish_connection(url: "#{ENV["TEST_PG_URL"]}")
+    ActiveRecord::Base.establish_connection(url: (ENV["TEST_PG_URL"]).to_s)
     ActiveRecord::Base.connection_pool.extend(Rage::Ext::ActiveRecord::ConnectionPool)
   end
 
@@ -70,7 +70,7 @@ RSpec.describe Rage::Ext::ActiveRecord::ConnectionPool do
     it "correctly releases connections" do
       20.times.map {
         Fiber.schedule do
-          conn = subject.connection
+          subject.connection
           sleep 0.2
           subject.release_connection
         end
