@@ -9,6 +9,9 @@ gem "rubocop", "~> 1.65.0", require: false
 gem "activerecord", "~> 7.2.0"
 
 group :test do
+  gem "ostruct"
+  gem "benchmark"
+  gem "activesupport"
   gem "http"
   gem "pg"
   gem "mysql2"

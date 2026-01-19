@@ -10,7 +10,6 @@
 Gemfile.lock
 *.gem
 .idea
-
+*.gemfile.lock
 # rspec failure tracking
 .rspec_status
-

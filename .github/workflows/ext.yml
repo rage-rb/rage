@@ -1,19 +1,18 @@
 name: Ext Tests
 
 on:
-  schedule: [ cron: '0 0 * * *' ]
   pull_request:
 
 jobs:
   appraise:
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 1
       matrix:
         ruby:
           - '3.2'
           - '3.3'
           - '3.4'
+          - '4.0'
 
     steps:
       - uses: actions/checkout@v3
@@ -24,28 +23,12 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
 
-      - name: Cache Appraisal gems
-        id: cache-appraisal-gems
-        uses: actions/cache@v4
-        with:
-          path: vendor/bundle
-          key: ${{ runner.os }}-appraisals-${{ matrix.ruby }}-${{ hashFiles('gemfiles/*.gemfile.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-appraisals-${{ matrix.ruby }}-
-      
       - name: Resolve appraisals dependencies
         run: |
-          bundle config path vendor/bundle
-          bundle exec appraisal install 
+          bundle exec appraisal bundle install 
 
       - name: Run all versioned appraisals
-        if: ${{ github.event_name != 'schedule' }}
         run: bundle exec rake appraise
         env:
-          TEST_PG_URL: ${{ secrets.TEST_PG_URL }}
-
-      - name: Run rails_main appraisal
-        if: ${{ github.event_name == 'schedule' }}
-        run: bundle exec appraisal rails_main rspec spec/ext/*
-        env:
+          ENABLE_EXTERNAL_TESTS: ${{ secrets.ENABLE_EXTERNAL_TESTS }}
           TEST_PG_URL: ${{ secrets.TEST_PG_URL }}
