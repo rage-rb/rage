@@ -1,5 +1,19 @@
 ## [Unreleased]
 
+## [1.20.0] - 2026-01-20
+
+### Added
+
+- Add `Rage::Telemetry` (#186).
+- Add the `Response#status` method. (#191).
+- [Deferred] Expose deferred metadata (#188).
+- [Deferred] Support deferred middleware (#184).
+- Ensure compatibility with `Rack::Events` (#180).
+
+### Changed
+
+- Refactor the implementation of `rescue_from` in `Rage::Events` (#185).
+
 ## [1.19.2] - 2026-01-06
 
 ### Changed
