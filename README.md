@@ -23,6 +23,7 @@ Rage was built to solve the performance and stability gaps that often drive team
 - **Zero-dependency WebSockets** - Action Cable-compatible real-time features that work out-of-the-box without Redis, even in multi-process mode.
 - **Auto-generated OpenAPI** - Documentation generated from your controllers using simple comment tags.
 - **In-process Background jobs** - A durable, persistent queue that runs inside your app process. No Redis or separate worker processes required.
+- **Built-in Observability** - Track and measure application behavior with `Rage::Telemetry`. Integrate with external monitoring platforms or build custom observability solutions.
 - **Stable and focused** - Our goal is that the task "Upgrade Rage" never appears in your ticketing system. We focus strictly on APIs, maintain long-term deprecation cycles, and ensure that most updates are as simple as a `bundle update`.
 
 Rage is API-only by design. Modern applications benefit from clear separation between backend and frontend, and Rage focuses exclusively on doing APIs well.
