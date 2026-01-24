@@ -72,9 +72,12 @@ jobs:
       run: gem build -o rage-local.gem && gem install rage-local.gem --no-document
     - name: Create a project
       run: rage new my_app
+    - name: Bundle
+      working-directory: ./my_app
+      run: bundle install
     - name: Start the server
       working-directory: ./my_app
-      run: bundle install && bundle exec rage s&
+      run: bundle exec rage s&
     - name: Test the default route
       run: curl --fail http://localhost:3000
     - name: Run the routes task
@@ -119,9 +122,12 @@ jobs:
     - name: Migrate
       working-directory: ./my_app
       run: bundle exec rage db:migrate
+    - name: Bundle
+      working-directory: ./my_app
+      run: bundle install
     - name: Start the server
       working-directory: ./my_app
-      run: bundle install && bundle exec rage s&
+      run: bundle exec rage s&
     - name: Test the default route
       run: curl --fail http://localhost:3000
 
