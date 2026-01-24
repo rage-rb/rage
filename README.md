@@ -6,190 +6,208 @@
 ![Tests](https://github.com/rage-rb/rage/actions/workflows/main.yml/badge.svg)
 ![Ruby Requirement](https://img.shields.io/badge/Ruby-3.2%2B-%23f40000)
 
-Rage is a high-performance Ruby web framework that combines the developer experience of Rails with the scalability of fiber-based concurrency. Designed for API-first applications, it allows you to handle massive traffic loads using standard synchronous Ruby code - no complex async/await syntax required.
+**Rage** is an API-first Ruby framework designed to make the Ruby ecosystem competitive for modern backends. It focuses on **capability and operational simplicity**, letting teams build production-grade systems in a single, coherent runtime.
 
-If you love Rails but need better performance for I/O-heavy workloads, Rage provides the perfect balance: familiar conventions, low overhead, and a commitment to stability.
+Rage uses Rails compatibility as a foundation and provides backend primitives optimized for a single-runtime model: background jobs that run in-process, WebSockets without external dependencies, object-oriented domain events, and automatic API documentation.
 
-## Why Rage?
+## Why Rage
 
-Building high-performance APIs in Ruby shouldn't mean abandoning the conventions you know. Rage gives you Rails-like controllers, routing, and patterns, but runs on **fiber-based concurrency** that makes your application naturally non-blocking. When your code waits on database queries, HTTP calls, or other I/O, Rage automatically handles thousands of other requests instead of sitting idle.
+Modern backends are more than request/response cycles. They require:
 
-Rage was built to solve the performance and stability gaps that often drive teams to migrate away from Ruby, providing a modern engine that keeps the ecosystem competitive.
+* Asynchronous execution
+* Background jobs
+* Real-time communication
+* Observability and telemetry
+* Clear domain boundaries
 
-**Key capabilities:**
+In the Ruby ecosystem, these concerns typically mean more infrastructure: Redis, Sidekiq, separate worker processes, custom logging solutions, and multiple deployment units.
 
-- **Rails compatibility** - Familiar controller API, routing DSL, and conventions. Migrate gradually or start fresh.
-- **True concurrency** - Fiber-based architecture handles I/O without threads, locks, or async/await syntax. Your code looks synchronous but runs concurrently.
-- **Zero-dependency WebSockets** - Action Cable-compatible real-time features that work out-of-the-box without Redis, even in multi-process mode.
-- **Auto-generated OpenAPI** - Documentation generated from your controllers using simple comment tags.
-- **In-process Background jobs** - A durable, persistent queue that runs inside your app process. No Redis or separate worker processes required.
-- **Built-in Observability** - Track and measure application behavior with `Rage::Telemetry`. Integrate with external monitoring platforms or build custom observability solutions.
-- **Stable and focused** - Our goal is that the task "Upgrade Rage" never appears in your ticketing system. We focus strictly on APIs, maintain long-term deprecation cycles, and ensure that most updates are as simple as a `bundle update`.
+Rage takes a different approach: **collapse backend concerns into a single runtime** by embracing Ruby's fiber-based concurrency model. This reduces operational complexity while keeping familiar Ruby ergonomics.
 
-Rage is API-only by design. Modern applications benefit from clear separation between backend and frontend, and Rage focuses exclusively on doing APIs well.
+### Unified Runtime in Action
 
-## Installation
-
-Install the gem:
-
-```
-$ gem install rage-rb
-```
-
-Create a new app:
-
-```
-$ rage new my_app
-```
-
-Switch to your new application and install dependencies:
-
-```
-$ cd my_app
-$ bundle
-```
-
-Start up the server and visit http://localhost:3000.
-
-```
-$ rage s
-```
-
-Start coding!
-
-## How It Works
-
-Rage runs each request in a separate fiber. When your code performs I/O operations - HTTP requests, database queries, file reads - the fiber automatically pauses, and Rage processes other requests. When the I/O completes, the fiber resumes exactly where it left off.
-
-This happens transparently. You write normal Ruby code, and Rage handles the concurrency.
-
-### Example
-
-Here's a controller that fetches data from an external API:
+Here's what single runtime looks like in practice:
 
 ```ruby
-require "net/http"
+class OrdersController < RageController::API
+  def create
+    order = Order.create!(order_params)
 
-class PagesController < RageController::API
-  rescue_from SocketError do |_|
-    render json: { message: "error" }, status: 500
+    # Schedule background job - runs in-process, no Redis needed
+    SendOrderConfirmation.enqueue(order.id)
+
+    # Publish domain event - subscribers execute immediately or async
+    Rage::Events.publish(OrderPlaced.new(order: order))
+
+    # Broadcast to WebSocket subscribers - no Action Cable/Redis needed
+    Rage::Cable.broadcast("orders", { status: "created", order_id: order.id })
+
+    render json: order, status: :created
   end
+end
 
-  before_action :set_metadata
+# Background job - runs in the same process
+class SendOrderConfirmation
+  include Rage::Deferred::Task
 
-  def show
-    page = Net::HTTP.get(URI("https://httpbin.org/json"))
-    render json: { page: page, metadata: @metadata }
+  def perform(order_id)
+    order = Order.find(order_id)
+    OrderMailer.confirmation(order).deliver
   end
+end
 
-  private
+# Domain event - typed, object-oriented
+OrderPlaced = Data.define(:order)
 
-  def set_metadata
-    @metadata = { format: "json", time: Time.now.to_i }
+# Event subscriber
+class UpdateInventory
+  include Rage::Events::Subscriber
+  subscribe_to OrderPlaced
+
+  def call(event)
+    Inventory.decrement(event.order.items.length)
   end
 end
 ```
 
-This looks like a standard Rails controller, and it is - except during `Net::HTTP.get`, Rage automatically pauses this fiber and processes other requests. When the HTTP call completes, Rage resumes exactly where it left off. This happens automatically for HTTP requests, PostgreSQL, MySQL, and other I/O operations.
+This all runs in a single process. No external queues, no separate worker dynos, no Redis for pub/sub.
 
-The routes are equally familiar:
+## Coming from Rails?
 
-```ruby
-Rage.routes.draw do
-  get "page", to: "pages#show"
-end
-```
+Rage keeps the parts of Rails that work - controllers, routing, Active Record compatibility, and conventions - but rethinks how backend systems are run.
 
-### Parallel Execution
+Instead of adding separate job queues, Redis, and multiple deployment units as your app grows, Rage uses Ruby's fiber-based concurrency to run APIs, background jobs, WebSockets, and domain events **in the same process**.
 
-Need to make multiple I/O calls? Use `Fiber.await` to run them concurrently:
+You write familiar synchronous Ruby code. Rage handles the concurrency.
 
-```ruby
-require "net/http"
+**What changes:**
 
-class PagesController < RageController::API
-  def index
-    pages = Fiber.await([
-      Fiber.schedule { Net::HTTP.get(URI("https://httpbin.org/json")) },
-      Fiber.schedule { Net::HTTP.get(URI("https://httpbin.org/html")) },
-    ])
+- One deployment unit instead of API servers + worker processes
+- No Redis required for jobs or broadcasts
+- Domain events as objects, not string-based notifications
+- OpenAPI specs generated automatically from your code
 
-    render json: { pages: pages }
-  end
-end
-```
+**What stays the same:**
 
-Instead of waiting for each request sequentially, Rage executes them concurrently and waits for all to complete.
+- Controller conventions and routing DSL
+- Active Record integration
+- Incremental adoption for existing Rails apps
 
-## Two Ways to Use Rage
+Think of Rage as Rails ergonomics with a runtime designed for modern API systems, where operational simplicity is a first-class concern.
 
-**Standalone**: Create new services with `rage new`. You get a clean project structure, CLI tools, and everything needed to build high-performance APIs from scratch.
+## Core Ideas
 
-**Rails Integration**: Add Rage to existing Rails applications for gradual migration. Use Rage for new endpoints or high-traffic routes while keeping the rest of your Rails app unchanged. See the [Rails Integration guide](https://rage-rb.dev/docs/rails) for details.
+### 1. Unified Backend Runtime
 
-## Documentation
+Rage runs HTTP APIs, background jobs, and WebSockets in the same process by default:
 
-- [Getting Started](https://rage-rb.dev/docs/intro/) - Core concepts and setup
-- [Controllers](https://rage-rb.dev/docs/controllers/) - Request handling and callbacks
-- [Routing](https://rage-rb.dev/docs/routing/) - RESTful routes and namespaces
-- [WebSockets](https://rage-rb.dev/docs/websockets/) - Real-time communication
-- [OpenAPI](https://rage-rb.dev/docs/openapi/) - Auto-generated documentation
-- [Background Jobs](https://rage-rb.dev/docs/deferred/) - In-process queue system
-- [API Reference](https://rage-rb.dev/api/) - Detailed API documentation
+- No separate worker processes
+- No Redis required for jobs or broadcasts
+- One deployment unit for most applications
 
-For contributors, check the [architecture doc](https://github.com/rage-rb/rage/blob/main/ARCHITECTURE.md) to understand how Rage's components work together.
+This simplifies both local development and production setup.
 
-## Performance
+For high-scale scenarios, Rage supports multi-process deployments and allows Rage processes to communicate directly when needed.
 
-Rage's fiber-based architecture delivers high throughput with minimal overhead. By stripping away the "framework tax", Rage gives your team more leeway to write slow-but-maintainable Ruby code without compromising the end-user experience.
+### 2. API-First, Rails-Compatible
 
-#### Simple JSON responses
+Rage provides a familiar Rails-like programming model with API-focused improvements:
 
-```ruby
-class BenchmarksController < ApplicationController
-  def index
-    render json: { hello: "world" }
-  end
-end
-```
+- Controllers and routing that feel like Rails
+- Active Record compatibility
+- Incremental adoption for existing Rails applications
+- OpenAPI specs auto-generated from your code
 
-![Requests per second](https://github.com/user-attachments/assets/7bb783f8-5d1b-4e7d-b14d-dafe370d1acc)
+Rails compatibility is the foundation. Rage builds new primitives on top where Rails stops short.
 
+### 3. Built-in Asynchronous Execution
 
-#### I/O-bound operations
+Rage ships with **fiber-based, in-process background jobs**:
 
-```ruby
-class BenchmarksController < ApplicationController
-  def index
-    Net::HTTP.get(URI("<endpoint-that-responds-in-one-second>"))
-    head :ok
-  end
-end
-```
+- Zero setup - no Redis, no configuration
+- Jobs persist across restarts
+- Scheduled and executed within the same runtime using fibers for concurrency
 
-![Time to complete 100 requests](https://github.com/user-attachments/assets/5155a65f-2f11-4303-b5e4-a74d3d123c16)
+For teams that need distributed job processing, Rage works with existing solutions. But most applications can start simple and stay simple.
 
-#### Database Queries
+### 4. Structured Domain Events
 
-```ruby
-class BenchmarksController < ApplicationController
-  def show
-    render json: World.find(rand(1..10_000))
-  end
-end
-```
+Rage includes a built‑in event bus designed for **object‑oriented domain events**:
 
-![Requests per second-2](https://github.com/user-attachments/assets/06f64a08-316f-4b24-ba2d-39ac395366aa)
+* Events are classes with explicit attributes, not hashes or strings
+* Subscribers listen to event classes or mixins
+* Type-safe and refactorable
 
-## Development
+This encourages clear domain modeling and avoids the brittleness of string-based notification systems.
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+### 5. Observability by Design
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+Observability is not an afterthought:
 
-## Contributing
+- Structured logging by default
+- Dedicated observability interface for HTTP, background, and real-time features
+- OpenAPI specifications generated automatically from the running application
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/rage-rb/rage. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/rage-rb/rage/blob/main/CODE_OF_CONDUCT.md).
+API contracts stay in sync with code by default - no separate documentation pipelines.
+
+### 6. Performance That Enables Simplicity
+
+Rage's fiber-based concurrency delivers strong performance for I/O-heavy workloads, but performance is a means to an end: operational simplicity.
+
+By handling concurrency efficiently, Rage lets you:
+
+- Run fewer servers
+- Deploy fewer services
+- Skip infrastructure that only exists to work around framework limitations
+
+The goal is to let teams write maintainable Ruby code without the "framework tax" forcing premature optimization or infrastructure sprawl.
+
+## Philosophy
+
+Rage is intentionally conservative about change.
+
+The framework prioritizes:
+
+- **Stable public APIs**
+- **Long deprecation cycles**
+- **Minimal external dependencies**
+
+The goal is to let teams build systems that **age well** - without constant rewrites or growing infrastructure complexity.
+
+Our aspiration: the task "Upgrade Rage" never appears in your ticketing system. Most updates should be as simple as `bundle update`.
+
+## What Rage Is (and Isn't)
+
+**Rage is:**
+
+- Focused on backend APIs
+- Opinionated about operational simplicity
+- Designed for long-term stability
+- Rails-compatible but architecturally independent
+
+**Rage is not:**
+
+- A full-stack framework - no view layer, no asset pipeline
+- A Rails clone - compatibility is a bridge, not the destination
+- Trying to do everything - deliberate scope boundaries
+
+## Who Rage Is For
+
+Rage is a good fit if you:
+
+- Build API-only backends in Ruby
+- Care about operational simplicity over maximum flexibility
+- Want fewer moving parts in production
+- Prefer explicit, object-oriented design
+- Value long-term stability over cutting-edge features
+
+## Learn More
+
+- Documentation: [https://rage-rb.dev](https://rage-rb.dev/docs/intro)
+- API Reference: [https://rage-rb.dev/api](https://rage-rb.dev/api)
+- Architecture: [ARCHITECTURE.md](https://github.com/rage-rb/rage/blob/main/ARCHITECTURE.md)
+
+Contributions and thoughtful feedback are welcome.
 
 ## License
 
