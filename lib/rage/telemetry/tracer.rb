@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# @private
 class Rage::Telemetry::Tracer
   DEFAULT_SPAN_RESULT = Rage::Telemetry::SpanResult.new.freeze
   private_constant :DEFAULT_SPAN_RESULT
