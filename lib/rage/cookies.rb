@@ -250,7 +250,7 @@ class Rage::Cookies
   end
 
   class EncryptedJar
-    SALT = "encrypted cookie"
+    INFO = "encrypted cookie"
     PADDING = "00"
 
     class << self
@@ -296,16 +296,24 @@ class Rage::Cookies
             raise "Rage.config.secret_key_base should be set to use encrypted cookies"
           end
 
-          RbNaCl::SimpleBox.from_secret_key(
-            RbNaCl::Hash.blake2b(Rage.config.secret_key_base, digest_size: 32, salt: SALT)
-          )
+          RbNaCl::SimpleBox.from_secret_key(build_key(Rage.config.secret_key_base))
         end
       end
 
       def fallback_boxes
-        @fallback_boxes ||= Rage.config.fallback_secret_key_base.map do |key|
-          RbNaCl::SimpleBox.from_secret_key(RbNaCl::Hash.blake2b(key, digest_size: 32, salt: SALT))
+        @fallback_boxes ||= begin
+          fallbacks = Rage.config.fallback_secret_key_base.map do |key|
+            RbNaCl::SimpleBox.from_secret_key(build_key(key))
+          end
+
+          fallbacks << RbNaCl::SimpleBox.from_secret_key(
+            RbNaCl::Hash.blake2b(Rage.config.secret_key_base, digest_size: 32, salt: INFO)
+          )
         end
+      end
+
+      def build_key(secret)
+        RbNaCl::Hash.blake2b("", key: [secret].pack("H*"), digest_size: 32, personal: INFO)
       end
     end # class << self
   end
