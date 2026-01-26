@@ -46,7 +46,7 @@ class OrdersController < RageController::API
   end
 end
 
-# Background job - runs in the same process
+# Background job - runs in the same process, persisted to disk
 class SendOrderConfirmation
   include Rage::Deferred::Task
 
