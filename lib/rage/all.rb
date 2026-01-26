@@ -36,7 +36,3 @@ require_relative "middleware/request_id"
 require_relative "middleware/body_finalizer"
 
 require_relative "telemetry/telemetry"
-
-if defined?(Sidekiq)
-  require_relative "sidekiq_session"
-end
