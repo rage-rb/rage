@@ -4,6 +4,7 @@
 # Collect all global comments or comments attached to methods in a class.
 # At this point we don't care whether these are Rage OpenAPI comments or not.
 #
+# @private
 class Rage::OpenAPI::Collector < Prism::Visitor
   # @param comments [Array<Prism::InlineComment>]
   def initialize(comments)

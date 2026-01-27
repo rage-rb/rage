@@ -4,6 +4,7 @@
 # Context for deferred tasks.
 # The class encapsulates the context associated with a deferred task, and allows to store it without modifying the task instance.
 #
+# @private
 class Rage::Deferred::Context
   def self.build(task, args, kwargs)
     logger = Thread.current[:rage_logger]
