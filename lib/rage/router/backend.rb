@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "uri"
+require "digest"
 
 class Rage::Router::Backend
   attr_reader :routes
@@ -23,28 +24,25 @@ class Rage::Router::Backend
     raise ArgumentError, "Mount handler should respond to `call`" unless handler.respond_to?(:call)
 
     raw_handler = handler
-    is_sidekiq = handler.respond_to?(:name) && handler.name == "Sidekiq::Web"
+    handler = wrap_in_rack_session(handler) if handler.respond_to?(:name) && handler.name == "Sidekiq::Web"
 
-    handler = ->(env, _params) do
+    app = ->(env, _params) do
+      # rewind `rack.input` in case mounted application needs to access the request body;
+      # by the time the app is called, `rack.input` is already consumed in `Rage::ParamsParser`
+      env["rack.input"].rewind
+
       env["SCRIPT_NAME"] = path
       sub_path = env["PATH_INFO"].delete_prefix!(path)
       env["PATH_INFO"] = "/" if sub_path == ""
 
-      if is_sidekiq
-        Rage::SidekiqSession.with_session(env) do
-          raw_handler.call(env)
-        end
-      else
-        raw_handler.call(env)
-      end
-
+      handler.call(env)
     ensure
       env["PATH_INFO"] = "#{env["SCRIPT_NAME"]}#{sub_path}"
     end
 
     methods.each do |method|
-      __on(method, path, handler, {}, {}, { raw_handler:, mount: true })
-      __on(method, "#{path}/*", handler, {}, {}, { raw_handler:, mount: true })
+      __on(method, path, app, {}, {}, { raw_handler:, mount: true })
+      __on(method, "#{path}/*", app, {}, {}, { raw_handler:, mount: true })
     end
   end
 
@@ -277,5 +275,24 @@ class Rage::Router::Backend
         path_index = param_end_index
       end
     end
+  end
+
+  def wrap_in_rack_session(handler)
+    unless defined?(Rack::Session::Cookie)
+      fail <<~ERR
+
+        `#{handler.name}` depends on `Rack::Session`. Ensure the following line is added to your Gemfile:
+        gem "rack-session"
+
+      ERR
+    end
+
+    secret_key = if Rage.config.secret_key_base
+      Digest::SHA2.hexdigest("rack.session" + handler.name + [Rage.config.secret_key_base].pack("H*"))
+    else
+      Digest::SHA2.hexdigest(Rage.root.join("Gemfile.lock").read + Rage.root.join("config/routes.rb").read)
+    end
+
+    Rack::Session::Cookie.new(handler, secret: secret_key, same_site: true, max_age: 86400)
   end
 end
