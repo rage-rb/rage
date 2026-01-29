@@ -154,7 +154,12 @@ module Rage
         meta = route[:constraints]
         meta.merge!(route[:defaults]) if route[:defaults]
 
-        handler = route[:meta][:raw_handler]
+        raw_handler = route[:meta][:raw_handler]
+        handler = if raw_handler.respond_to?(:__rage_app_name)
+          raw_handler.__rage_app_name
+        else
+          raw_handler
+        end
         handler = "#{handler} #{meta}" unless meta&.empty?
 
         puts format("%-#{longest_method}s%-#{longest_path}s%s", route[:method], route[:path], handler)

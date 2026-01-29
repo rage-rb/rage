@@ -22,8 +22,13 @@ class Rage::Router::Backend
   def mount(path, handler, methods)
     raise ArgumentError, "Mount handler should respond to `call`" unless handler.respond_to?(:call)
 
-    raw_handler = handler
-    handler = wrap_in_rack_session(handler) if handler.respond_to?(:name) && handler.name == "Sidekiq::Web"
+    raw_handler = handler.respond_to?(:__rage_root_app) ? handler.__rage_root_app : handler
+
+    handler = if handler.respond_to?(:name) && handler.name == "Sidekiq::Web"
+      wrap_in_rack_session(handler)
+    else
+      raw_handler
+    end
 
     app = ->(env, _params) do
       # rewind `rack.input` in case mounted application needs to access the request body;
