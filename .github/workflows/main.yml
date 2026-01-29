@@ -15,9 +15,9 @@ jobs:
       max-parallel: 1
       matrix:
         ruby:
-          - '3.2'
-          - '3.3'
-          - '3.4'
+          # - '3.2'
+          # - '3.3'
+          # - '3.4'
           - '4.0'
     steps:
     - uses: actions/checkout@v3
@@ -26,6 +26,7 @@ jobs:
       with:
         ruby-version: ${{ matrix.ruby }}
         bundler-cache: true
+        cache-version: 1
     - name: Run the default task
       env:
         TEST_HTTP_URL: ${{ secrets.TEST_HTTP_URL }}

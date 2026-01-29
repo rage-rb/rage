@@ -4,6 +4,7 @@ module IntegrationHelper
   def launch_server(env: {})
     Bundler.with_unbundled_env do
       system("gem build -o rage-local.gem && gem install rage-local.gem --no-document")
+      system("gem install redis-client --no-document")
       system("bundle install", chdir: "spec/integration/test_app")
       @pid = spawn(env, "bundle exec rage s", chdir: "spec/integration/test_app")
       sleep(2)
