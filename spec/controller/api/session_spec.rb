@@ -10,11 +10,11 @@ RSpec.describe RageController::API do
   let(:headers) { { "HTTP_COOKIE" => "#{Rage::Session.key}=#{encoded_session}" } }
 
   before do
-    allow(Rage.config).to receive(:secret_key_base).and_return("rage-test-key")
+    allow(Rage.config).to receive(:secret_key_base).and_return("b7ef8f0824ffbddb85818fb6898546a1")
   end
 
   context "when reading a valid session" do
-    let(:encoded_session) { "MDDTFjPTyaIdJjZG2C-RJmDPC_5fMyBMTn87Dv7EID3g-OJwakyxFQUhoSlxwqdLRw4npvm08F0=" }
+    let(:encoded_session) { "MDCf27lpe1B7qJB-1bZpqzuZ-0Tf2i0YocehRwCz5cnm6ktYi0djcr-zDtgZZQFyUhp4Q-zPM_8=" }
 
     it "correctly reads values" do
       expect(subject.session[:a]).to eq(1)

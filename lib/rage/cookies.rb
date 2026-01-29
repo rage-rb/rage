@@ -6,7 +6,7 @@ require "time"
 if !defined?(DomainName)
   fail <<~ERR
 
-    rage-rb depends on domain_name to specify the domain name for cookies. Add the following line to your Gemfile:
+    Rage depends on `domain_name` to specify the domain name for cookies. Ensure the following line is added to your Gemfile:
     gem "domain_name"
 
   ERR
@@ -250,7 +250,7 @@ class Rage::Cookies
   end
 
   class EncryptedJar
-    SALT = "encrypted cookie"
+    INFO = "encrypted cookie"
     PADDING = "00"
 
     class << self
@@ -266,7 +266,7 @@ class Rage::Cookies
           Rage.logger.debug("Failed to decrypt encrypted cookie")
           i ||= 0
           if (box = fallback_boxes[i])
-            Rage.logger.debug("Trying to decrypt with fallback key ##{i + 1}")
+            Rage.logger.debug { "Trying to decrypt with fallback key ##{i + 1}" }
             i += 1
             retry
           end
@@ -286,7 +286,7 @@ class Rage::Cookies
           if !defined?(RbNaCl) || !(Gem::Version.create(RbNaCl::VERSION) >= Gem::Version.create("3.3.0") && Gem::Version.create(RbNaCl::VERSION) < Gem::Version.create("8.0.0"))
             fail <<~ERR
 
-              rage-rb depends on rbnacl [>= 3.3, < 8.0] to encrypt cookies. Add the following line to your Gemfile:
+              Rage depends on `rbnacl` [>= 3.3, < 8.0] to encrypt cookies. Ensure the following line is added to your Gemfile:
               gem "rbnacl"
 
             ERR
@@ -296,16 +296,24 @@ class Rage::Cookies
             raise "Rage.config.secret_key_base should be set to use encrypted cookies"
           end
 
-          RbNaCl::SimpleBox.from_secret_key(
-            RbNaCl::Hash.blake2b(Rage.config.secret_key_base, digest_size: 32, salt: SALT)
-          )
+          RbNaCl::SimpleBox.from_secret_key(build_key(Rage.config.secret_key_base))
         end
       end
 
       def fallback_boxes
-        @fallback_boxes ||= Rage.config.fallback_secret_key_base.map do |key|
-          RbNaCl::SimpleBox.from_secret_key(RbNaCl::Hash.blake2b(key, digest_size: 32, salt: SALT))
+        @fallback_boxes ||= begin
+          fallbacks = Rage.config.fallback_secret_key_base.map do |key|
+            RbNaCl::SimpleBox.from_secret_key(build_key(key))
+          end
+
+          fallbacks << RbNaCl::SimpleBox.from_secret_key(
+            RbNaCl::Hash.blake2b(Rage.config.secret_key_base, digest_size: 32, salt: INFO)
+          )
         end
+      end
+
+      def build_key(secret)
+        RbNaCl::Hash.blake2b("", key: [secret].pack("H*"), digest_size: 32, personal: INFO)
       end
     end # class << self
   end
