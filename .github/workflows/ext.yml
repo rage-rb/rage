@@ -24,11 +24,13 @@ jobs:
           bundler-cache: true
 
       - name: Resolve appraisals dependencies
-        run: |
-          bundle exec appraisal bundle install 
+        run: bundle exec appraisal bundle install
+        env:
+          BUNDLE_PATH: vendor/bundle
 
       - name: Run all versioned appraisals
         run: bundle exec rake appraise
         env:
           ENABLE_EXTERNAL_TESTS: ${{ secrets.ENABLE_EXTERNAL_TESTS }}
           TEST_PG_URL: ${{ secrets.TEST_PG_URL }}
+          BUNDLE_PATH: vendor/bundle
