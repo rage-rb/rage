@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "uri"
-require "digest"
 
 class Rage::Router::Backend
   attr_reader :routes
@@ -288,9 +287,18 @@ class Rage::Router::Backend
     end
 
     secret_key = if Rage.config.secret_key_base
-      Digest::SHA2.hexdigest("rack.session" + handler.name + [Rage.config.secret_key_base].pack("H*"))
+      require "openssl"
+      OpenSSL::KDF.hkdf(
+        [Rage.config.secret_key_base].pack("H*"),
+        salt: "rack.session",
+        info: handler.name,
+        length: 64,
+        hash: "SHA256"
+      )
     else
-      Digest::SHA2.hexdigest(Rage.root.join("Gemfile.lock").read + Rage.root.join("config/routes.rb").read)
+      puts "WARNING: `secret_key_base` is not set. Using a temporary random secret for `#{handler.name}` sessions. Sessions will not persist across server restarts."
+      require "securerandom"
+      SecureRandom.random_bytes(64)
     end
 
     Rack::Session::Cookie.new(handler, secret: secret_key, same_site: true, max_age: 86400)
