@@ -54,6 +54,7 @@ module Rage::Cable
     end
 
     chain = Rage.with_middlewares(application, Rage.config.cable.middlewares)
+    application.define_singleton_method(:__rage_app_name) { "Rage::Cable" }
     chain.define_singleton_method(:__rage_root_app) { application }
 
     chain

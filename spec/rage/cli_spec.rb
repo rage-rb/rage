@@ -601,4 +601,176 @@ RSpec.describe Rage::CLI do
       end
     end
   end
+
+  describe "#routes" do
+    subject { rage_cli.routes }
+
+    let(:router) { instance_double("Rage::Router::Backend") }
+
+    before do
+      allow(rage_cli).to receive(:environment)
+      allow(Rage).to receive(:__router).and_return(router)
+      allow(router).to receive(:routes).and_return(routes)
+    end
+
+    context "when there are no routes" do
+      let(:routes) { [] }
+
+      it "outputs only the header" do
+        expect { subject }.to output(/Verb\s+Path\s+Controller#Action/).to_stdout
+      end
+    end
+
+    context "when there is a single route" do
+      let(:routes) do
+        [
+          { method: "GET", path: "/", meta: { raw_handler: "application#index" }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      it "outputs the route" do
+        expect { subject }.to output(/GET\s+\/\s+application#index/).to_stdout
+      end
+    end
+
+    context "when there are multiple routes" do
+      let(:routes) do
+        [
+          { method: "GET", path: "/users", meta: { raw_handler: "users#index" }, constraints: {}, defaults: nil },
+          { method: "POST", path: "/users", meta: { raw_handler: "users#create" }, constraints: {}, defaults: nil },
+          { method: "GET", path: "/users/:id", meta: { raw_handler: "users#show" }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      it "outputs all routes" do
+        output = capture_stdout { subject }
+
+        expect(output).to match(/GET\s+\/users\s+users#index/)
+        expect(output).to match(/POST\s+\/users\s+users#create/)
+        expect(output).to match(/GET\s+\/users\/:id\s+users#show/)
+      end
+    end
+
+    context "when routes have the same path and handler" do
+      let(:routes) do
+        [
+          { method: "GET", path: "/resource", meta: { raw_handler: "resource#action" }, constraints: {}, defaults: nil },
+          { method: "POST", path: "/resource", meta: { raw_handler: "resource#action" }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      it "groups the methods with a pipe" do
+        expect { subject }.to output(/GET\|POST\s+\/resource\s+resource#action/).to_stdout
+      end
+    end
+
+    context "when a route has constraints" do
+      let(:routes) do
+        [
+          { method: "GET", path: "/users/:id", meta: { raw_handler: "users#show" }, constraints: { id: /\d+/ }, defaults: nil }
+        ]
+      end
+
+      it "outputs the route with constraints" do
+        expect { subject }.to output(/GET\s+\/users\/:id\s+users#show \{:?id(:|=>)/).to_stdout
+      end
+    end
+
+    context "when a route has defaults" do
+      let(:routes) do
+        [
+          { method: "GET", path: "/users", meta: { raw_handler: "users#index" }, constraints: {}, defaults: { format: :json } }
+        ]
+      end
+
+      it "outputs the route with defaults" do
+        expect { subject }.to output(/GET\s+\/users\s+users#index \{:?format(:|=>)\s?:json\}/).to_stdout
+      end
+    end
+
+    context "when filtering routes with --grep option" do
+      subject { rage_cli.routes }
+
+      let(:routes) do
+        [
+          { method: "GET", path: "/users", meta: { raw_handler: "users#index" }, constraints: {}, defaults: nil },
+          { method: "GET", path: "/posts", meta: { raw_handler: "posts#index" }, constraints: {}, defaults: nil },
+          { method: "POST", path: "/users", meta: { raw_handler: "users#create" }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      let(:rage_cli) { described_class.new([], grep: "users") }
+
+      it "only outputs matching routes" do
+        output = capture_stdout { subject }
+
+        expect(output).to match(/users#index/)
+        expect(output).to match(/users#create/)
+        expect(output).not_to match(/posts#index/)
+      end
+    end
+
+    context "when filtering routes by method" do
+      subject { rage_cli.routes }
+
+      let(:routes) do
+        [
+          { method: "GET", path: "/users", meta: { raw_handler: "users#index" }, constraints: {}, defaults: nil },
+          { method: "POST", path: "/users", meta: { raw_handler: "users#create" }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      let(:rage_cli) { described_class.new([], grep: "POST") }
+
+      it "only outputs routes matching the method" do
+        output = capture_stdout { subject }
+
+        expect(output).to match(/POST\s+\/users\s+users#create/)
+        expect(output).not_to match(/GET\s+\/users\s+users#index/)
+      end
+    end
+
+    context "when a route is a mounted app" do
+      let(:mounted_app) do
+        Class.new do
+          def self.__rage_app_name
+            "Sidekiq::Web"
+          end
+        end
+      end
+
+      let(:routes) do
+        [
+          { method: "GET", path: "/sidekiq", meta: { raw_handler: mounted_app, mount: true }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      it "outputs the mounted app name" do
+        expect { subject }.to output(/\s+\/sidekiq\s+Sidekiq::Web/).to_stdout
+      end
+    end
+
+    context "when a mounted route ends with *" do
+      let(:routes) do
+        [
+          { method: "GET", path: "/sidekiq/*", meta: { raw_handler: "SidekiqWeb", mount: true }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      it "does not output the route" do
+        output = capture_stdout { subject }
+
+        expect(output).not_to match(/\/sidekiq\/\*/)
+      end
+    end
+
+    def capture_stdout
+      original_stdout = $stdout
+      $stdout = StringIO.new
+      yield
+      $stdout.string
+    ensure
+      $stdout = original_stdout
+    end
+  end
 end
