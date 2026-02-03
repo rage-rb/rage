@@ -102,4 +102,34 @@ RSpec.describe Rage::Router::Backend do
       end
     end
   end
+
+  context "with root app" do
+    let(:app) do
+      Class.new do
+        def self.call(_)
+          :app_response
+        end
+      end
+    end
+
+    let(:middleware) do
+      Class.new do
+        def self.call(_)
+          :middleware_response
+        end
+      end
+    end
+
+    before do
+      root_app = app
+      middleware.define_singleton_method(:__rage_root_app) { root_app }
+    end
+
+    it "delegates to root app" do
+      router.mount("/test", middleware, %w(GET))
+
+      result, _ = perform_get_request("/test")
+      expect(result).to eq(:app_response)
+    end
+  end
 end

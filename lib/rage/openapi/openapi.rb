@@ -67,13 +67,17 @@ module Rage::OpenAPI
       end
     end
 
-    if Rage.config.middleware.include?(Rage::Reloader)
+    chain = if Rage.config.middleware.include?(Rage::Reloader)
       Rage.with_middlewares(app, [Rage::Reloader])
     elsif defined?(ActionDispatch::Reloader) && Rage.config.middleware.include?(ActionDispatch::Reloader)
       Rage.with_middlewares(app, [ActionDispatch::Reloader])
     else
       app
     end
+
+    chain.define_singleton_method(:__rage_app_name) { "Rage::OpenAPI" }
+
+    chain
   end
 
   # Build an OpenAPI specification for the application.
