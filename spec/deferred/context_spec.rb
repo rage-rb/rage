@@ -5,10 +5,10 @@ RSpec.describe Rage::Deferred::Context do
     let(:kwargs) { { key: "value" } }
 
     after do
-      Thread.current[:rage_logger] = nil
+      Fiber[:__rage_logger_tags] = nil
     end
 
-    context "when Thread.current[:rage_logger] is not set" do
+    context "when rage_logger is not set" do
       it "builds context with nil request_id" do
         context = described_class.build(task, args, kwargs)
         expect(context[0]).to eq(task)
@@ -25,9 +25,9 @@ RSpec.describe Rage::Deferred::Context do
       end
     end
 
-    context "when Thread.current[:rage_logger] is set" do
+    context "when rage_logger is set" do
       before do
-        Thread.current[:rage_logger] = { tags: ["req-123", "test"] }
+        Fiber[:__rage_logger_tags] = ["req-123", "test"]
       end
 
       it "builds context including log tags" do

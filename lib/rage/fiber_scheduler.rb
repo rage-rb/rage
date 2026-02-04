@@ -126,10 +126,7 @@ class Rage::FiberScheduler
       end
     else
       # the fiber was created in the user code
-      logger = Thread.current[:rage_logger]
-
       Fiber.new(blocking: false) do
-        Thread.current[:rage_logger] = logger
         Rage::Telemetry.tracer.span_core_fiber_spawn(parent:) do
           Fiber.current.__set_result(block.call)
         end

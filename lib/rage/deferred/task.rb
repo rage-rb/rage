@@ -93,10 +93,10 @@ module Rage::Deferred::Task
     log_context = Rage::Deferred::Context.get_log_context(context)
 
     if log_tags.is_a?(Array)
-      Thread.current[:rage_logger] = { tags: log_tags, context: log_context }
+      Fiber[:__rage_logger_tags], Fiber[:__rage_logger_context] = log_tags, log_context
     elsif log_tags
       # support the previous format where only `request_id` was passed
-      Thread.current[:rage_logger] = { tags: [log_tags], context: {} }
+      Fiber[:__rage_logger_tags], Fiber[:__rage_logger_context] = [log_tags], {}
     end
   end
 
