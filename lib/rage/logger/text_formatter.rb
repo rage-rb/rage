@@ -24,15 +24,14 @@ class Rage::TextFormatter
   end
 
   def call(severity, timestamp, _, message)
-    logger = Thread.current[:rage_logger] || { tags: [], context: {} }
-    tags, context = logger[:tags], logger[:context]
+    tags, context = Fiber[:__rage_logger_tags] || [], Fiber[:__rage_logger_context] || {}
 
     if !context.empty?
       context_msg = ""
       context.each { |k, v| context_msg << "#{k}=#{v} " }
     end
 
-    if (final = logger[:final])
+    if (final = Fiber[:__rage_logger_final])
       params, env = final[:params], final[:env]
       tags = tags.map { |tag| "[#{tag}]" }.join
 

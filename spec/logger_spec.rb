@@ -6,13 +6,13 @@ RSpec.describe Rage::Logger do
   subject { described_class.new(io) }
 
   let(:io) { StringIO.new }
+  let(:log) { io.tap(&:rewind).read }
 
   before do
-    Thread.current[:rage_logger] = {
-      tags: ["my_test_tag"],
-      context: {},
-      request_start: 123
-    }
+    Fiber[:__rage_logger_tags] = ["my_test_tag"]
+    Fiber[:__rage_logger_context] = {}
+    Fiber[:__rage_logger_request_start] = 123
+    Fiber[:__rage_logger_final] = nil
 
     allow(Iodine::Rack::Utils).to receive(:gen_timestamp).and_return("very_accurate_timestamp")
     allow(Process).to receive(:pid).and_return(777)
@@ -128,7 +128,7 @@ RSpec.describe Rage::Logger do
         referenced_tags = nil
 
         subject.tagged("rspec") do
-          referenced_tags = Thread.current[:rage_logger][:tags]
+          referenced_tags = Fiber[:__rage_logger_tags]
           subject.info "test passed"
         end
 
@@ -186,7 +186,7 @@ RSpec.describe Rage::Logger do
         referenced_context = nil
 
         subject.with_context(rspec: true) do
-          referenced_context = Thread.current[:rage_logger][:context]
+          referenced_context = Fiber[:__rage_logger_context]
           subject.info "text"
         end
 
@@ -197,7 +197,9 @@ RSpec.describe Rage::Logger do
 
   context "outside the request/response cycle" do
     before do
-      Thread.current[:rage_logger] = nil
+      Fiber[:__rage_logger_tags] = nil
+      Fiber[:__rage_logger_context] = nil
+      Fiber[:__rage_logger_final] = nil
     end
 
     it "correctly adds an entry" do
@@ -222,7 +224,7 @@ RSpec.describe Rage::Logger do
 
   context "with request logs" do
     before do
-      Thread.current[:rage_logger][:final] = {
+      Fiber[:__rage_logger_final] = {
         env: { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/test_path" },
         params: { controller: "rspec", action: "index", id: "123" },
         response: [300, {}, []],
@@ -239,7 +241,7 @@ RSpec.describe Rage::Logger do
 
     context "with no params" do
       before do
-        Thread.current[:rage_logger][:final].delete(:params)
+        Fiber[:__rage_logger_final].delete(:params)
       end
 
       it "correctly add an entry" do
@@ -250,7 +252,7 @@ RSpec.describe Rage::Logger do
 
     context "with empty params" do
       before do
-        Thread.current[:rage_logger][:final][:params] = {}
+        Fiber[:__rage_logger_final][:params] = {}
       end
 
       it "correctly add an entry" do
@@ -261,7 +263,7 @@ RSpec.describe Rage::Logger do
 
     context "with namespaced controllers" do
       before do
-        Thread.current[:rage_logger][:final][:params][:controller] = "api/v2/users"
+        Fiber[:__rage_logger_final][:params][:controller] = "api/v2/users"
         stub_const("Api::V2::UsersController", double(name: "Api::V2::UsersController"))
       end
 
@@ -312,6 +314,9 @@ RSpec.describe Rage::Logger do
       end
 
       it "delegates logger calls to external logger" do
+        p "grep_me !!!!!!!"
+        p Fiber.current.storage
+
         expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info message=test\n")
         subject.info "test"
 
@@ -579,6 +584,132 @@ RSpec.describe Rage::Logger do
             )
 
             subject.info "test"
+          end
+        end
+      end
+    end
+  end
+
+  context "with intersecting fibers" do
+    before :all do
+      Fiber.set_scheduler(Rage::FiberScheduler.new)
+    end
+
+    after :all do
+      Fiber.set_scheduler(nil)
+    end
+
+    context "with separate fibers" do
+      it "correctly isolates context" do
+        within_reactor do
+          f1 = Fiber.schedule do
+            subject.with_context(fiber_no: 1, test_key_1: true) do
+              sleep 0.2
+              subject.info "test fiber 1"
+            end
+          end
+
+          f2 = Fiber.schedule do
+            subject.with_context(fiber_no: 2, test_key_2: true) do
+              sleep 0.1
+              subject.info "test fiber 2"
+            end
+          end
+
+          Fiber.await([f1, f2])
+
+          -> do
+            expect(log).to include("fiber_no=1 test_key_1=true message=test fiber 1")
+            expect(log).to include("fiber_no=2 test_key_2=true message=test fiber 2")
+          end
+        end
+      end
+
+      it "correctly isolates tags" do
+        within_reactor do
+          f1 = Fiber.schedule do
+            subject.tagged("fiber_no_1") do
+              sleep 0.2
+              subject.info "test fiber 1"
+            end
+          end
+
+          f2 = Fiber.schedule do
+            subject.tagged("fiber_no_2") do
+              sleep 0.1
+              subject.info "test fiber 2"
+            end
+          end
+
+          Fiber.await([f1, f2])
+
+          -> do
+            expect(log).to match(/\[fiber_no_1\] [\w\s=]+ message=test fiber 1/)
+            expect(log).to match(/\[fiber_no_2\] [\w\s=]+ message=test fiber 2/)
+          end
+        end
+      end
+    end
+
+    context "with logging in base fiber" do
+      it "correctly isolates context" do
+        within_reactor do
+          subject.with_context(fiber_no: 0, test_key_0: true) do
+            f1 = Fiber.schedule do
+              subject.with_context(fiber_no: 1, test_key_1: true) do
+                sleep 0.2
+                subject.info "test fiber 1"
+              end
+            end
+
+            f2 = Fiber.schedule do
+              subject.with_context(fiber_no: 2, test_key_2: true) do
+                sleep 0.1
+                subject.info "test fiber 2"
+              end
+            end
+
+            subject.info "(1) test fiber 0"
+            Fiber.await([f1, f2])
+            subject.info "(2) test fiber 0"
+          end
+
+          -> do
+            expect(log).to include("fiber_no=1 test_key_0=true test_key_1=true message=test fiber 1")
+            expect(log).to include("fiber_no=2 test_key_0=true test_key_2=true message=test fiber 2")
+            expect(log).to include("fiber_no=0 test_key_0=true message=(1) test fiber 0")
+            expect(log).to include("fiber_no=0 test_key_0=true message=(2) test fiber 0")
+          end
+        end
+      end
+
+      it "correctly isolates tags" do
+        within_reactor do
+          subject.tagged("fiber_no_0") do
+            f1 = Fiber.schedule do
+              subject.tagged("fiber_no_1") do
+                sleep 0.2
+                subject.info "test fiber 1"
+              end
+            end
+
+            f2 = Fiber.schedule do
+              subject.tagged("fiber_no_2") do
+                sleep 0.1
+                subject.info "test fiber 2"
+              end
+            end
+
+            subject.info "(1) test fiber 0"
+            Fiber.await([f1, f2])
+            subject.info "(2) test fiber 0"
+          end
+
+          -> do
+            expect(log).to include("[my_test_tag][fiber_no_0][fiber_no_1] timestamp=very_accurate_timestamp pid=777 level=info message=test fiber 1")
+            expect(log).to include("[my_test_tag][fiber_no_0][fiber_no_2] timestamp=very_accurate_timestamp pid=777 level=info message=test fiber 2")
+            expect(log).to include("[my_test_tag][fiber_no_0] timestamp=very_accurate_timestamp pid=777 level=info message=(1) test fiber 0")
+            expect(log).to include("[my_test_tag][fiber_no_0] timestamp=very_accurate_timestamp pid=777 level=info message=(2) test fiber 0")
           end
         end
       end

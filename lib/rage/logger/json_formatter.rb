@@ -26,8 +26,7 @@ class Rage::JSONFormatter
   end
 
   def call(severity, timestamp, _, message)
-    logger = Thread.current[:rage_logger] || { tags: [], context: {} }
-    tags, context = logger[:tags], logger[:context]
+    tags, context = Fiber[:__rage_logger_tags] || [], Fiber[:__rage_logger_context] || {}
 
     if !context.empty?
       context_msg = ""
@@ -50,7 +49,7 @@ class Rage::JSONFormatter
       msg << "],"
     end
 
-    if (final = logger[:final])
+    if (final = Fiber[:__rage_logger_final])
       params, env = final[:params], final[:env]
       if params && params[:controller]
         return "#{tags_msg}\"timestamp\":\"#{timestamp}\",\"pid\":\"#{@pid}\",\"level\":\"info\",\"method\":\"#{env["REQUEST_METHOD"]}\",\"path\":\"#{env["PATH_INFO"]}\",\"controller\":\"#{Rage::Router::Util.path_to_name(params[:controller])}\",\"action\":\"#{params[:action]}\",#{context_msg}\"status\":#{final[:response][0]},\"duration\":#{final[:duration]}}\n"

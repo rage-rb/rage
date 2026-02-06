@@ -140,17 +140,17 @@ class Rage::Logger
   #     Rage.logger.info "cache miss"
   #   end
   def with_context(context)
-    old_context = (Thread.current[:rage_logger] ||= { tags: [], context: {} })[:context]
+    old_context = (Fiber[:__rage_logger_context] ||= {})
 
     if old_context.empty? # there's nothing in the context yet
-      Thread.current[:rage_logger][:context] = context
+      Fiber[:__rage_logger_context] = context
     else # it's not the first `with_context` call in the chain
-      Thread.current[:rage_logger][:context] = old_context.merge(context)
+      Fiber[:__rage_logger_context] = old_context.merge(context)
     end
 
     yield(self)
   ensure
-    Thread.current[:rage_logger][:context] = old_context
+    Fiber[:__rage_logger_context] = old_context
   end
 
   # Add a custom tag to an entry.
@@ -161,11 +161,11 @@ class Rage::Logger
   #     Rage.logger.info "success"
   #   end
   def tagged(*tags)
-    old_tags = (Thread.current[:rage_logger] ||= { tags: [], context: {} })[:tags]
-    Thread.current[:rage_logger][:tags] = old_tags + tags
+    old_tags = (Fiber[:__rage_logger_tags] ||= [])
+    Fiber[:__rage_logger_tags] = old_tags + tags
     yield(self)
   ensure
-    Thread.current[:rage_logger][:tags] = old_tags
+    Fiber[:__rage_logger_tags] = old_tags
   end
 
   alias_method :with_tag, :tagged
@@ -217,17 +217,16 @@ class Rage::Logger
 
         parameters = Rage::Internal.build_arguments(call_method, {
           severity: ":#{level_name}",
-          tags: "logger[:tags].freeze",
-          context: "logger[:context].freeze",
+          tags: "Fiber[:__rage_logger_tags].freeze",
+          context: "Fiber[:__rage_logger_context].freeze",
           message: "block_given? ? yield : msg",
-          request_info: "logger[:final].freeze"
+          request_info: "Fiber[:__rage_logger_final].freeze"
         })
 
         <<~RUBY
           def #{level_name}(msg = nil)
             #{with_dynamic_tags_and_context do
               <<~RUBY
-                logger = Thread.current[:rage_logger] || { tags: [], context: {} }
                 @external_logger.wrapped.call(#{parameters})
               RUBY
             end}

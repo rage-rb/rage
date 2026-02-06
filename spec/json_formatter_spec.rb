@@ -8,7 +8,9 @@ RSpec.describe Rage::JSONFormatter do
   let(:message) { "test message" }
 
   after do
-    Thread.current[:rage_logger] = nil
+    Fiber[:__rage_logger_tags] = nil
+    Fiber[:__rage_logger_context] = nil
+    Fiber[:__rage_logger_final] = nil
   end
 
   context "with no logger info" do
@@ -37,7 +39,8 @@ RSpec.describe Rage::JSONFormatter do
 
   context "with one tag" do
     before do
-      Thread.current[:rage_logger] = { tags: ["json-test-tag"], context: {} }
+      Fiber[:__rage_logger_tags] = ["json-test-tag"]
+      Fiber[:__rage_logger_context] = {}
     end
 
     it "correctly formats the message" do
@@ -52,7 +55,8 @@ RSpec.describe Rage::JSONFormatter do
 
     context "with custom context" do
       before do
-        Thread.current[:rage_logger] = { tags: ["json-test-tag"], context: { user_id: "test-1", account_id: "test-2" } }
+        Fiber[:__rage_logger_tags] = ["json-test-tag"]
+        Fiber[:__rage_logger_context] = { user_id: "test-1", account_id: "test-2" }
       end
 
       it "correctly formats the message" do
@@ -71,10 +75,8 @@ RSpec.describe Rage::JSONFormatter do
 
   context "with multiple tags" do
     before do
-      Thread.current[:rage_logger] = {
-        tags: ["json-test-tag-1", "json-test-tag-2"],
-        context: {}
-      }
+      Fiber[:__rage_logger_tags] = ["json-test-tag-1", "json-test-tag-2"]
+      Fiber[:__rage_logger_context] = {}
     end
 
     it "correctly formats the message" do
@@ -89,10 +91,8 @@ RSpec.describe Rage::JSONFormatter do
 
     context "with custom context" do
       before do
-        Thread.current[:rage_logger] = {
-          tags: ["json-test-tag-1", "json-test-tag-2"],
-          context: { user_id: "test-1", account_id: "test-2" }
-        }
+        Fiber[:__rage_logger_tags] = ["json-test-tag-1", "json-test-tag-2"]
+        Fiber[:__rage_logger_context] = { user_id: "test-1", account_id: "test-2" }
       end
 
       it "correctly formats the message" do
@@ -113,15 +113,13 @@ RSpec.describe Rage::JSONFormatter do
     before do
       stub_const("UserProfilesController", double(name: "UserProfilesController"))
 
-      Thread.current[:rage_logger] = {
-        tags: ["json-test-tag"],
-        context: {},
-        final: {
-          env: { "REQUEST_METHOD" => "POST", "PATH_INFO" => "/user_profiles/12345" },
-          params: { controller: "user_profiles", action: "create" },
-          response: [207, {}, []],
-          duration: 1.234
-        }
+      Fiber[:__rage_logger_tags] = ["json-test-tag"]
+      Fiber[:__rage_logger_context] = {}
+      Fiber[:__rage_logger_final] = {
+        env: { "REQUEST_METHOD" => "POST", "PATH_INFO" => "/user_profiles/12345" },
+        params: { controller: "user_profiles", action: "create" },
+        response: [207, {}, []],
+        duration: 1.234
       }
     end
 
@@ -142,7 +140,7 @@ RSpec.describe Rage::JSONFormatter do
 
     context "with custom tags" do
       before do
-        Thread.current[:rage_logger][:tags] << "custom-tag-1" << "custom-tag-2"
+        Fiber[:__rage_logger_tags] << "custom-tag-1" << "custom-tag-2"
       end
 
       it "correctly formats the message" do
@@ -162,7 +160,7 @@ RSpec.describe Rage::JSONFormatter do
 
       context "with custom context" do
         before do
-          Thread.current[:rage_logger][:context] = { user_id: "test-1", account_id: "test-2" }
+          Fiber[:__rage_logger_context] = { user_id: "test-1", account_id: "test-2" }
         end
 
         it "correctly formats the message" do
@@ -186,7 +184,7 @@ RSpec.describe Rage::JSONFormatter do
 
     context "with custom context" do
       before do
-        Thread.current[:rage_logger][:context] = { user_id: "test-1", account_id: "test-2" }
+        Fiber[:__rage_logger_context] = { user_id: "test-1", account_id: "test-2" }
       end
 
       it "correctly formats the message" do
@@ -209,15 +207,13 @@ RSpec.describe Rage::JSONFormatter do
 
     context "with no controller/action info" do
       before do
-        Thread.current[:rage_logger] = {
-          tags: ["json-test-tag"],
-          context: {},
-          final: {
-            env: { "REQUEST_METHOD" => "POST", "PATH_INFO" => "/user_profiles/12345" },
-            params: nil,
-            response: [207, {}, []],
-            duration: 1.234
-          }
+        Fiber[:__rage_logger_tags] = ["json-test-tag"]
+        Fiber[:__rage_logger_context] = {}
+        Fiber[:__rage_logger_final] = {
+          env: { "REQUEST_METHOD" => "POST", "PATH_INFO" => "/user_profiles/12345" },
+          params: nil,
+          response: [207, {}, []],
+          duration: 1.234
         }
       end
 
@@ -236,8 +232,8 @@ RSpec.describe Rage::JSONFormatter do
 
       context "with custom tags and context" do
         before do
-          Thread.current[:rage_logger][:tags] << "custom-tag"
-          Thread.current[:rage_logger][:context] = { user_id: "test-1", account_id: "test-2" }
+          Fiber[:__rage_logger_tags] << "custom-tag"
+          Fiber[:__rage_logger_context] = { user_id: "test-1", account_id: "test-2" }
         end
 
         it "correctly formats the message" do

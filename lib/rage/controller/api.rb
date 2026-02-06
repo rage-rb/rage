@@ -155,11 +155,11 @@ class RageController::API
                 context = {}
                 append_info_to_payload(context)
 
-                log_context = Thread.current[:rage_logger][:context]
+                log_context = Fiber[:__rage_logger_context]
                 if log_context.empty?
-                  Thread.current[:rage_logger][:context] = context
+                  Fiber[:__rage_logger_context] = context
                 else
-                  Thread.current[:rage_logger][:context] = log_context.merge(context)
+                  Fiber[:__rage_logger_context] = log_context.merge(context)
                 end
               RUBY
             end}

@@ -86,7 +86,8 @@ RSpec.describe Rage::Deferred::Task do
       end
 
       after do
-        Thread.current[:rage_logger] = nil
+        Fiber[:__rage_logger_tags] = nil
+        Fiber[:__rage_logger_context] = nil
       end
 
       it "calls perform with correct arguments" do
@@ -97,7 +98,8 @@ RSpec.describe Rage::Deferred::Task do
       it "logs with context and tag" do
         task.__perform(context)
         expect(logger).to have_received(:with_context).with({ task: "MyTask", attempt: 2 })
-        expect(Thread.current[:rage_logger]).to eq({ tags: ["request-id"], context: {} })
+        expect(Fiber[:__rage_logger_tags]).to eq(["request-id"])
+        expect(Fiber[:__rage_logger_context]).to eq({})
       end
 
       it "returns true" do

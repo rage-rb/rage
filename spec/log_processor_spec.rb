@@ -4,7 +4,13 @@
 RSpec.describe Rage::LogProcessor do
   describe "#init_request_logger" do
     let(:log_processor) { described_class.new }
-    let(:log_context) { Thread.current[:rage_logger] }
+    let(:log_context) do
+      {
+        tags: Fiber[:__rage_logger_tags],
+        context: Fiber[:__rage_logger_context],
+        request_start: Fiber[:__rage_logger_request_start]
+      }
+    end
 
     let(:env) { {} }
     let(:request_tag) { "test-request-id-tag" }
@@ -22,7 +28,9 @@ RSpec.describe Rage::LogProcessor do
     end
 
     after do
-      Thread.current[:rage_logger] = nil
+      Fiber[:__rage_logger_tags] = nil
+      Fiber[:__rage_logger_context] = nil
+      Fiber[:__rage_logger_request_start] = nil
     end
 
     it "correctly initializes static logger" do

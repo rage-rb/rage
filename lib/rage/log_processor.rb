@@ -21,15 +21,13 @@ class Rage::LogProcessor
   end
 
   def finalize_request_logger(env, response, params)
-    logger = Thread.current[:rage_logger]
-
     duration = (
-      (Process.clock_gettime(Process::CLOCK_MONOTONIC) - logger[:request_start]) * 1000
+      (Process.clock_gettime(Process::CLOCK_MONOTONIC) - Fiber[:__rage_logger_request_start]) * 1000
     ).round(2)
 
-    logger[:final] = { env:, params:, response:, duration: }
+    Fiber[:__rage_logger_final] = { env:, params:, response:, duration: }
     Rage.logger.info(nil)
-    logger[:final] = nil
+    Fiber[:__rage_logger_final] = nil
   end
 
   private
@@ -106,11 +104,9 @@ class Rage::LogProcessor
       def init_request_logger(env)
         env["rage.request_id"] ||= Iodine::Rack::Utils.gen_request_tag
 
-        Thread.current[:rage_logger] = {
-          tags: #{build_static_tags},
-          context: #{build_static_context},
-          request_start: Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        }
+        Fiber[:__rage_logger_tags] = #{build_static_tags}
+        Fiber[:__rage_logger_context] = #{build_static_context}
+        Fiber[:__rage_logger_request_start] = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       end
     RUBY
   end

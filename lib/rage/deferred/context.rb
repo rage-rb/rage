@@ -7,15 +7,13 @@
 # @private
 class Rage::Deferred::Context
   def self.build(task, args, kwargs)
-    logger = Thread.current[:rage_logger]
-
     [
       task,
       args.empty? ? nil : args,
       kwargs.empty? ? nil : kwargs,
       nil,
-      logger&.dig(:tags),
-      logger&.dig(:context),
+      Fiber[:__rage_logger_tags],
+      Fiber[:__rage_logger_context],
       nil
     ]
   end
