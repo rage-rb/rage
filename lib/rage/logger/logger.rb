@@ -190,19 +190,29 @@ class Rage::Logger
       if @logdev.nil? || level_val < @level
         # logging is disabled or the log level is higher than the current one
         <<-RUBY
-          def #{level_name}(msg = nil)
+          def #{level_name}(msg = nil, context = nil)
             false
           end
         RUBY
       elsif @external_logger.is_a?(External::Static)
         # an object that implements Ruby's Logger interface is used as a logger
+        write_call = <<~RUBY
+          @external_logger.wrapped.#{level_name}(
+            #{build_formatter_call(level_name, level_val)}
+          )
+        RUBY
+
         <<~RUBY
-          def #{level_name}(msg = nil)
+          def #{level_name}(msg = nil, context = nil)
             #{with_dynamic_tags_and_context do
               <<~RUBY
-                @external_logger.wrapped.#{level_name}(
-                  #{build_formatter_call(level_name, level_val)}
-                )
+                if context
+                  with_context(context) do
+                    #{write_call}
+                  end
+                else
+                  #{write_call}
+                end
               RUBY
             end}
           end
@@ -223,23 +233,43 @@ class Rage::Logger
           request_info: "Fiber[:__rage_logger_final].freeze"
         })
 
+        write_call = <<~RUBY
+          @external_logger.wrapped.call(#{parameters})
+        RUBY
+
         <<~RUBY
-          def #{level_name}(msg = nil)
+          def #{level_name}(msg = nil, context = nil)
             #{with_dynamic_tags_and_context do
               <<~RUBY
-                @external_logger.wrapped.call(#{parameters})
+                if context
+                  with_context(context) do
+                    #{write_call}
+                  end
+                else
+                  #{write_call}
+                end
               RUBY
             end}
           end
         RUBY
       else
+        write_call = <<~RUBY
+          @logdev.write(
+            #{build_formatter_call(level_name, level_val)}
+          )
+        RUBY
+
         <<~RUBY
-          def #{level_name}(msg = nil)
+          def #{level_name}(msg = nil, context = nil)
             #{with_dynamic_tags_and_context do
               <<~RUBY
-                @logdev.write(
-                  #{build_formatter_call(level_name, level_val)}
-                )
+                if context
+                  with_context(context) do
+                    #{write_call}
+                  end
+                else
+                  #{write_call}
+                end
               RUBY
             end}
           end

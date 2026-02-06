@@ -195,6 +195,39 @@ RSpec.describe Rage::Logger do
     end
   end
 
+  context "with inline context" do
+    it "adds a key to an entry" do
+      subject.info "passed", test_id: "1133"
+      expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info test_id=1133 message=passed\n")
+    end
+
+    it "adds multiple keys to an entry" do
+      subject.info "passed", test_id: "1133", user_id: 12345
+      expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info test_id=1133 user_id=12345 message=passed\n")
+    end
+
+    it "works correctly with multiple nesting levels" do
+      subject.tagged("rspec") do
+        subject.debug "debug message", user_id: 123
+
+        subject.with_context(b: 222) do
+          subject.tagged("test_tag") do
+            subject.info "info message", user_id: 456
+
+            subject.with_context(c: "333", d: "444") do
+              subject.unknown "unknown message", user_id: 789
+            end
+          end
+        end
+      end
+
+      io.rewind
+      expect(io.readline).to eq("[my_test_tag][rspec] timestamp=very_accurate_timestamp pid=777 level=debug user_id=123 message=debug message\n")
+      expect(io.readline).to eq("[my_test_tag][rspec][test_tag] timestamp=very_accurate_timestamp pid=777 level=info b=222 user_id=456 message=info message\n")
+      expect(io.readline).to eq("[my_test_tag][rspec][test_tag] timestamp=very_accurate_timestamp pid=777 level=unknown b=222 c=333 d=444 user_id=789 message=unknown message\n")
+    end
+  end
+
   context "outside the request/response cycle" do
     before do
       Fiber[:__rage_logger_tags] = nil
@@ -294,6 +327,12 @@ RSpec.describe Rage::Logger do
         subject << "this is a test message"
       }.not_to raise_error
     end
+
+    it "doesn't add inline context" do
+      expect(
+        subject.fatal("this is a test message", user_id: 567)
+      ).to be(false)
+    end
   end
 
   context "with LogDevice options" do
@@ -314,9 +353,6 @@ RSpec.describe Rage::Logger do
       end
 
       it "delegates logger calls to external logger" do
-        p "grep_me !!!!!!!"
-        p Fiber.current.storage
-
         expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info message=test\n")
         subject.info "test"
 
@@ -330,6 +366,23 @@ RSpec.describe Rage::Logger do
 
           subject.with_context(rspec: true) do
             subject.info "test"
+          end
+        end
+      end
+
+      context "with custom inline context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info rspec=true message=test\n")
+          subject.info "test", rspec: true
+        end
+      end
+
+      context "with merged context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info rspec=true user_id=123 account_id=456 message=test\n")
+
+          subject.with_context(rspec: true) do
+            subject.info "test", user_id: 123, account_id: 456
           end
         end
       end
@@ -373,6 +426,13 @@ RSpec.describe Rage::Logger do
             subject.with_context(rspec: true) do
               subject.info "test"
             end
+          end
+        end
+
+        context "with custom inline context" do
+          it "correctly builds log entry" do
+            expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info id=12345 rspec=true message=test\n")
+            subject.info "test", rspec: true
           end
         end
 
@@ -439,6 +499,36 @@ RSpec.describe Rage::Logger do
 
           subject.with_context(rspec: true) do
             subject.info "test"
+          end
+        end
+      end
+
+      context "with custom inline context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag"],
+            context: { rspec: true },
+            message: "test",
+            request_info: nil
+          )
+
+          subject.info "test", rspec: true
+        end
+      end
+
+      context "with merged context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag"],
+            context: { rspec: true, user_id: 123 },
+            message: "test",
+            request_info: nil
+          )
+
+          subject.with_context(rspec: true) do
+            subject.info "test", user_id: 123
           end
         end
       end
@@ -520,6 +610,20 @@ RSpec.describe Rage::Logger do
             subject.with_context(rspec: true) do
               subject.info "test"
             end
+          end
+        end
+
+        context "with custom inline context" do
+          it "correctly builds log entry" do
+            expect(external_logger).to receive(:call).with(
+              severity: :info,
+              tags: ["my_test_tag"],
+              context: { id: 12345, rspec: true },
+              message: "test",
+              request_info: nil
+            )
+
+            subject.info "test", rspec: true
           end
         end
 
