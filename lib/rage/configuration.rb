@@ -227,6 +227,7 @@ class Rage::Configuration
   # @private
   def run_after_initialize!
     run_hooks_for!(:after_initialize, self)
+    __finalize
   end
 
   class LogContext
