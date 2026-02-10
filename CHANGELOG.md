@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.20.1] - 2026-02-10
+
+### Fixed
+
+- Ensure configuration is built correctly inside the `after_initialize` hooks (#208).
+
 ## [1.20.0] - 2026-01-20
 
 ### Added
