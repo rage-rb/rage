@@ -293,7 +293,7 @@ class Rage::Cable::Channel
     #
     # @param streamable [#id, String, Symbol, Numeric, Array] an object that will be used to generate the stream name
     # @param data [Object] the data to send to the clients
-    # @raise ArgumentError if the streamable object does not satisfy the type requirements
+    # @raise [ArgumentError] if the streamable object does not satisfy the type requirements
     # @example
     #   NotificationsChannel.broadcast_to(current_user, { message: "You have a new notification!" })
     def broadcast_to(streamable, data)
@@ -436,6 +436,7 @@ class Rage::Cable::Channel
   # Subscribe to a stream global stream. Global streams are not associated with any specific channel instance and can be used to broadcast data to multiple channels at once.
   #
   # @param stream [String] the name of the stream
+  # @raise [ArgumentError] if the stream name is not a String
   # @example Subscribe to a stream
   #   class NotificationsChannel < Rage::Cable::Channel
   #     def subscribed
@@ -445,13 +446,14 @@ class Rage::Cable::Channel
   # @example Broadcast to the stream
   #   Rage::Cable.broadcast("notifications", { message: "A new member has joined!" })
   def stream_from(stream)
+    raise ArgumentError, "Stream name must be a String" unless stream.is_a?(String)
     Rage.cable.__protocol.subscribe(@__connection, stream, @__params)
   end
 
   # Subscribe to a local stream. Local streams are associated with a specific channel instance and can be used to send data to the current channel only.
   #
   # @param streamable [#id, String, Symbol, Numeric, Array] an object that will be used to generate the stream name
-  # @raise ArgumentError if the streamable object does not satisfy the type requirements
+  # @raise [ArgumentError] if the streamable object does not satisfy the type requirements
   # @example Subscribe to a stream
   #   class NotificationsChannel < Rage::Cable::Channel
   #     def subscribed
