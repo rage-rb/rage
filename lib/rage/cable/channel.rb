@@ -289,6 +289,32 @@ class Rage::Cable::Channel
       @__periodic_timers << [callback, every]
     end
 
+    # Broadcast data to all the clients subscribed to a channel-local stream.
+    #
+    # @param streamable [#id, String, Symbol, Numeric, Array] an object that will be used to generate the stream name
+    # @param data [Object] the data to send to the clients
+    # @raise [ArgumentError] if the streamable object does not satisfy the type requirements
+    # @example
+    #   NotificationsChannel.broadcast_to(current_user, { message: "You have a new notification!" })
+    def broadcast_to(streamable, data)
+      Rage.cable.broadcast(__stream_name_for(streamable), data)
+    end
+
+    # @private
+    def __stream_name_for(streamables)
+      stream_name = Array(streamables).map do |streamable|
+        if streamable.respond_to?(:id)
+          streamable.id
+        elsif streamable.is_a?(String) || streamable.is_a?(Symbol) || streamable.is_a?(Numeric)
+          streamable
+        else
+          raise ArgumentError, "Unable to generate stream name. Expected an object that responds to `id`, got: #{streamable.class}"
+        end
+      end
+
+      "#{name}:#{stream_name.join(":")}"
+    end
+
     protected
 
     def set_up_periodic_timers
@@ -372,7 +398,9 @@ class Rage::Cable::Channel
 
   # @private
   def __run_action(action_name, data = nil)
-    self.class.__prepared_actions[action_name].call(self, data)
+    Rage::Telemetry.tracer.span_cable_action_process(channel: self, action: action_name, data:) do
+      self.class.__prepared_actions[action_name].call(self, data)
+    end
   end
 
   # @private
@@ -381,6 +409,9 @@ class Rage::Cable::Channel
     @__params = params
     @__identified_by = identified_by
   end
+
+  # @private
+  attr_reader :__connection
 
   # Get the params hash passed in during the subscription process.
   #
@@ -402,11 +433,37 @@ class Rage::Cable::Channel
     !!@__subscription_rejected
   end
 
-  # Subscribe to a stream.
+  # Subscribe to a stream global stream. Global streams are not associated with any specific channel instance and can be used to broadcast data to multiple channels at once.
   #
   # @param stream [String] the name of the stream
+  # @raise [ArgumentError] if the stream name is not a String
+  # @example Subscribe to a stream
+  #   class NotificationsChannel < Rage::Cable::Channel
+  #     def subscribed
+  #       stream_from "notifications"
+  #     end
+  #   end
+  # @example Broadcast to the stream
+  #   Rage::Cable.broadcast("notifications", { message: "A new member has joined!" })
   def stream_from(stream)
+    raise ArgumentError, "Stream name must be a String" unless stream.is_a?(String)
     Rage.cable.__protocol.subscribe(@__connection, stream, @__params)
+  end
+
+  # Subscribe to a local stream. Local streams are associated with a specific channel instance and can be used to send data to the current channel only.
+  #
+  # @param streamable [#id, String, Symbol, Numeric, Array] an object that will be used to generate the stream name
+  # @raise [ArgumentError] if the streamable object does not satisfy the type requirements
+  # @example Subscribe to a stream
+  #   class NotificationsChannel < Rage::Cable::Channel
+  #     def subscribed
+  #       stream_for current_user
+  #     end
+  #   end
+  # @example Broadcast to the stream
+  #   NotificationsChannel.broadcast_to(current_user, { message: "You have a new notification!" })
+  def stream_for(streamable)
+    stream_from(self.class.__stream_name_for(streamable))
   end
 
   # Broadcast data to all the clients subscribed to a stream.

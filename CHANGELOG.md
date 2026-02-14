@@ -1,5 +1,78 @@
 ## [Unreleased]
 
+## [1.20.1] - 2026-02-10
+
+### Fixed
+
+- Ensure configuration is built correctly inside the `after_initialize` hooks (#208).
+
+## [1.20.0] - 2026-01-20
+
+### Added
+
+- Add `Rage::Telemetry` (#186).
+- Add the `Response#status` method. (#191).
+- [Deferred] Expose deferred metadata (#188).
+- [Deferred] Support deferred middleware (#184).
+- Ensure compatibility with `Rack::Events` (#180).
+
+### Changed
+
+- Refactor the implementation of `rescue_from` in `Rage::Events` (#185).
+
+## [1.19.2] - 2026-01-06
+
+### Changed
+
+- Compatibility with Rack 3 (#193).
+
+## [1.19.1] - 2025-12-26
+
+### Changed
+
+- Use app-specific cookie keys for sessions (#189).
+
+## [1.19.0] - 2025-12-03
+
+### Added
+
+- Add ability to specify external loggers (#178).
+- Pass all of log data to deferred tasks (#173).
+- Add the `Request#route_uri_pattern` method (#175).
+- Support global log tags and context (#171, #177).
+
+### Fixed
+
+- Fix reloading in dev with user-level fibers (#170).
+
+## [1.18.0] - 2025-10-29
+
+### Added
+
+- Add `Rage::Events` (#167).
+
+### Fixed
+
+- Fix sequential `Fiber.await` calls (#168).
+
+## [1.17.1] - 2025-08-21
+
+### Fixed
+
+- Apply backpressure to every `enqueue` call (#166).
+
+## [1.17.0] - 2025-08-20
+
+### Added
+
+- Add `Rage::Deferred` (#164).
+- Add a controller generator by [@alex-rogachev](https://github.com/alex-rogachev) (#160).
+- Update `stale?` to set cache headers by [@serhii-sadovskyi](https://github.com/serhii-sadovskyi) (#159).
+
+### Fixed
+
+- Sub-millisecond sleep results in hang (#161).
+
 ## [1.16.0] - 2025-05-20
 
 ### Added

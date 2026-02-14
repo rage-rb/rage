@@ -14,20 +14,20 @@ class Rage::Cors
     end
 
     response = @app.call(env)
-    response[1]["Access-Control-Allow-Credentials"] = @allow_credentials if @allow_credentials
-    response[1]["Access-Control-Expose-Headers"] = @expose_headers if @expose_headers
+    response[1]["access-control-allow-credentials"] = @allow_credentials if @allow_credentials
+    response[1]["access-control-expose-headers"] = @expose_headers if @expose_headers
 
     response
   ensure
     if !$! && (origin = @cors_check.call(env))
       headers = response[1]
-      headers["Access-Control-Allow-Origin"] = origin
+      headers["access-control-allow-origin"] = origin
       if @origins != "*"
-        vary = headers["Vary"]
+        vary = headers["vary"]
         if vary.nil?
-          headers["Vary"] = "Origin"
+          headers["vary"] = "Origin"
         elsif vary != "Origin"
-          headers["Vary"] += ", Origin"
+          headers["vary"] += ", Origin"
         end
       end
     end
@@ -98,21 +98,21 @@ class Rage::Cors
 
   def create_headers
     headers = {
-      "Access-Control-Allow-Origin" => "",
-      "Access-Control-Allow-Methods" => @methods
+      "access-control-allow-origin" => "",
+      "access-control-allow-methods" => @methods
     }
 
     if @allow_headers
-      headers["Access-Control-Allow-Headers"] = @allow_headers
+      headers["access-control-allow-headers"] = @allow_headers
     end
     if @expose_headers
-      headers["Access-Control-Expose-Headers"] = @expose_headers
+      headers["access-control-expose-headers"] = @expose_headers
     end
     if @max_age
-      headers["Access-Control-Max-Age"] = @max_age
+      headers["access-control-max-age"] = @max_age
     end
     if @allow_credentials
-      headers["Access-Control-Allow-Credentials"] = @allow_credentials
+      headers["access-control-allow-credentials"] = @allow_credentials
     end
 
     headers

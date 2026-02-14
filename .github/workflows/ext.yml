@@ -1,0 +1,36 @@
+name: Ext Tests
+
+on:
+  pull_request:
+
+jobs:
+  appraise:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ruby:
+          - '3.2'
+          - '3.3'
+          - '3.4'
+          - '4.0'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+
+      - name: Resolve appraisals dependencies
+        run: bundle exec appraisal bundle install
+        env:
+          BUNDLE_PATH: vendor/bundle
+
+      - name: Run all versioned appraisals
+        run: bundle exec rake appraise
+        env:
+          ENABLE_EXTERNAL_TESTS: ${{ secrets.ENABLE_EXTERNAL_TESTS }}
+          TEST_PG_URL: ${{ secrets.TEST_PG_URL }}
+          BUNDLE_PATH: vendor/bundle

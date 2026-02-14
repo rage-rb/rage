@@ -15,7 +15,7 @@ RSpec.describe Rage::Cors do
     end
 
     it "sets correct headers" do
-      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://localhost:3000" }, ["test response"]])
+      expect(subject).to eq([200, { "access-control-allow-origin" => "http://localhost:3000" }, ["test response"]])
     end
 
     context "with preflight requests" do
@@ -25,9 +25,9 @@ RSpec.describe Rage::Cors do
         expect(subject).to eq([
           204,
           {
-            "Access-Control-Allow-Origin" => "http://localhost:3000",
-            "Access-Control-Allow-Methods" => "*",
-            "Access-Control-Allow-Headers" => "*"
+            "access-control-allow-origin" => "http://localhost:3000",
+            "access-control-allow-methods" => "*",
+            "access-control-allow-headers" => "*"
           },
           []
         ])
@@ -43,7 +43,7 @@ RSpec.describe Rage::Cors do
     end
 
     it "sets correct headers" do
-      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://localhost:3000" }, ["test response"]])
+      expect(subject).to eq([200, { "access-control-allow-origin" => "http://localhost:3000" }, ["test response"]])
     end
   end
 
@@ -55,7 +55,7 @@ RSpec.describe Rage::Cors do
     end
 
     it "sets correct headers" do
-      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://localhost:3000", "Vary" => "Origin" }, ["test response"]])
+      expect(subject).to eq([200, { "access-control-allow-origin" => "http://localhost:3000", "vary" => "Origin" }, ["test response"]])
     end
 
     context "with preflight requests" do
@@ -65,10 +65,10 @@ RSpec.describe Rage::Cors do
         expect(subject).to eq([
           204,
           {
-            "Access-Control-Allow-Methods" => "*",
-            "Access-Control-Allow-Headers" => "*",
-            "Access-Control-Allow-Origin" => "http://localhost:3000",
-            "Vary" => "Origin"
+            "access-control-allow-methods" => "*",
+            "access-control-allow-headers" => "*",
+            "access-control-allow-origin" => "http://localhost:3000",
+            "vary" => "Origin"
           },
           []
         ])
@@ -86,14 +86,14 @@ RSpec.describe Rage::Cors do
     let(:env) { { "HTTP_ORIGIN" => "http://subdomain3.mysite.com" } }
 
     it "sets correct headers" do
-      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://subdomain3.mysite.com", "Vary" => "Origin" }, ["test response"]])
+      expect(subject).to eq([200, { "access-control-allow-origin" => "http://subdomain3.mysite.com", "vary" => "Origin" }, ["test response"]])
     end
 
     context "with extra extension" do
       let(:env) { { "HTTP_ORIGIN" => "http://subdomain3.mysite.com.au" } }
 
       it "sets correct headers" do
-        expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://subdomain3.mysite.com.au", "Vary" => "Origin" }, ["test response"]])
+        expect(subject).to eq([200, { "access-control-allow-origin" => "http://subdomain3.mysite.com.au", "vary" => "Origin" }, ["test response"]])
       end
     end
 
@@ -101,7 +101,7 @@ RSpec.describe Rage::Cors do
       let(:env) { { "HTTP_ORIGIN" => "https://subdomain3.mysite.com" } }
 
       it "sets correct headers" do
-        expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "https://subdomain3.mysite.com", "Vary" => "Origin" }, ["test response"]])
+        expect(subject).to eq([200, { "access-control-allow-origin" => "https://subdomain3.mysite.com", "vary" => "Origin" }, ["test response"]])
       end
     end
 
@@ -109,7 +109,7 @@ RSpec.describe Rage::Cors do
       let(:env) { { "HTTP_ORIGIN" => "http://new.subdomain3.mysite.com" } }
 
       it "sets correct headers" do
-        expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://new.subdomain3.mysite.com", "Vary" => "Origin" }, ["test response"]])
+        expect(subject).to eq([200, { "access-control-allow-origin" => "http://new.subdomain3.mysite.com", "vary" => "Origin" }, ["test response"]])
       end
     end
 
@@ -133,7 +133,7 @@ RSpec.describe Rage::Cors do
       let(:env) { { "HTTP_ORIGIN" => "https://subdomain3.mysite.com.au" } }
 
       it "sets correct headers" do
-        expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "https://subdomain3.mysite.com.au", "Vary" => "Origin" }, ["test response"]])
+        expect(subject).to eq([200, { "access-control-allow-origin" => "https://subdomain3.mysite.com.au", "vary" => "Origin" }, ["test response"]])
       end
     end
 
@@ -180,7 +180,7 @@ RSpec.describe Rage::Cors do
     let(:env) { { "HTTP_ORIGIN" => "chrome-extension://myextension" } }
 
     it "sets correct headers" do
-      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "chrome-extension://myextension", "Vary" => "Origin" }, ["test response"]])
+      expect(subject).to eq([200, { "access-control-allow-origin" => "chrome-extension://myextension", "vary" => "Origin" }, ["test response"]])
     end
 
     context "with invalid protocol" do
@@ -202,7 +202,7 @@ RSpec.describe Rage::Cors do
     let(:env) { { "HTTP_ORIGIN" => "https://mysite.com" } }
 
     it "sets correct headers" do
-      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "https://mysite.com", "Vary" => "Origin" }, ["test response"]])
+      expect(subject).to eq([200, { "access-control-allow-origin" => "https://mysite.com", "vary" => "Origin" }, ["test response"]])
     end
 
     context "with invalid protocol" do
@@ -225,7 +225,7 @@ RSpec.describe Rage::Cors do
       let(:env) { { "HTTP_ORIGIN" => "https://mysite.com" } }
 
       it "sets correct headers" do
-        expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "https://mysite.com", "Vary" => "Origin" }, ["test response"]])
+        expect(subject).to eq([200, { "access-control-allow-origin" => "https://mysite.com", "vary" => "Origin" }, ["test response"]])
       end
     end
 
@@ -233,7 +233,7 @@ RSpec.describe Rage::Cors do
       let(:env) { { "HTTP_ORIGIN" => "http://mysite.com" } }
 
       it "sets correct headers" do
-        expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://mysite.com", "Vary" => "Origin" }, ["test response"]])
+        expect(subject).to eq([200, { "access-control-allow-origin" => "http://mysite.com", "vary" => "Origin" }, ["test response"]])
       end
     end
 
@@ -264,9 +264,9 @@ RSpec.describe Rage::Cors do
         expect(subject).to eq([
           204,
           {
-            "Access-Control-Allow-Methods" => "*",
-            "Access-Control-Allow-Headers" => "*",
-            "Access-Control-Allow-Origin" => ""
+            "access-control-allow-methods" => "*",
+            "access-control-allow-headers" => "*",
+            "access-control-allow-origin" => ""
           },
           []
         ])
@@ -294,9 +294,9 @@ RSpec.describe Rage::Cors do
         expect(subject).to eq([
           204,
           {
-            "Access-Control-Allow-Methods" => "*",
-            "Access-Control-Allow-Headers" => "*",
-            "Access-Control-Allow-Origin" => ""
+            "access-control-allow-methods" => "*",
+            "access-control-allow-headers" => "*",
+            "access-control-allow-origin" => ""
           },
           []
         ])
@@ -324,9 +324,9 @@ RSpec.describe Rage::Cors do
         expect(subject).to eq([
           204,
           {
-            "Access-Control-Allow-Methods" => "*",
-            "Access-Control-Allow-Headers" => "*",
-            "Access-Control-Allow-Origin" => ""
+            "access-control-allow-methods" => "*",
+            "access-control-allow-headers" => "*",
+            "access-control-allow-origin" => ""
           },
           []
         ])
@@ -342,7 +342,7 @@ RSpec.describe Rage::Cors do
     end
 
     it "sets correct headers" do
-      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://localhost:3000", "Vary" => "Origin" }, ["test response"]])
+      expect(subject).to eq([200, { "access-control-allow-origin" => "http://localhost:3000", "vary" => "Origin" }, ["test response"]])
     end
 
     context "with preflight requests" do
@@ -352,10 +352,10 @@ RSpec.describe Rage::Cors do
         expect(subject).to eq([
           204,
           {
-            "Access-Control-Allow-Methods" => "GET",
-            "Access-Control-Allow-Headers" => "*",
-            "Access-Control-Allow-Origin" => "http://localhost:3000",
-            "Vary" => "Origin"
+            "access-control-allow-methods" => "GET",
+            "access-control-allow-headers" => "*",
+            "access-control-allow-origin" => "http://localhost:3000",
+            "vary" => "Origin"
           },
           []
         ])
@@ -371,7 +371,7 @@ RSpec.describe Rage::Cors do
     end
 
     it "sets correct headers" do
-      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://localhost:3000", "Vary" => "Origin" }, ["test response"]])
+      expect(subject).to eq([200, { "access-control-allow-origin" => "http://localhost:3000", "vary" => "Origin" }, ["test response"]])
     end
 
     context "with preflight requests" do
@@ -381,10 +381,10 @@ RSpec.describe Rage::Cors do
         expect(subject).to eq([
           204,
           {
-            "Access-Control-Allow-Methods" => "GET, HEAD",
-            "Access-Control-Allow-Headers" => "*",
-            "Access-Control-Allow-Origin" => "http://localhost:3000",
-            "Vary" => "Origin"
+            "access-control-allow-methods" => "GET, HEAD",
+            "access-control-allow-headers" => "*",
+            "access-control-allow-origin" => "http://localhost:3000",
+            "vary" => "Origin"
           },
           []
         ])
@@ -407,9 +407,9 @@ RSpec.describe Rage::Cors do
       expect(subject).to eq([
         200,
         {
-          "Access-Control-Allow-Origin" => "http://localhost:3000",
-          "Access-Control-Expose-Headers" => "X-Response-Header-1, X-Response-Header-2",
-          "Vary" => "Origin"
+          "access-control-allow-origin" => "http://localhost:3000",
+          "access-control-expose-headers" => "X-Response-Header-1, X-Response-Header-2",
+          "vary" => "Origin"
         },
         ["test response"]
       ])
@@ -422,12 +422,12 @@ RSpec.describe Rage::Cors do
         expect(subject).to eq([
           204,
           {
-            "Access-Control-Allow-Origin" => "http://localhost:3000",
-            "Access-Control-Allow-Methods" => "GET, HEAD",
-            "Access-Control-Allow-Headers" => "X-Custom-Token",
-            "Access-Control-Expose-Headers" => "X-Response-Header-1, X-Response-Header-2",
-            "Access-Control-Max-Age" => "300",
-            "Vary" => "Origin"
+            "access-control-allow-origin" => "http://localhost:3000",
+            "access-control-allow-methods" => "GET, HEAD",
+            "access-control-allow-headers" => "X-Custom-Token",
+            "access-control-expose-headers" => "X-Response-Header-1, X-Response-Header-2",
+            "access-control-max-age" => "300",
+            "vary" => "Origin"
           },
           []
         ])
@@ -451,10 +451,10 @@ RSpec.describe Rage::Cors do
       expect(subject).to eq([
         200,
         {
-          "Access-Control-Allow-Origin" => "http://localhost:3000",
-          "Access-Control-Expose-Headers" => "X-Response-Header-1, X-Response-Header-2",
-          "Access-Control-Allow-Credentials" => "true",
-          "Vary" => "Origin"
+          "access-control-allow-origin" => "http://localhost:3000",
+          "access-control-expose-headers" => "X-Response-Header-1, X-Response-Header-2",
+          "access-control-allow-credentials" => "true",
+          "vary" => "Origin"
         },
         ["test response"]
       ])
@@ -467,13 +467,13 @@ RSpec.describe Rage::Cors do
         expect(subject).to eq([
           204,
           {
-            "Access-Control-Allow-Origin" => "http://localhost:3000",
-            "Access-Control-Allow-Methods" => "GET, HEAD",
-            "Access-Control-Allow-Headers" => "X-Custom-Token",
-            "Access-Control-Expose-Headers" => "X-Response-Header-1, X-Response-Header-2",
-            "Access-Control-Max-Age" => "300",
-            "Access-Control-Allow-Credentials" => "true",
-            "Vary" => "Origin"
+            "access-control-allow-origin" => "http://localhost:3000",
+            "access-control-allow-methods" => "GET, HEAD",
+            "access-control-allow-headers" => "X-Custom-Token",
+            "access-control-expose-headers" => "X-Response-Header-1, X-Response-Header-2",
+            "access-control-max-age" => "300",
+            "access-control-allow-credentials" => "true",
+            "vary" => "Origin"
           },
           []
         ])
@@ -492,7 +492,7 @@ RSpec.describe Rage::Cors do
     end
 
     it "sets correct headers" do
-      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://localhost:3000", "Access-Control-Allow-Credentials" => "true" }, ["test response"]])
+      expect(subject).to eq([200, { "access-control-allow-origin" => "http://localhost:3000", "access-control-allow-credentials" => "true" }, ["test response"]])
     end
 
     context "with preflight requests" do
@@ -502,10 +502,10 @@ RSpec.describe Rage::Cors do
         expect(subject).to eq([
           204,
           {
-            "Access-Control-Allow-Origin" => "http://localhost:3000",
-            "Access-Control-Allow-Methods" => "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS",
-            "Access-Control-Allow-Headers" => "Content-Type",
-            "Access-Control-Allow-Credentials" => "true"
+            "access-control-allow-origin" => "http://localhost:3000",
+            "access-control-allow-methods" => "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS",
+            "access-control-allow-headers" => "Content-Type",
+            "access-control-allow-credentials" => "true"
           },
           []
         ])
@@ -524,7 +524,7 @@ RSpec.describe Rage::Cors do
     end
 
     it "sets correct headers" do
-      expect(subject).to eq([200, { "Access-Control-Allow-Origin" => "http://localhost:3000", "Access-Control-Expose-Headers" => "*" }, ["test response"]])
+      expect(subject).to eq([200, { "access-control-allow-origin" => "http://localhost:3000", "access-control-expose-headers" => "*" }, ["test response"]])
     end
 
     context "with preflight requests" do
@@ -534,10 +534,10 @@ RSpec.describe Rage::Cors do
         expect(subject).to eq([
           204,
           {
-            "Access-Control-Allow-Origin" => "http://localhost:3000",
-            "Access-Control-Allow-Methods" => "*",
-            "Access-Control-Allow-Headers" => "*",
-            "Access-Control-Expose-Headers" => "*"
+            "access-control-allow-origin" => "http://localhost:3000",
+            "access-control-allow-methods" => "*",
+            "access-control-allow-headers" => "*",
+            "access-control-expose-headers" => "*"
           },
           []
         ])
@@ -581,21 +581,21 @@ RSpec.describe Rage::Cors do
     end
   end
 
-  context "with Vary header in response" do
+  context "with vary header in response" do
     let(:cors) do
       described_class.new(app) do
         allow "localhost:3000"
       end
     end
 
-    let(:response) { [200, { "Vary" => "Authorization" }, ["test response"]] }
+    let(:response) { [200, { "vary" => "Authorization" }, ["test response"]] }
 
     it "sets correct headers" do
       expect(subject).to eq([
         200,
         {
-          "Vary" => "Authorization, Origin",
-          "Access-Control-Allow-Origin" => "http://localhost:3000"
+          "vary" => "Authorization, Origin",
+          "access-control-allow-origin" => "http://localhost:3000"
         },
         ["test response"]
       ])

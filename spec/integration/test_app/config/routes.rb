@@ -9,6 +9,8 @@ Rage.routes.draw do
   get "empty", to: "application#empty"
   get "raise_error", to: "application#raise_error"
   get "get_request_id", to: "application#get_request_id"
+  get "get_action_name", to: "application#get_action_name_action"
+  get "get_route_uri_pattern/:id", to: "application#get_route_uri_pattern"
 
   get "params/digest", to: "params#digest"
   post "params/digest", to: "params#digest"
@@ -25,6 +27,10 @@ Rage.routes.draw do
 
   get "logs/custom", to: "logs#custom"
   get "logs/fiber", to: "logs#fiber"
+
+  get "reload/verify", to: "reload#verify"
+
+  post "deferred/create_file", to: "deferred#create"
 
   mount ->(_) { [200, {}, ""] }, at: "/admin"
 

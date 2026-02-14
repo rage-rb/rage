@@ -9,7 +9,7 @@ class RageController::API
     # returns the name of the newly defined method;
     # rubocop:disable Layout/IndentationWidth, Layout/EndAlignment, Layout/HeredocIndentation
     def __register_action(action)
-      raise Rage::Errors::RouterError, "The action '#{action}' could not be found for #{self}" unless method_defined?(action)
+      raise Rage::Errors::RouterError, "The action `#{action}` could not be found in the `#{self}` controller. This is likely due to route helpers pointing to non-existent actions in the controller. Please check your routes and ensure that all referenced actions exist." unless method_defined?(action)
 
       around_actions_total = 0
 
@@ -112,50 +112,58 @@ class RageController::API
 
       class_eval <<~RUBY, __FILE__, __LINE__ + 1
         def __run_#{action}
-          #{if query_cache_enabled
-            <<~RUBY
-              ActiveRecord::Base.connection_pool.enable_query_cache!
-            RUBY
-          end}
+          Rage::Telemetry.tracer.span_controller_action_process(controller: self, params: @__params) do
+            #{if query_cache_enabled
+              <<~RUBY
+                ActiveRecord::Base.connection_pool.enable_query_cache!
+              RUBY
+            end}
 
-          #{wrap_parameters_chunk}
-          #{before_actions_chunk}
-          #{action} unless @__before_callback_rendered
-          #{around_actions_end_chunk}
+            #{wrap_parameters_chunk}
+            #{before_actions_chunk}
+            #{action} unless @__before_callback_rendered
+            #{around_actions_end_chunk}
 
-          #{if !after_actions_chunk.empty?
-            <<~RUBY
-              unless @__before_callback_rendered
-                @__rendered = true
-                #{after_actions_chunk}
-              end
-            RUBY
-          end}
+            #{if !after_actions_chunk.empty?
+              <<~RUBY
+                unless @__before_callback_rendered
+                  @__rendered = true
+                  #{after_actions_chunk}
+                end
+              RUBY
+            end}
 
-          [@__status, @__headers, @__body]
+            [@__status, @__headers, @__body]
 
-          #{rescue_handlers_chunk}
+            #{rescue_handlers_chunk}
 
-        ensure
-          #{if query_cache_enabled
-            <<~RUBY
-              ActiveRecord::Base.connection_pool.disable_query_cache!
-            RUBY
-          end}
+          ensure
+            #{if query_cache_enabled
+              <<~RUBY
+                ActiveRecord::Base.connection_pool.disable_query_cache!
+              RUBY
+            end}
 
-          #{if should_release_connections
-            <<~RUBY
-              ActiveRecord::Base.connection_handler.clear_active_connections!(:all)
-            RUBY
-          end}
+            #{if should_release_connections
+              <<~RUBY
+                ActiveRecord::Base.connection_handler.clear_active_connections!(:all)
+              RUBY
+            end}
 
-          #{if method_defined?(:append_info_to_payload) || private_method_defined?(:append_info_to_payload)
-            <<~RUBY
-              context = {}
-              append_info_to_payload(context)
-              Thread.current[:rage_logger][:context] = context
-            RUBY
-          end}
+            #{if method_defined?(:append_info_to_payload) || private_method_defined?(:append_info_to_payload)
+              <<~RUBY
+                context = {}
+                append_info_to_payload(context)
+
+                log_context = Fiber[:__rage_logger_context]
+                if log_context.empty?
+                  Fiber[:__rage_logger_context] = context
+                else
+                  Fiber[:__rage_logger_context] = log_context.merge(context)
+                end
+              RUBY
+            end}
+          end
         end
       RUBY
     end
@@ -445,16 +453,19 @@ class RageController::API
     @__rendered = false
   end
 
+  # @private
+  attr_reader :__env, :__status, :__headers, :__body
+
   # Get the request object. See {Rage::Request}.
   # @return [Rage::Request]
   def request
-    @request ||= Rage::Request.new(@__env)
+    @request ||= Rage::Request.new(@__env, controller: self)
   end
 
   # Get the response object. See {Rage::Response}.
   # @return [Rage::Response]
   def response
-    @response ||= Rage::Response.new(@__headers, @__body)
+    @response ||= Rage::Response.new(self)
   end
 
   # Get the cookie object. See {Rage::Cookies}.
@@ -579,7 +590,7 @@ class RageController::API
 
   # Render an HTTP header requesting the client to send a Bearer token for authentication.
   def request_http_token_authentication
-    headers["Www-Authenticate"] = "Token"
+    headers["www-authenticate"] = "Token"
     render plain: "HTTP Token: Access denied.", status: 401
   end
 
@@ -633,6 +644,12 @@ class RageController::API
 
     head :not_modified if still_fresh
     !still_fresh
+  end
+
+  # Get the name of the currently executed action.
+  # @return [String] the name of the currently executed action
+  def action_name
+    @__params[:action]
   end
 
   # @private

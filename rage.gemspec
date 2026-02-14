@@ -6,10 +6,10 @@ Gem::Specification.new do |spec|
   spec.name = "rage-rb"
   spec.version = Rage::VERSION
   spec.authors = ["Roman Samoilov"]
-  spec.email = ["rsamoi@icloud.com"]
+  spec.email = ["developers@rage-rb.dev"]
 
   spec.summary = "Fast web framework compatible with Rails."
-  spec.homepage = "https://github.com/rage-rb/rage"
+  spec.homepage = "https://rage-rb.dev"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
 
@@ -20,7 +20,7 @@ Gem::Specification.new do |spec|
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
   spec.files = Dir.chdir(__dir__) do
     `git ls-files -z`.split("\x0").reject do |f|
-      (File.expand_path(f) == __FILE__) || f.start_with?(*%w[bin/ test/ spec/ features/ .git .circleci appveyor .rubocop])
+      (File.expand_path(f) == __FILE__) || f.start_with?(*%w[bin/ gemfiles/ test/ spec/ features/ .git .circleci appveyor .rubocop])
     end
   end
   spec.bindir = "exe"
@@ -28,9 +28,11 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "thor", "~> 1.0"
-  spec.add_dependency "rack", "~> 2.0"
-  spec.add_dependency "rage-iodine", "~> 4.1"
+  spec.add_dependency "rack", "< 4"
+  spec.add_dependency "rage-iodine", "~> 4.3"
   spec.add_dependency "zeitwerk", "~> 2.6"
   spec.add_dependency "rack-test", "~> 2.1"
   spec.add_dependency "rake", ">= 12.0"
+  spec.add_dependency "logger"
+  spec.add_dependency "irb"
 end

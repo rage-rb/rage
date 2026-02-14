@@ -7,14 +7,14 @@ RSpec.describe RageController::API do
   subject { described_class.new(headers, nil) }
 
   let(:encoded_session) { "" }
-  let(:headers) { { "HTTP_COOKIE" => "#{Rage::Session::KEY}=#{encoded_session}" } }
+  let(:headers) { { "HTTP_COOKIE" => "#{Rage::Session.key}=#{encoded_session}" } }
 
   before do
-    allow(Rage.config).to receive(:secret_key_base).and_return("rage-test-key")
+    allow(Rage.config).to receive(:secret_key_base).and_return("b7ef8f0824ffbddb85818fb6898546a1")
   end
 
   context "when reading a valid session" do
-    let(:encoded_session) { "MDDTFjPTyaIdJjZG2C-RJmDPC_5fMyBMTn87Dv7EID3g-OJwakyxFQUhoSlxwqdLRw4npvm08F0=" }
+    let(:encoded_session) { "MDCf27lpe1B7qJB-1bZpqzuZ-0Tf2i0YocehRwCz5cnm6ktYi0djcr-zDtgZZQFyUhp4Q-zPM_8=" }
 
     it "correctly reads values" do
       expect(subject.session[:a]).to eq(1)
@@ -51,6 +51,10 @@ RSpec.describe RageController::API do
   context "when reading an invalid session" do
     let(:encoded_session) { "MDDTFjPTyaIdJjZG2C-RJmDPC_5fMyBMT-OJwakyxFQUhoSlxwqdLRw4npvm08F0=" }
 
+    before do
+      allow(Rage).to receive(:logger).and_return(double(debug: nil))
+    end
+
     it "correctly reads values" do
       expect(subject.session[:a]).to be_nil
     end
@@ -82,12 +86,26 @@ RSpec.describe RageController::API do
 
   context "when writing a session" do
     let(:new_session) do
-      _, session_cookie = subject.headers.find { |k, _| k == "Set-Cookie" }
-      session_value = session_cookie.match(/#{Rage::Session::KEY}=(\S+);/)[1]
+      _, session_cookie = subject.headers.find { |k, _| k.downcase == "set-cookie" }
+
+      session_cookie_values = if Gem::Version.new(Rack.release) < Gem::Version.new(3)
+        session_cookie.split("\n")
+      else
+        Array(session_cookie)
+      end
+
+      session_value = nil
+      session_cookie_values.each do |cookie_val|
+        session_value = cookie_val.match(/#{Rage::Session.key}=(\S+);/)[1]
+      end
 
       Rage::Cookies::EncryptedJar.load(
         Rack::Utils.unescape(session_value, Encoding::UTF_8)
       )
+    end
+
+    before do
+      allow(Rage).to receive(:logger).and_return(double(debug: nil))
     end
 
     it "correctly updates the session" do
@@ -114,9 +132,14 @@ RSpec.describe RageController::API do
 
     it "sets correct attributes" do
       subject.session[:abc] = 123
-      _, session_cookie = subject.headers.find { |k, _| k == "Set-Cookie" }
+      _, session_cookie = subject.headers.find { |k, _| k.downcase == "set-cookie" }
 
-      expect(session_cookie).to match(/.+; HttpOnly; SameSite=Lax/)
+      session_value = nil
+      Array(session_cookie).each do |cookie_val|
+        session_value = cookie_val.match(/#{Rage::Session.key}=(\S+);/)[1]
+      end
+
+      expect(session_cookie).to match(/.+; httponly; samesite=lax/i)
     end
   end
 
@@ -124,6 +147,58 @@ RSpec.describe RageController::API do
     it "calls clear" do
       expect(subject.session).to receive(:clear).once
       subject.reset_session
+    end
+  end
+
+  context "with standard session key" do
+    subject { Class.new(Rage::Session).key }
+
+    before do
+      allow(Rage).to receive(:root).and_return(double(basename: basename))
+    end
+
+    context "with valid name" do
+      let(:basename) { "test" }
+
+      it "builds correct key" do
+        expect(subject).to eq(:_test_session)
+      end
+    end
+
+    context "with spaces" do
+      let(:basename) { "my test" }
+
+      it "builds correct key" do
+        expect(subject).to eq(:_my_test_session)
+      end
+    end
+
+    context "with uppercase characters" do
+      let(:basename) { "MY test" }
+
+      it "builds correct key" do
+        expect(subject).to eq(:_my_test_session)
+      end
+    end
+
+    context "with special characters" do
+      let(:basename) { "$ession+key=t est!" }
+
+      it "builds correct key" do
+        expect(subject).to eq(:__ession_key_t_est__session)
+      end
+    end
+  end
+
+  context "with custom session key" do
+    subject { Class.new(Rage::Session).key }
+
+    before do
+      allow(Rage.config).to receive(:session).and_return(double(key: "custom_key"))
+    end
+
+    it "builds correct key" do
+      expect(subject).to eq(:custom_key)
     end
   end
 end

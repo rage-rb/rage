@@ -6,12 +6,98 @@ require "time"
 if !defined?(DomainName)
   fail <<~ERR
 
-    rage-rb depends on domain_name to specify the domain name for cookies. Add the following line to your Gemfile:
+    Rage depends on `domain_name` to specify the domain name for cookies. Ensure the following line is added to your Gemfile:
     gem "domain_name"
 
   ERR
 end
 
+##
+# Cookies provide a convenient way to store small amounts of data on the client side that persists across requests.
+# They are commonly used for session management, personalization, and tracking user preferences.
+#
+# Rage cookies support both simple string-based cookies and encrypted cookies for sensitive data.
+#
+# To use cookies, add the `domain_name` gem to your `Gemfile`:
+#
+# ```bash
+# bundle add domain_name
+# ```
+#
+# Additionally, if you need to use encrypted cookies, see {Session} for setup steps.
+#
+# ## Usage
+#
+# ### Basic Cookies
+#
+# Read and write simple string values:
+#
+# ```ruby
+# # Set a cookie
+# cookies[:user_name] = "Alice"
+#
+# # Read a cookie
+# cookies[:user_name] # => "Alice"
+#
+# # Delete a cookie
+# cookies.delete(:user_name)
+# ```
+#
+# ### Cookie Options
+#
+# Set cookies with additional options for security and control:
+#
+# ```ruby
+# cookies[:user_id] = {
+#   value: "12345",
+#   expires: 1.year.from_now,
+#   secure: true,
+#   httponly: true,
+#   same_site: :lax
+# }
+# ```
+#
+# ### Encrypted Cookies
+#
+# Store sensitive data securely with automatic encryption:
+#
+# ```ruby
+# # Set an encrypted cookie
+# cookies.encrypted[:api_token] = "secret-token"
+#
+# # Read an encrypted cookie
+# cookies.encrypted[:api_token] # => "secret-token"
+#
+# ```
+#
+# ### Permanent Cookies
+#
+# Create cookies that expire 20 years from now:
+#
+# ```ruby
+# cookies.permanent[:remember_token] = "token-value"
+#
+# # Can be combined with encrypted
+# cookies.permanent.encrypted[:user_id] = current_user.id
+# ```
+#
+# ### Domain Configuration
+#
+# Control which domains can access your cookies:
+#
+# ```ruby
+# # Specific domain
+# cookies[:cross_domain] = { value: "data", domain: "example.com" }
+#
+# # All subdomains
+# cookies[:shared] = { value: "data", domain: :all }
+#
+# # Multiple allowed domains
+# cookies[:limited] = { value: "data", domain: ["app.example.com", "api.example.com"] }
+# ```
+#
+# @see Session
+#
 class Rage::Cookies
   # @private
   def initialize(env, headers)
@@ -45,12 +131,8 @@ class Rage::Cookies
   # @param path [String]
   # @param domain [String]
   def delete(key, path: "/", domain: nil)
-    @headers.compare_by_identity
-
     @request_cookies[key] = nil
-    @headers[set_cookie_key(key)] = Rack::Utils.add_cookie_to_header(nil, key, {
-      value: "", expires: Time.at(0), path: path, domain: domain
-    })
+    Rack::Utils.delete_cookie_header!(@headers, key, { path: path, domain: domain })
   end
 
   # Returns a jar that'll automatically encrypt cookie values before sending them to the client and will decrypt them
@@ -88,19 +170,17 @@ class Rage::Cookies
   # @example
   #   cookie[:user_id] = { value: current_user.id, httponly: true, secure: true }
   def []=(key, value)
-    @headers.compare_by_identity
-
     unless value.is_a?(Hash)
       serialized_value = @jar.dump(value)
       @request_cookies[key] = serialized_value
-      @headers[set_cookie_key(key)] = Rack::Utils.add_cookie_to_header(nil, key, { value: serialized_value, expires: @expires })
+      Rack::Utils.set_cookie_header!(@headers, key, { value: serialized_value, expires: @expires })
       return
     end
 
     if (domain = value[:domain])
       host = @env["HTTP_HOST"]
 
-      _domain = if domain.is_a?(String)
+      processed_domain = if domain.is_a?(String)
         domain
       elsif domain == :all
         DomainName(host).domain
@@ -110,18 +190,13 @@ class Rage::Cookies
     end
 
     serialized_value = @jar.dump(value[:value])
-    cookie = Rack::Utils.add_cookie_to_header(nil, key, {
-      path: value[:path],
-      secure: value[:secure],
-      expires: value[:expires] || @expires,
-      httponly: value[:httponly],
-      same_site: value[:same_site],
+    Rack::Utils.set_cookie_header!(@headers, key, {
+      **value,
       value: serialized_value,
-      domain: _domain
+      domain: processed_domain,
+      expires: value[:expires] || @expires
     })
-
     @request_cookies[key] = serialized_value
-    @headers[set_cookie_key(key)] = cookie
   end
 
   def inspect
@@ -154,11 +229,6 @@ class Rage::Cookies
     @request_cookies
   end
 
-  def set_cookie_key(key)
-    @set_cookie_keys ||= Hash.new { |hash, key| hash[key] = "Set-Cookie".dup }
-    @set_cookie_keys[key]
-  end
-
   protected
 
   attr_writer :jar, :expires
@@ -180,7 +250,7 @@ class Rage::Cookies
   end
 
   class EncryptedJar
-    SALT = "encrypted cookie"
+    INFO = "encrypted cookie"
     PADDING = "00"
 
     class << self
@@ -190,10 +260,13 @@ class Rage::Cookies
         begin
           box.decrypt(Base64.urlsafe_decode64(value).byteslice(2..))
         rescue ArgumentError
+          Rage.logger.debug("Failed to decode encrypted cookie")
           nil
         rescue RbNaCl::CryptoError
+          Rage.logger.debug("Failed to decrypt encrypted cookie")
           i ||= 0
           if (box = fallback_boxes[i])
+            Rage.logger.debug { "Trying to decrypt with fallback key ##{i + 1}" }
             i += 1
             retry
           end
@@ -213,7 +286,7 @@ class Rage::Cookies
           if !defined?(RbNaCl) || !(Gem::Version.create(RbNaCl::VERSION) >= Gem::Version.create("3.3.0") && Gem::Version.create(RbNaCl::VERSION) < Gem::Version.create("8.0.0"))
             fail <<~ERR
 
-              rage-rb depends on rbnacl [>= 3.3, < 8.0] to encrypt cookies. Add the following line to your Gemfile:
+              Rage depends on `rbnacl` [>= 3.3, < 8.0] to encrypt cookies. Ensure the following line is added to your Gemfile:
               gem "rbnacl"
 
             ERR
@@ -223,16 +296,24 @@ class Rage::Cookies
             raise "Rage.config.secret_key_base should be set to use encrypted cookies"
           end
 
-          RbNaCl::SimpleBox.from_secret_key(
-            RbNaCl::Hash.blake2b(Rage.config.secret_key_base, digest_size: 32, salt: SALT)
-          )
+          RbNaCl::SimpleBox.from_secret_key(build_key(Rage.config.secret_key_base))
         end
       end
 
       def fallback_boxes
-        @fallback_boxes ||= Rage.config.fallback_secret_key_base.map do |key|
-          RbNaCl::SimpleBox.from_secret_key(RbNaCl::Hash.blake2b(key, digest_size: 32, salt: SALT))
+        @fallback_boxes ||= begin
+          fallbacks = Rage.config.fallback_secret_key_base.map do |key|
+            RbNaCl::SimpleBox.from_secret_key(build_key(key))
+          end
+
+          fallbacks << RbNaCl::SimpleBox.from_secret_key(
+            RbNaCl::Hash.blake2b(Rage.config.secret_key_base, digest_size: 32, salt: INFO)
+          )
         end
+      end
+
+      def build_key(secret)
+        RbNaCl::Hash.blake2b("", key: [secret].pack("H*"), digest_size: 32, personal: INFO)
       end
     end # class << self
   end

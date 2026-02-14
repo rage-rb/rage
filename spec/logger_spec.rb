@@ -6,13 +6,13 @@ RSpec.describe Rage::Logger do
   subject { described_class.new(io) }
 
   let(:io) { StringIO.new }
+  let(:log) { io.tap(&:rewind).read }
 
   before do
-    Thread.current[:rage_logger] = {
-      tags: ["my_test_tag"],
-      context: {},
-      request_start: 123
-    }
+    Fiber[:__rage_logger_tags] = ["my_test_tag"]
+    Fiber[:__rage_logger_context] = {}
+    Fiber[:__rage_logger_request_start] = 123
+    Fiber[:__rage_logger_final] = nil
 
     allow(Iodine::Rack::Utils).to receive(:gen_timestamp).and_return("very_accurate_timestamp")
     allow(Process).to receive(:pid).and_return(777)
@@ -33,9 +33,23 @@ RSpec.describe Rage::Logger do
     expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=debug message=test message\n")
   end
 
+  it "adds a nil entry" do
+    subject.info nil
+    expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info message=\n")
+  end
+
+  it "adds a raw entry" do
+    subject << "test message"
+    expect(io.tap(&:rewind).read).to eq("test message")
+  end
+
   it "works with a block" do
     subject.error { "test message" }
     expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=error message=test message\n")
+  end
+
+  it "doesn't set external logger" do
+    expect(subject.external_logger).to be_nil
   end
 
   context "with a custom level" do
@@ -108,6 +122,19 @@ RSpec.describe Rage::Logger do
 
       expect(result).to eq(:success)
     end
+
+    context "with other process referencing the tags" do
+      it "doesn't mutate the tags storage" do
+        referenced_tags = nil
+
+        subject.tagged("rspec") do
+          referenced_tags = Fiber[:__rage_logger_tags]
+          subject.info "test passed"
+        end
+
+        expect(referenced_tags).to eq(["my_test_tag", "rspec"])
+      end
+    end
   end
 
   context "with context" do
@@ -153,11 +180,59 @@ RSpec.describe Rage::Logger do
 
       expect(result).to eq(:ok)
     end
+
+    context "with other process referencing the context" do
+      it "doesn't mutate the context storage" do
+        referenced_context = nil
+
+        subject.with_context(rspec: true) do
+          referenced_context = Fiber[:__rage_logger_context]
+          subject.info "text"
+        end
+
+        expect(referenced_context).to eq({ rspec: true })
+      end
+    end
+  end
+
+  context "with inline context" do
+    it "adds a key to an entry" do
+      subject.info "passed", test_id: "1133"
+      expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info test_id=1133 message=passed\n")
+    end
+
+    it "adds multiple keys to an entry" do
+      subject.info "passed", test_id: "1133", user_id: 12345
+      expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info test_id=1133 user_id=12345 message=passed\n")
+    end
+
+    it "works correctly with multiple nesting levels" do
+      subject.tagged("rspec") do
+        subject.debug "debug message", user_id: 123
+
+        subject.with_context(b: 222) do
+          subject.tagged("test_tag") do
+            subject.info "info message", user_id: 456
+
+            subject.with_context(c: "333", d: "444") do
+              subject.unknown "unknown message", user_id: 789
+            end
+          end
+        end
+      end
+
+      io.rewind
+      expect(io.readline).to eq("[my_test_tag][rspec] timestamp=very_accurate_timestamp pid=777 level=debug user_id=123 message=debug message\n")
+      expect(io.readline).to eq("[my_test_tag][rspec][test_tag] timestamp=very_accurate_timestamp pid=777 level=info b=222 user_id=456 message=info message\n")
+      expect(io.readline).to eq("[my_test_tag][rspec][test_tag] timestamp=very_accurate_timestamp pid=777 level=unknown b=222 c=333 d=444 user_id=789 message=unknown message\n")
+    end
   end
 
   context "outside the request/response cycle" do
     before do
-      Thread.current[:rage_logger] = nil
+      Fiber[:__rage_logger_tags] = nil
+      Fiber[:__rage_logger_context] = nil
+      Fiber[:__rage_logger_final] = nil
     end
 
     it "correctly adds an entry" do
@@ -182,7 +257,7 @@ RSpec.describe Rage::Logger do
 
   context "with request logs" do
     before do
-      Thread.current[:rage_logger][:final] = {
+      Fiber[:__rage_logger_final] = {
         env: { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/test_path" },
         params: { controller: "rspec", action: "index", id: "123" },
         response: [300, {}, []],
@@ -199,7 +274,7 @@ RSpec.describe Rage::Logger do
 
     context "with no params" do
       before do
-        Thread.current[:rage_logger][:final].delete(:params)
+        Fiber[:__rage_logger_final].delete(:params)
       end
 
       it "correctly add an entry" do
@@ -210,7 +285,7 @@ RSpec.describe Rage::Logger do
 
     context "with empty params" do
       before do
-        Thread.current[:rage_logger][:final][:params] = {}
+        Fiber[:__rage_logger_final][:params] = {}
       end
 
       it "correctly add an entry" do
@@ -221,7 +296,7 @@ RSpec.describe Rage::Logger do
 
     context "with namespaced controllers" do
       before do
-        Thread.current[:rage_logger][:final][:params][:controller] = "api/v2/users"
+        Fiber[:__rage_logger_final][:params][:controller] = "api/v2/users"
         stub_const("Api::V2::UsersController", double(name: "Api::V2::UsersController"))
       end
 
@@ -246,6 +321,18 @@ RSpec.describe Rage::Logger do
         subject.fatal { raise }
       }.not_to raise_error
     end
+
+    it "doesn't add a raw entry" do
+      expect {
+        subject << "this is a test message"
+      }.not_to raise_error
+    end
+
+    it "doesn't add inline context" do
+      expect(
+        subject.fatal("this is a test message", user_id: 567)
+      ).to be(false)
+    end
   end
 
   context "with LogDevice options" do
@@ -253,6 +340,483 @@ RSpec.describe Rage::Logger do
 
     it "passes options down" do
       expect { subject }.not_to raise_error
+    end
+  end
+
+  context "with external logger" do
+    context "with static logger" do
+      let(:external_logger) { double }
+      let(:io) { Rage::Logger::External::Static[external_logger] }
+
+      it "correctly initializes the logger" do
+        expect(subject.external_logger).to equal(io)
+      end
+
+      it "delegates logger calls to external logger" do
+        expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info message=test\n")
+        subject.info "test"
+
+        expect(external_logger).to receive(:warn).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=warn message=test\n")
+        subject.warn "test"
+      end
+
+      context "with custom context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info rspec=true message=test\n")
+
+          subject.with_context(rspec: true) do
+            subject.info "test"
+          end
+        end
+      end
+
+      context "with custom inline context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info rspec=true message=test\n")
+          subject.info "test", rspec: true
+        end
+      end
+
+      context "with merged context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info rspec=true user_id=123 account_id=456 message=test\n")
+
+          subject.with_context(rspec: true) do
+            subject.info "test", user_id: 123, account_id: 456
+          end
+        end
+      end
+
+      context "with custom tags" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:info).with("[my_test_tag][rspec][tags_test] timestamp=very_accurate_timestamp pid=777 level=info message=test\n")
+
+          subject.tagged("rspec", "tags_test") do
+            subject.info "test"
+          end
+        end
+      end
+
+      context "with custom tags and context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:info).with("[my_test_tag][rspec][tags_test] timestamp=very_accurate_timestamp pid=777 level=info rspec=true message=test\n")
+
+          subject.with_context(rspec: true) do
+            subject.tagged("rspec", "tags_test") do
+              subject.info "test"
+            end
+          end
+        end
+      end
+
+      context "with global context" do
+        before do
+          subject.dynamic_context = proc { { id: 12345 } }
+        end
+
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info id=12345 message=test\n")
+          subject.info "test"
+        end
+
+        context "with custom context" do
+          it "correctly builds log entry" do
+            expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info rspec=true id=12345 message=test\n")
+
+            subject.with_context(rspec: true) do
+              subject.info "test"
+            end
+          end
+        end
+
+        context "with custom inline context" do
+          it "correctly builds log entry" do
+            expect(external_logger).to receive(:info).with("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info id=12345 rspec=true message=test\n")
+            subject.info "test", rspec: true
+          end
+        end
+
+        context "with custom tags and context" do
+          it "correctly builds log entry" do
+            expect(external_logger).to receive(:info).with("[my_test_tag][rspec][tags_test] timestamp=very_accurate_timestamp pid=777 level=info rspec=true id=12345 message=test\n")
+
+            subject.with_context(rspec: true) do
+              subject.tagged("rspec", "tags_test") do
+                subject.info "test"
+              end
+            end
+          end
+        end
+      end
+    end
+
+    context "with dynamic logger" do
+      let(:external_logger) { proc { |**| } }
+      let(:io) { Rage::Logger::External::Dynamic[external_logger] }
+
+      it "correctly initializes the logger" do
+        expect(subject.external_logger).to equal(io)
+      end
+
+      it "delegates logger calls to external logger" do
+        expect(external_logger).to receive(:call).with(
+          severity: :info,
+          tags: ["my_test_tag"],
+          context: {},
+          message: "test",
+          request_info: nil
+        )
+        subject.info "test"
+
+        expect(external_logger).to receive(:call).with(
+          severity: :warn,
+          tags: ["my_test_tag"],
+          context: {},
+          message: "test",
+          request_info: nil
+        )
+        subject.warn "test"
+      end
+
+      it "freezes log data" do
+        expect(external_logger).to receive(:call) do |_, tags, context, _, _|
+          expect(tags).to be_frozen
+          expect(context).to be_frozen
+        end
+
+        subject.info "test"
+      end
+
+      context "with custom context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag"],
+            context: { rspec: true },
+            message: "test",
+            request_info: nil
+          )
+
+          subject.with_context(rspec: true) do
+            subject.info "test"
+          end
+        end
+      end
+
+      context "with custom inline context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag"],
+            context: { rspec: true },
+            message: "test",
+            request_info: nil
+          )
+
+          subject.info "test", rspec: true
+        end
+      end
+
+      context "with merged context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag"],
+            context: { rspec: true, user_id: 123 },
+            message: "test",
+            request_info: nil
+          )
+
+          subject.with_context(rspec: true) do
+            subject.info "test", user_id: 123
+          end
+        end
+      end
+
+      context "with custom tags" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag", "rspec", "tags_test"],
+            context: {},
+            message: "test",
+            request_info: nil
+          )
+
+          subject.tagged("rspec", "tags_test") do
+            subject.info "test"
+          end
+        end
+      end
+
+      context "with custom tags and context" do
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag", "rspec", "tags_test"],
+            context: { rspec: true },
+            message: "test",
+            request_info: nil
+          )
+
+          subject.with_context(rspec: true) do
+            subject.tagged("rspec", "tags_test") do
+              subject.info "test"
+            end
+          end
+        end
+      end
+
+      context "with subset of parameters" do
+        let(:external_logger) { proc { |message:, context:| } }
+
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            context: {},
+            message: "test"
+          )
+
+          subject.info "test"
+        end
+      end
+
+      context "with global context" do
+        before do
+          subject.dynamic_context = proc { { id: 12345 } }
+        end
+
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag"],
+            context: { id: 12345 },
+            message: "test",
+            request_info: nil
+          )
+
+          subject.info "test"
+        end
+
+        context "with custom context" do
+          it "correctly builds log entry" do
+            expect(external_logger).to receive(:call).with(
+              severity: :info,
+              tags: ["my_test_tag"],
+              context: { id: 12345, rspec: true },
+              message: "test",
+              request_info: nil
+            )
+
+            subject.with_context(rspec: true) do
+              subject.info "test"
+            end
+          end
+        end
+
+        context "with custom inline context" do
+          it "correctly builds log entry" do
+            expect(external_logger).to receive(:call).with(
+              severity: :info,
+              tags: ["my_test_tag"],
+              context: { id: 12345, rspec: true },
+              message: "test",
+              request_info: nil
+            )
+
+            subject.info "test", rspec: true
+          end
+        end
+
+        context "with custom tags and context" do
+          it "correctly builds log entry" do
+            expect(external_logger).to receive(:call).with(
+              severity: :info,
+              tags: ["my_test_tag", "rspec", "tags_test"],
+              context: { id: 12345, rspec: true },
+              message: "test",
+              request_info: nil
+            )
+
+            subject.with_context(rspec: true) do
+              subject.tagged("rspec", "tags_test") do
+                subject.info "test"
+              end
+            end
+          end
+        end
+      end
+
+      context "with external logger as an instance" do
+        let(:external_logger_class) do
+          Class.new do
+            def call(**)
+            end
+          end
+        end
+
+        let(:external_logger) { external_logger_class.new }
+
+        it "correctly builds log entry" do
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag"],
+            context: {},
+            message: "test",
+            request_info: nil
+          )
+
+          subject.info "test"
+        end
+
+        context "with subset of parameters" do
+          let(:external_logger_class) do
+            Class.new do
+              def call(message:, tags:)
+                verifier.call(message:, tags:)
+              end
+            end
+          end
+
+          before do
+            allow(external_logger).to receive(:verifier).and_return(double)
+          end
+
+          it "correctly builds log entry" do
+            expect(external_logger.verifier).to receive(:call).with(
+              tags: ["my_test_tag"],
+              message: "test"
+            )
+
+            subject.info "test"
+          end
+        end
+      end
+    end
+  end
+
+  context "with intersecting fibers" do
+    before :all do
+      Fiber.set_scheduler(Rage::FiberScheduler.new)
+    end
+
+    after :all do
+      Fiber.set_scheduler(nil)
+    end
+
+    context "with separate fibers" do
+      it "correctly isolates context" do
+        within_reactor do
+          f1 = Fiber.schedule do
+            subject.with_context(fiber_no: 1, test_key_1: true) do
+              sleep 0.2
+              subject.info "test fiber 1"
+            end
+          end
+
+          f2 = Fiber.schedule do
+            subject.with_context(fiber_no: 2, test_key_2: true) do
+              sleep 0.1
+              subject.info "test fiber 2"
+            end
+          end
+
+          Fiber.await([f1, f2])
+
+          -> do
+            expect(log).to include("fiber_no=1 test_key_1=true message=test fiber 1")
+            expect(log).to include("fiber_no=2 test_key_2=true message=test fiber 2")
+          end
+        end
+      end
+
+      it "correctly isolates tags" do
+        within_reactor do
+          f1 = Fiber.schedule do
+            subject.tagged("fiber_no_1") do
+              sleep 0.2
+              subject.info "test fiber 1"
+            end
+          end
+
+          f2 = Fiber.schedule do
+            subject.tagged("fiber_no_2") do
+              sleep 0.1
+              subject.info "test fiber 2"
+            end
+          end
+
+          Fiber.await([f1, f2])
+
+          -> do
+            expect(log).to match(/\[fiber_no_1\] [\w\s=]+ message=test fiber 1/)
+            expect(log).to match(/\[fiber_no_2\] [\w\s=]+ message=test fiber 2/)
+          end
+        end
+      end
+    end
+
+    context "with logging in base fiber" do
+      it "correctly isolates context" do
+        within_reactor do
+          subject.with_context(fiber_no: 0, test_key_0: true) do
+            f1 = Fiber.schedule do
+              subject.with_context(fiber_no: 1, test_key_1: true) do
+                sleep 0.2
+                subject.info "test fiber 1"
+              end
+            end
+
+            f2 = Fiber.schedule do
+              subject.with_context(fiber_no: 2, test_key_2: true) do
+                sleep 0.1
+                subject.info "test fiber 2"
+              end
+            end
+
+            subject.info "(1) test fiber 0"
+            Fiber.await([f1, f2])
+            subject.info "(2) test fiber 0"
+          end
+
+          -> do
+            expect(log).to include("fiber_no=1 test_key_0=true test_key_1=true message=test fiber 1")
+            expect(log).to include("fiber_no=2 test_key_0=true test_key_2=true message=test fiber 2")
+            expect(log).to include("fiber_no=0 test_key_0=true message=(1) test fiber 0")
+            expect(log).to include("fiber_no=0 test_key_0=true message=(2) test fiber 0")
+          end
+        end
+      end
+
+      it "correctly isolates tags" do
+        within_reactor do
+          subject.tagged("fiber_no_0") do
+            f1 = Fiber.schedule do
+              subject.tagged("fiber_no_1") do
+                sleep 0.2
+                subject.info "test fiber 1"
+              end
+            end
+
+            f2 = Fiber.schedule do
+              subject.tagged("fiber_no_2") do
+                sleep 0.1
+                subject.info "test fiber 2"
+              end
+            end
+
+            subject.info "(1) test fiber 0"
+            Fiber.await([f1, f2])
+            subject.info "(2) test fiber 0"
+          end
+
+          -> do
+            expect(log).to include("[my_test_tag][fiber_no_0][fiber_no_1] timestamp=very_accurate_timestamp pid=777 level=info message=test fiber 1")
+            expect(log).to include("[my_test_tag][fiber_no_0][fiber_no_2] timestamp=very_accurate_timestamp pid=777 level=info message=test fiber 2")
+            expect(log).to include("[my_test_tag][fiber_no_0] timestamp=very_accurate_timestamp pid=777 level=info message=(1) test fiber 0")
+            expect(log).to include("[my_test_tag][fiber_no_0] timestamp=very_accurate_timestamp pid=777 level=info message=(2) test fiber 0")
+          end
+        end
+      end
     end
   end
 end

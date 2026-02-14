@@ -12,7 +12,7 @@ module Rage
       File.expand_path("templates", __dir__)
     end
 
-    desc "migration NAME", "Generate a new migration."
+    desc "migration NAME", "Generate a new migration"
     def migration(name = nil)
       return help("migration") if name.nil?
 
@@ -20,7 +20,7 @@ module Rage
       Rake::Task["db:new_migration"].invoke(name)
     end
 
-    desc "model NAME", "Generate a new model."
+    desc "model NAME", "Generate a new model"
     def model(name = nil)
       return help("model") if name.nil?
 
@@ -30,7 +30,7 @@ module Rage
       template("model-template/model.rb", "app/models/#{name.singularize.underscore}.rb")
     end
 
-    desc "controller NAME", "Generate a new controller."
+    desc "controller NAME", "Generate a new controller"
     def controller(name = nil)
       return help("controller") if name.nil?
 
@@ -65,9 +65,9 @@ module Rage
       true
     end
 
-    desc "new PATH", "Create a new application."
-    option :database, aliases: "-d", desc: "Preconfigure for selected database.", enum: %w(mysql trilogy postgresql sqlite3)
-    option :help, aliases: "-h", desc: "Show this message."
+    desc "new PATH", "Create a new application"
+    option :database, aliases: "-d", desc: "Preconfigure for selected database", enum: %w(mysql trilogy postgresql sqlite3)
+    option :help, aliases: "-h", desc: "Show this message"
     def new(path = nil)
       return help("new") if options.help? || path.nil?
 
@@ -75,12 +75,12 @@ module Rage
       CLINewAppGenerator.start([path, options[:database]])
     end
 
-    desc "s", "Start the app server."
-    option :port, aliases: "-p", desc: "Runs Rage on the specified port - defaults to 3000."
-    option :environment, aliases: "-e", desc: "Specifies the environment to run this server under (test/development/production)."
-    option :binding, aliases: "-b", desc: "Binds Rails to the specified IP - defaults to 'localhost' in development and '0.0.0.0' in other environments."
-    option :config, aliases: "-c", desc: "Uses a custom rack configuration."
-    option :help, aliases: "-h", desc: "Show this message."
+    desc "s", "Start the app server"
+    option :port, aliases: "-p", desc: "Runs Rage on the specified port - defaults to 3000"
+    option :environment, aliases: "-e", desc: "Specifies the environment to run this server under (test/development/production)"
+    option :binding, aliases: "-b", desc: "Binds Rails to the specified IP - defaults to 'localhost' in development and '0.0.0.0' in other environments"
+    option :config, aliases: "-c", desc: "Uses a custom rack configuration"
+    option :help, aliases: "-h", desc: "Show this message"
     def server
       return help("server") if options.help?
 
@@ -104,9 +104,9 @@ module Rage
       ::Iodine.start
     end
 
-    desc "routes", "List all routes."
+    desc "routes", "List all routes"
     option :grep, aliases: "-g", desc: "Filter routes by pattern"
-    option :help, aliases: "-h", desc: "Show this message."
+    option :help, aliases: "-h", desc: "Show this message"
     def routes
       return help("routes") if options.help?
       # the result would be something like this:
@@ -154,7 +154,12 @@ module Rage
         meta = route[:constraints]
         meta.merge!(route[:defaults]) if route[:defaults]
 
-        handler = route[:meta][:raw_handler]
+        raw_handler = route[:meta][:raw_handler]
+        handler = if raw_handler.respond_to?(:__rage_app_name)
+          raw_handler.__rage_app_name
+        else
+          raw_handler
+        end
         handler = "#{handler} #{meta}" unless meta&.empty?
 
         puts format("%-#{longest_method}s%-#{longest_path}s%s", route[:method], route[:path], handler)
@@ -162,8 +167,8 @@ module Rage
       end
     end
 
-    desc "c", "Start the app console."
-    option :help, aliases: "-h", desc: "Show this message."
+    desc "c", "Start the app console"
+    option :help, aliases: "-h", desc: "Show this message"
     def console
       return help("console") if options.help?
 
@@ -185,17 +190,49 @@ module Rage
       end
     end
 
+    desc "events [EVENT1, EVENT2]", "List all registered events and their subscribers"
+    option :help, aliases: "-h", desc: "Show this message"
+    def events(*event_class_names)
+      return help("events") if options.help?
+
+      environment
+      Rage::Events.__eager_load_subscribers if Rage.env.development?
+
+      event_classes = if event_class_names.any?
+        event_class_names.flat_map { |name| name.split(",") }.map do |event_class_name|
+          @last_event_class_name = event_class_name
+          Object.const_get(event_class_name)
+        end
+      else
+        registered_events = Rage::Events.__registered_subscribers.keys
+        registered_events.reject do |event_class|
+          registered_events.any? { |e| e.ancestors.include?(event_class) && e.ancestors.index(event_class) != 0 }
+        end
+      end
+
+      event_classes.each { |event_class| print_event_subscribers_tree(event_class) }
+
+    rescue NameError
+      if @last_event_class_name
+        spell_checker = DidYouMean::SpellChecker.new(dictionary: Rage::Events.__registered_subscribers.keys)
+        suggestion = DidYouMean.formatter.message_for(spell_checker.correct(@last_event_class_name))
+        puts "Could not find the `#{@last_event_class_name}` event. #{suggestion}"
+      else
+        raise
+      end
+    end
+
     desc "version", "Return the current version of the framework"
     def version
       puts Rage::VERSION
     end
 
     map "generate" => :g
-    desc "g TYPE", "Generate new code."
+    desc "g TYPE", "Generate new code"
     subcommand "g", CLICodeGenerator
 
     map "--tasks" => :tasks
-    desc "--tasks", "See the list of available tasks."
+    desc "--tasks", "See the list of available tasks"
     def tasks
       require "io/console"
 
@@ -272,6 +309,57 @@ module Rage
 
         def self.await(fibers)
           Array(fibers).map(&:__get_result)
+        end
+      end
+    end
+
+    def print_event_subscribers_tree(event_class)
+      subscribers = Rage::Events.__get_subscribers(event_class)
+
+      event_ancestors = event_class.ancestors.take_while { |klass| klass != Struct && klass != Data && klass != Object }
+
+      # build a tree of all events and their subscribers
+      tree = event_ancestors.each_with_object({}) do |ancestor, memo|
+        level = event_class.ancestors.count { |klass| klass.ancestors.include?(ancestor) } - 1
+        filtered_subscribers = subscribers.select { |subscriber| subscriber.__event_classes.include?(ancestor) }
+
+        memo[ancestor] = { level:, subscribers: filtered_subscribers }
+      end
+
+      # reject events without subscribers located on the last levels
+      i = 0
+      tree = tree.reject do |_, node|
+        level, subscribers = node[:level], node[:subscribers]
+        next_level = tree.values.dig(i + 1, :level)
+        i += 1
+
+        (next_level.nil? || next_level < level) && subscribers.empty?
+      end
+
+      # indentation for each level
+      padding = " " * 3
+
+      # print the tree
+      tree.each_with_index do |(event_ancestor, node), i|
+        level, subscribers = node[:level], node[:subscribers]
+        next_level = tree.values.dig(i + 1, :level)
+
+        prefix = if i > 0 && next_level != level
+          "└─"
+        else
+          "├─"
+        end
+
+        event_class_line = "#{padding * level}#{prefix} \e[90m#{event_ancestor}\e[0m"
+        if level == 0
+          puts event_class_line
+        else
+          puts "|#{event_class_line}"
+        end
+
+        subscribers.each do |subscriber|
+          prefix = subscriber == subscribers.last && next_level != level + 1 ? "└─" : "├─"
+          puts "│#{padding * (level + 1)}#{prefix} \e[1m#{subscriber}\e[0m"
         end
       end
     end

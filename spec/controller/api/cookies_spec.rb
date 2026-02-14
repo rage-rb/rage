@@ -21,15 +21,15 @@ RSpec.describe RageController::API do
 
   context "with cookies" do
     before do
-      allow(Rage.config).to receive(:secret_key_base).and_return("rage-test-key")
-      allow(Rage.config).to receive(:fallback_secret_key_base).and_return(%w(rage-fallback-key))
+      allow(Rage.config).to receive(:secret_key_base).and_return("b7ef8f0824ffbddb85818fb6898546a1")
+      allow(Rage.config).to receive(:fallback_secret_key_base).and_return(%w(707ae8b7c9655bd5cd30fd407d2791e4))
     end
 
     let(:cookies) do
       {
         user_id: 112,
         callback_url: "https://test-host.com",
-        session: "MDB4tHk-Qm-da9_zeXE8NaywvyzidycD4qIhK1xWmYVJE_jYeuo_rzd9Eb6gwCLBn8eYaqT9QBomfAFA"
+        session: "MDAAeSoXJxjazIR1ER55uE2KYYT5Bwabdws3Mu_SSgt563O6VE9dGGoSYjTQ_ShcJKWmymNAQpFG-Mg5"
       }
     end
 
@@ -71,7 +71,11 @@ RSpec.describe RageController::API do
 
     context "with data encrypted with rotated key" do
       let(:cookies) do
-        { session: "MDC9exZmtbHuQ0hKQbfuf69gBQE0oER1y0DInAq686395nMYPVRxt0D3W8wt0jjegw1LNu4MSvQf1LSWdw==" }
+        { session: "MDBDgi9VGfN221gVpLfGx3Hs_IwW5cdjxAd7U-uBFSwxYthYMY32WjTW_C3e70rZthg1R936g8Jhwe59wg==" }
+      end
+
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
       end
 
       it "correctly decrypts data" do
@@ -79,8 +83,26 @@ RSpec.describe RageController::API do
       end
     end
 
+    context "with legacy key" do
+      let(:cookies) do
+        { session: "MDDPbSUSGqXtww1LMHHcCSiYFE_EMswmzJRbs0koNSFUz9CHbHR-wAwv7vDj5MJFom_7XGwB-FNW5M8P-0K4uw==" }
+      end
+
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
+      end
+
+      it "correctly decrypts data" do
+        expect(subject.cookies.encrypted[:session]).to eq("primary-old-test-value")
+      end
+    end
+
     context "with incorrectly encrypted data" do
-      let(:cookies) { { session: "MDC9exZmtbHuQ0hK" } }
+      let(:cookies) { { session: "MDBDgi9VGfN221gVpLfGx3Hs" } }
+
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
+      end
 
       it "return nil" do
         expect(subject.cookies.encrypted[:session]).to be_nil
@@ -89,6 +111,10 @@ RSpec.describe RageController::API do
 
     context "with incorrectly base64 encoded data" do
       let(:cookies) { { session: ";;;;;;;" } }
+
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
+      end
 
       it "return nil" do
         expect(subject.cookies.encrypted[:session]).to be_nil
@@ -108,9 +134,17 @@ RSpec.describe RageController::API do
     let(:cookies) { [] }
     let(:response_cookies) do
       subject.headers.each_with_object({}) do |(header, value), memo|
-        if header == "Set-Cookie"
-          k, v = value.split("=", 2)
-          memo[k.to_sym] = v
+        if header.downcase == "set-cookie"
+          cookie_values = if Gem::Version.new(Rack.release) < Gem::Version.new(3)
+            value.split("\n")
+          else
+            Array(value)
+          end
+
+          cookie_values.each do |cookie|
+            k, v = cookie.split("=", 2)
+            memo[k.to_sym] = v
+          end
         end
       end
     end
@@ -136,7 +170,7 @@ RSpec.describe RageController::API do
         value: 110
       }
 
-      expect(response_cookies[:user_id]).to eq("110; path=/users; secure; HttpOnly; SameSite=Lax")
+      expect(response_cookies[:user_id].downcase).to eq("110; path=/users; secure; httponly; samesite=lax")
     end
 
     it "correctly sets multiple values" do
@@ -160,7 +194,7 @@ RSpec.describe RageController::API do
       subject.cookies.delete(:user_id)
       subject.cookies[:user_id] = 200
 
-      expect(subject.headers.count { |k, _| k == "Set-Cookie" }).to eq(1)
+      expect(subject.headers.count { |k, _| k.downcase == "set-cookie" }).to eq(1)
     end
 
     context "with string domain" do
@@ -208,7 +242,7 @@ RSpec.describe RageController::API do
       end
 
       it "correctly sets permanent cookies with encrypted values" do
-        allow(Rage.config).to receive(:secret_key_base).and_return("rage-test-key")
+        allow(Rage.config).to receive(:secret_key_base).and_return("b7ef8f0824ffbddb85818fb6898546a1")
 
         subject.cookies.encrypted.permanent[:user_id] = "secret"
         expect(response_cookies[:user_id]).to match(/\S+; expires=\w{3}, \d{2} \w{3} #{Time.now.year + 20} \d{2}:\d{2}:\d{2} GMT/)

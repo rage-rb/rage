@@ -1,5 +1,33 @@
 # frozen_string_literal: true
 
+##
+# `Rage::Cable` provides built-in WebSocket support for Rage apps, similar to Action Cable in Rails. It lets you mount a separate WebSocket application, define channels and connections, subscribe clients to named streams, and broadcast messages in real time.
+#
+# Define a channel:
+# ```ruby
+# class ChatChannel < Rage::Cable::Channel
+#   def subscribed
+#     stream_from "chat"
+#   end
+#
+#   def receive(data)
+#     puts "Received message: #{data['message']}"
+#   end
+# end
+# ```
+#
+# Mount the Cable application:
+# ```ruby
+# Rage.routes.draw do
+#   mount Rage::Cable.application, at: "/cable"
+# end
+# ```
+#
+# Broadcast a message to a stream:
+# ```ruby
+# Rage.cable.broadcast("chat", { message: "Hello, world!" })
+# ```
+#
 module Rage::Cable
   # Create a new Cable application.
   #
@@ -15,15 +43,21 @@ module Rage::Cable
     accept_response = [0, __protocol.protocol_definition, []]
 
     application = ->(env) do
-      if env["rack.upgrade?"] == :websocket
-        env["rack.upgrade"] = handler
-        accept_response
-      else
-        [426, { "Connection" => "Upgrade", "Upgrade" => "websocket" }, []]
+      Rage::Telemetry.tracer.span_cable_websocket_handshake(env:) do
+        if env["rack.upgrade?"] == :websocket
+          env["rack.upgrade"] = handler
+          accept_response
+        else
+          [426, { "connection" => "upgrade", "upgrade" => "websocket" }, []]
+        end
       end
     end
 
-    Rage.with_middlewares(application, Rage.config.cable.middlewares)
+    chain = Rage.with_middlewares(application, Rage.config.cable.middlewares)
+    application.define_singleton_method(:__rage_app_name) { "Rage::Cable" }
+    chain.define_singleton_method(:__rage_root_app) { application }
+
+    chain
   end
 
   # @private
@@ -52,11 +86,10 @@ module Rage::Cable
         end
 
         @protocol = protocol
-        @default_log_context = {}.freeze
+        @log_processor = Rage.__log_processor
       end
 
       def on_open(connection)
-        connection.env["rage.request_id"] ||= Iodine::Rack::Utils.gen_request_tag
         schedule_fiber(connection) { @protocol.on_open(connection) }
       end
 
@@ -83,7 +116,7 @@ module Rage::Cable
 
       def schedule_fiber(connection)
         Fiber.schedule do
-          Thread.current[:rage_logger] = { tags: [connection.env["rage.request_id"]], context: @default_log_context }
+          @log_processor.init_request_logger(connection.env)
           yield
         rescue => e
           log_error(e)
@@ -106,8 +139,10 @@ module Rage::Cable
   # @example
   #   Rage.cable.broadcast("chat", { message: "A new member has joined!" })
   def self.broadcast(stream, data)
-    __protocol.broadcast(stream, data)
-    __adapter&.publish(stream, data)
+    Rage::Telemetry.tracer.span_cable_stream_broadcast(stream:) do
+      __protocol.broadcast(stream, data)
+      __adapter&.publish(stream, data)
+    end
 
     true
   end

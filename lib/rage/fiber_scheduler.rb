@@ -120,20 +120,21 @@ class Rage::FiberScheduler
       # the fiber to wrap a request in
       Fiber.new(blocking: false) do
         Fiber.current.__set_id
-        Fiber.current.__set_result(block.call)
+        Rage::Telemetry.tracer.span_core_fiber_dispatch do
+          Fiber.current.__set_result(block.call)
+        end
       end
     else
       # the fiber was created in the user code
-      logger = Thread.current[:rage_logger]
-
       Fiber.new(blocking: false) do
-        Thread.current[:rage_logger] = logger
-        Fiber.current.__set_result(block.call)
+        Rage::Telemetry.tracer.span_core_fiber_spawn(parent:) do
+          Fiber.current.__set_result(block.call)
+        end
         # send a message for `Fiber.await` to work
-        Iodine.publish("await:#{parent.object_id}", "", Iodine::PubSub::PROCESS) if parent.alive?
+        Iodine.publish(parent.__await_channel, "", Iodine::PubSub::PROCESS) if parent.alive?
       rescue Exception => e
         Fiber.current.__set_err(e)
-        Iodine.publish("await:#{parent.object_id}", Fiber::AWAIT_ERROR_MESSAGE, Iodine::PubSub::PROCESS) if parent.alive?
+        Iodine.publish(parent.__await_channel, Fiber::AWAIT_ERROR_MESSAGE, Iodine::PubSub::PROCESS) if parent.alive?
       end
     end
 

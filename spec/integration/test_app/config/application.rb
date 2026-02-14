@@ -26,8 +26,39 @@ Rage.configure do
     config.middleware.use Rage::RequestId
   end
 
-  if ENV["WEBSOCKETS_PROTOCOL"]
-    config.cable.protocol = ENV["WEBSOCKETS_PROTOCOL"].to_sym
+  config.cable.protocol = if ENV["WEBSOCKETS_PROTOCOL"]
+    ENV["WEBSOCKETS_PROTOCOL"].to_sym
+  else
+    :raw_websocket_json
+  end
+
+  if ENV["ENABLE_CUSTOM_LOG_CONTEXT"]
+    config.log_tags << Rage.env
+
+    config.log_context << proc do
+      { current_time: Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond) }
+    end
+  end
+
+  if ENV["ENABLE_CUSTOM_INVALID_LOG_CONTEXT"]
+    config.log_context << proc do
+      raise "test"
+    end
+  end
+
+  if ENV["ENABLE_TELEMETRY"]
+    config.after_initialize do
+      config.telemetry.use TestControllerObserver
+      config.telemetry.use TestExceptionRecorder
+    end
+  end
+
+  config.after_initialize do
+    config.deferred.enqueue_middleware.use EnqueueMiddleware1
+    config.deferred.enqueue_middleware.use EnqueueMiddleware2
+
+    config.deferred.perform_middleware.use PerformMiddleware1
+    config.deferred.perform_middleware.use PerformMiddleware2
   end
 end
 

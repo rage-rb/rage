@@ -12,6 +12,8 @@ gem "yard"
 gem "rubocop", "~> 1.65.0", require: false
 
 group :test do
+  gem "ostruct"
+  gem "benchmark"
   gem "activesupport"
   gem "http"
   gem "pg"
@@ -23,4 +25,5 @@ group :test do
   gem "websocket-client-simple"
   gem "prism"
   gem "redis-client"
+  gem "appraisal", "~> 2.5"
 end

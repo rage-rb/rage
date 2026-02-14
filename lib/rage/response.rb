@@ -4,25 +4,30 @@ require "digest"
 require "time"
 
 class Rage::Response
-  ETAG_HEADER = "ETag"
-  LAST_MODIFIED_HEADER = "Last-Modified"
+  ETAG_HEADER = "etag"
+  LAST_MODIFIED_HEADER = "last-modified"
 
   # @private
-  def initialize(headers, body)
-    @headers = headers
-    @body = body
+  def initialize(controller)
+    @controller = controller
+  end
+
+  # Returns the HTTP status code of the response.
+  # @return [Integer]
+  def status
+    @controller.__status
   end
 
   # Returns the content of the response as a string. This contains the contents of any calls to `render`.
   # @return [String]
   def body
-    @body[0]
+    @controller.__body[0] || ""
   end
 
   # Returns the headers for the response.
   # @return [Hash]
   def headers
-    @headers
+    @controller.__headers
   end
 
   # Returns ETag response header or +nil+ if it's empty.

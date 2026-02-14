@@ -73,4 +73,33 @@ RSpec.describe Rage::Router::Util do
       expect(described_class.path_to_name("test")).to eq("test-name")
     end
   end
+
+  describe "#route_uri_pattern" do
+    let(:users_controller) { double }
+
+    let(:routes) do
+      [
+        {
+          method: "GET",
+          path: "/users",
+          meta: { controller: "users", action: "index", controller_class: users_controller }
+        },
+        {
+          method: "GET",
+          path: "/users/:id",
+          meta: { controller: "users", action: "show", controller_class: users_controller }
+        }
+      ]
+    end
+
+    it "returns the path property" do
+      expect(Rage.__router).to receive(:routes).and_return(routes)
+      expect(described_class.route_uri_pattern(users_controller, "show")).to eq("/users/:id")
+    end
+
+    it "caches the result" do
+      expect(Rage.__router).to receive(:routes).and_return(routes).once
+      2.times { described_class.route_uri_pattern(users_controller, "show") }
+    end
+  end
 end

@@ -36,8 +36,11 @@ class Rage::Request
   KNOWN_HTTP_METHODS = (RFC2616 + RFC2518 + RFC3253 + RFC3648 + RFC3744 + RFC5323 + RFC4791 + RFC5789).to_set
 
   # @private
-  def initialize(env)
+  # @param env [Hash] Rack env
+  # @param controller [RageController::API]
+  def initialize(env, controller: nil)
     @env = env
+    @controller = controller
   end
 
   # Check if the request was made using TLS/SSL which is if http or https protocol is used inside the URL.
@@ -202,6 +205,20 @@ class Rage::Request
   end
 
   alias_method :uuid, :request_id
+
+  # Get the route URI pattern matched for this request.
+  # @return [String] the route URI pattern
+  # @example
+  #   # For a route defined as:
+  #   #   get "/users/:id", to: "users#show"
+  #   request.route_uri_pattern # => "/users/:id"
+  def route_uri_pattern
+    if @controller
+      Rage::Router::Util.route_uri_pattern(@controller.class, @controller.action_name)
+    else
+      path
+    end
+  end
 
   private
 

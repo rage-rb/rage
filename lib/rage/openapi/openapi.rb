@@ -48,13 +48,13 @@ module Rage::OpenAPI
         spec_url = "#{scheme}://#{host}#{path}/json"
         page = ERB.new(File.read("#{__dir__}/index.html.erb")).result(binding)
 
-        [200, { "Content-Type" => "text/html; charset=UTF-8" }, [page]]
+        [200, { "content-type" => "text/html; charset=UTF-8" }, [page]]
       end
     end
 
     json_app = ->(env) do
       spec = (__data_cache[[:spec, namespace]] ||= build(namespace:).to_json)
-      [200, { "Content-Type" => "application/json" }, [spec]]
+      [200, { "content-type" => "application/json" }, [spec]]
     end
 
     app = ->(env) do
@@ -67,13 +67,17 @@ module Rage::OpenAPI
       end
     end
 
-    if Rage.config.middleware.include?(Rage::Reloader)
+    chain = if Rage.config.middleware.include?(Rage::Reloader)
       Rage.with_middlewares(app, [Rage::Reloader])
     elsif defined?(ActionDispatch::Reloader) && Rage.config.middleware.include?(ActionDispatch::Reloader)
       Rage.with_middlewares(app, [ActionDispatch::Reloader])
     else
       app
     end
+
+    chain.define_singleton_method(:__rage_app_name) { "Rage::OpenAPI" }
+
+    chain
   end
 
   # Build an OpenAPI specification for the application.

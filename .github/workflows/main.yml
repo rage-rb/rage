@@ -3,7 +3,7 @@ name: Tests
 on:
   push:
     branches:
-      - master
+      - main
 
   pull_request:
 
@@ -18,6 +18,7 @@ jobs:
           - '3.2'
           - '3.3'
           - '3.4'
+          - '4.0'
     steps:
     - uses: actions/checkout@v3
     - name: Set up Ruby
@@ -41,7 +42,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: ruby
+        ruby-version: 3.4
         bundler-cache: true
     - name: Run Linter
       run: bundle exec rubocop
@@ -53,7 +54,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: ruby
+        ruby-version: 3.4
         bundler-cache: true
     - name: Run YARD
       run: bundle exec yardoc --fail-on-warning
@@ -65,15 +66,18 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: ruby
+        ruby-version: 3.4
         bundler-cache: true
     - name: Build the gem
       run: gem build -o rage-local.gem && gem install rage-local.gem --no-document
     - name: Create a project
       run: rage new my_app
+    - name: Bundle
+      working-directory: ./my_app
+      run: bundle install
     - name: Start the server
       working-directory: ./my_app
-      run: bundle install && bundle exec rage s&
+      run: bundle exec rage s&
     - name: Test the default route
       run: curl --fail http://localhost:3000
     - name: Run the routes task
@@ -96,7 +100,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: ruby
+        ruby-version: 3.4
         bundler-cache: true
     - name: Build the gem
       run: gem build -o rage-local.gem && gem install rage-local.gem --no-document
@@ -118,9 +122,12 @@ jobs:
     - name: Migrate
       working-directory: ./my_app
       run: bundle exec rage db:migrate
+    - name: Bundle
+      working-directory: ./my_app
+      run: bundle install
     - name: Start the server
       working-directory: ./my_app
-      run: bundle install && bundle exec rage s&
+      run: bundle exec rage s&
     - name: Test the default route
       run: curl --fail http://localhost:3000
 

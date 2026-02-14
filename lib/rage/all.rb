@@ -12,6 +12,7 @@ require_relative "uploaded_file"
 require_relative "errors"
 require_relative "params_parser"
 require_relative "code_loader"
+require_relative "log_processor"
 
 require_relative "router/strategies/host"
 require_relative "router/backend"
@@ -32,7 +33,6 @@ require_relative "middleware/fiber_wrapper"
 require_relative "middleware/cors"
 require_relative "middleware/reloader"
 require_relative "middleware/request_id"
+require_relative "middleware/body_finalizer"
 
-if defined?(Sidekiq)
-  require_relative "sidekiq_session"
-end
+require_relative "telemetry/telemetry"

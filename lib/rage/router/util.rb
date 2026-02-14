@@ -31,6 +31,14 @@ class Rage::Router::Util
         @@names_map[str] = path_to_class(str).name
       end
     end
+
+    @@uri_patterns_map = Hash.new { |h, k| h[k] = {} }
+
+    def route_uri_pattern(controller_class, action_name)
+      @@uri_patterns_map[controller_class][action_name] ||= Rage.__router.routes.find { |route|
+        route[:meta][:controller_class] == controller_class && route[:meta][:action] == action_name
+      }[:path]
+    end
   end
 
   # @private

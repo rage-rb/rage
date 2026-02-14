@@ -293,4 +293,484 @@ RSpec.describe Rage::CLI do
       end
     end
   end
+
+  describe "#events" do
+    subject { rage_cli.events }
+
+    before do
+      allow(rage_cli).to receive(:environment)
+      Rage::Events.__reset_subscribers
+    end
+
+    after do
+      Rage::Events.__reset_subscribers
+    end
+
+    def cli_event(str) = "\e[90m#{str}\e[0m"
+    def cli_subscriber(str) = "\e[1m#{str}\e[0m"
+
+    def def_event(name, parent: Object, &block)
+      event = Class.new(parent)
+      event.class_eval(&block) if block
+      stub_const(name, event)
+
+      event
+    end
+
+    def def_subscriber(name, subscribe_to:)
+      subscriber = Class.new do
+        include Rage::Events::Subscriber
+      end
+
+      subscriber.subscribe_to(subscribe_to)
+      stub_const(name, subscriber)
+
+      subscriber
+    end
+
+    context "with no subscribers" do
+      it "doesn't error out" do
+        expect { subject }.to output("").to_stdout
+      end
+    end
+
+    context "with one subscriber" do
+      before do
+        user_created = def_event("UserCreated")
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   └─ #{cli_subscriber("SendWelcomeEmail")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+
+    context "with multiple subscribers" do
+      before do
+        user_created = def_event("UserCreated")
+
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("GenerateAvatar", subscribe_to: user_created)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          │   └─ #{cli_subscriber("GenerateAvatar")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+
+    context "with multiple events" do
+      before do
+        user_created = def_event("UserCreated")
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("GenerateAvatar", subscribe_to: user_created)
+
+        order_created = def_event("OrderCreated")
+        def_subscriber("ScheduleDelivery", subscribe_to: order_created)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          │   └─ #{cli_subscriber("GenerateAvatar")}
+          ├─ #{cli_event("OrderCreated")}
+          │   └─ #{cli_subscriber("ScheduleDelivery")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+
+      context "with filtered events" do
+        subject { rage_cli.events("OrderCreated") }
+
+        let(:expected) do
+          <<~CLI
+            ├─ #{cli_event("OrderCreated")}
+            │   └─ #{cli_subscriber("ScheduleDelivery")}
+          CLI
+        end
+
+        it "correctly outputs subscribers tree" do
+          expect { subject }.to output(expected).to_stdout
+        end
+      end
+    end
+
+    context "with two levels" do
+      before do
+        event = def_event("Event")
+        def_subscriber("LogEvent", subscribe_to: event)
+
+        user_event = def_event("UserEvent", parent: event)
+        user_created = def_event("UserCreated", parent: user_event)
+
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("GenerateAvatar", subscribe_to: user_created)
+        def_subscriber("UpdateUsersCache", subscribe_to: user_event)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          │   ├─ #{cli_subscriber("GenerateAvatar")}
+          |   └─ #{cli_event("UserEvent")}
+          │      ├─ #{cli_subscriber("UpdateUsersCache")}
+          |      └─ #{cli_event("Event")}
+          │         └─ #{cli_subscriber("LogEvent")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+
+    context "with three levels" do
+      before do
+        trackable_event = Module.new
+        stub_const("TrackableEvent", trackable_event)
+
+        instrumented_event = Module.new do
+          include TrackableEvent
+        end
+        stub_const("InstrumentedEvent", instrumented_event)
+
+        event = def_event("Event")
+
+        user_event = def_event("UserEvent", parent: event) do
+          include InstrumentedEvent
+        end
+        user_created = def_event("UserCreated", parent: user_event)
+
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("GenerateAvatar", subscribe_to: user_created)
+        def_subscriber("UpdateUsersCache", subscribe_to: user_event)
+
+        def_subscriber("LogEvent", subscribe_to: event)
+        def_subscriber("TrackPublishedAt", subscribe_to: trackable_event)
+        def_subscriber("ReportMetrics", subscribe_to: instrumented_event)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          │   ├─ #{cli_subscriber("GenerateAvatar")}
+          |   └─ #{cli_event("UserEvent")}
+          │      ├─ #{cli_subscriber("UpdateUsersCache")}
+          |      └─ #{cli_event("InstrumentedEvent")}
+          │         ├─ #{cli_subscriber("ReportMetrics")}
+          |         └─ #{cli_event("TrackableEvent")}
+          │            └─ #{cli_subscriber("TrackPublishedAt")}
+          |      └─ #{cli_event("Event")}
+          │         └─ #{cli_subscriber("LogEvent")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+
+    context "with one empty level" do
+      before do
+        event = def_event("Event")
+        def_subscriber("LogEvent", subscribe_to: event)
+
+        user_event = def_event("UserEvent", parent: event)
+        user_created = def_event("UserCreated", parent: user_event)
+
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("GenerateAvatar", subscribe_to: user_created)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          │   ├─ #{cli_subscriber("GenerateAvatar")}
+          |   └─ #{cli_event("UserEvent")}
+          |      └─ #{cli_event("Event")}
+          │         └─ #{cli_subscriber("LogEvent")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+
+    context "with two empty levels" do
+      before do
+        trackable_event = Module.new do
+          include Module.new
+        end
+        stub_const("TrackableEvent", trackable_event)
+
+        instrumented_event = Module.new do
+          include TrackableEvent
+        end
+        stub_const("InstrumentedEvent", instrumented_event)
+
+        event = def_event("Event")
+        user_event = def_event("UserEvent", parent: event) do
+          include InstrumentedEvent
+        end
+        user_created = def_event("UserCreated", parent: user_event)
+
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("TrackPublishedAt", subscribe_to: trackable_event)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          |   └─ #{cli_event("UserEvent")}
+          |      └─ #{cli_event("InstrumentedEvent")}
+          |         └─ #{cli_event("TrackableEvent")}
+          │            └─ #{cli_subscriber("TrackPublishedAt")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+
+    context "with three levels and one empty level" do
+      before do
+        trackable_event = Module.new
+        stub_const("TrackableEvent", trackable_event)
+
+        instrumented_event = Module.new do
+          include TrackableEvent
+        end
+        stub_const("InstrumentedEvent", instrumented_event)
+
+        event = def_event("Event")
+
+        user_event = def_event("UserEvent", parent: event) do
+          include InstrumentedEvent
+        end
+        user_created = def_event("UserCreated", parent: user_event)
+
+        def_subscriber("SendWelcomeEmail", subscribe_to: user_created)
+        def_subscriber("GenerateAvatar", subscribe_to: user_created)
+        def_subscriber("UpdateUsersCache", subscribe_to: user_event)
+
+        def_subscriber("LogEvent", subscribe_to: event)
+        def_subscriber("TrackPublishedAt", subscribe_to: trackable_event)
+      end
+
+      let(:expected) do
+        <<~CLI
+          ├─ #{cli_event("UserCreated")}
+          │   ├─ #{cli_subscriber("SendWelcomeEmail")}
+          │   ├─ #{cli_subscriber("GenerateAvatar")}
+          |   └─ #{cli_event("UserEvent")}
+          │      ├─ #{cli_subscriber("UpdateUsersCache")}
+          |      └─ #{cli_event("InstrumentedEvent")}
+          |         └─ #{cli_event("TrackableEvent")}
+          │            └─ #{cli_subscriber("TrackPublishedAt")}
+          |      └─ #{cli_event("Event")}
+          │         └─ #{cli_subscriber("LogEvent")}
+        CLI
+      end
+
+      it "correctly outputs subscribers tree" do
+        expect { subject }.to output(expected).to_stdout
+      end
+    end
+  end
+
+  describe "#routes" do
+    subject { rage_cli.routes }
+
+    let(:router) { instance_double("Rage::Router::Backend") }
+
+    before do
+      allow(rage_cli).to receive(:environment)
+      allow(Rage).to receive(:__router).and_return(router)
+      allow(router).to receive(:routes).and_return(routes)
+    end
+
+    context "when there are no routes" do
+      let(:routes) { [] }
+
+      it "outputs only the header" do
+        expect { subject }.to output(/Verb\s+Path\s+Controller#Action/).to_stdout
+      end
+    end
+
+    context "when there is a single route" do
+      let(:routes) do
+        [
+          { method: "GET", path: "/", meta: { raw_handler: "application#index" }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      it "outputs the route" do
+        expect { subject }.to output(/GET\s+\/\s+application#index/).to_stdout
+      end
+    end
+
+    context "when there are multiple routes" do
+      let(:routes) do
+        [
+          { method: "GET", path: "/users", meta: { raw_handler: "users#index" }, constraints: {}, defaults: nil },
+          { method: "POST", path: "/users", meta: { raw_handler: "users#create" }, constraints: {}, defaults: nil },
+          { method: "GET", path: "/users/:id", meta: { raw_handler: "users#show" }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      it "outputs all routes" do
+        output = capture_stdout { subject }
+
+        expect(output).to match(/GET\s+\/users\s+users#index/)
+        expect(output).to match(/POST\s+\/users\s+users#create/)
+        expect(output).to match(/GET\s+\/users\/:id\s+users#show/)
+      end
+    end
+
+    context "when routes have the same path and handler" do
+      let(:routes) do
+        [
+          { method: "GET", path: "/resource", meta: { raw_handler: "resource#action" }, constraints: {}, defaults: nil },
+          { method: "POST", path: "/resource", meta: { raw_handler: "resource#action" }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      it "groups the methods with a pipe" do
+        expect { subject }.to output(/GET\|POST\s+\/resource\s+resource#action/).to_stdout
+      end
+    end
+
+    context "when a route has constraints" do
+      let(:routes) do
+        [
+          { method: "GET", path: "/users/:id", meta: { raw_handler: "users#show" }, constraints: { id: /\d+/ }, defaults: nil }
+        ]
+      end
+
+      it "outputs the route with constraints" do
+        expect { subject }.to output(/GET\s+\/users\/:id\s+users#show \{:?id(:|=>)/).to_stdout
+      end
+    end
+
+    context "when a route has defaults" do
+      let(:routes) do
+        [
+          { method: "GET", path: "/users", meta: { raw_handler: "users#index" }, constraints: {}, defaults: { format: :json } }
+        ]
+      end
+
+      it "outputs the route with defaults" do
+        expect { subject }.to output(/GET\s+\/users\s+users#index \{:?format(:|=>)\s?:json\}/).to_stdout
+      end
+    end
+
+    context "when filtering routes with --grep option" do
+      subject { rage_cli.routes }
+
+      let(:routes) do
+        [
+          { method: "GET", path: "/users", meta: { raw_handler: "users#index" }, constraints: {}, defaults: nil },
+          { method: "GET", path: "/posts", meta: { raw_handler: "posts#index" }, constraints: {}, defaults: nil },
+          { method: "POST", path: "/users", meta: { raw_handler: "users#create" }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      let(:rage_cli) { described_class.new([], grep: "users") }
+
+      it "only outputs matching routes" do
+        output = capture_stdout { subject }
+
+        expect(output).to match(/users#index/)
+        expect(output).to match(/users#create/)
+        expect(output).not_to match(/posts#index/)
+      end
+    end
+
+    context "when filtering routes by method" do
+      subject { rage_cli.routes }
+
+      let(:routes) do
+        [
+          { method: "GET", path: "/users", meta: { raw_handler: "users#index" }, constraints: {}, defaults: nil },
+          { method: "POST", path: "/users", meta: { raw_handler: "users#create" }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      let(:rage_cli) { described_class.new([], grep: "POST") }
+
+      it "only outputs routes matching the method" do
+        output = capture_stdout { subject }
+
+        expect(output).to match(/POST\s+\/users\s+users#create/)
+        expect(output).not_to match(/GET\s+\/users\s+users#index/)
+      end
+    end
+
+    context "when a route is a mounted app" do
+      let(:mounted_app) do
+        Class.new do
+          def self.__rage_app_name
+            "Sidekiq::Web"
+          end
+        end
+      end
+
+      let(:routes) do
+        [
+          { method: "GET", path: "/sidekiq", meta: { raw_handler: mounted_app, mount: true }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      it "outputs the mounted app name" do
+        expect { subject }.to output(/\s+\/sidekiq\s+Sidekiq::Web/).to_stdout
+      end
+    end
+
+    context "when a mounted route ends with *" do
+      let(:routes) do
+        [
+          { method: "GET", path: "/sidekiq/*", meta: { raw_handler: "SidekiqWeb", mount: true }, constraints: {}, defaults: nil }
+        ]
+      end
+
+      it "does not output the route" do
+        output = capture_stdout { subject }
+
+        expect(output).not_to match(/\/sidekiq\/\*/)
+      end
+    end
+
+    def capture_stdout
+      original_stdout = $stdout
+      $stdout = StringIO.new
+      yield
+      $stdout.string
+    ensure
+      $stdout = original_stdout
+    end
+  end
 end

@@ -68,7 +68,7 @@ RSpec.describe Rage::Router::Backend do
 
     expect {
       router.on("GET", "/test", "test#unknown")
-    }.to raise_error("The action 'unknown' could not be found for TestController")
+    }.to raise_error(/The action `unknown` could not be found in the `TestController` controller/)
   end
 
   it "verifies string handler format" do

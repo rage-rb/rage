@@ -46,4 +46,90 @@ RSpec.describe Rage::Router::Backend do
       router.mount("/rack_app", 5, %w(GET))
     }.to raise_error(/should respond to `call`/)
   end
+
+  context "with session" do
+    let(:app) do
+      Class.new do
+        def self.name
+          "Sidekiq::Web"
+        end
+
+        def self.call(env)
+        end
+      end
+    end
+
+    context "with Rack::Session available" do
+      let(:session) do
+        Class.new do
+          def initialize(app, **)
+            @app = app
+          end
+
+          def call(env)
+            :test_session
+          end
+        end
+      end
+
+      before do
+        allow(Rage).to receive(:config).and_return(double(secret_key_base: "test secret"))
+        stub_const("Rack::Session::Cookie", session)
+      end
+
+      it "exposes session object" do
+        router.mount("/test", app, %w(GET))
+
+        response, _ = perform_get_request("/test")
+        expect(response).to eq(:test_session)
+      end
+
+      it "rewinds request body" do
+        router.mount("/test", app, %w(GET))
+
+        body = StringIO.new("test body").tap(&:read)
+        perform_get_request("/test", body:)
+
+        expect(body.read).to eq("test body")
+      end
+    end
+
+    context "with Rack::Session unavailable" do
+      it "raises exception" do
+        expect {
+          router.mount("/test", app, %w(GET))
+        }.to raise_error(/`Sidekiq::Web` depends on `Rack::Session`/)
+      end
+    end
+  end
+
+  context "with root app" do
+    let(:app) do
+      Class.new do
+        def self.call(_)
+          :app_response
+        end
+      end
+    end
+
+    let(:middleware) do
+      Class.new do
+        def self.call(_)
+          :middleware_response
+        end
+      end
+    end
+
+    before do
+      root_app = app
+      middleware.define_singleton_method(:__rage_root_app) { root_app }
+    end
+
+    it "delegates to root app" do
+      router.mount("/test", middleware, %w(GET))
+
+      result, _ = perform_get_request("/test")
+      expect(result).to eq(:app_response)
+    end
+  end
 end

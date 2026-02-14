@@ -17,6 +17,14 @@ class Rage::FiberWrapper
   def call(env)
     fiber = Fiber.schedule do
       @app.call(env)
+    rescue Exception => e
+      exception_str = "#{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}"
+      Rage.logger << exception_str
+      if Rage.env.development?
+        [500, {}, [exception_str]]
+      else
+        [500, {}, []]
+      end
     ensure
       # notify Iodine the request can now be resumed
       Iodine.publish(Fiber.current.__get_id, "", Iodine::PubSub::PROCESS)

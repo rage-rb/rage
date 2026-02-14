@@ -69,6 +69,18 @@ RSpec.describe "End-to-end" do
     expect(response.to_s).to start_with("RuntimeError (1155 test error)")
   end
 
+  it "correctly fetches current action name" do
+    response = HTTP.get("http://localhost:3000/get_action_name")
+    expect(response.code).to eq(200)
+    expect(response.to_s).to eq("get_action_name_action")
+  end
+
+  it "correctly fetches route URI pattern" do
+    response = HTTP.get("http://localhost:3000/get_route_uri_pattern/123")
+    expect(response.code).to eq(200)
+    expect(response.to_s).to eq("/get_route_uri_pattern/:id")
+  end
+
   it "sets correct headers" do
     response = HTTP.get("http://localhost:3000/get")
     expect(response.headers["content-type"]).to eq("text/plain; charset=utf-8")
@@ -246,6 +258,21 @@ RSpec.describe "End-to-end" do
       HTTP.get("http://localhost:3000/logs/custom", params: { append_info_to_payload: true })
       expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info method=GET path=\/logs\/custom controller=LogsController action=custom hello=world status=204 duration=\d+\.\d+$/)
     end
+
+    it "correctly adds cable entries" do
+      with_websocket_connection("ws://localhost:3000/cable/logs?user_id=1", headers: { Origin: "localhost:3000" }) do |client|
+        expect(client).to be_connected
+        expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info message=client subscribed$/)
+      end
+    end
+
+    it "correctly adds cable entries with custom context" do
+      with_websocket_connection("ws://localhost:3000/cable/logs?user_id=1", headers: { Origin: "localhost:3000" }) do |client|
+        expect(client).to be_connected
+        client.send({ message: "test-message" }.to_json)
+        expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info content=test-message message=message received$/)
+      end
+    end
   end
 
   context "with API docs" do
@@ -272,6 +299,99 @@ RSpec.describe "End-to-end" do
     it "correctly renders the html page if the path is /" do
       response = HTTP.get("http://localhost:3000/publicapi/")
       expect(response.code).to eq(200)
+    end
+  end
+
+  context "with reload" do
+    let(:controller) { Pathname.new("#{__dir__}/test_app/app/controllers/reload_controller.rb") }
+
+    before do
+      @initial = controller.read
+    end
+
+    after do
+      controller.write(@initial)
+    end
+
+    context "with new status" do
+      before do
+        controller.write <<~RUBY
+          class ReloadController < RageController::API
+            def verify
+              head 207
+            end
+          end
+        RUBY
+      end
+
+      it "reloads the app" do
+        response = HTTP.get("http://localhost:3000/reload/verify")
+        expect(response.code).to eq(207)
+      end
+    end
+
+    context "with async code" do
+      before do
+        controller.write <<~RUBY
+          class ReloadController < RageController::API
+            def verify
+              f1 = Fiber.schedule { sleep 0.1 }
+              f2 = Fiber.schedule { sleep 0.2 }
+              Fiber.await([f1, f2])
+
+              head 205
+            end
+          end
+        RUBY
+      end
+
+      it "reloads the app" do
+        response = HTTP.get("http://localhost:3000/reload/verify")
+        expect(response.code).to eq(205)
+      end
+    end
+
+    context "with parallel requests" do
+      before do
+        controller.write <<~RUBY
+          class ReloadController < RageController::API
+            def verify
+              sleep 0.1
+              head 208
+            end
+          end
+        RUBY
+      end
+
+      it "reloads the app" do
+        requests = [
+          Thread.new { HTTP.get("http://localhost:3000/reload/verify") },
+          Thread.new { HTTP.get("http://localhost:3000/reload/verify") }
+        ]
+
+        requests.each(&:join)
+        responses = requests.map(&:value)
+
+        expect(responses.map(&:code).uniq).to eq([208])
+      end
+    end
+  end
+
+  context "with deferred tasks" do
+    it "correctly processes deferred tasks" do
+      file = Tempfile.create
+      response = nil
+
+      time_spent = Benchmark.realtime do
+        response = HTTP.post("http://localhost:3000/deferred/create_file", json: { file_path: file.path })
+      end
+
+      expect(response.code).to eq(200)
+      expect(time_spent).to be < 0.1
+
+      expect(file.read).to be_empty
+      sleep 1
+      expect(file.read).to eq("EnqueueMiddleware1->EnqueueMiddleware2->PerformMiddleware1->PerformMiddleware2")
     end
   end
 end
