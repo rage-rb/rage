@@ -304,7 +304,7 @@ class Rage::Cable::Channel
     def __stream_name_for(streamables)
       stream_name = Array(streamables).map do |streamable|
         if streamable.respond_to?(:id)
-          streamable.id
+          "#{streamable.class.name}:#{streamable.id}"
         elsif streamable.is_a?(String) || streamable.is_a?(Symbol) || streamable.is_a?(Numeric)
           streamable
         else
