@@ -6,7 +6,7 @@
 ![Tests](https://github.com/rage-rb/rage/actions/workflows/main.yml/badge.svg)
 ![Ruby Requirement](https://img.shields.io/badge/Ruby-3.2%2B-%23f40000)
 
-**Rage** is an API-first Ruby framework designed to make the Ruby ecosystem competitive for modern backends. It focuses on **capability and operational simplicity**, letting teams build production-grade systems in a single, coherent runtime.
+**Rage** is an API-first Ruby framework with a modern, fiber-based runtime that enables transparent, non-blocking concurrency while preserving familiar developer ergonomics. It focuses on **capability and operational simplicity**, letting teams build production-grade systems in a single, coherent runtime.
 
 Rage uses Rails compatibility as a foundation and provides backend primitives optimized for a single-runtime model: background jobs that run in-process, WebSockets without external dependencies, object-oriented domain events, and automatic API documentation.
 
@@ -118,7 +118,7 @@ Rage provides a familiar Rails-like programming model with API-focused improveme
 - Incremental adoption for existing Rails applications
 - OpenAPI specs auto-generated from your code
 
-Rails compatibility is the foundation. Rage builds new primitives on top where Rails stops short.
+Rails compatibility is the foundation. Rage builds on top of that foundation with new primitives designed for high-concurrency, API-first architectures.
 
 ### 3. Built-in Asynchronous Execution
 
@@ -158,9 +158,9 @@ By handling concurrency efficiently, Rage lets you:
 
 - Run fewer servers
 - Deploy fewer services
-- Skip infrastructure that only exists to work around framework limitations
+- Reduce infrastructure by handling workloads that traditionally required separate microservices
 
-The goal is to let teams write maintainable Ruby code without the "framework tax" forcing premature optimization or infrastructure sprawl.
+The goal is to let teams write maintainable Ruby code while natively handling massive concurrency, eliminating the need for premature optimization or infrastructure sprawl.
 
 ## Philosophy
 
