@@ -160,7 +160,13 @@ module Rage::OpenAPI
 
   # @private
   def self.__log_warn(log)
+    __warnings << log
     puts "[OpenAPI] WARNING: #{log}"
+  end
+
+  # @private
+  def self.__warnings
+    @__warnings ||= []
   end
 
   module Nodes
