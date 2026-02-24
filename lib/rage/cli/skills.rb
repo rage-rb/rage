@@ -177,7 +177,7 @@ class CLISkills < Thor
             elsif entry.file?
               debug { "Written file #{entry.full_name}" }
               FileUtils.mkdir_p(File.dirname(path))
-              File.open(path, "wb") { |f| f.write(entry.read) }
+              File.binwrite(path, entry.read)
             end
           end
         end
