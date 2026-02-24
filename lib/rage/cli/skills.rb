@@ -74,11 +74,12 @@ class CLISkills < Thor
         ["5", "Antigravity", ".agent/skills"],
         ["6", "Gemini CLI", ".gemini/skills"],
         ["7", "Windsurf", ".windsurf/skills"],
-        ["8", "Other", ".claude/skills"]
+        ["8", "OpenCode", ".opencode/skills"],
+        ["9", "Other", ".claude/skills"]
       ]
 
       print_table([["Option", "Coding Agent", "Installation Path"]] + agent_options)
-      agent_choice = ask("\nSelect your coding agent (1-8):", default: "1")
+      agent_choice = ask("\nSelect your coding agent (1-#{agent_options[-1][0]}):", default: "1")
 
       installation_path = ".claude/skills"
 
