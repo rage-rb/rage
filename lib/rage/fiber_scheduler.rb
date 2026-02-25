@@ -97,7 +97,7 @@ class Rage::FiberScheduler
       unless fulfilled
         fulfilled = true
         ::Iodine.defer { ::Iodine.unsubscribe(channel) }
-        f.resume
+        f.resume if f.alive?
       end
     end
 
