@@ -492,7 +492,7 @@ class RageController::API
   # @example
   #   render plain: "hello world", status: 201
   # @note `render` doesn't terminate execution of the action, so if you want to exit an action after rendering, you need to do something like `render(...) and return`.
-  def render(json: nil, plain: nil, status: nil)
+  def render(json: nil, plain: nil, sse: nil, status: nil)
     raise "Render was called multiple times in this action" if @__rendered
     @__rendered = true
 
@@ -500,7 +500,7 @@ class RageController::API
       @__body << if json
         json.is_a?(String) ? json : json.to_json
       else
-        headers["content-type"] = "text/plain; charset=utf-8"
+        @__headers["content-type"] = "text/plain; charset=utf-8"
         plain.to_s
       end
 
@@ -513,6 +513,19 @@ class RageController::API
       else
         status
       end
+    end
+
+    if sse
+      raise "already rendered" unless @__body.empty?
+
+      unless @__env["rack.upgrade?"] == :sse
+        @__status = 406
+        @__body << "Bad Request: Expected an SSE connection"
+        return
+      end
+
+      @__env["rack.upgrade"] = Rage::SSE::Application.new(sse)
+      @__status = 0 # TODO render 204
     end
   end
 

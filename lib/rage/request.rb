@@ -220,6 +220,10 @@ class Rage::Request
     end
   end
 
+  def sse?
+    @env["rack.upgrade?"] == :sse
+  end
+
   private
 
   def rack_request
