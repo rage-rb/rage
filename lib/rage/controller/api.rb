@@ -526,6 +526,7 @@ class RageController::API
 
       @__env["rack.upgrade"] = Rage::SSE::Application.new(sse)
       @__status = 0 # TODO render 204
+      @__headers["content-type"] = "text/event-stream"
     end
   end
 
