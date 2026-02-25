@@ -174,6 +174,62 @@ RSpec.describe CLISkills do
         subject
       end
     end
+
+    context "with --json flag" do
+      let(:skills_cli) { described_class.new([], json: true) }
+
+      before do
+        FileUtils.mkdir_p(".claude/skills/rage-framework")
+        File.write(".claude/skills/rage-framework/.version", "v1.0.0")
+      end
+
+      it "outputs JSON to stdout" do
+        output = capture_stdout { subject }
+        result = JSON.parse(output)
+
+        expect(result["status"]).to eq("updated")
+        expect(result["version"]).to eq("v1.1.0")
+        expect(result["paths"]).to include(".claude/skills/rage-framework")
+      end
+
+      it "outputs human-readable messages to stderr" do
+        expect { subject }.to output(/Updating/).to_stderr
+      end
+
+      context "when already up to date" do
+        before do
+          File.write(".claude/skills/rage-framework/.version", "v1.1.0")
+        end
+
+        it "outputs up_to_date status" do
+          output = capture_stdout { subject }
+          result = JSON.parse(output)
+
+          expect(result["status"]).to eq("up_to_date")
+          expect(result["version"]).to eq("v1.1.0")
+        end
+      end
+
+      context "when an error occurs" do
+        before do
+          allow(skills_cli).to receive(:fetch).with("https://rage-rb.github.io/skills/manifest.json").and_return(nil)
+        end
+
+        it "outputs error status and exits with code 1" do
+          original_stdout = $stdout
+          $stdout = StringIO.new
+
+          expect { subject }.to raise_error(SystemExit) { |e| expect(e.status).to eq(1) }
+
+          output = $stdout.string
+          $stdout = original_stdout
+
+          result = JSON.parse(output)
+          expect(result["status"]).to eq("error")
+          expect(result["message"]).to include("Could not download")
+        end
+      end
+    end
   end
 
   describe "#choose_installation_path" do
@@ -264,6 +320,15 @@ RSpec.describe CLISkills do
         expect(subject).to eq("v1.0.0")
       end
     end
+  end
+
+  def capture_stdout
+    original_stdout = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = original_stdout
   end
 
   def create_mock_tarball

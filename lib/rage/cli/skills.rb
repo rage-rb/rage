@@ -22,42 +22,68 @@ class CLISkills < Thor
 
   desc "update", "Update installed skills"
   option :verbose, desc: "Debug output"
+  option :json, type: :boolean, desc: "Output JSON for programmatic use"
   def update
     skills_destinations = Dir.glob(".*/skills/#{SKILLS_DIR}")
     debug { "Existing skills installations found: #{skills_destinations}" }
 
     if skills_destinations.empty?
-      say "No existing installation found. Running fresh install...\n\n"
+      log "No existing installation found. Running fresh install...\n\n"
       return install
     end
 
     skills_version = fetch_skills_version
-    updated_count = 0
+    updated_paths = []
 
     skills_destinations.each do |destination|
       version_file = File.join(destination, VERSION_FILE)
       current_version = File.exist?(version_file) ? File.read(version_file).strip : nil
 
       if current_version == skills_version
-        say "#{destination}: already up to date."
+        log "#{destination}: already up to date."
         next
       end
 
-      say "Updating #{destination}..."
+      log "Updating #{destination}..."
       install_skills(destination, skills_version)
-      updated_count += 1
+      updated_paths << destination
     end
 
-    if updated_count > 0
-      say "\nUpdated #{updated_count} installation#{"s" if updated_count > 1} to #{skills_version}."
+    if updated_paths.any?
+      log "\nUpdated #{updated_paths.size} installation#{"s" if updated_paths.size > 1} to #{skills_version}."
     end
+
+    json_output(
+      status: updated_paths.any? ? "updated" : "up_to_date",
+      version: skills_version,
+      paths: skills_destinations
+    )
   rescue => e
-    say_error(e)
+    if options[:json]
+      json_output(status: "error", message: e.message)
+      exit 1
+    else
+      say_error(e)
+    end
   end
 
   no_commands do
     def debug
       puts("* #{yield}") if options[:verbose]
+    end
+
+    def log(message)
+      if options[:json]
+        warn(message)
+      else
+        say(message)
+      end
+    end
+
+    def json_output(data)
+      return unless options[:json]
+      require "json"
+      puts JSON.generate(data)
     end
 
     def say_error(error)
@@ -155,13 +181,13 @@ class CLISkills < Thor
       end
 
       destination = File.expand_path(installation_path)
-
-      if Dir.exist?(destination)
-        debug { "Removing old files from #{destination}" }
-        FileUtils.rm_rf(destination)
-      end
-
       FileUtils.mkdir_p(destination)
+
+      # Clear existing contents but keep the directory intact
+      Dir.children(destination).each do |child|
+        debug { "Removing #{child}" }
+        FileUtils.rm_rf(File.join(destination, child))
+      end
 
       Zlib::GzipReader.wrap(StringIO.new(artifact)) do |gz|
         Gem::Package::TarReader.new(gz) do |tar|
