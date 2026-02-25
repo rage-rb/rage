@@ -105,7 +105,7 @@ class CLISkills < Thor
       ]
 
       print_table([["Option", "Coding Agent", "Installation Path"]] + agent_options)
-      agent_choice = ask("\nSelect your coding agent (1-#{agent_options[-1][0]}):", default: "1")
+      agent_choice = ask("Select your coding agent (1-#{agent_options[-1][0]}):", default: "1")
 
       installation_path = ".claude/skills"
 
