@@ -1,5 +1,23 @@
 ## [Unreleased]
 
+## [1.21.0] - 2026-02-25
+
+### Added
+
+- [Cable] Add RSpec test helpers (#210).
+- [Cable] Add support for `stream_for`/`broadcast_to` (#207).
+- Add `skills` CLI (#218).
+- Support inline context for `Rage::Logger` (#206).
+
+### Fixed
+
+- Ensure correct log context isolation for intersecting fibers (#205).
+- Ensure Cable middleware don't duplicate when mounted in routes (#202).
+- Documentation updates by [@cuneyter](https://github.com/cuneyter) (#200).
+- Rely on `Rack::Session` for mounted apps (#201).
+
+### Fixed
+
 ## [1.20.1] - 2026-02-10
 
 ### Fixed
