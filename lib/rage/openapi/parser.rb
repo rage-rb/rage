@@ -44,25 +44,28 @@ class Rage::OpenAPI::Parser
         parse_response_tag(expression, node, comments[i])
 
       elsif expression =~ /@auth\s/
-        method, name, tail_name = expression[6..].split(" ", 3)
+        method, name_or_ref, tail_name = expression[6..].split(" ", 3)
         children = find_children(comments[i + 1..], node)
 
         if tail_name
           Rage::OpenAPI.__log_warn "incorrect `@auth` name detected at #{location_msg(comments[i])}; security scheme name cannot contain spaces"
         end
 
-        auth_entry = {
+        auth_entry = parse_auth_tag(
           method:,
-          name: name || method,
-          definition: children.any? ? YAML.safe_load(children.join("\n")) : { "type" => "http", "scheme" => "bearer" }
-        }
+          name_or_ref:,
+          children:,
+          comment: comments[i]
+        )
 
-        if !node.controller.__before_action_exists?(method.to_sym)
-          Rage::OpenAPI.__log_warn "referenced before action `#{method}` is not defined in #{node.controller} at #{location_msg(comments[i])}; ensure a corresponding `before_action` call exists"
-        elsif node.auth.include?(auth_entry) || node.root.parent_nodes.any? { |parent_node| parent_node.auth.include?(auth_entry) }
-          Rage::OpenAPI.__log_warn "duplicate @auth tag detected at #{location_msg(comments[i])}"
-        else
-          node.auth << auth_entry
+        if auth_entry
+          if !node.controller.__before_action_exists?(method.to_sym)
+            Rage::OpenAPI.__log_warn "referenced before action `#{method}` is not defined in #{node.controller} at #{location_msg(comments[i])}; ensure a corresponding `before_action` call exists"
+          elsif node.auth.include?(auth_entry) || node.root.parent_nodes.any? { |parent_node| parent_node.auth.include?(auth_entry) }
+            Rage::OpenAPI.__log_warn "duplicate @auth tag detected at #{location_msg(comments[i])}"
+          else
+            node.auth << auth_entry
+          end
         end
       end
 
@@ -208,6 +211,39 @@ class Rage::OpenAPI::Parser
       else
         Rage::OpenAPI.__log_warn "unrecognized `@response` tag detected at #{location_msg(comment)}"
       end
+    end
+  end
+
+  def parse_auth_tag(method:, name_or_ref:, children:, comment:)
+    if name_or_ref&.start_with?("#/components")
+      ref = parse_auth_shared_reference(name_or_ref, comment)
+      return if ref.nil?
+
+      return {
+        method:,
+        name: ref.delete_prefix("#/components/securitySchemes/"),
+        ref: { "$ref" => ref }
+      }
+    end
+
+    {
+      method:,
+      name: name_or_ref || method,
+      definition: children.any? ? YAML.safe_load(children.join("\n")) : { "type" => "http", "scheme" => "bearer" }
+    }
+  end
+
+  def parse_auth_shared_reference(name_or_ref, comment)
+    shared_reference_parser = Rage::OpenAPI::Parsers::SharedReference.new
+    is_valid_ref = shared_reference_parser.parse(name_or_ref)
+    has_valid_prefix = name_or_ref.start_with?("#/components/securitySchemes/")
+    scheme_name = name_or_ref.delete_prefix("#/components/securitySchemes/")
+
+    if is_valid_ref && has_valid_prefix && !scheme_name.empty? && !scheme_name.include?("/")
+      name_or_ref
+    else
+      Rage::OpenAPI.__log_warn "invalid shared reference detected at #{location_msg(comment)}"
+      nil
     end
   end
 

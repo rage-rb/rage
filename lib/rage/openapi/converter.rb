@@ -129,8 +129,12 @@ class Rage::OpenAPI::Converter
 
     node.auth.filter_map do |auth_entry|
       if available_before_actions.any? { |action_entry| action_entry[:name] == auth_entry[:method].to_sym }
-        auth_name = auth_entry[:name].gsub(/[^A-Za-z0-9\-._]/, "")
-        @used_security_schemes << auth_entry.merge(name: auth_name)
+        if auth_entry[:ref]
+          auth_name = auth_entry[:name]
+        else
+          auth_name = auth_entry[:name].gsub(/[^A-Za-z0-9\-._]/, "")
+          @used_security_schemes << auth_entry.merge(name: auth_name)
+        end
 
         { auth_name => [] }
       end
