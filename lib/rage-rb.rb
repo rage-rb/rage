@@ -40,6 +40,12 @@ module Rage
     Rage::Events
   end
 
+  # Shorthand to access {Rage::SSE Rage::SSE}.
+  # @return [Rage::SSE]
+  def self.sse
+    Rage::SSE
+  end
+
   # Configure routes for the Rage application.
   # @return [Rage::Router::DSL::Handler]
   # @example
@@ -185,6 +191,8 @@ module Rage
   autoload :OpenAPI, "rage/openapi/openapi"
   autoload :Deferred, "rage/deferred/deferred"
   autoload :Events, "rage/events/events"
+  autoload :SSE, "rage/sse/sse"
+  autoload :PubSub, "rage/pubsub/pubsub"
 end
 
 module RageController
