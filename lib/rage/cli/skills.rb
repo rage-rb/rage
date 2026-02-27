@@ -237,9 +237,14 @@ class CLISkills < Thor
 
       parsed_uri = URI(uri)
       http = Net::HTTP.new(parsed_uri.host, parsed_uri.port)
-      http.use_ssl = parsed_uri.scheme == "https"
       http.open_timeout = 5
       http.read_timeout = 5
+
+      if parsed_uri.scheme == "https"
+        http.use_ssl = true
+        http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+        http.cert_store = OpenSSL::X509::Store.new.tap(&:set_default_paths)
+      end
 
       response = http.request(Net::HTTP::Get.new(parsed_uri))
 
