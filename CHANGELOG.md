@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [1.21.1] - 2026-02-27
+
+- Improve styling for the `skills` CLI (#223).
+
 ## [1.21.0] - 2026-02-25
 
 ### Added
