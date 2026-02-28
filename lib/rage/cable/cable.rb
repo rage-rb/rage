@@ -162,6 +162,12 @@ module Rage::Cable
   #     def subscribe(name)
   #     end
   #
+  #     # Unsubscribe from a channel.
+  #     #
+  #     # @param name [String] the channel name
+  #     def unsubscribe(name)
+  #     end
+  #
   #     # Close the connection.
   #     def close
   #     end

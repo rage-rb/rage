@@ -466,6 +466,40 @@ class Rage::Cable::Channel
     stream_from(self.class.__stream_name_for(streamable))
   end
 
+  # Unsubscribe from a global stream.
+  #
+  # @param stream [String] the name of the stream
+  # @raise [ArgumentError] if the stream name is not a String
+  # @example Unsubscribe from a stream and subscribe to a new one
+  #   class ChatChannel < Rage::Cable::Channel
+  #     def subscribed
+  #       stream_from "chat_#{params[:room]}"
+  #     end
+  #
+  #     def switch_room(data)
+  #       stop_stream_from "chat_#{params[:room]}"
+  #       stream_from "chat_#{data['new_room']}"
+  #     end
+  #   end
+  def stop_stream_from(stream)
+    raise ArgumentError, "Stream name must be a String" unless stream.is_a?(String)
+    Rage.cable.__protocol.unsubscribe(@__connection, stream, @__params)
+  end
+
+  # Unsubscribe from a local stream. The counterpart to {stream_for}.
+  #
+  # @param streamable [#id, String, Symbol, Numeric, Array] an object that will be used to generate the stream name
+  # @raise [ArgumentError] if the streamable object does not satisfy the type requirements
+  # @example Unsubscribe from a model stream
+  #   class NotificationsChannel < Rage::Cable::Channel
+  #     def unfollow(data)
+  #       stop_stream_for User.find(data['user_id'])
+  #     end
+  #   end
+  def stop_stream_for(streamable)
+    stop_stream_from(self.class.__stream_name_for(streamable))
+  end
+
   # Broadcast data to all the clients subscribed to a stream.
   #
   # @param stream [String] the name of the stream
