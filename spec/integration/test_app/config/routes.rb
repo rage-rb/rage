@@ -45,6 +45,7 @@ Rage.routes.draw do
 
     namespace :v3 do
       resources :users, only: :show
+      get "session", to: "sessions#show"
     end
   end
 end
