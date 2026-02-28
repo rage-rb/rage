@@ -192,7 +192,6 @@ module Rage
   autoload :Deferred, "rage/deferred/deferred"
   autoload :Events, "rage/events/events"
   autoload :SSE, "rage/sse/sse"
-  autoload :PubSub, "rage/pubsub/pubsub"
 end
 
 module RageController

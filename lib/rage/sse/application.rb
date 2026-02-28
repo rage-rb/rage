@@ -11,8 +11,6 @@ class Rage::SSE::Application
     elsif stream.is_a?(Proc)
       @streamer = create_proc_streamer
       :proc
-    elsif stream.is_a?(Rage::SSE::Stream)
-      :stream
     else
       :object
     end
@@ -22,8 +20,6 @@ class Rage::SSE::Application
     case @type
     when :enum, :proc
       @streamer.resume(connection)
-    when :stream
-      connection.subscribe("sse:#{@stream.id}") # TODO: hash? # TODO: broadcast right away?
     when :object
       connection.write(Rage::SSE.__serialize(@stream))
       connection.close

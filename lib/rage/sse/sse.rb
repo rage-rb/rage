@@ -23,34 +23,8 @@ module Rage::SSE
       "data: #{data.to_json}\n\n"
     end
   end
-
-  # @private
-  def self.__adapter=(adapter)
-    @__adapter = adapter
-  end
-
-  # @private
-  def self.__adapter
-    @__adapter
-  end
-
-  # TODO: telemetry
-  def self.broadcast(stream, data)
-    InternalBroadcast.broadcast(stream, data)
-    __adapter&.publish(stream, data)
-  end
-
-  # @private
-  module InternalBroadcast
-    def self.broadcast(stream, data)
-      Iodine.publish("sse:#{stream}", Rage::SSE.__serialize(data))
-    end
-  end
 end
 
 require_relative "application"
 require_relative "connection_proxy"
 require_relative "message"
-require_relative "stream"
-
-# Rage::SSE.__adapter = Rage::PubSub::Adapters::Redis.new("rage:sse:messages", Rage::SSE::InternalBroadcast, {})
