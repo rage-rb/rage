@@ -215,6 +215,47 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
     end
 
+    context "with security scheme reference and child definition" do
+      before do
+        allow(RageController::API).to receive(:__before_action_exists?).with(:authenticate_with_token).and_return(true)
+        allow(RageController::API).to receive(:__before_actions_for).with(:index).and_return([{ name: :authenticate_with_token }])
+
+        allow(Rage::OpenAPI).to receive(:__shared_components).and_return(YAML.safe_load(<<~YAML
+          components:
+            securitySchemes:
+              ApiKeyAuth:
+                type: apiKey
+                in: header
+                name: X-API-Key
+        YAML
+                                                                                       ))
+      end
+
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # @auth authenticate_with_token #/components/securitySchemes/ApiKeyAuth
+          #   type: http
+          #   scheme: bearer
+
+          def index
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "GET /users" => "UsersController#index" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => { "securitySchemes" => { "ApiKeyAuth" => { "type" => "apiKey", "in" => "header", "name" => "X-API-Key" } } }, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [{ "ApiKeyAuth" => [] }], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+
+      it "logs error" do
+        expect(Rage::OpenAPI).to receive(:__log_warn).with(/ignored child `@auth` definition/)
+        subject
+      end
+    end
+
     context "with invalid security scheme reference" do
       before do
         allow(RageController::API).to receive(:__before_action_exists?).with(:authenticate_with_token).and_return(true)
@@ -250,6 +291,33 @@ RSpec.describe Rage::OpenAPI::Builder do
 
       it "logs error" do
         expect(Rage::OpenAPI).to receive(:__log_warn).with(/invalid shared reference/)
+        subject
+      end
+    end
+
+    context "with shared reference in the first auth argument and child definition" do
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # @auth #/components/securitySchemes/BasicAuth
+          #   type: apiKey
+          #   in: header
+          #   name: X-API-Key
+
+          def index
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "GET /users" => "UsersController#index" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+
+      it "logs error" do
+        expect(Rage::OpenAPI).to receive(:__log_warn).with(/invalid `@auth` shared reference syntax/)
         subject
       end
     end

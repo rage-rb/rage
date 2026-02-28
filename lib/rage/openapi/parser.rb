@@ -215,9 +215,18 @@ class Rage::OpenAPI::Parser
   end
 
   def parse_auth_tag(method:, name_or_ref:, children:, comment:)
+    if method&.start_with?("#/components/securitySchemes/")
+      Rage::OpenAPI.__log_warn "invalid `@auth` shared reference syntax detected at #{location_msg(comment)}; use `@auth <before_action> #{method}` and remove child definitions"
+      return
+    end
+
     if name_or_ref&.start_with?("#/components")
       ref = parse_auth_shared_reference(name_or_ref, comment)
       return if ref.nil?
+
+      if children.any?
+        Rage::OpenAPI.__log_warn "ignored child `@auth` definition detected at #{location_msg(comment)}; shared security scheme references do not support child definitions"
+      end
 
       return {
         method:,
