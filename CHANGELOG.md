@@ -2,6 +2,7 @@
 
 ### Added
 
+- [Deferred] Support configurable retry options with `max_retries` and `retry_interval` by [@Digvijay](https://github.com/Digvijay-x1) (#215).
 - [Cable] Add support for `stop_stream_from` and `stop_stream_for`  by [@Digvijay](https://github.com/Digvijay-x1) (#217).
 
 ## [1.21.1] - 2026-02-27

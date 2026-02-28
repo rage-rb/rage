@@ -69,9 +69,14 @@ RSpec.describe Rage::Deferred::Metadata do
       Rage::Deferred::Context.inc_attempts(context)
     end
 
-    it "delegates to Task.__should_retry?" do
-      expect(task).to receive(:__should_retry?).with(2).and_return(:should_retry_result)
-      expect(subject.will_retry?).to eq(:should_retry_result)
+    it "delegates to Task.__next_retry_in" do
+      expect(task).to receive(:__next_retry_in).with(2, nil).and_return(10)
+      expect(subject.will_retry?).to eq(true)
+    end
+
+    it "returns false when __next_retry_in returns nil" do
+      expect(task).to receive(:__next_retry_in).with(2, nil).and_return(nil)
+      expect(subject.will_retry?).to eq(false)
     end
   end
 end
