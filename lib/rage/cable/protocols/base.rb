@@ -62,6 +62,15 @@ class Rage::Cable::Protocols::Base
       end
     end
 
+    # Unsubscribe from a stream.
+    #
+    # @param connection [Rage::Cable::WebSocketConnection] the connection object
+    # @param name [String] the stream name
+    # @param params [Hash] parameters associated with the client
+    def unsubscribe(connection, name, params)
+      connection.unsubscribe("cable:#{name}:#{stream_id(params)}")
+    end
+
     # Broadcast data to all clients connected to a stream.
     #
     # @param name [String] the stream name
