@@ -7,7 +7,7 @@ class Rage::SSE::ConnectionProxy
 
   def write(data)
     raise IOError, "closed stream" unless @connection.open?
-    @connection.write(data)
+    @connection.write(data.to_s)
   end
 
   alias_method :<<, :write
