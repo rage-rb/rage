@@ -27,7 +27,7 @@ class Rage::Deferred::Metadata
     # @return [Boolean] `true` if a failure will schedule another attempt, `false` otherwise
     def will_retry?
       task = Rage::Deferred::Context.get_task(context)
-      task.__should_retry?(attempts)
+      !!task.__next_retry_in(attempts, nil)
     end
 
     private
