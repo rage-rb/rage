@@ -20,6 +20,6 @@ Rage::SSE::Message = Struct.new(:id, :event, :retry, :data, keyword_init: true) 
       "data: #{data}\n"
     end
 
-    "#{data_entry}#{"id: #{id}\n" if id}#{"event: #{event}\n" if event}#{"retry: #{self.retry}\n" if self.retry}\n"
+    "#{data_entry}#{"id: #{id}\n" if id}#{"event: #{event}\n" if event}#{"retry: #{self.retry.to_i}\n" if self.retry && self.retry.to_i > 0}\n"
   end
 end
