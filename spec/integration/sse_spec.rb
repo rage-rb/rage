@@ -27,16 +27,16 @@ RSpec.describe "SSE" do
     end
 
     context "with non-SSE content type" do
-      it "returns 406 status" do
-        response = HTTP.get("http://localhost:3000/sse/object")
-        expect(response.code).to eq(406)
+      it "returns 200 status" do
+        response = HTTP.headers(accept: "application/json").get("http://localhost:3000/sse/object")
+        expect(response.code).to eq(200)
       end
     end
   end
 
   describe "object mode" do
     it "correctly serializes objects" do
-      response = HTTP.headers(accept: "text/event-stream").persistent("http://localhost:3000").get("/sse/object")
+      response = HTTP.persistent("http://localhost:3000").get("/sse/object")
 
       data = response.to_s
       expect(data.delete_prefix!("data: ")).not_to be_nil
@@ -48,7 +48,7 @@ RSpec.describe "SSE" do
 
   describe "stream mode" do
     it "correctly streams responses" do
-      response = HTTP.headers(accept: "text/event-stream").persistent("http://localhost:3000").get("/sse/stream")
+      response = HTTP.persistent("http://localhost:3000").get("/sse/stream")
 
       chunks = response.to_s.split("\n\n")
       expect(chunks.size).to eq(3)
@@ -59,7 +59,7 @@ RSpec.describe "SSE" do
     end
 
     it "doesn't buffer responses" do
-      response = HTTP.headers(accept: "text/event-stream").persistent("http://localhost:3000").get("/sse/stream")
+      response = HTTP.persistent("http://localhost:3000").get("/sse/stream")
 
       chunks_arrive_timestamps = response.body.filter_map do |chunk|
         Time.now.to_f unless chunk.empty?
@@ -75,7 +75,7 @@ RSpec.describe "SSE" do
 
   describe "raw mode" do
     it "correctly streams responses" do
-      response = HTTP.headers(accept: "text/event-stream").persistent("http://localhost:3000").get("/sse/proc")
+      response = HTTP.persistent("http://localhost:3000").get("/sse/proc")
 
       chunks = response.to_s.split("\n\n")
       expect(chunks.size).to eq(2)
@@ -87,7 +87,7 @@ RSpec.describe "SSE" do
 
   describe "POST request" do
     it "correctly processes request" do
-      response = HTTP.headers(accept: "text/event-stream").persistent("http://localhost:3000").post("/sse/object")
+      response = HTTP.persistent("http://localhost:3000").post("/sse/object")
 
       expect(response.code).to eq(200)
       expect(response.to_s).to match(/"count":42/)

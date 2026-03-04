@@ -47,7 +47,7 @@ module ControllerApiSSESpec
 end
 
 RSpec.describe RageController::API do
-  let(:env) { { "rack.upgrade?" => :sse } }
+  let(:env) { {} }
 
   subject { run_action(klass, :index, env:) }
 
@@ -60,6 +60,7 @@ RSpec.describe RageController::API do
 
     it "upgrades the request" do
       subject
+      expect(env["rack.upgrade?"]).to eq(:sse)
       expect(env["rack.upgrade"]).to be_a(Rage::SSE::Application)
     end
   end
@@ -148,19 +149,16 @@ RSpec.describe RageController::API do
 
   context "with a non-SSE request" do
     let(:klass) { ControllerApiSSESpec::TestControllerSSE }
-    let(:env) { {} }
+    let(:env) { { "HTTP_ACCEPT" => "application/json" } }
 
-    it "returns an error" do
-      status, headers, body = subject
-
-      expect(status).to eq(406)
-      expect(headers["content-type"]).not_to include("text/event-stream")
-      expect(body[0]).to match(/Expected an SSE connection/)
+    it "returns an SSE response" do
+      expect(subject).to match([0, { "content-type" => "text/event-stream" }, []])
     end
 
-    it "doesn't upgrade the request" do
+    it "upgrades the request" do
       subject
-      expect(env["rack.upgrade"]).to be_nil
+      expect(env["rack.upgrade?"]).to eq(:sse)
+      expect(env["rack.upgrade"]).to be_a(Rage::SSE::Application)
     end
   end
 end

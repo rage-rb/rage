@@ -523,12 +523,7 @@ class RageController::API
         raise ArgumentError, "SSE responses only support 200 and 204 statuses." if @__status != 200
       end
 
-      unless @__env["rack.upgrade?"] == :sse
-        @__status = 406
-        @__body << "Bad Request: Expected an SSE connection"
-        return
-      end
-
+      @__env["rack.upgrade?"] = :sse
       @__env["rack.upgrade"] = Rage::SSE::Application.new(sse)
       @__status = 0
       @__headers["content-type"] = "text/event-stream"
