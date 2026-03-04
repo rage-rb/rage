@@ -16,7 +16,7 @@ end
 # Cookies provide a convenient way to store small amounts of data on the client side that persists across requests.
 # They are commonly used for session management, personalization, and tracking user preferences.
 #
-# Rage cookies support both simple string-based cookies and encrypted cookies for sensitive data.
+# Rage cookies support simple, signed, and encrypted cookies.
 #
 # To use cookies, add the `domain_name` gem to your `Gemfile`:
 #
@@ -68,6 +68,18 @@ end
 # # Read an encrypted cookie
 # cookies.encrypted[:api_token] # => "secret-token"
 #
+# ```
+#
+# ### Signed Cookies
+#
+# Store readable values with tamper protection:
+#
+# ```ruby
+# # Set a signed cookie
+# cookies.signed[:user_id] = 123
+#
+# # Read a signed cookie
+# cookies.signed[:user_id] # => "123"
 # ```
 #
 # ### Permanent Cookies
@@ -144,6 +156,17 @@ class Rage::Cookies
   #   cookies.encrypted[:user_id] = current_user.id
   def encrypted
     dup.tap { |c| c.jar = EncryptedJar }
+  end
+
+  # Returns a jar that'll automatically sign cookie values before sending them to the client and verify them
+  # for read. If the cookie was tampered with by the user (or a 3rd party), `nil` will be returned.
+  #
+  # This jar requires that you set a suitable secret for the verification on your app's `secret_key_base`.
+  #
+  # @example
+  #   cookies.signed[:user_id] = current_user.id
+  def signed
+    dup.tap { |c| c.jar = SignedJar }
   end
 
   # Returns a jar that'll automatically set the assigned cookies to have an expiration date 20 years from now.
@@ -313,6 +336,88 @@ class Rage::Cookies
       end
 
       def build_key(secret)
+        RbNaCl::Hash.blake2b("", key: [secret].pack("H*"), digest_size: 32, personal: INFO)
+      end
+    end # class << self
+  end
+
+  class SignedJar
+    INFO = "signed cookie"
+    SEPARATOR = "."
+
+    class << self
+      def load(value)
+        encoded_value, separator, digest = value.to_s.partition(SEPARATOR)
+        return nil if separator.empty? || digest.empty?
+
+        return Base64.urlsafe_decode64(encoded_value) if verify_digest?(encoded_value, digest)
+
+        Rage.logger.debug("Failed to verify signed cookie")
+        nil
+      rescue ArgumentError
+        Rage.logger.debug("Failed to decode signed cookie")
+        nil
+      end
+
+      def dump(value)
+        encoded_value = Base64.urlsafe_encode64(value.to_s)
+        "#{encoded_value}#{SEPARATOR}#{digest_for(encoded_value, primary_signer)}"
+      end
+
+      private
+
+      def primary_signer
+        @primary_signer ||= RbNaCl::HMAC::SHA512256.new(build_key(Rage.config.secret_key_base))
+      end
+
+      def fallback_signers
+        @fallback_signers ||= Rage.config.fallback_secret_key_base.map do |key|
+          RbNaCl::HMAC::SHA512256.new(build_key(key))
+        end
+      end
+
+      def digest_for(value, signer)
+        Base64.urlsafe_encode64(signer.auth(value))
+      end
+
+      def digest_match?(digest, expected_digest)
+        Rack::Utils.secure_compare(digest, expected_digest)
+      rescue ArgumentError
+        false
+      end
+
+      def verify_digest?(encoded_value, digest)
+        signer = primary_signer
+        i = 0
+        while true
+          if digest_match?(digest, digest_for(encoded_value, signer))
+            return true
+          end
+
+          signer = fallback_signers[i]
+          break if signer.nil?
+
+          Rage.logger.debug { "Trying to verify signed cookie with fallback key ##{i + 1}" }
+          i += 1
+        end
+
+        false
+      end
+
+      def build_key(secret)
+        if !defined?(RbNaCl) || !(Gem::Version.create(RbNaCl::VERSION) >= Gem::Version.create("3.3.0") && Gem::Version.create(RbNaCl::VERSION) < Gem::Version.create("8.0.0"))
+          fail <<~ERR
+
+            Rage depends on `rbnacl` [>= 3.3, < 8.0] to sign cookies. Ensure the following line is added to your Gemfile:
+            gem "rbnacl"
+
+          ERR
+        end
+
+        unless secret
+          raise "Rage.config.secret_key_base should be set to use signed cookies"
+        end
+
         RbNaCl::Hash.blake2b("", key: [secret].pack("H*"), digest_size: 32, personal: INFO)
       end
     end # class << self
