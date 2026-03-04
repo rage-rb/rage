@@ -272,11 +272,43 @@ class Rage::Cookies
     end
   end
 
+  module RbNaClKeyBuilder
+    RBNACL_MIN_VERSION = Gem::Version.create("3.3.0")
+    RBNACL_MAX_VERSION = Gem::Version.create("8.0.0")
+
+    private
+
+    def ensure_rbnacl!(purpose:)
+      return if defined?(RbNaCl) &&
+        Gem::Version.create(RbNaCl::VERSION) >= RBNACL_MIN_VERSION &&
+        Gem::Version.create(RbNaCl::VERSION) < RBNACL_MAX_VERSION
+
+      fail <<~ERR
+
+        Rage depends on `rbnacl` [>= #{RBNACL_MIN_VERSION}, < #{RBNACL_MAX_VERSION}] to support #{purpose}. Ensure the following line is added to your Gemfile:
+        gem "rbnacl"
+
+      ERR
+    end
+
+    def build_key(secret, purpose:)
+      ensure_rbnacl!(purpose: purpose)
+
+      if !secret
+        raise "Rage.config.secret_key_base should be set to use #{purpose}"
+      end
+
+      RbNaCl::Hash.blake2b("", key: [secret].pack("H*"), digest_size: 32, personal: purpose)
+    end
+  end
+
   class EncryptedJar
-    INFO = "encrypted cookie"
+    PURPOSE = "encrypted cookie"
     PADDING = "00"
 
     class << self
+      include RbNaClKeyBuilder
+
       def load(value)
         box = primary_box
 
@@ -306,46 +338,31 @@ class Rage::Cookies
 
       def primary_box
         @primary_box ||= begin
-          if !defined?(RbNaCl) || !(Gem::Version.create(RbNaCl::VERSION) >= Gem::Version.create("3.3.0") && Gem::Version.create(RbNaCl::VERSION) < Gem::Version.create("8.0.0"))
-            fail <<~ERR
-
-              Rage depends on `rbnacl` [>= 3.3, < 8.0] to encrypt cookies. Ensure the following line is added to your Gemfile:
-              gem "rbnacl"
-
-            ERR
-          end
-
-          unless Rage.config.secret_key_base
-            raise "Rage.config.secret_key_base should be set to use encrypted cookies"
-          end
-
-          RbNaCl::SimpleBox.from_secret_key(build_key(Rage.config.secret_key_base))
+          RbNaCl::SimpleBox.from_secret_key(build_key(Rage.config.secret_key_base, purpose: PURPOSE))
         end
       end
 
       def fallback_boxes
         @fallback_boxes ||= begin
           fallbacks = Rage.config.fallback_secret_key_base.map do |key|
-            RbNaCl::SimpleBox.from_secret_key(build_key(key))
+            RbNaCl::SimpleBox.from_secret_key(build_key(key, purpose: PURPOSE))
           end
 
           fallbacks << RbNaCl::SimpleBox.from_secret_key(
-            RbNaCl::Hash.blake2b(Rage.config.secret_key_base, digest_size: 32, salt: INFO)
+            RbNaCl::Hash.blake2b(Rage.config.secret_key_base, digest_size: 32, salt: PURPOSE)
           )
         end
-      end
-
-      def build_key(secret)
-        RbNaCl::Hash.blake2b("", key: [secret].pack("H*"), digest_size: 32, personal: INFO)
       end
     end # class << self
   end
 
   class SignedJar
-    INFO = "signed cookie"
+    PURPOSE = "signed cookie"
     SEPARATOR = "."
 
     class << self
+      include RbNaClKeyBuilder
+
       def load(value)
         encoded_value, separator, digest = value.to_s.partition(SEPARATOR)
         return nil if separator.empty? || digest.empty?
@@ -367,12 +384,14 @@ class Rage::Cookies
       private
 
       def primary_signer
-        @primary_signer ||= RbNaCl::HMAC::SHA512256.new(build_key(Rage.config.secret_key_base))
+        @primary_signer ||= RbNaCl::HMAC::SHA512256.new(
+          build_key(Rage.config.secret_key_base, purpose: PURPOSE)
+        )
       end
 
       def fallback_signers
         @fallback_signers ||= Rage.config.fallback_secret_key_base.map do |key|
-          RbNaCl::HMAC::SHA512256.new(build_key(key))
+          RbNaCl::HMAC::SHA512256.new(build_key(key, purpose: PURPOSE))
         end
       end
 
@@ -402,23 +421,6 @@ class Rage::Cookies
         end
 
         false
-      end
-
-      def build_key(secret)
-        if !defined?(RbNaCl) || !(Gem::Version.create(RbNaCl::VERSION) >= Gem::Version.create("3.3.0") && Gem::Version.create(RbNaCl::VERSION) < Gem::Version.create("8.0.0"))
-          fail <<~ERR
-
-            Rage depends on `rbnacl` [>= 3.3, < 8.0] to sign cookies. Ensure the following line is added to your Gemfile:
-            gem "rbnacl"
-
-          ERR
-        end
-
-        unless secret
-          raise "Rage.config.secret_key_base should be set to use signed cookies"
-        end
-
-        RbNaCl::Hash.blake2b("", key: [secret].pack("H*"), digest_size: 32, personal: INFO)
       end
     end # class << self
   end
