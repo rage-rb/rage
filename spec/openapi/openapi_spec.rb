@@ -118,6 +118,11 @@ RSpec.describe Rage::OpenAPI do
       it { is_expected.to eq({ "type" => "string" }) }
     end
 
+    context "with File" do
+      let(:type) { "File" }
+      it { is_expected.to eq({ "type" => "string", "format" => "binary" }) }
+    end
+
     context "with unknown type" do
       context "with fallback" do
         subject { described_class.__type_to_spec(type, default: true) }

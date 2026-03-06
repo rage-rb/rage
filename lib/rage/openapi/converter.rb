@@ -56,7 +56,47 @@ class Rage::OpenAPI::Converter
       }
 
       if node.parameters.any?
-        memo[path][method]["parameters"] = build_parameters(node)
+        has_file_param = node.parameters.values.any? { |p| !p.key?(:ref) && p[:type] && p[:type]["format"] == "binary" }
+
+        if has_file_param
+          schema_properties = {}
+          schema_required = []
+          query_ref_parameters = []
+
+          # When file params are present, non-ref params become part of the multipart/form-data
+          # request body schema. Shared refs (e.g., #/components/parameters/...) are kept as
+          # regular parameter references since we can't inline their definitions into the schema.
+          node.parameters.each do |param_name, param_info|
+            if param_info.key?(:ref)
+              # shared parameter refs stay as top-level parameters
+              query_ref_parameters << param_info[:ref]
+            else
+              # inline params become properties in the multipart schema
+              property_schema = get_param_type_spec(param_name, param_info[:type]).dup
+              if param_info[:description] && !param_info[:description].empty?
+                property_schema["description"] = param_info[:description]
+              end
+
+              schema_properties[param_name] = property_schema
+              schema_required << param_name if param_info[:required]
+            end
+          end
+
+          memo[path][method]["requestBody"] = {
+            "content" => {
+              "multipart/form-data" => {
+                "schema" => {
+                  "type" => "object",
+                  "properties" => schema_properties
+                }.tap { |s| s["required"] = schema_required if schema_required.any? }
+              }
+            }
+          }
+
+          memo[path][method]["parameters"] = query_ref_parameters if query_ref_parameters.any?
+        else
+          memo[path][method]["parameters"] = build_parameters(node)
+        end
       end
 
       responses = node.parents.reverse.map(&:responses).reduce(&:merge).merge(node.responses)
@@ -79,7 +119,8 @@ class Rage::OpenAPI::Converter
         if node.request.key?("$ref") && node.request["$ref"].start_with?("#/components/requestBodies")
           memo[path][method]["requestBody"] = node.request
         else
-          memo[path][method]["requestBody"] = { "content" => { "application/json" => { "schema" => node.request } } }
+          memo[path][method]["requestBody"] ||= {}
+          (memo[path][method]["requestBody"]["content"] ||= {})["application/json"] = { "schema" => node.request }
         end
       end
     end

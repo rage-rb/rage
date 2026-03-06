@@ -430,6 +430,103 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
     end
 
+    context "with file param" do
+      let_class("PhotosController", parent: RageController::API) do
+        <<~'RUBY'
+          # @param image {File} The photo to upload
+          def create
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "POST /photos" => "PhotosController#create" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Photos" }], "paths" => { "/photos" => { "post" => { "summary" => "", "description" => "", "deprecated" => false, "requestBody" => { "content" => { "multipart/form-data" => { "schema" => { "type" => "object", "properties" => { "image" => { "type" => "string", "format" => "binary", "description" => "The photo to upload" } }, "required" => ["image"] } } } }, "security" => [], "tags" => ["Photos"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+    end
+
+    context "with file param and other params" do
+      let_class("PhotosController", parent: RageController::API) do
+        <<~'RUBY'
+          # @param image {File} The photo to upload
+          # @param caption? {String} An optional caption for the photo
+          def create
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "POST /photos" => "PhotosController#create" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Photos" }], "paths" => { "/photos" => { "post" => { "summary" => "", "description" => "", "deprecated" => false, "requestBody" => { "content" => { "multipart/form-data" => { "schema" => { "type" => "object", "properties" => { "image" => { "type" => "string", "format" => "binary", "description" => "The photo to upload" }, "caption" => { "type" => "string", "description" => "An optional caption for the photo" } }, "required" => ["image"] } } } }, "security" => [], "tags" => ["Photos"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+    end
+
+    context "with optional file param" do
+      let_class("PhotosController", parent: RageController::API) do
+        <<~'RUBY'
+          # @param image? {File} The photo to upload
+          def create
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "POST /photos" => "PhotosController#create" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Photos" }], "paths" => { "/photos" => { "post" => { "summary" => "", "description" => "", "deprecated" => false, "requestBody" => { "content" => { "multipart/form-data" => { "schema" => { "type" => "object", "properties" => { "image" => { "type" => "string", "format" => "binary", "description" => "The photo to upload" } } } } } }, "security" => [], "tags" => ["Photos"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+    end
+
+    context "with file param and request tag" do
+      let_class("PhotosController", parent: RageController::API) do
+        <<~'RUBY'
+          # @param image {File} The photo to upload
+          # @request { email: String, password: String }
+          def create
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "POST /photos" => "PhotosController#create" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Photos" }], "paths" => { "/photos" => { "post" => { "summary" => "", "description" => "", "deprecated" => false, "requestBody" => { "content" => { "multipart/form-data" => { "schema" => { "type" => "object", "properties" => { "image" => { "type" => "string", "format" => "binary", "description" => "The photo to upload" } }, "required" => ["image"] } }, "application/json" => { "schema" => { "type" => "object", "properties" => { "email" => { "type" => "string" }, "password" => { "type" => "string" } } } } } }, "security" => [], "tags" => ["Photos"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+    end
+
+    context "with file param and shared ref" do
+      before do
+        allow(Rage::OpenAPI).to receive(:__shared_components).and_return(shared_components)
+      end
+
+      let_class("PhotosController", parent: RageController::API) do
+        <<~'RUBY'
+          # @param image {File} The photo to upload
+          # @param #/components/parameters/perPageParam
+          def create
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "POST /photos" => "PhotosController#create" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => { "parameters" => { "perPageParam" => { "in" => "query", "name" => "per_page", "required" => false, "schema" => { "type" => "integer", "minimum" => 1, "maximum" => 500, "default" => 100 }, "description" => "The number of records to return." } } }, "tags" => [{ "name" => "Photos" }], "paths" => { "/photos" => { "post" => { "summary" => "", "description" => "", "deprecated" => false, "requestBody" => { "content" => { "multipart/form-data" => { "schema" => { "type" => "object", "properties" => { "image" => { "type" => "string", "format" => "binary", "description" => "The photo to upload" } }, "required" => ["image"] } } } }, "parameters" => [{ "$ref" => "#/components/parameters/perPageParam" }], "security" => [], "tags" => ["Photos"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+    end
+
     context "with regular and implicit URL params" do
       let_class("UsersController", parent: RageController::API) do
         <<~'RUBY'
