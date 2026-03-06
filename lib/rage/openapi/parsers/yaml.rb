@@ -20,14 +20,21 @@ class Rage::OpenAPI::Parsers::YAML
 
     if object.is_a?(Hash)
       spec = { "type" => "object", "properties" => {} }
+      required = []
 
       object.each do |key, value|
-        spec["properties"][key] = if value.is_a?(Enumerable)
+        is_optional = key.end_with?("?")
+        clean_key = is_optional ? key.chomp("?") : key
+        required << clean_key unless is_optional
+
+        spec["properties"][clean_key] = if value.is_a?(Enumerable)
           __parse(value)
         else
           type_to_spec(value)
         end
       end
+
+      spec["required"] = required unless required.empty?
 
     elsif object.is_a?(Array) && object.length == 1
       spec = { "type" => "array", "items" => object[0].is_a?(Enumerable) ? __parse(object[0]) : type_to_spec(object[0]) }
@@ -42,6 +49,11 @@ class Rage::OpenAPI::Parsers::YAML
   private
 
   def type_to_spec(type)
-    Rage::OpenAPI.__type_to_spec(type) || { "type" => "string", "enum" => [type] }
+    if type.is_a?(String) && type =~ /\AArray<(.+)>\z/
+      inner = $1
+      { "type" => "array", "items" => Rage::OpenAPI.__type_to_spec(inner) || { "type" => "string", "enum" => [inner] } }
+    else
+      Rage::OpenAPI.__type_to_spec(type) || { "type" => "string", "enum" => [type] }
+    end
   end
 end
