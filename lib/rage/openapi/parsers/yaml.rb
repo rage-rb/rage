@@ -49,11 +49,13 @@ class Rage::OpenAPI::Parsers::YAML
   private
 
   def type_to_spec(type)
-    if type.is_a?(String) && type =~ /\AArray<(.+)>\z/
-      inner = $1
-      { "type" => "array", "items" => Rage::OpenAPI.__type_to_spec(inner) || { "type" => "string", "enum" => [inner] } }
-    else
-      Rage::OpenAPI.__type_to_spec(type) || { "type" => "string", "enum" => [type] }
+    if type.is_a?(String)
+      is_collection, inner = Rage::OpenAPI.__try_parse_collection(type)
+      if is_collection
+        return { "type" => "array", "items" => Rage::OpenAPI.__type_to_spec(inner) || { "type" => "string", "enum" => [inner] } }
+      end
     end
+
+    Rage::OpenAPI.__type_to_spec(type) || { "type" => "string", "enum" => [type] }
   end
 end
