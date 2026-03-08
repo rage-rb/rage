@@ -24,7 +24,7 @@ end
 # bundle add domain_name
 # ```
 #
-# Additionally, if you need to use encrypted cookies, see {Session} for setup steps.
+# Additionally, if you need to use signed or encrypted cookies, see {Session} for setup steps.
 #
 # ## Usage
 #
