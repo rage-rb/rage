@@ -59,6 +59,9 @@ RSpec.describe RageController::API do
       subject.cookies.signed[:signed_auth] = "test"
       expect(subject.cookies.size).to eq(6)
 
+      subject.cookies.signed[:empty] = ""
+      expect(subject.cookies.signed[:empty]).to eq("")
+
       expect(subject.cookies[:user_id]).to eq("555")
       expect(subject.cookies[:callback_url]).to be_nil
       expect(subject.cookies[:account_id]).to eq("77")
