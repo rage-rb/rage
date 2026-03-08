@@ -31,7 +31,7 @@ RSpec.describe RageController::API do
         user_id: 112,
         callback_url: "https://test-host.com",
         session: "MDAAeSoXJxjazIR1ER55uE2KYYT5Bwabdws3Mu_SSgt563O6VE9dGGoSYjTQ_ShcJKWmymNAQpFG-Mg5",
-        signed_session: "cHJpbWFyeS10ZXN0LXZhbHVl.QvfwLAsdvVmqksjeNFaQVWmKIloxKUFqN-tHWdrxY4E="
+        signed_session: "00.cHJpbWFyeS10ZXN0LXZhbHVl.ZZ-sxOrS0hyHXX4pcO5JkklmYuOwqU1C8EST4SW2_pM="
       }
     end
 
@@ -72,6 +72,7 @@ RSpec.describe RageController::API do
 
       expect(subject.cookies[:signed_auth]).to match(/\S+\.[A-Za-z0-9\-_]+=*/)
       expect(subject.cookies[:signed_auth]).not_to eq("test")
+      expect(subject.cookies[:signed_auth]).to start_with("00.")
       expect(subject.cookies.signed[:signed_auth]).to eq("test")
     end
 
@@ -98,7 +99,7 @@ RSpec.describe RageController::API do
 
     context "with data signed with rotated key" do
       let(:cookies) do
-        { signed_session: "ZmFsbGJhY2stdGVzdC12YWx1ZQ==.q0VH-wyhre8Ykcqp1FzqRCWxlgMWmNLff7d_zA8bG5M=" }
+        { signed_session: "00.ZmFsbGJhY2stdGVzdC12YWx1ZQ==.gwkZRj1U44ZJF1DTp8hD5g6mVuV__VlhO-_hQmFFh2o=" }
       end
 
       before do
@@ -137,7 +138,7 @@ RSpec.describe RageController::API do
     end
 
     context "with incorrectly signed data" do
-      let(:cookies) { { signed_session: "cHJpbWFyeS10ZXN0LXZhbHVl.q0VH-wyhre8Ykcqp1FzqRCWxlgMWmNLff7d_zA8bG5M=" } }
+      let(:cookies) { { signed_session: "00.cHJpbWFyeS10ZXN0LXZhbHVl.AZ-sxOrS0hyHXX4pcO5JkklmYuOwqU1C8EST4SW2_pM=" } }
 
       before do
         allow(Rage).to receive(:logger).and_return(double(debug: nil))
@@ -150,6 +151,30 @@ RSpec.describe RageController::API do
 
     context "with malformed signed data" do
       let(:cookies) { { signed_session: "invalid-format" } }
+
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
+      end
+
+      it "return nil" do
+        expect(subject.cookies.signed[:signed_session]).to be_nil
+      end
+    end
+
+    context "with signed data without version" do
+      let(:cookies) { { signed_session: "cHJpbWFyeS10ZXN0LXZhbHVl.QvfwLAsdvVmqksjeNFaQVWmKIloxKUFqN-tHWdrxY4E=" } }
+
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
+      end
+
+      it "return nil" do
+        expect(subject.cookies.signed[:signed_session]).to be_nil
+      end
+    end
+
+    context "with unsupported signed version" do
+      let(:cookies) { { signed_session: "01.cHJpbWFyeS10ZXN0LXZhbHVl.QvfwLAsdvVmqksjeNFaQVWmKIloxKUFqN-tHWdrxY4E=" } }
 
       before do
         allow(Rage).to receive(:logger).and_return(double(debug: nil))
@@ -303,7 +328,7 @@ RSpec.describe RageController::API do
         allow(Rage.config).to receive(:secret_key_base).and_return("b7ef8f0824ffbddb85818fb6898546a1")
 
         subject.cookies.signed.permanent[:user_id] = "secret"
-        expect(response_cookies[:user_id]).to match(/\S+\.\S+; expires=\w{3}, \d{2} \w{3} #{Time.now.year + 20} \d{2}:\d{2}:\d{2} GMT/)
+        expect(response_cookies[:user_id]).to match(/00\.\S+\.\S+; expires=\w{3}, \d{2} \w{3} #{Time.now.year + 20} \d{2}:\d{2}:\d{2} GMT/)
       end
 
       it "doesn't override expiration date" do

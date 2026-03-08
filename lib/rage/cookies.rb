@@ -359,15 +359,19 @@ class Rage::Cookies
   class SignedJar
     PURPOSE = "signed cookie"
     SEPARATOR = "."
+    VERSION = "00"
 
     class << self
       include RbNaClKeyBuilder
 
       def load(value)
-        encoded_value, separator, digest = value.to_s.partition(SEPARATOR)
-        return nil if separator.empty? || digest.empty?
+        version, encoded_value, digest = parse_signed_cookie(value)
+        return nil if digest.nil?
 
-        return Base64.urlsafe_decode64(encoded_value) if verify_digest?(encoded_value, digest)
+        return nil unless version == VERSION
+
+        signed_payload = signed_payload_for(version, encoded_value)
+        return Base64.urlsafe_decode64(encoded_value) if verify_digest?(signed_payload, digest)
 
         Rage.logger.debug("Failed to verify signed cookie")
         nil
@@ -378,10 +382,25 @@ class Rage::Cookies
 
       def dump(value)
         encoded_value = Base64.urlsafe_encode64(value.to_s)
-        "#{encoded_value}#{SEPARATOR}#{digest_for(encoded_value, primary_signer)}"
+        signed_payload = signed_payload_for(VERSION, encoded_value)
+        "#{VERSION}#{SEPARATOR}#{encoded_value}#{SEPARATOR}#{digest_for(signed_payload, primary_signer)}"
       end
 
       private
+
+      def parse_signed_cookie(value)
+        parts = value.to_s.split(SEPARATOR, 3)
+        return [nil, nil, nil] unless parts.length == 3
+
+        version, encoded_value, digest = parts
+        return [nil, nil, nil] if version.empty? || digest.empty?
+
+        [version, encoded_value, digest]
+      end
+
+      def signed_payload_for(version, encoded_value)
+        "#{version}#{SEPARATOR}#{encoded_value}"
+      end
 
       def primary_signer
         @primary_signer ||= RbNaCl::HMAC::SHA512256.new(
@@ -399,13 +418,13 @@ class Rage::Cookies
         Base64.urlsafe_encode64(signer.auth(value))
       end
 
-      def verify_digest?(encoded_value, digest)
+      def verify_digest?(signed_payload, digest)
         decoded_digest = Base64.urlsafe_decode64(digest)
         signer = primary_signer
         i = 0
         while true
           begin
-            if signer.verify(decoded_digest, encoded_value)
+            if signer.verify(decoded_digest, signed_payload)
               return true
             end
           rescue RbNaCl::BadAuthenticatorError, RbNaCl::CryptoError
