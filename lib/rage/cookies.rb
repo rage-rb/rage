@@ -280,8 +280,8 @@ class Rage::Cookies
 
     def ensure_rbnacl!(purpose:)
       return if defined?(RbNaCl) &&
-        Gem::Version.create(RbNaCl::VERSION) >= RBNACL_MIN_VERSION &&
-        Gem::Version.create(RbNaCl::VERSION) < RBNACL_MAX_VERSION
+                Gem::Version.create(RbNaCl::VERSION) >= RBNACL_MIN_VERSION &&
+                Gem::Version.create(RbNaCl::VERSION) < RBNACL_MAX_VERSION
 
       fail <<~ERR
 
@@ -337,9 +337,7 @@ class Rage::Cookies
       private
 
       def primary_box
-        @primary_box ||= begin
-          RbNaCl::SimpleBox.from_secret_key(build_key(Rage.config.secret_key_base, purpose: PURPOSE))
-        end
+        @primary_box ||= RbNaCl::SimpleBox.from_secret_key(build_key(Rage.config.secret_key_base, purpose: PURPOSE))
       end
 
       def fallback_boxes
