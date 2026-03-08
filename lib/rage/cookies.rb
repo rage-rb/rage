@@ -399,18 +399,17 @@ class Rage::Cookies
         Base64.urlsafe_encode64(signer.auth(value))
       end
 
-      def digest_match?(digest, expected_digest)
-        Rack::Utils.secure_compare(digest, expected_digest)
-      rescue ArgumentError
-        false
-      end
-
       def verify_digest?(encoded_value, digest)
+        decoded_digest = Base64.urlsafe_decode64(digest)
         signer = primary_signer
         i = 0
         while true
-          if digest_match?(digest, digest_for(encoded_value, signer))
-            return true
+          begin
+            if signer.verify(decoded_digest, encoded_value)
+              return true
+            end
+          rescue RbNaCl::BadAuthenticatorError, RbNaCl::CryptoError
+            # digest does not match this signer; continue to fallback keys
           end
 
           signer = fallback_signers[i]
@@ -420,6 +419,8 @@ class Rage::Cookies
           i += 1
         end
 
+        false
+      rescue ArgumentError
         false
       end
     end # class << self
