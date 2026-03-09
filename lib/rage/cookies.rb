@@ -381,7 +381,7 @@ class Rage::Cookies
       def dump(value)
         encoded_value = Base64.urlsafe_encode64(value.to_s)
         signed_payload = signed_payload_for(VERSION, encoded_value)
-        "#{VERSION}#{SEPARATOR}#{encoded_value}#{SEPARATOR}#{digest_for(signed_payload, primary_signer)}"
+        "#{signed_payload}#{SEPARATOR}#{digest_for(signed_payload, primary_signer)}"
       end
 
       private
