@@ -16,7 +16,7 @@ end
 # Cookies provide a convenient way to store small amounts of data on the client side that persists across requests.
 # They are commonly used for session management, personalization, and tracking user preferences.
 #
-# Rage cookies support both simple string-based cookies and encrypted cookies for sensitive data.
+# Rage cookies support simple, signed, and encrypted cookies.
 #
 # To use cookies, add the `domain_name` gem to your `Gemfile`:
 #
@@ -24,7 +24,7 @@ end
 # bundle add domain_name
 # ```
 #
-# Additionally, if you need to use encrypted cookies, see {Session} for setup steps.
+# Additionally, if you need to use signed or encrypted cookies, see {Session} for setup steps.
 #
 # ## Usage
 #
@@ -68,6 +68,18 @@ end
 # # Read an encrypted cookie
 # cookies.encrypted[:api_token] # => "secret-token"
 #
+# ```
+#
+# ### Signed Cookies
+#
+# Store readable values with tamper protection:
+#
+# ```ruby
+# # Set a signed cookie
+# cookies.signed[:user_id] = 123
+#
+# # Read a signed cookie
+# cookies.signed[:user_id] # => "123"
 # ```
 #
 # ### Permanent Cookies
@@ -144,6 +156,17 @@ class Rage::Cookies
   #   cookies.encrypted[:user_id] = current_user.id
   def encrypted
     dup.tap { |c| c.jar = EncryptedJar }
+  end
+
+  # Returns a jar that'll automatically sign cookie values before sending them to the client and verify them
+  # for read. If the cookie was tampered with by the user (or a 3rd party), `nil` will be returned.
+  #
+  # This jar requires that you set a suitable secret for the verification on your app's `secret_key_base`.
+  #
+  # @example
+  #   cookies.signed[:user_id] = current_user.id
+  def signed
+    dup.tap { |c| c.jar = SignedJar }
   end
 
   # Returns a jar that'll automatically set the assigned cookies to have an expiration date 20 years from now.
@@ -249,11 +272,43 @@ class Rage::Cookies
     end
   end
 
+  module RbNaClKeyBuilder
+    RBNACL_MIN_VERSION = Gem::Version.create("3.3.0")
+    RBNACL_MAX_VERSION = Gem::Version.create("8.0.0")
+
+    private
+
+    def ensure_rbnacl!(purpose:)
+      return if defined?(RbNaCl) &&
+                Gem::Version.create(RbNaCl::VERSION) >= RBNACL_MIN_VERSION &&
+                Gem::Version.create(RbNaCl::VERSION) < RBNACL_MAX_VERSION
+
+      fail <<~ERR
+
+        Rage depends on `rbnacl` [>= #{RBNACL_MIN_VERSION}, < #{RBNACL_MAX_VERSION}] to support #{purpose}. Ensure the following line is added to your Gemfile:
+        gem "rbnacl"
+
+      ERR
+    end
+
+    def build_key(secret, purpose:)
+      ensure_rbnacl!(purpose: purpose)
+
+      if !secret
+        raise "Rage.config.secret_key_base should be set to use #{purpose}"
+      end
+
+      RbNaCl::Hash.blake2b("", key: [secret].pack("H*"), digest_size: 32, personal: purpose)
+    end
+  end
+
   class EncryptedJar
-    INFO = "encrypted cookie"
+    PURPOSE = "encrypted cookie"
     PADDING = "00"
 
     class << self
+      include RbNaClKeyBuilder
+
       def load(value)
         box = primary_box
 
@@ -282,38 +337,108 @@ class Rage::Cookies
       private
 
       def primary_box
-        @primary_box ||= begin
-          if !defined?(RbNaCl) || !(Gem::Version.create(RbNaCl::VERSION) >= Gem::Version.create("3.3.0") && Gem::Version.create(RbNaCl::VERSION) < Gem::Version.create("8.0.0"))
-            fail <<~ERR
-
-              Rage depends on `rbnacl` [>= 3.3, < 8.0] to encrypt cookies. Ensure the following line is added to your Gemfile:
-              gem "rbnacl"
-
-            ERR
-          end
-
-          unless Rage.config.secret_key_base
-            raise "Rage.config.secret_key_base should be set to use encrypted cookies"
-          end
-
-          RbNaCl::SimpleBox.from_secret_key(build_key(Rage.config.secret_key_base))
-        end
+        @primary_box ||= RbNaCl::SimpleBox.from_secret_key(build_key(Rage.config.secret_key_base, purpose: PURPOSE))
       end
 
       def fallback_boxes
         @fallback_boxes ||= begin
           fallbacks = Rage.config.fallback_secret_key_base.map do |key|
-            RbNaCl::SimpleBox.from_secret_key(build_key(key))
+            RbNaCl::SimpleBox.from_secret_key(build_key(key, purpose: PURPOSE))
           end
 
           fallbacks << RbNaCl::SimpleBox.from_secret_key(
-            RbNaCl::Hash.blake2b(Rage.config.secret_key_base, digest_size: 32, salt: INFO)
+            RbNaCl::Hash.blake2b(Rage.config.secret_key_base, digest_size: 32, salt: PURPOSE)
           )
         end
       end
+    end # class << self
+  end
 
-      def build_key(secret)
-        RbNaCl::Hash.blake2b("", key: [secret].pack("H*"), digest_size: 32, personal: INFO)
+  class SignedJar
+    PURPOSE = "signed cookie"
+    SEPARATOR = "."
+    VERSION = "00"
+
+    class << self
+      include RbNaClKeyBuilder
+
+      def load(value)
+        version, encoded_value, digest = parse_signed_cookie(value)
+        return nil if digest.nil?
+
+        return nil unless version == VERSION
+
+        signed_payload = signed_payload_for(version, encoded_value)
+        return Base64.urlsafe_decode64(encoded_value) if verify_digest?(signed_payload, digest)
+
+        Rage.logger.debug("Failed to verify signed cookie")
+        nil
+      rescue ArgumentError
+        Rage.logger.debug("Failed to decode signed cookie")
+        nil
+      end
+
+      def dump(value)
+        encoded_value = Base64.urlsafe_encode64(value.to_s)
+        signed_payload = signed_payload_for(VERSION, encoded_value)
+        "#{signed_payload}#{SEPARATOR}#{digest_for(signed_payload, primary_signer)}"
+      end
+
+      private
+
+      def parse_signed_cookie(value)
+        parts = value.to_s.split(SEPARATOR, 3)
+        return [nil, nil, nil] unless parts.length == 3
+
+        version, encoded_value, digest = parts
+        return [nil, nil, nil] if version.empty? || digest.empty?
+
+        [version, encoded_value, digest]
+      end
+
+      def signed_payload_for(version, encoded_value)
+        "#{version}#{SEPARATOR}#{encoded_value}"
+      end
+
+      def primary_signer
+        @primary_signer ||= RbNaCl::HMAC::SHA512256.new(
+          build_key(Rage.config.secret_key_base, purpose: PURPOSE)
+        )
+      end
+
+      def fallback_signers
+        @fallback_signers ||= Rage.config.fallback_secret_key_base.map do |key|
+          RbNaCl::HMAC::SHA512256.new(build_key(key, purpose: PURPOSE))
+        end
+      end
+
+      def digest_for(value, signer)
+        Base64.urlsafe_encode64(signer.auth(value))
+      end
+
+      def verify_digest?(signed_payload, digest)
+        decoded_digest = Base64.urlsafe_decode64(digest)
+        signer = primary_signer
+        i = 0
+        while true
+          begin
+            if signer.verify(decoded_digest, signed_payload)
+              return true
+            end
+          rescue RbNaCl::BadAuthenticatorError, RbNaCl::CryptoError
+            # digest does not match this signer; continue to fallback keys
+          end
+
+          signer = fallback_signers[i]
+          break if signer.nil?
+
+          Rage.logger.debug { "Trying to verify signed cookie with fallback key ##{i + 1}" }
+          i += 1
+        end
+
+        false
+      rescue ArgumentError
+        false
       end
     end # class << self
   end
