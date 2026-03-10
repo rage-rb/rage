@@ -5,50 +5,51 @@ class Rage::SSE::Application
   def initialize(stream)
     @stream = stream
 
-    @type = if stream.is_a?(Enumerator)
-      @streamer = create_enum_streamer
-      :enum
-    elsif stream.is_a?(Proc)
-      @streamer = create_proc_streamer
-      :proc
+    @type = if @stream.is_a?(Enumerator)
+      :stream
+    elsif @stream.is_a?(Proc)
+      :raw
     else
       :object
     end
+
+    @log_tags, @log_context = Fiber[:__rage_logger_tags], Fiber[:__rage_logger_context]
   end
 
   def on_open(connection)
-    case @type
-    when :enum, :proc
-      @streamer.resume(connection)
-    when :object
+    @type == :object ? send_data(connection) : start_stream(connection)
+  end
+
+  private
+
+  def send_data(connection)
+    Rage::Telemetry.tracer.span_sse_stream_process(connection:) do
       connection.write(Rage::SSE.__serialize(@stream))
       connection.close
     end
   end
 
-  private
-
-  def create_enum_streamer
+  def start_stream(connection)
     Fiber.schedule do
-      connection = Fiber.yield
-
-      @stream.each do |event|
-        break if !connection.open?
-        connection.write(Rage::SSE.__serialize(event)) if event
+      Fiber[:__rage_logger_tags], Fiber[:__rage_logger_context] = @log_tags, @log_context
+      Rage::Telemetry.tracer.span_sse_stream_process(connection:) do
+        @type == :stream ? start_formatted_stream(connection) : start_raw_stream(connection)
       end
     rescue => e
       Rage.logger.error("SSE stream failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
-    ensure
-      connection.close
     end
   end
 
-  def create_proc_streamer
-    Fiber.schedule do
-      connection = Fiber.yield
-      @stream.call(Rage::SSE::ConnectionProxy.new(connection))
-    rescue => e
-      Rage.logger.error("SSE stream failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+  def start_formatted_stream(connection)
+    @stream.each do |event|
+      break if !connection.open?
+      connection.write(Rage::SSE.__serialize(event)) if event
     end
+  ensure
+    connection.close
+  end
+
+  def start_raw_stream(connection)
+    @stream.call(Rage::SSE::ConnectionProxy.new(connection))
   end
 end
