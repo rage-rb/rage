@@ -46,12 +46,13 @@ module Rage::Telemetry
 
   # @private
   def self.tracer
-    @tracer ||= Tracer.new(__registry, Rage.config.telemetry.handlers_map)
+    @tracer ||= Tracer.new(__registry)
   end
 
   # @private
-  def self.__setup
-    tracer.setup
+  # @param handlers_map [Hash{String => Array<Rage::Telemetry::HandlerRef>}]
+  def self.__setup(handlers_map)
+    tracer.setup(handlers_map)
   end
 
   ##

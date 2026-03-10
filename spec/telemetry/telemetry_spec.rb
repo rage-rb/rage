@@ -39,19 +39,20 @@ RSpec.describe Rage::Telemetry do
 
     it "correctly initializes Tracer" do
       allow(described_class).to receive(:__registry).and_return(:test_span_registry)
-      allow(Rage.config.telemetry).to receive(:handlers_map).and_return(:test_handlers_map)
 
-      expect(described_class::Tracer).to receive(:new).with(:test_span_registry, :test_handlers_map)
+      expect(described_class::Tracer).to receive(:new).with(:test_span_registry)
       described_class.tracer
     end
   end
 
   describe ".__setup" do
+    let(:handlers_map) { double }
+
     it "calls Tracer#setup" do
       allow(described_class).to receive(:tracer).and_return(double)
-      expect(described_class.tracer).to receive(:setup)
+      expect(described_class.tracer).to receive(:setup).with(handlers_map)
 
-      described_class.__setup
+      described_class.__setup(handlers_map)
     end
   end
 

@@ -998,7 +998,7 @@ class Rage::Configuration
       middleware.insert_before(::Rack::Events, Rage::BodyFinalizer)
     end
 
-    Rage::Telemetry.__setup if @telemetry
+    Rage::Telemetry.__setup(@telemetry.handlers_map) if @telemetry
   end
 end
 

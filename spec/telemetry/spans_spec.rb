@@ -16,9 +16,8 @@ RSpec.describe Rage::Telemetry::Spans do
   end
 
   before do
-    allow(Rage.config.telemetry).to receive(:handlers_map).and_return(handlers_map)
     allow(handler).to receive(:verifier).and_return(verifier)
-    subject.setup
+    subject.setup(handlers_map)
   end
 
   around do |example|
