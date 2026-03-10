@@ -425,4 +425,48 @@ RSpec.describe Rage::Telemetry::Spans do
       Rage::Cable.application.call(env)
     end
   end
+
+  describe described_class::ProcessSSEStream do
+    before do
+      allow(Fiber).to receive(:schedule).and_yield
+    end
+
+    let(:connection) { double(env: { "rack.upgrade?" => :sse }, write: nil, close: nil, open?: true) }
+
+    context "with enumerator" do
+      it "passes correct arguments" do
+        expect(verifier).to receive(:call).with({
+          id: "sse.stream.process",
+          name: "SSE.process",
+          env: connection.env
+        })
+
+        Rage::SSE::Application.new([].each).on_open(connection)
+      end
+    end
+
+    context "with proc" do
+      it "passes correct arguments" do
+        expect(verifier).to receive(:call).with({
+          id: "sse.stream.process",
+          name: "SSE.process",
+          env: connection.env
+        })
+
+        Rage::SSE::Application.new(proc {}).on_open(connection)
+      end
+    end
+
+    context "with object" do
+      it "passes correct arguments" do
+        expect(verifier).to receive(:call).with({
+          id: "sse.stream.process",
+          name: "SSE.process",
+          env: connection.env
+        })
+
+        Rage::SSE::Application.new({}).on_open(connection)
+      end
+    end
+  end
 end

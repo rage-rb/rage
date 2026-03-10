@@ -81,6 +81,7 @@ module Rage::Telemetry
   # | `deferred.task.process` | {ProcessDeferredTask} | Wraps the processing of deferred tasks |
   # | `events.event.publish` | {PublishEvent} | Wraps the publishing of events via {Rage::Events Rage::Events} |
   # | `events.subscriber.process` | {ProcessEventSubscriber} | Wraps the processing of events by subscribers |
+  # | `sse.stream.process` | {ProcessSSEStream} | Wraps the processing of an SSE stream |
   #
   module Spans
   end
