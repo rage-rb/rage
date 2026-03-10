@@ -18,7 +18,7 @@ RSpec.describe "SSE" do
   describe "headers" do
     it "returns correct content-type" do
       response = HTTP.headers(accept: "text/event-stream").get("http://localhost:3000/sse/object")
-      expect(response.headers["content-type"]).to eq("text/event-stream")
+      expect(response.headers["content-type"]).to eq("text/event-stream; charset=utf-8")
     end
 
     it "returns 200 status" do

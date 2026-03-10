@@ -55,7 +55,7 @@ RSpec.describe RageController::API do
     let(:klass) { ControllerApiSSESpec::TestControllerSSE }
 
     it "returns an SSE response" do
-      expect(subject).to match([0, { "content-type" => "text/event-stream" }, []])
+      expect(subject).to match([200, { "content-type" => "text/event-stream; charset=utf-8" }, []])
     end
 
     it "upgrades the request" do
@@ -143,7 +143,7 @@ RSpec.describe RageController::API do
 
     it "ensures correct content type" do
       _, headers, _ = subject
-      expect(headers["content-type"]).to eq("text/event-stream")
+      expect(headers["content-type"]).to eq("text/event-stream; charset=utf-8")
     end
   end
 
@@ -152,7 +152,7 @@ RSpec.describe RageController::API do
     let(:env) { { "HTTP_ACCEPT" => "application/json" } }
 
     it "returns an SSE response" do
-      expect(subject).to match([0, { "content-type" => "text/event-stream" }, []])
+      expect(subject).to match([200, { "content-type" => "text/event-stream; charset=utf-8" }, []])
     end
 
     it "upgrades the request" do
