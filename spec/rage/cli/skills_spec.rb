@@ -15,6 +15,7 @@ RSpec.describe CLISkills do
 
   before do
     stub_const("Rage::VERSION", "1.1.0")
+    allow(skills_cli).to receive(:set_color) { |text, *| text }
     allow(skills_cli).to receive(:fetch).and_call_original
     allow(skills_cli).to receive(:fetch).with("https://rage-rb.github.io/skills/manifest.json").and_return(manifest.to_json)
     allow(skills_cli).to receive(:fetch).with(%r{/releases/download/.*/skills\.tar\.gz}).and_return(tarball_content)
@@ -37,7 +38,7 @@ RSpec.describe CLISkills do
     it "installs skills to the chosen path" do
       expect(skills_cli).to receive(:say).with("Downloading skills...")
       expect(skills_cli).to receive(:say).with(/Installed Rage skills v1\.1\.0/)
-      expect(skills_cli).to receive(:say).with("Skills are now available to your coding agent.")
+      expect(skills_cli).to receive(:say).with(/Skills are now available to your coding agent/)
 
       subject
 
@@ -236,9 +237,7 @@ RSpec.describe CLISkills do
     subject { skills_cli.choose_installation_path }
 
     before do
-      allow(skills_cli).to receive(:print_table)
       allow(skills_cli).to receive(:say)
-      allow(skills_cli).to receive(:set_color) { |text, _| text }
     end
 
     context "when user selects Claude Code" do

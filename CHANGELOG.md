@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+### Added
+
+- [Cable] Add support for `stop_stream_from` and `stop_stream_for`  by [@Digvijay](https://github.com/Digvijay-x1) (#217).
+
+## [1.21.2] - 2026-03-11
+
+- Fix duplicate Rake tasks (#238).
+
+## [1.21.1] - 2026-02-27
+
+- Improve styling for the `skills` CLI (#223).
+
 ## [1.21.0] - 2026-02-25
 
 ### Added
@@ -410,4 +422,3 @@
     - support the `root`, `get`, `post`, `patch`, `put`, `delete` methods;
     - support the `scope` method with the `path` and `module` options;
     - support `host` constraint;
-

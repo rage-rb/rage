@@ -14,8 +14,8 @@ class CLISkills < Thor
     say "Downloading skills..."
     install_skills(installation_path, skills_version)
 
-    say "\nInstalled Rage skills #{skills_version} to #{set_color(installation_path, :bold)}."
-    say "Skills are now available to your coding agent."
+    say "#{set_color("✓", :green)} Installed Rage skills #{set_color(skills_version, :bold)} to #{set_color(installation_path, :cyan)}."
+    say "#{set_color("✓", :green)} Skills are now available to your coding agent."
   rescue => e
     say_error(e)
   end
@@ -40,17 +40,17 @@ class CLISkills < Thor
       current_version = File.exist?(version_file) ? File.read(version_file).strip : nil
 
       if current_version == skills_version
-        log "#{destination}: already up to date."
+        log "#{set_color(destination, :cyan)}: already up to date."
         next
       end
 
-      log "Updating #{destination}..."
+      log "Updating #{set_color(destination, :cyan)}..."
       install_skills(destination, skills_version)
       updated_paths << destination
     end
 
     if updated_paths.any?
-      log "\nUpdated #{updated_paths.size} installation#{"s" if updated_paths.size > 1} to #{skills_version}."
+      log "#{set_color("✓", :green)} Updated #{updated_paths.size} installation#{"s" if updated_paths.size > 1} to #{set_color(skills_version, :bold)}."
     end
 
     json_output(
@@ -87,7 +87,7 @@ class CLISkills < Thor
     end
 
     def say_error(error)
-      say "#{set_color("Error:", :red, :bold)} #{error.message}"
+      say "#{set_color("𐄂 Error:", :red, :bold)} #{error.message}"
       debug { "#{error.class}: #{error.message}\n#{error.backtrace.join("\n")}" }
     end
 
@@ -104,8 +104,16 @@ class CLISkills < Thor
         ["9", "Other", ".claude/skills"]
       ]
 
-      print_table([["Option", "Coding Agent", "Installation Path"]] + agent_options)
-      agent_choice = ask("Select your coding agent (1-#{agent_options[-1][0]}):", default: "1")
+      display_options = ([["Option", "Coding Agent", "Installation Path"]] + agent_options).map.with_index do |(option, agent, path), index|
+        if index == 0
+          [set_color(option, :bold), set_color(agent, :bold), set_color(path, :bold)]
+        else
+          [set_color(option, :bold), agent, set_color(path, :cyan)]
+        end
+      end
+
+      print_ansi_table(display_options)
+      agent_choice = ask(set_color("Select your coding agent (1-#{agent_options[-1][0]}):", :bold), default: "1")
 
       installation_path = ".claude/skills"
 
@@ -116,10 +124,10 @@ class CLISkills < Thor
         end
       end
 
-      say "\nSource: #{set_color("https://github.com/rage-rb/skills", :bold)}"
-      say "Destination: #{set_color(installation_path, :bold)}"
+      say "\n#{set_color("Source:", :bold)} #{set_color("https://github.com/rage-rb/skills", :cyan)}"
+      say "#{set_color("Destination:", :bold)} #{set_color(installation_path, :cyan)}"
 
-      answer = ask("Proceed with installation? [Y/n]", default: "y")
+      answer = ask(set_color("? ", :green, :bold) + set_color("Proceed with installation? [Y/n]", :bold), default: "y")
       unless answer.downcase.start_with?("y")
         say "Installation cancelled."
         return nil
@@ -229,9 +237,14 @@ class CLISkills < Thor
 
       parsed_uri = URI(uri)
       http = Net::HTTP.new(parsed_uri.host, parsed_uri.port)
-      http.use_ssl = parsed_uri.scheme == "https"
       http.open_timeout = 5
       http.read_timeout = 5
+
+      if parsed_uri.scheme == "https"
+        http.use_ssl = true
+        http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+        http.cert_store = OpenSSL::X509::Store.new.tap(&:set_default_paths)
+      end
 
       response = http.request(Net::HTTP::Get.new(parsed_uri))
 
@@ -242,6 +255,37 @@ class CLISkills < Thor
         debug { "Redirected to #{response["Location"][0..100]}" }
         request(response["Location"], limit - 1)
       end
+    end
+
+    # print a table stripping ANSI codes to ensure paddings are based on visible length
+    def print_ansi_table(rows)
+      return if rows.empty?
+
+      widths = rows.each_with_object([]) do |row, maxima|
+        row.each_with_index do |column, index|
+          visible_width = strip_ansi(column.to_s).size
+          maxima[index] = [maxima[index] || 0, visible_width].max
+        end
+      end
+
+      border = "+" + widths.map { |width| "-" * (width + 2) }.join("+") + "+"
+      say(border)
+
+      rows.each do |row|
+        formatted_cells = widths.each_index.map do |index|
+          cell = row[index].to_s
+          cell_padding = widths[index] - strip_ansi(cell).size
+          " #{cell}#{" " * cell_padding} "
+        end
+
+        say("|#{formatted_cells.join("|")}|")
+      end
+
+      say(border)
+    end
+
+    def strip_ansi(text)
+      text.gsub(/\e\[[0-9;]*m/, "")
     end
   end
 end

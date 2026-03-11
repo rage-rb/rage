@@ -141,4 +141,9 @@ class Rage::Cable::Protocols::RawWebSocketJson < Rage::Cable::Protocols::Base
   def self.subscribe(connection, name, _)
     super(connection, name, "")
   end
+
+  # @private
+  def self.unsubscribe(connection, name, _)
+    super(connection, name, "")
+  end
 end
