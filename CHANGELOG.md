@@ -4,6 +4,10 @@
 
 - [Cable] Add support for `stop_stream_from` and `stop_stream_for`  by [@Digvijay](https://github.com/Digvijay-x1) (#217).
 
+## [1.21.2] - 2026-03-11
+
+- Fix duplicate Rake tasks (#238).
+
 ## [1.21.1] - 2026-02-27
 
 - Improve styling for the `skills` CLI (#223).

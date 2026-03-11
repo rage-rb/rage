@@ -85,13 +85,13 @@ jobs:
       run: bundle exec rage routes
     - name: Add a Rake task
       working-directory: ./my_app
-      run: printf "desc \"Prints From Rake\"\nnamespace :hello do\ntask :print do\nend\nend" > lib/tasks/hello.rake
+      run: printf "desc \"Prints From Rake\"\nnamespace :hello do\ntask :print do\nputs('Hello!')\nend\nend" > lib/tasks/hello.rake
     - name: Check available Rake tasks
       working-directory: ./my_app
       run: bundle exec rake --tasks | grep "rake hello:print"
     - name: Run the Rake task
       working-directory: ./my_app
-      run: bundle exec rake hello:print
+      run: test "$(bundle exec rake hello:print)" = "Hello!"
   cli-d:
     runs-on: ubuntu-latest
     name: CLI DB
@@ -130,4 +130,12 @@ jobs:
       run: bundle exec rage s&
     - name: Test the default route
       run: curl --fail http://localhost:3000
-
+    - name: Add a Rake task
+      working-directory: ./my_app
+      run: printf "desc \"Prints From Rake\"\nnamespace :hello do\ntask :print do\nputs('Hello!')\nend\nend" > lib/tasks/hello.rake
+    - name: Check available Rake tasks
+      working-directory: ./my_app
+      run: bundle exec rake --tasks | grep "rake hello:print"
+    - name: Run the Rake task
+      working-directory: ./my_app
+      run: test "$(bundle exec rake hello:print)" = "Hello!"
