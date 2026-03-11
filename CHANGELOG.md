@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [1.21.2] - 2026-03-11
+
+- Fix duplicate Rake tasks (#238).
+
 ## [1.21.1] - 2026-02-27
 
 - Improve styling for the `skills` CLI (#223).
