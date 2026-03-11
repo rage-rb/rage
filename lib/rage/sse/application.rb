@@ -8,22 +8,22 @@ class Rage::SSE::Application
     @type = if @stream.is_a?(Enumerator)
       :stream
     elsif @stream.is_a?(Proc)
-      :raw
+      :manual
     else
-      :object
+      :single
     end
 
     @log_tags, @log_context = Fiber[:__rage_logger_tags], Fiber[:__rage_logger_context]
   end
 
   def on_open(connection)
-    @type == :object ? send_data(connection) : start_stream(connection)
+    @type == :single ? send_data(connection) : start_stream(connection)
   end
 
   private
 
   def send_data(connection)
-    Rage::Telemetry.tracer.span_sse_stream_process(connection:) do
+    Rage::Telemetry.tracer.span_sse_stream_process(connection:, type: @type) do
       connection.write(Rage::SSE.__serialize(@stream))
       connection.close
     end
@@ -32,7 +32,7 @@ class Rage::SSE::Application
   def start_stream(connection)
     Fiber.schedule do
       Fiber[:__rage_logger_tags], Fiber[:__rage_logger_context] = @log_tags, @log_context
-      Rage::Telemetry.tracer.span_sse_stream_process(connection:) do
+      Rage::Telemetry.tracer.span_sse_stream_process(connection:, type: @type) do
         @type == :stream ? start_formatted_stream(connection) : start_raw_stream(connection)
       end
     rescue => e

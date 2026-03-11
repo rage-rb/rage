@@ -17,14 +17,15 @@ class Rage::Telemetry::Spans::ProcessSSEStream
 
     # @private
     def span_parameters
-      %w[connection:]
+      %w[connection: type:]
     end
 
     # @private
     def handler_arguments
       {
         name: '"SSE.process"',
-        env: "connection.env"
+        env: "connection.env",
+        type: "type"
       }
     end
 
@@ -32,19 +33,20 @@ class Rage::Telemetry::Spans::ProcessSSEStream
     #   # @param id ["sse.stream.process"] ID of the span
     #   # @param name ["SSE.process"] human-readable name of the operation
     #   # @param env [Hash] the Rack environment associated with the connection
+    #   # @param type [:stream, :single, :manual] the type of the SSE stream
     #   # @yieldreturn [Rage::Telemetry::SpanResult]
     #   #
     #   # @example
     #   #   class MyTelemetryHandler < Rage::Telemetry::Handler
     #   #     handle "sse.stream.process", with: :my_handler
     #   #
-    #   #     def my_handler(id:, name:, env:)
+    #   #     def my_handler(id:, name:, env:, type:)
     #   #       yield
     #   #     end
     #   #   end
     #   # @note Rage automatically detects which parameters your handler method accepts and only passes those parameters.
     #   #   You can omit any of the parameters described here.
-    #   def handle(id:, name:, env:)
+    #   def handle(id:, name:, env:, type:)
     #   end
   end
 end

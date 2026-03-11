@@ -437,7 +437,8 @@ RSpec.describe Rage::Telemetry::Spans do
         expect(verifier).to receive(:call).with({
           id: "sse.stream.process",
           name: "SSE.process",
-          env: connection.env
+          env: connection.env,
+          type: :stream
         })
 
         Rage::SSE::Application.new([].each).on_open(connection)
@@ -449,7 +450,8 @@ RSpec.describe Rage::Telemetry::Spans do
         expect(verifier).to receive(:call).with({
           id: "sse.stream.process",
           name: "SSE.process",
-          env: connection.env
+          env: connection.env,
+          type: :manual
         })
 
         Rage::SSE::Application.new(proc {}).on_open(connection)
@@ -461,7 +463,8 @@ RSpec.describe Rage::Telemetry::Spans do
         expect(verifier).to receive(:call).with({
           id: "sse.stream.process",
           name: "SSE.process",
-          env: connection.env
+          env: connection.env,
+          type: :single
         })
 
         Rage::SSE::Application.new({}).on_open(connection)
