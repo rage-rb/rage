@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 ##
-# The **core.fiber.dispatch** span tracks the scheduling and processing of system-level fibers created by the framework to process requests and deferred tasks.
+# The **core.fiber.dispatch** span tracks the scheduling and processing of system-level fibers created by the framework to process requests, deferred tasks, or SSE streams.
 #
 # This span is started when a system fiber begins processing and ends when the fiber has completed processing.
 # See {handle handle} for the list of arguments passed to handler methods.

@@ -44,7 +44,8 @@ module Rage::Cable
 
     application = ->(env) do
       Rage::Telemetry.tracer.span_cable_websocket_handshake(env:) do
-        if env["rack.upgrade?"] == :websocket
+        if env["HTTP_UPGRADE"] == "websocket" || env["HTTP_UPGRADE"]&.downcase == "websocket"
+          env["rack.upgrade?"] = :websocket
           env["rack.upgrade"] = handler
           accept_response
         else

@@ -32,6 +32,11 @@ Rage.routes.draw do
 
   post "deferred/create_file", to: "deferred#create"
 
+  get "sse/object", to: "sse#object"
+  post "sse/object", to: "sse#object"
+  get "sse/proc", to: "sse#proc"
+  get "sse/stream", to: "sse#stream"
+
   mount ->(_) { [200, {}, ""] }, at: "/admin"
 
   namespace :api do

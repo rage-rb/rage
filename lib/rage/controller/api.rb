@@ -484,23 +484,31 @@ class RageController::API
   #
   # @param json [String, Object] send a json response to the client; objects like arrays will be serialized automatically
   # @param plain [String] send a text response to the client
+  # @param sse [#each, Proc, #to_json] send an SSE response to the client
   # @param status [Integer, Symbol] set a response status
-  # @example
+  # @example Render a JSON object
   #   render json: { hello: "world" }
-  # @example
+  # @example Set a response status
   #   render status: :ok
-  # @example
-  #   render plain: "hello world", status: 201
+  # @example Render an SSE stream
+  #   render sse: "hello world".each_char
+  # @example Render a one-off SSE update
+  #   render sse: { message: "hello world" }
+  # @example Write to an SSE connection manually
+  #   render sse: ->(connection) do
+  #     connection.write("data: Hello, World!\n\n")
+  #     connection.close
+  #   end
   # @note `render` doesn't terminate execution of the action, so if you want to exit an action after rendering, you need to do something like `render(...) and return`.
-  def render(json: nil, plain: nil, status: nil)
-    raise "Render was called multiple times in this action" if @__rendered
+  def render(json: nil, plain: nil, sse: nil, status: nil)
+    raise "Render was called multiple times in this action." if @__rendered
     @__rendered = true
 
     if json || plain
       @__body << if json
         json.is_a?(String) ? json : json.to_json
       else
-        headers["content-type"] = "text/plain; charset=utf-8"
+        @__headers["content-type"] = "text/plain; charset=utf-8"
         plain.to_s
       end
 
@@ -513,6 +521,20 @@ class RageController::API
       else
         status
       end
+    end
+
+    if sse
+      raise ArgumentError, "Cannot render both a standard body and an SSE stream." unless @__body.empty?
+
+      if status
+        return if @__status == 204
+        raise ArgumentError, "SSE responses only support 200 and 204 statuses." if @__status != 200
+      end
+
+      @__env["rack.upgrade?"] = :sse
+      @__env["rack.upgrade"] = Rage::SSE::Application.new(sse)
+      @__status = 200
+      @__headers["content-type"] = "text/event-stream; charset=utf-8"
     end
   end
 

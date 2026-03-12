@@ -41,4 +41,10 @@ RSpec.describe "Telemetry" do
 
     expect(telemetry_logs.size).to eq(1)
   end
+
+  it "correctly processes handlers from different configure calls" do
+    response = HTTP.persistent("http://localhost:3000").get("/sse/object")
+    expect(response.code).to eq(200)
+    expect(logs).to include(/starting test sse stream/)
+  end
 end

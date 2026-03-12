@@ -62,4 +62,19 @@ Rage.configure do
   end
 end
 
+class TestSseObserver < Rage::Telemetry::Handler
+  handle "sse.stream.process", with: :monitor_stream
+
+  def self.monitor_stream
+    Rage.logger.info "starting test sse stream"
+    yield
+  end
+end
+
+Rage.configure do
+  if ENV["ENABLE_TELEMETRY"]
+    config.telemetry.use TestSseObserver
+  end
+end
+
 require "rage/setup"
