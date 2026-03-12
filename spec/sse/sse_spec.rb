@@ -29,9 +29,14 @@ RSpec.describe Rage::SSE do
         expect(result).to eq("data: hello\n\n")
       end
 
-      it "does not split multiline strings" do
+      it "handles multiline data in messages" do
         result = described_class.__serialize("line1\nline2")
-        expect(result).to eq("data: line1\nline2\n\n")
+        expect(result).to eq("data: line1\ndata: line2\n\n")
+      end
+
+      it "ignores escaped new line characters" do
+        result = described_class.__serialize({ message: "hel\nlo" }.to_json)
+        expect(result).to eq("data: {\"message\":\"hel\\nlo\"}\n\n")
       end
     end
 

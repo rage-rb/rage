@@ -17,7 +17,7 @@ module Rage::SSE
   # @private
   def self.__serialize(data)
     if data.is_a?(String)
-      "data: #{data}\n\n"
+      data.include?("\n") ? Message.new(data:).to_s : "data: #{data}\n\n"
     elsif data.is_a?(Message)
       data.to_s
     else
