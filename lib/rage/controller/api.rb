@@ -484,13 +484,21 @@ class RageController::API
   #
   # @param json [String, Object] send a json response to the client; objects like arrays will be serialized automatically
   # @param plain [String] send a text response to the client
+  # @param sse [#each, Proc, #to_json] send an SSE response to the client
   # @param status [Integer, Symbol] set a response status
-  # @example
+  # @example Render a JSON object
   #   render json: { hello: "world" }
-  # @example
+  # @example Set a response status
   #   render status: :ok
-  # @example
-  #   render plain: "hello world", status: 201
+  # @example Render an SSE stream
+  #   render sse: "hello world".each_char
+  # @example Render a one-off SSE update
+  #   render sse: { message: "hello world" }
+  # @example Write to an SSE connection manually
+  #   render sse: ->(connection) do
+  #     connection.write("data: Hello, World!\n\n")
+  #     connection.close
+  #   end
   # @note `render` doesn't terminate execution of the action, so if you want to exit an action after rendering, you need to do something like `render(...) and return`.
   def render(json: nil, plain: nil, sse: nil, status: nil)
     raise "Render was called multiple times in this action." if @__rendered

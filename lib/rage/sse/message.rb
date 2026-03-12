@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
-# A class representing an SSE event. Use it to specify the `id`, `event`, and `retry` fields in an SSE.
+# Represents a single Server-Sent Event. This class allows you to define the `id`, `event`, and `retry` fields for an SSE message.
 #
 # @!attribute id
-#   @return [String] The `id` field of the SSE event.
+#   @return [String] The `id` field for the SSE event. This can be used to track messages.
 # @!attribute event
-#   @return [String] The `event` field of the SSE event.
+#   @return [String] The `event` field for the SSE event. This can be used to define custom event types.
 # @!attribute retry
-#   @return [Integer] The `retry` field of the SSE event, in milliseconds.
+#   @return [Integer] The `retry` field for the SSE event, in milliseconds. This value is a suggestion for the client about how long to wait before reconnecting.
 # @!attribute data
-#   @return [String, #to_json] The `data` field of the SSE event. If it's an object, it will be serialized to JSON.
+#   @return [String, #to_json] The `data` field for the SSE event. If the object provided is not a string, it will be serialized to JSON.
 Rage::SSE::Message = Struct.new(:id, :event, :retry, :data, keyword_init: true) do
   def to_s
     data_entry = if !data.is_a?(String)

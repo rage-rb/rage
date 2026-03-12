@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 # @private
+# This class is responsible for handling the lifecycle of an SSE connection.
+# It determines the type of SSE stream and manages the data flow.
+#
 class Rage::SSE::Application
   def initialize(stream)
     @stream = stream
