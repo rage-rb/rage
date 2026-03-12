@@ -1,8 +1,13 @@
 ## [Unreleased]
 
+## [1.22.0] - 2026-03-12
+
 ### Added
 
 - [Cable] Add support for `stop_stream_from` and `stop_stream_for`  by [@Digvijay](https://github.com/Digvijay-x1) (#217).
+- Add support for signed cookies by [@rfronczyk](https://github.com/rfronczyk) (#226).
+- [OpenAPI] Add support for shared components in `@auth` tags by [@Piyush-Goenka](https://github.com/Piyush-Goenka) (#221).
+- Add support for server-sent events (#220).
 
 ## [1.21.2] - 2026-03-11
 
