@@ -153,6 +153,8 @@ module Rage::OpenAPI
       { "type" => "string", "format" => "date-time" }
     when "String"
       { "type" => "string" }
+    when "File"
+      { "type" => "string", "format" => "binary" }
     else
       { "type" => "string" } if default
     end
