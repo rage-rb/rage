@@ -4,6 +4,7 @@
 
 ### Added
 
+- [Deferred] Support configurable retry options with `max_retries` and `retry_interval` by [@Digvijay](https://github.com/Digvijay-x1) (#215).
 - [Cable] Add support for `stop_stream_from` and `stop_stream_for`  by [@Digvijay](https://github.com/Digvijay-x1) (#217).
 - Add support for signed cookies by [@rfronczyk](https://github.com/rfronczyk) (#226).
 - [OpenAPI] Add support for shared components in `@auth` tags by [@Piyush-Goenka](https://github.com/Piyush-Goenka) (#221).
