@@ -85,7 +85,7 @@ module Rage::Deferred::Task
         Rage.logger.error("Deferred task failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
       end
     end
-    false
+    e
   end
 
   private def restore_log_info(context)
@@ -105,6 +105,62 @@ module Rage::Deferred::Task
   end
 
   module ClassMethods
+    # Set the maximum number of retry attempts for this task.
+    #
+    # @param count [Integer] the maximum number of retry attempts
+    # @example
+    #   class SendWelcomeEmail
+    #     include Rage::Deferred::Task
+    #     max_retries 10
+    #
+    #     def perform(email)
+    #       # ...
+    #     end
+    #   end
+    def max_retries(count)
+      value = Integer(count)
+
+      if value.negative?
+        raise ArgumentError, "max_retries should be a valid non-negative integer"
+      end
+
+      @__max_retries = value
+    rescue ArgumentError, TypeError
+      raise ArgumentError, "max_retries should be a valid non-negative integer"
+    end
+
+    # Override this method to customize retry behavior per exception.
+    #
+    # Return an Integer to retry in that many seconds.
+    # Return `super` to use the default exponential backoff.
+    # Return `false` or `nil` to abort retries.
+    #
+    # @param exception [Exception] the exception that caused the failure
+    # @param attempt [Integer] the current attempt number (1-indexed)
+    # @return [Integer, false, nil] the retry interval in seconds, or false/nil to abort
+    # @example
+    #   class ProcessPayment
+    #     include Rage::Deferred::Task
+    #
+    #     def self.retry_interval(exception, attempt:)
+    #       case exception
+    #       when TemporaryNetworkError
+    #         10 # Retry in 10 seconds
+    #       when InvalidDataError
+    #         false # Do not retry
+    #       else
+    #         super # Default backoff strategy
+    #       end
+    #     end
+    #
+    #     def perform(payment_id)
+    #       # ...
+    #     end
+    #   end
+    def retry_interval(exception, attempt:)
+      __default_backoff(attempt)
+    end
+
     def enqueue(*args, delay: nil, delay_until: nil, **kwargs)
       context = Rage::Deferred::Context.build(self, args, kwargs)
 
@@ -118,13 +174,24 @@ module Rage::Deferred::Task
     end
 
     # @private
-    def __should_retry?(attempts)
-      attempts < MAX_ATTEMPTS
+    def __next_retry_in(attempts, exception)
+      max = @__max_retries || MAX_ATTEMPTS
+      return if attempts > max
+
+      interval = retry_interval(exception, attempt: attempts)
+      return if !interval
+
+      unless interval.is_a?(Numeric)
+        Rage.logger.warn("#{name}.retry_interval returned #{interval.class}, expected Numeric, false, or nil; falling back to default backoff")
+        return __default_backoff(attempts)
+      end
+
+      interval
     end
 
     # @private
-    def __next_retry_in(attempts)
-      rand(BACKOFF_INTERVAL * 2**attempts.to_i) + 1
+    def __default_backoff(attempt)
+      rand(BACKOFF_INTERVAL * 2**attempt) + 1
     end
   end
 end
