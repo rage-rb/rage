@@ -22,6 +22,16 @@ RSpec.describe Rage::SSE do
     end
   end
 
+  describe ".stream" do
+    it "creates a Stream" do
+      stream = Rage::SSE.stream("my-stream")
+
+      expect(stream).to be_a(Rage::SSE::Stream)
+      expect(stream.name).to eq("my-stream")
+      expect(stream.owner).to eq(Fiber.current)
+    end
+  end
+
   describe ".__serialize" do
     context "with string data" do
       it "wraps in data field" do
