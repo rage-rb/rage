@@ -52,7 +52,12 @@ class Rage::OpenAPI::Parsers::YAML
     if type.is_a?(String)
       is_collection, inner = Rage::OpenAPI.__try_parse_collection(type)
       if is_collection
-        return { "type" => "array", "items" => Rage::OpenAPI.__type_to_spec(inner) || { "type" => "string", "enum" => [inner] } }
+        items_spec = if inner.include?(",")
+                       { "type" => "string", "enum" => inner.split(",").map(&:strip) }
+                     else
+                       Rage::OpenAPI.__type_to_spec(inner) || { "type" => "string", "enum" => [inner] }
+                     end
+        return { "type" => "array", "items" => items_spec }
       end
     end
 

@@ -253,6 +253,22 @@ RSpec.describe Rage::OpenAPI::Parsers::YAML do
           })
         end
       end
+
+      context "with Array<IN_PROGRESS, COMPLETED>" do
+        let(:yaml) do
+          "{ statuses: Array<IN_PROGRESS, COMPLETED> }"
+        end
+
+        it do
+          is_expected.to eq({
+            "type" => "object",
+            "required" => ["statuses"],
+            "properties" => {
+              "statuses" => { "type" => "array", "items" => { "type" => "string", "enum" => ["IN_PROGRESS", "COMPLETED"] } }
+            }
+          })
+        end
+      end
     end
 
     context "with optional attributes and Array<> syntax combined" do
