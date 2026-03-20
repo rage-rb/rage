@@ -28,6 +28,12 @@ class Rage::Configuration
   # @private
   include Hooks
 
+  def initialize
+    @renderers = {}
+  end
+
+  attr_reader :renderers
+
   # @private
   # used in DSL
   def config = self
@@ -228,6 +234,38 @@ class Rage::Configuration
   def run_after_initialize!
     run_hooks_for!(:after_initialize, self)
     __finalize
+  end
+
+  # Register a custom renderer that generates a <tt>render_<name></tt> method on all controllers.
+  # The block receives the object passed to <tt>render_<name></tt> and any additional keyword arguments.
+  # The return value of the block is used as the response body.
+  #
+  # @param name [Symbol, String] the name of the renderer
+  # @param block [Proc] the rendering logic
+  #
+  # @example Register a CSV renderer
+  #   Rage.configure do
+  #     config.renderer(:csv) do |object, delimiter: ","|
+  #       headers["content-type"] = "text/csv"
+  #       object.join(delimiter)
+  #     end
+  #   end
+  #
+  # @example Use in a controller
+  #   class ReportsController < RageController::API
+  #     def index
+  #       render_csv %w[a b c], delimiter: ";", status: :ok
+  #     end
+  #   end
+
+  def renderer(name, &block)
+    raise ArgumentError, "renderer requires a block" unless block_given?
+    name = name.to_sym
+    if @renderers.key?(name)
+      raise ArgumentError, "a renderer named :#{name} is already registered"
+    end
+    dynamic_method_name = RageController::API.define_dynamic_method(block)
+    @renderers[name] = dynamic_method_name
   end
 
   class LogContext
@@ -999,6 +1037,43 @@ class Rage::Configuration
     end
 
     Rage::Telemetry.__setup(@telemetry.handlers_map) if @telemetry
+
+    @renderers.each do |name, dynamic_method_name|
+      method_name = :"render_#{name}"
+
+      # if this method was already defined by a previous finalize run,
+      # skip it to avoid false conflicts on app reload
+      existing = RageController::API.__custom_renderers[method_name]
+      if existing
+        next
+      end
+
+      # if the method exists but we didn't define it, someone else owns it — raise
+      if RageController::API.method_defined?(method_name)
+        raise ArgumentError,
+          "cannot register renderer :#{name} — `#{method_name}` is already defined"
+      end
+
+      # generate the render_<name> method on RageController::API so every
+      # controller inherits it automatically
+      RageController::API.class_eval <<~RUBY
+        def render_#{name}(*args,status: nil, **kwargs)
+          raise "Render was called multiple times in this action" if @__rendered
+          result = #{dynamic_method_name}(*args, **kwargs)
+          unless @__rendered
+            @__rendered = true
+            @__body << result.to_s
+            @__status = if status.is_a?(Symbol)
+              ::Rack::Utils::SYMBOL_TO_STATUS_CODE[status] ||
+               raise(ArgumentError, "unknown status code: \#{status.inspect}")
+            else
+              status || 200
+            end
+          end
+        end
+      RUBY
+      RageController::API.__custom_renderers[method_name] = true
+    end
   end
 end
 
