@@ -348,20 +348,12 @@ class Rage::Router::DSL
       _module, _path, _only, _except, _param = opts.values_at(:module, :path, :only, :except, :param)
       raise ArgumentError, ":param option can't contain colons" if _param.to_s.include?(":")
 
-      _only = Array(_only) if _only
-      _except = Array(_except) if _except
-      actions = @default_actions.select do |action|
-        (_only.nil? || _only.include?(action)) && (_except.nil? || !_except.include?(action))
-      end
+      actions = __filter_actions(@default_actions, _only, _except)
 
       resource = _resources[0].to_s
-      _path ||= resource
       _param ||= "id"
 
-      scope_opts = { path: _path }
-      scope_opts[:module] = _module if _module
-
-      scope(scope_opts) do
+      __resource_scope(resource, _path, _module) do
         get("/", to: "#{resource}#index") if actions.include?(:index)
         post("/", to: "#{resource}#create") if actions.include?(:create)
         get("/:#{_param}", to: "#{resource}#show") if actions.include?(:show)
@@ -370,6 +362,30 @@ class Rage::Router::DSL
         delete("/:#{_param}", to: "#{resource}#destroy") if actions.include?(:destroy)
 
         scope(path: ":#{to_singular(resource)}_#{_param}", controller: resource, &block) if block
+      end
+    end
+
+    def resource(*_resources, **opts, &block)
+      if _resources.length > 1
+        _resources.each { |_resource| resource(_resource, **opts, &block) }
+        return
+      end
+
+      _module, _path, _only, _except, _param = opts.values_at(:module, :path, :only, :except, :param)
+      raise ArgumentError, ":param option can't contain colons" if _param.to_s.include?(":")
+
+      actions = __filter_actions(%i(new create show update destroy), _only, _except)
+
+      resource = _resources[0].to_s
+      __resource_scope(resource, _path, _module) do
+        get("/new",    to: "#{resource}#new")     if actions.include?(:new)
+        post("/",   to: "#{resource}#create")  if actions.include?(:create)
+        get("/",    to: "#{resource}#show")    if actions.include?(:show)
+        patch("/",  to: "#{resource}#update")  if actions.include?(:update)
+        put("/",    to: "#{resource}#update")  if actions.include?(:update)
+        delete("/", to: "#{resource}#destroy") if actions.include?(:destroy)
+
+        scope(controller: resource, &block) if block
       end
     end
 
@@ -443,6 +459,25 @@ class Rage::Router::DSL
       else
         raise ArgumentError, "Unknown scope :#{on} given to :on"
       end
+    end
+
+    # Filters a list of actions based on :only and :except options
+    def __filter_actions(default_actions, only, except)
+      only   = Array(only)   if only
+      except = Array(except) if except
+
+      default_actions.select do |action|
+        (only.nil?   || only.include?(action)) &&
+        (except.nil? || !except.include?(action))
+      end
+    end
+
+    # Wraps route definitions in the correct path/module scope
+    def __resource_scope(resource, path, mod, &block)
+      path ||= resource
+      scope_opts = { path: path }
+      scope_opts[:module] = mod if mod
+      scope(scope_opts, &block)
     end
 
     def to_singular(str)
