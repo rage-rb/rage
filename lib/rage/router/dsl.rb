@@ -378,11 +378,11 @@ class Rage::Router::DSL
 
       resource = _resources[0].to_s
       __resource_scope(resource, _path, _module) do
-        get("/new",    to: "#{resource}#new")     if actions.include?(:new)
-        post("/",   to: "#{resource}#create")  if actions.include?(:create)
-        get("/",    to: "#{resource}#show")    if actions.include?(:show)
-        patch("/",  to: "#{resource}#update")  if actions.include?(:update)
-        put("/",    to: "#{resource}#update")  if actions.include?(:update)
+        get("/new", to: "#{resource}#new") if actions.include?(:new)
+        post("/", to: "#{resource}#create") if actions.include?(:create)
+        get("/", to: "#{resource}#show") if actions.include?(:show)
+        patch("/", to: "#{resource}#update") if actions.include?(:update)
+        put("/", to: "#{resource}#update") if actions.include?(:update)
         delete("/", to: "#{resource}#destroy") if actions.include?(:destroy)
 
         scope(controller: resource, &block) if block
@@ -463,12 +463,12 @@ class Rage::Router::DSL
 
     # Filters a list of actions based on :only and :except options
     def __filter_actions(default_actions, only, except)
-      only   = Array(only)   if only
+      only = Array(only) if only
       except = Array(except) if except
 
       default_actions.select do |action|
-        (only.nil?   || only.include?(action)) &&
-        (except.nil? || !except.include?(action))
+        (only.nil? || only.include?(action)) &&
+          (except.nil? || !except.include?(action))
       end
     end
 
