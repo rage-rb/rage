@@ -445,11 +445,15 @@ class RageController::API
     end
   end # class << self
 
+  DEFAULT_CONTENT_TYPE = "application/json; charset=utf-8"
+  DEFAULT_PLAIN_CONTENT_TYPE = "text/plain; charset=utf-8"
+  private_constant :DEFAULT_CONTENT_TYPE, :DEFAULT_PLAIN_CONTENT_TYPE
+
   # @private
   def initialize(env, params)
     @__env = env
     @__params = params
-    @__status, @__headers, @__body = 204, { "content-type" => "application/json; charset=utf-8" }, []
+    @__status, @__headers, @__body = 204, { "content-type" => DEFAULT_CONTENT_TYPE }, []
     @__rendered = false
   end
 
@@ -508,7 +512,8 @@ class RageController::API
       @__body << if json
         json.is_a?(String) ? json : json.to_json
       else
-        @__headers["content-type"] ||= "text/plain; charset=utf-8"
+        ct = @__headers["content-type"]
+        @__headers["content-type"] = DEFAULT_PLAIN_CONTENT_TYPE if ct.nil? || ct == DEFAULT_CONTENT_TYPE
         plain.to_s
       end
 

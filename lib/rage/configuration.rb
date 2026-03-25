@@ -251,7 +251,6 @@ class Rage::Configuration
   #       render_csv %w[a b c], delimiter: ";", status: :ok
   #     end
   #   end
-
   def renderer(name, &block)
     @renderers ||= {}
     raise ArgumentError, "renderer requires a block" unless block_given?
@@ -1051,7 +1050,7 @@ class Rage::Configuration
   private_constant :RendererEntry
 
   def __define_custom_renderers
-    (@renderers || {}).each do |name, entry|
+    @renderers.each do |name, entry|
       next if entry.applied?
 
       method_name = :"render_#{name}"
@@ -1066,7 +1065,6 @@ class Rage::Configuration
 
       RageController::API.class_eval <<~RUBY
         def render_#{name}(*args, status: nil, **kwargs)
-          raise "Render was called multiple times in this action." if @__rendered
           result = #{entry.dynamic_method_name}(*args, **kwargs)
           return if @__rendered
           render plain: result.to_s, status: (status || 200)
