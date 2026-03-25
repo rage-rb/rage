@@ -28,12 +28,6 @@ class Rage::Configuration
   # @private
   include Hooks
 
-  def initialize
-    @renderers = {}
-  end
-
-  attr_reader :renderers
-
   # @private
   # used in DSL
   def config = self
@@ -259,13 +253,14 @@ class Rage::Configuration
   #   end
 
   def renderer(name, &block)
+    @renderers ||= {}
     raise ArgumentError, "renderer requires a block" unless block_given?
     name = name.to_sym
     if @renderers.key?(name)
       raise ArgumentError, "a renderer named :#{name} is already registered"
     end
-    dynamic_method_name = RageController::API.define_dynamic_method(block)
-    @renderers[name] = dynamic_method_name
+    dynamic_method_name = Rage::Internal.define_dynamic_method(RageController::API, block)
+    @renderers[name] = RendererEntry.new(dynamic_method_name)
   end
 
   class LogContext
@@ -1038,43 +1033,50 @@ class Rage::Configuration
 
     Rage::Telemetry.__setup(@telemetry.handlers_map) if @telemetry
 
-    @renderers.each do |name, dynamic_method_name|
+    __define_custom_renderers if @renderers
+  end
+
+  # @private
+  class RendererEntry
+    attr_reader :dynamic_method_name
+
+    def initialize(dynamic_method_name)
+      @dynamic_method_name = dynamic_method_name
+      @applied = false
+    end
+
+    def applied? = @applied
+    def applied! = (@applied = true)
+  end
+  private_constant :RendererEntry
+
+  def __define_custom_renderers
+    (@renderers || {}).each do |name, entry|
+      next if entry.applied?
+
       method_name = :"render_#{name}"
 
-      # if this method was already defined by a previous finalize run,
-      # skip it to avoid false conflicts on app reload
-      existing = RageController::API.__custom_renderers[method_name]
-      if existing
-        next
-      end
-
-      # if the method exists but we didn't define it, someone else owns it — raise
       if RageController::API.method_defined?(method_name)
+        loc = RageController::API.instance_method(method_name).source_location
+        loc_str = loc ? "#{loc[0]}:#{loc[1]}" : "unknown location"
+
         raise ArgumentError,
-          "cannot register renderer :#{name} — `#{method_name}` is already defined"
+          "cannot register renderer :#{name} — `#{method_name}` is already defined at #{loc_str}"
       end
 
-      # generate the render_<name> method on RageController::API so every
-      # controller inherits it automatically
       RageController::API.class_eval <<~RUBY
-        def render_#{name}(*args,status: nil, **kwargs)
-          raise "Render was called multiple times in this action" if @__rendered
-          result = #{dynamic_method_name}(*args, **kwargs)
-          unless @__rendered
-            @__rendered = true
-            @__body << result.to_s
-            @__status = if status.is_a?(Symbol)
-              ::Rack::Utils::SYMBOL_TO_STATUS_CODE[status] ||
-               raise(ArgumentError, "unknown status code: \#{status.inspect}")
-            else
-              status || 200
-            end
-          end
+        def render_#{name}(*args, status: nil, **kwargs)
+          raise "Render was called multiple times in this action." if @__rendered
+          result = #{entry.dynamic_method_name}(*args, **kwargs)
+          return if @__rendered
+          render plain: result.to_s, status: (status || 200)
         end
       RUBY
-      RageController::API.__custom_renderers[method_name] = true
+
+      entry.applied!
     end
   end
+  private :__define_custom_renderers
 end
 
 # @!parse [ruby]

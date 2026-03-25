@@ -2,13 +2,6 @@
 
 class RageController::API
   class << self
-
-    # Tracks render_<name> methods defined by custom renderers so re-finalize
-    # can skip them instead of raising a false conflict error.
-    def __custom_renderers
-      @__custom_renderers ||= {}
-    end
-
     # @private
     # used by the router to register a new action;
     # registering means defining a new method which calls the action, makes additional calls (e.g. before actions) and
@@ -515,7 +508,7 @@ class RageController::API
       @__body << if json
         json.is_a?(String) ? json : json.to_json
       else
-        @__headers["content-type"] = "text/plain; charset=utf-8"
+        @__headers["content-type"] ||= "text/plain; charset=utf-8"
         plain.to_s
       end
 

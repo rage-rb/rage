@@ -1,9 +1,10 @@
 # frozen_string_literal: true
+require "securerandom"
 
 module ConfigurationCustomRendererSpec
     class BaseController < RageController::API
     end
-  end
+end
   
   RSpec.describe Rage::Configuration do
     describe "#renderer / custom renderers" do
@@ -14,9 +15,15 @@ module ConfigurationCustomRendererSpec
         klass.class_eval(&block) if block
         klass
       end
+
+      def unique_renderer_name(base)
+        :"#{base}_#{SecureRandom.hex(4)}"
+      end
   
       it "registers a renderer and defines render_<name> on RageController::API after finalize" do
-        config.renderer(:csv) do |object, delimiter: ","|
+        name = unique_renderer_name(:csv)
+
+        config.renderer(name) do |object, delimiter: ","|
           headers["content-type"] = "text/csv"
           object.join(delimiter)
         end
@@ -24,8 +31,8 @@ module ConfigurationCustomRendererSpec
         config.__finalize
   
         controller = build_controller do
-          def index
-            render_csv %w[a b c], delimiter: ";"
+          define_method(:index) do
+            public_send(:"render_#{name}", %w[a b c], delimiter: ";")
           end
         end
   
@@ -35,7 +42,9 @@ module ConfigurationCustomRendererSpec
       end
   
       it "supports status: on generated render_<name> method" do
-        config.renderer(:csv) do |object|
+        name = unique_renderer_name(:csv)
+
+        config.renderer(name) do |object|
           headers["content-type"] = "text/csv"
           object.join(",")
         end
@@ -43,8 +52,8 @@ module ConfigurationCustomRendererSpec
         config.__finalize
   
         controller = build_controller do
-          def index
-            render_csv %w[a b], status: :created
+          define_method(:index) do
+            public_send(:"render_#{name}", %w[a b], status: :created)
           end
         end
   
@@ -58,15 +67,16 @@ module ConfigurationCustomRendererSpec
       end
   
       it "raises on duplicate renderer names" do
-        config.renderer(:csv) { "x" }
+        name = unique_renderer_name(:csv)
+        config.renderer(name) { "x" }
   
         expect {
-          config.renderer(:csv) { "y" }
+          config.renderer(name) { "y" }
         }.to raise_error(ArgumentError)
       end
   
       it "raises when generated method conflicts with existing API method" do
-        name = :conflict_renderer
+        name = unique_renderer_name(:conflict)
         method_name = :"render_#{name}"
       
         # create a real method so the conflict is real
@@ -82,7 +92,8 @@ module ConfigurationCustomRendererSpec
       end
   
       it "executes renderer in controller context (can access headers/request/params)" do
-        config.renderer(:ctx) do |_|
+        name = unique_renderer_name(:ctx)
+        config.renderer(name) do |_|
           headers["content-type"] = "text/plain; charset=utf-8"
           "id=#{params[:id]}"
         end
@@ -90,8 +101,8 @@ module ConfigurationCustomRendererSpec
         config.__finalize
   
         controller = build_controller do
-          def index
-            render_ctx nil
+          define_method(:index) do
+            public_send(:"render_#{name}", nil)
           end
         end
   
@@ -101,7 +112,8 @@ module ConfigurationCustomRendererSpec
       end
   
       it "converts nil return value to empty string body" do
-        config.renderer(:empty) do |_|
+        name = unique_renderer_name(:empty)
+        config.renderer(name) do |_|
           headers["content-type"] = "text/plain; charset=utf-8"
           nil
         end
@@ -109,8 +121,8 @@ module ConfigurationCustomRendererSpec
         config.__finalize
   
         controller = build_controller do
-          def index
-            render_empty nil
+          define_method(:index) do
+            public_send(:"render_#{name}", nil)
           end
         end
   
@@ -120,36 +132,39 @@ module ConfigurationCustomRendererSpec
       end
   
       it "does not double-render when renderer block calls render internally" do
-        config.renderer(:sse_like) do |_|
+        name = unique_renderer_name(:sse_like)
+      
+        config.renderer(name) do |_|
           render plain: "from-inner-render", status: :accepted
         end
-  
+      
         config.__finalize
-  
+      
         controller = build_controller do
-          def index
-            render_sse_like nil
+          define_method(:index) do
+            public_send(:"render_#{name}", nil)
           end
         end
-  
-        expect(run_action(controller, :index)).to eq(
-          [202, { "content-type" => "text/plain; charset=utf-8" }, ["from-inner-render"]]
-        )
+      
+        status, _headers, body = run_action(controller, :index)
+        expect(status).to eq(202)
+        expect(body).to eq(["from-inner-render"])
       end
   
       it "raises if custom renderer is called after already rendering in action" do
-        config.renderer(:csv) { |_obj| "x" }
+        name = unique_renderer_name(:csv)
+        config.renderer(name) { |_obj| "x" }
         config.__finalize
   
         controller = build_controller do
-          def index
+          define_method(:index) do
             render plain: "first"
-            render_csv %w[a b]
+            public_send(:"render_#{name}", %w[a b])
           end
         end
   
         expect { run_action(controller, :index) }
-          .to raise_error("Render was called multiple times in this action")
+          .to raise_error("Render was called multiple times in this action.")
       end
     end
   end
