@@ -54,5 +54,7 @@ class Rage::SSE::Application
 
   def start_raw_stream(connection)
     @stream.call(Rage::SSE::ConnectionProxy.new(connection))
+  ensure
+    connection.close if connection.open?
   end
 end
