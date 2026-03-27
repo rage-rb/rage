@@ -152,7 +152,7 @@ RSpec.describe Rage::Configuration do
       expect(body).to eq(["from-inner-render"])
     end
 
-    it "does not raise if custom renderer is called after already rendering in action" do
+    it "raises if custom renderer is called after already rendering in action" do
       name = unique_renderer_name(:csv)
       config.renderer(name) { |_obj| "x" }
       config.__finalize
@@ -164,9 +164,7 @@ RSpec.describe Rage::Configuration do
         end
       end
 
-      status, _headers, body = run_action(controller, :index)
-      expect(status).to eq(200)
-      expect(body).to eq(["first"])
+      expect { run_action(controller, :index) }.to raise_error(/Render was called multiple times in this action/)
     end
   end
 end

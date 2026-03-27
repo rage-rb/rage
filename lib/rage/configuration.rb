@@ -258,8 +258,7 @@ class Rage::Configuration
     if @renderers.key?(name)
       raise ArgumentError, "a renderer named :#{name} is already registered"
     end
-    dynamic_method_name = Rage::Internal.define_dynamic_method(RageController::API, block)
-    @renderers[name] = RendererEntry.new(dynamic_method_name)
+    @renderers[name] = RendererEntry.new(block)
   end
 
   class LogContext
@@ -1037,10 +1036,10 @@ class Rage::Configuration
 
   # @private
   class RendererEntry
-    attr_reader :dynamic_method_name
+    attr_reader :block
 
-    def initialize(dynamic_method_name)
-      @dynamic_method_name = dynamic_method_name
+    def initialize(block)
+      @block = block
       @applied = false
     end
 
@@ -1052,25 +1051,7 @@ class Rage::Configuration
   def __define_custom_renderers
     @renderers.each do |name, entry|
       next if entry.applied?
-
-      method_name = :"render_#{name}"
-
-      if RageController::API.method_defined?(method_name)
-        loc = RageController::API.instance_method(method_name).source_location
-        loc_str = loc ? "#{loc[0]}:#{loc[1]}" : "unknown location"
-
-        raise ArgumentError,
-          "cannot register renderer :#{name} — `#{method_name}` is already defined at #{loc_str}"
-      end
-
-      RageController::API.class_eval <<~RUBY
-        def render_#{name}(*args, status: nil, **kwargs)
-          result = #{entry.dynamic_method_name}(*args, **kwargs)
-          return if @__rendered
-          render plain: result.to_s, status: (status || 200)
-        end
-      RUBY
-
+      RageController::API.__register_renderer(name, entry.block)
       entry.applied!
     end
   end
