@@ -211,6 +211,30 @@ class RageController::API
       RUBY
     end
 
+    # @private
+    def __register_renderer(name, block)
+      method_name = :"render_#{name}"
+
+      if method_defined?(method_name)
+        loc = instance_method(method_name).source_location
+        loc_str = loc ? "#{loc[0]}:#{loc[1]}" : "unknown location"
+
+        raise ArgumentError,
+          "cannot register renderer :#{name} — `#{method_name}` is already defined at #{loc_str}"
+      end
+
+      dynamic_method_name = Rage::Internal.define_dynamic_method(self, block)
+
+      class_eval <<~RUBY
+        def render_#{name}(*args, status: nil, **kwargs)
+          raise "Render was called multiple times in this action." if @__rendered
+          result = #{dynamic_method_name}(*args, **kwargs)
+          return if @__rendered
+          render plain: result.to_s, status: (status || 200)
+        end
+      RUBY
+    end
+
     ############
     #
     # PUBLIC API
@@ -445,11 +469,14 @@ class RageController::API
     end
   end # class << self
 
+  DEFAULT_CONTENT_TYPE = "application/json; charset=utf-8"
+  private_constant :DEFAULT_CONTENT_TYPE
+
   # @private
   def initialize(env, params)
     @__env = env
     @__params = params
-    @__status, @__headers, @__body = 204, { "content-type" => "application/json; charset=utf-8" }, []
+    @__status, @__headers, @__body = 204, { "content-type" => DEFAULT_CONTENT_TYPE }, []
     @__rendered = false
   end
 
@@ -508,7 +535,8 @@ class RageController::API
       @__body << if json
         json.is_a?(String) ? json : json.to_json
       else
-        @__headers["content-type"] = "text/plain; charset=utf-8"
+        ct = @__headers["content-type"]
+        @__headers["content-type"] = "text/plain; charset=utf-8" if ct.nil? || ct == DEFAULT_CONTENT_TYPE
         plain.to_s
       end
 

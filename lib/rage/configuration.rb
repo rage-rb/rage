@@ -230,6 +230,37 @@ class Rage::Configuration
     __finalize
   end
 
+  # Register a custom renderer that generates a <tt>render_<name></tt> method on all controllers.
+  # The block receives the object passed to <tt>render_<name></tt> and any additional keyword arguments.
+  # The return value of the block is used as the response body.
+  #
+  # @param name [Symbol, String] the name of the renderer
+  # @param block [Proc] the rendering logic
+  #
+  # @example Register a CSV renderer
+  #   Rage.configure do
+  #     config.renderer(:csv) do |object, delimiter: ","|
+  #       headers["content-type"] = "text/csv"
+  #       object.join(delimiter)
+  #     end
+  #   end
+  #
+  # @example Use in a controller
+  #   class ReportsController < RageController::API
+  #     def index
+  #       render_csv %w[a b c], delimiter: ";", status: :ok
+  #     end
+  #   end
+  def renderer(name, &block)
+    @renderers ||= {}
+    raise ArgumentError, "renderer requires a block" unless block_given?
+    name = name.to_sym
+    if @renderers.key?(name)
+      raise ArgumentError, "a renderer named :#{name} is already registered"
+    end
+    @renderers[name] = RendererEntry.new(block)
+  end
+
   class LogContext
     # @private
     def initialize
@@ -999,7 +1030,32 @@ class Rage::Configuration
     end
 
     Rage::Telemetry.__setup(@telemetry.handlers_map) if @telemetry
+
+    __define_custom_renderers if @renderers
   end
+
+  # @private
+  class RendererEntry
+    attr_reader :block
+
+    def initialize(block)
+      @block = block
+      @applied = false
+    end
+
+    def applied? = @applied
+    def applied! = (@applied = true)
+  end
+  private_constant :RendererEntry
+
+  def __define_custom_renderers
+    @renderers.each do |name, entry|
+      next if entry.applied?
+      RageController::API.__register_renderer(name, entry.block)
+      entry.applied!
+    end
+  end
+  private :__define_custom_renderers
 end
 
 # @!parse [ruby]
