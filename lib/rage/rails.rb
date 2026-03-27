@@ -54,4 +54,20 @@ Rails.configuration.after_initialize do
   end
 end
 
+# load deferred routes in Rails 8+
+if Rails::VERSION::MAJOR >= 8
+  # reset Rage routes before Rails reloads routes
+  routes_reloader_patch = Module.new do
+    def reload!
+      Rage.__router.reset_routes
+      super
+    end
+  end
+  Rails::Application::RoutesReloader.prepend(routes_reloader_patch)
+
+  Rails.application.config.after_initialize do
+    Rails.application.reload_routes!
+  end
+end
+
 require "rage/ext/setup"
