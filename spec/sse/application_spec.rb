@@ -40,7 +40,19 @@ RSpec.describe Rage::SSE::Application do
       expect(connection.open?).to be false
     end
 
-    it "does not double-close if the proc already closed the connection" do
+    it "does not close the connection on normal completion" do
+      async_proc = ->(conn) {
+        conn.write("data: started\n\n")
+        # Proc returns without closing — a background fiber will close later
+      }
+
+      app = described_class.new(async_proc)
+      app.send(:start_raw_stream, connection)
+
+      expect(connection.open?).to be true
+    end
+
+    it "does not interfere when the proc closes the connection itself" do
       well_behaved_proc = ->(conn) {
         conn.write("data: hello\n\n")
         conn.close
@@ -51,18 +63,6 @@ RSpec.describe Rage::SSE::Application do
 
       expect(connection.open?).to be false
       expect(connection.messages).to eq(["data: hello\n\n"])
-    end
-
-    it "closes the connection on normal completion even if proc forgets to close" do
-      forgetful_proc = ->(conn) {
-        conn.write("data: forgot to close\n\n")
-        # User forgot to call conn.close
-      }
-
-      app = described_class.new(forgetful_proc)
-      app.send(:start_raw_stream, connection)
-
-      expect(connection.open?).to be false
     end
   end
 end
