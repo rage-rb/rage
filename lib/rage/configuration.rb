@@ -139,6 +139,52 @@ class Rage::Configuration
   def after_initialize(&block)
     push_hook(block, :after_initialize)
   end
+
+  # Register a custom renderer that generates overloads `render` on all controllers.
+  # The block receives the object passed to `render` together with any additional keyword arguments.
+  # The code inside the block is executed in the context of the controller instance, so you can access all usual controller methods in it.
+  # The return value of the block is used as the response body.
+  #
+  # @param name [Symbol, String] the name of the renderer
+  # @param block [Proc] the rendering logic. The block is executed in the controller's context and its return value becomes the response body
+  # @raise [ArgumentError] if no block is given or if a renderer with the same name is already registered
+  #
+  # @example Register an ERB renderer
+  #   Rage.configure do
+  #     config.renderer(:erb) do |path, trim_mode: nil|
+  #       headers["content-type"] = "text/html"
+  #       template = File.read("app/views/#{path}.html.erb")
+  #
+  #       ERB.new(template, trim_mode:).result(binding)
+  #     end
+  #   end
+  # @example Use in a controller
+  #   class ReportsController < RageController::API
+  #     def index
+  #       render erb: "reports/index"
+  #     end
+  #   end
+  # @example Pass arguments
+  #   class ReportsController < RageController::API
+  #     def index
+  #       render erb: "reports/index", trim_mode: "%<>"
+  #     end
+  #   end
+  # @example Set response status
+  #   class ReportsController < RageController::API
+  #     def index
+  #       render erb: "reports/index", status: 202
+  #     end
+  #   end
+  def renderer(name, &block)
+    @renderers ||= {}
+    raise ArgumentError, "renderer requires a block" unless block_given?
+    name = name.to_sym
+    if @renderers.key?(name)
+      raise ArgumentError, "a renderer named :#{name} is already registered"
+    end
+    @renderers[name] = RendererEntry.new(block)
+  end
   # @!endgroup
 
   # @!group Middleware Configuration
@@ -228,37 +274,6 @@ class Rage::Configuration
   def run_after_initialize!
     run_hooks_for!(:after_initialize, self)
     __finalize
-  end
-
-  # Register a custom renderer that generates a <tt>render_<name></tt> method on all controllers.
-  # The block receives the object passed to <tt>render_<name></tt> and any additional keyword arguments.
-  # The return value of the block is used as the response body.
-  #
-  # @param name [Symbol, String] the name of the renderer
-  # @param block [Proc] the rendering logic
-  #
-  # @example Register a CSV renderer
-  #   Rage.configure do
-  #     config.renderer(:csv) do |object, delimiter: ","|
-  #       headers["content-type"] = "text/csv"
-  #       object.join(delimiter)
-  #     end
-  #   end
-  #
-  # @example Use in a controller
-  #   class ReportsController < RageController::API
-  #     def index
-  #       render_csv %w[a b c], delimiter: ";", status: :ok
-  #     end
-  #   end
-  def renderer(name, &block)
-    @renderers ||= {}
-    raise ArgumentError, "renderer requires a block" unless block_given?
-    name = name.to_sym
-    if @renderers.key?(name)
-      raise ArgumentError, "a renderer named :#{name} is already registered"
-    end
-    @renderers[name] = RendererEntry.new(block)
   end
 
   class LogContext

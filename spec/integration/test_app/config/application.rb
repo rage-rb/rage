@@ -53,6 +53,27 @@ Rage.configure do
     end
   end
 
+  if ENV["ENABLE_RENDERERS"]
+    config.renderer(:html) do |content|
+      headers["content-type"] = "text/html"
+      content
+    end
+
+    config.after_initialize do
+      config.renderer(:erb) do |path, sse: false|
+        template = Rage.root.join("app/views/#{path}.html.erb").read
+        content = ERB.new(template).result(binding)
+
+        if sse
+          render sse: content
+        else
+          headers["content-type"] = "text/html"
+          content
+        end
+      end
+    end
+  end
+
   config.after_initialize do
     config.deferred.enqueue_middleware.use EnqueueMiddleware1
     config.deferred.enqueue_middleware.use EnqueueMiddleware2
