@@ -160,8 +160,8 @@ RSpec.describe Rage::ParamsParser do
     let(:body) { "test" }
     let(:content_type) { "text/plain" }
 
-    it "defaults to multipart" do
-      expect(Iodine::Rack::Utils).to receive(:parse_multipart).once
+    it "does not read the body" do
+      expect(rack_input).to_not receive(:read)
       subject
     end
   end
@@ -190,6 +190,16 @@ RSpec.describe Rage::ParamsParser do
 
     it "returns merged params" do
       expect(subject).to eq({ id: "13", timestamp: "1539343257" })
+    end
+  end
+
+  context "with unknown content-type body and query string" do
+    let(:body) { "test" }
+    let(:content_type) { "text/plain" }
+    let(:query_params) { { timestamp: "1539343257" } }
+
+    it "returns query params" do
+      expect(subject).to eq({ timestamp: "1539343257" })
     end
   end
 
@@ -289,6 +299,26 @@ RSpec.describe Rage::ParamsParser do
 
     it "returns body params" do
       expect(subject).to eq({ id: "10", location_id: "11", product_id: "12" })
+    end
+
+    context "with conflicting params" do
+      let(:url_params) { { id: "11" } }
+      let(:query_params) { { id: "12" } }
+
+      it "prioritizes url params" do
+        expect(subject).to eq({ id: "11" })
+      end
+    end
+  end
+
+  context "with unknown content-type body and query and url params" do
+    let(:body) { "test" }
+    let(:content_type) { "text/plain" }
+    let(:url_params) { { location_id: "11" } }
+    let(:query_params) { { product_id: "12" } }
+
+    it "returns merged params" do
+      expect(subject).to eq({ location_id: "11", product_id: "12" })
     end
 
     context "with conflicting params" do
