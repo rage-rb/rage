@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.22.1] - 2026-04-01
+
+### Fixed
+
+- Only parse request body as multipart if the request is multipart by [p8](https://github.com/p8) (#256).
+
 ## [1.22.0] - 2026-03-12
 
 ### Added
