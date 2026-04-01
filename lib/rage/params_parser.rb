@@ -17,7 +17,7 @@ class Rage::ParamsParser
       json_parse(env["rack.input"].read)
     elsif content_type.start_with?("application/x-www-form-urlencoded")
       Iodine::Rack::Utils.parse_urlencoded_nested_query(env["rack.input"].read)
-    else
+    elsif content_type.start_with?("multipart/form-data")
       Iodine::Rack::Utils.parse_multipart(env["rack.input"], content_type)
     end
 
@@ -25,6 +25,8 @@ class Rage::ParamsParser
       request_params.merge!(url_params)
     elsif request_params && query_params
       request_params.merge!(query_params, url_params)
+    elsif query_params
+      query_params.merge!(url_params)
     else
       url_params
     end
