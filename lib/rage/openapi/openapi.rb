@@ -160,6 +160,7 @@ module Rage::OpenAPI
 
   # @private
   def self.__resolve_resource(klass_str, namespace)
+    return nil if klass_str.nil?
     namespace.const_get(klass_str)
   rescue NameError
     __log_warn("could not resolve resource: #{klass_str}")
