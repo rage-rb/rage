@@ -778,12 +778,11 @@ RSpec.describe Rage::Router::DSL do
 
   context "with resource" do
     it "correctly creates routes" do
-      expect(router).to receive(:on).with("GET", "/photo/new", "photo#new", instance_of(Hash))
-      expect(router).to receive(:on).with("POST", "/photo", "photo#create", instance_of(Hash))
-      expect(router).to receive(:on).with("GET", "/photo", "photo#show", instance_of(Hash))
-      expect(router).to receive(:on).with("PATCH", "/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("PUT", "/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("DELETE", "/photo", "photo#destroy", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photo", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/photo", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/photo", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/photo", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photo", "photos#destroy", instance_of(Hash))
 
       dsl.draw do
         resource :photo
@@ -791,12 +790,11 @@ RSpec.describe Rage::Router::DSL do
     end
 
     it "correctly creates routes under module" do
-      expect(router).to receive(:on).with("GET", "/photo/new", "api/photo#new", instance_of(Hash))
-      expect(router).to receive(:on).with("POST", "/photo", "api/photo#create", instance_of(Hash))
-      expect(router).to receive(:on).with("GET", "/photo", "api/photo#show", instance_of(Hash))
-      expect(router).to receive(:on).with("PATCH", "/photo", "api/photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("PUT", "/photo", "api/photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("DELETE", "/photo", "api/photo#destroy", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photo", "api/photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/photo", "api/photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/photo", "api/photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/photo", "api/photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photo", "api/photos#destroy", instance_of(Hash))
 
       dsl.draw do
         resource :photo, module: "api"
@@ -804,12 +802,11 @@ RSpec.describe Rage::Router::DSL do
     end
 
     it "correctly creates routes under path" do
-      expect(router).to receive(:on).with("GET", "/api/photo/new", "photo#new", instance_of(Hash))
-      expect(router).to receive(:on).with("POST", "/api/photo", "photo#create", instance_of(Hash))
-      expect(router).to receive(:on).with("GET", "/api/photo", "photo#show", instance_of(Hash))
-      expect(router).to receive(:on).with("PATCH", "/api/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("PUT", "/api/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("DELETE", "/api/photo", "photo#destroy", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/api/photo", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/api/photo", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/api/photo", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/api/photo", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/api/photo", "photos#destroy", instance_of(Hash))
 
       dsl.draw do
         resource :photo, path: "api/photo"
@@ -817,12 +814,11 @@ RSpec.describe Rage::Router::DSL do
     end
 
     it "correctly creates routes under module and path" do
-      expect(router).to receive(:on).with("GET", "/my_photo/new", "v1/photo#new", instance_of(Hash))
-      expect(router).to receive(:on).with("POST", "/my_photo", "v1/photo#create", instance_of(Hash))
-      expect(router).to receive(:on).with("GET", "/my_photo", "v1/photo#show", instance_of(Hash))
-      expect(router).to receive(:on).with("PATCH", "/my_photo", "v1/photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("PUT", "/my_photo", "v1/photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("DELETE", "/my_photo", "v1/photo#destroy", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/my_photo", "v1/photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/my_photo", "v1/photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/my_photo", "v1/photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/my_photo", "v1/photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/my_photo", "v1/photos#destroy", instance_of(Hash))
 
       dsl.draw do
         resource :photo, path: "my_photo", module: "v1"
@@ -830,11 +826,10 @@ RSpec.describe Rage::Router::DSL do
     end
 
     it "correctly creates routes with the :except option" do
-      expect(router).to receive(:on).with("GET", "/photo/new", "photo#new", instance_of(Hash))
-      expect(router).to receive(:on).with("POST", "/photo", "photo#create", instance_of(Hash))
-      expect(router).to receive(:on).with("PATCH", "/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("PUT", "/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("DELETE", "/photo", "photo#destroy", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photo", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/photo", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/photo", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photo", "photos#destroy", instance_of(Hash))
 
       dsl.draw do
         resource :photo, except: :show
@@ -842,8 +837,8 @@ RSpec.describe Rage::Router::DSL do
     end
 
     it "correctly creates routes with the :only option" do
-      expect(router).to receive(:on).with("POST", "/photo", "photo#create", instance_of(Hash))
-      expect(router).to receive(:on).with("DELETE", "/photo", "photo#destroy", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photo", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photo", "photos#destroy", instance_of(Hash))
 
       dsl.draw do
         resource :photo, only: %i(create destroy)
@@ -851,12 +846,11 @@ RSpec.describe Rage::Router::DSL do
     end
 
     it "correctly creates routes with the `scope` helper" do
-      expect(router).to receive(:on).with("GET", "/api/v1/photo/new", "photo#new", instance_of(Hash))
-      expect(router).to receive(:on).with("POST", "/api/v1/photo", "photo#create", instance_of(Hash))
-      expect(router).to receive(:on).with("GET", "/api/v1/photo", "photo#show", instance_of(Hash))
-      expect(router).to receive(:on).with("PATCH", "/api/v1/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("PUT", "/api/v1/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("DELETE", "/api/v1/photo", "photo#destroy", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/api/v1/photo", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/api/v1/photo", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/api/v1/photo", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/api/v1/photo", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/api/v1/photo", "photos#destroy", instance_of(Hash))
 
       dsl.draw do
         scope path: "api/v1" do
@@ -881,37 +875,15 @@ RSpec.describe Rage::Router::DSL do
       end
     end
 
-    it "ignores the :param option" do
-      expect(router).to receive(:on).with("GET", "/photo/new", "photo#new", instance_of(Hash))
-      expect(router).to receive(:on).with("POST", "/photo", "photo#create", instance_of(Hash))
-      expect(router).to receive(:on).with("GET", "/photo", "photo#show", instance_of(Hash))
-      expect(router).to receive(:on).with("PATCH", "/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("PUT", "/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("DELETE", "/photo", "photo#destroy", instance_of(Hash))
-
-      dsl.draw do
-        resource :photo, param: "slug"
-      end
-    end
-
-    it "raises in case the :param option has incorrect value" do
-      expect {
-        dsl.draw do
-          resource :photo, param: ":slug"
-        end
-      }.to raise_error(":param option can't contain colons")
-    end
-
     it "correctly creates nested routes" do
-      expect(router).to receive(:on).with("GET", "/photo/new", "photo#new", instance_of(Hash))
-      expect(router).to receive(:on).with("POST", "/photo", "photo#create", instance_of(Hash))
-      expect(router).to receive(:on).with("GET", "/photo", "photo#show", instance_of(Hash))
-      expect(router).to receive(:on).with("PATCH", "/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("PUT", "/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("DELETE", "/photo", "photo#destroy", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photo", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/photo", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/photo", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/photo", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photo", "photos#destroy", instance_of(Hash))
 
       expect(router).to receive(:on).with("POST", "/photo/like", "likes#create", instance_of(Hash))
-      expect(router).to receive(:on).with("DELETE", "/photo/dislike", "photo#dislike", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photo/dislike", "photos#dislike", instance_of(Hash))
 
       dsl.draw do
         resource :photo do
@@ -922,19 +894,17 @@ RSpec.describe Rage::Router::DSL do
     end
 
     it "correctly creates multiple routes at the same time" do
-      expect(router).to receive(:on).with("GET", "/album/new", "album#new", instance_of(Hash))
-      expect(router).to receive(:on).with("POST", "/album", "album#create", instance_of(Hash))
-      expect(router).to receive(:on).with("GET", "/album", "album#show", instance_of(Hash))
-      expect(router).to receive(:on).with("PATCH", "/album", "album#update", instance_of(Hash))
-      expect(router).to receive(:on).with("PUT", "/album", "album#update", instance_of(Hash))
-      expect(router).to receive(:on).with("DELETE", "/album", "album#destroy", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/album", "albums#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/album", "albums#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/album", "albums#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/album", "albums#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/album", "albums#destroy", instance_of(Hash))
 
-      expect(router).to receive(:on).with("GET", "/photo/new", "photo#new", instance_of(Hash))
-      expect(router).to receive(:on).with("POST", "/photo", "photo#create", instance_of(Hash))
-      expect(router).to receive(:on).with("GET", "/photo", "photo#show", instance_of(Hash))
-      expect(router).to receive(:on).with("PATCH", "/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("PUT", "/photo", "photo#update", instance_of(Hash))
-      expect(router).to receive(:on).with("DELETE", "/photo", "photo#destroy", instance_of(Hash))
+      expect(router).to receive(:on).with("POST", "/photo", "photos#create", instance_of(Hash))
+      expect(router).to receive(:on).with("GET", "/photo", "photos#show", instance_of(Hash))
+      expect(router).to receive(:on).with("PATCH", "/photo", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("PUT", "/photo", "photos#update", instance_of(Hash))
+      expect(router).to receive(:on).with("DELETE", "/photo", "photos#destroy", instance_of(Hash))
 
       dsl.draw do
         resource :album, :photo

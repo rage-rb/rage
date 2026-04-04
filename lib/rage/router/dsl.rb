@@ -371,21 +371,20 @@ class Rage::Router::DSL
         return
       end
 
-      _module, _path, _only, _except, _param = opts.values_at(:module, :path, :only, :except, :param)
-      raise ArgumentError, ":param option can't contain colons" if _param.to_s.include?(":")
+      _module, _path, _only, _except = opts.values_at(:module, :path, :only, :except)
 
-      actions = __filter_actions(%i(new create show update destroy), _only, _except)
+      actions = __filter_actions(%i(create show update destroy), _only, _except)
 
-      resource = _resources[0].to_s
-      __resource_scope(resource, _path, _module) do
-        get("/new", to: "#{resource}#new") if actions.include?(:new)
-        post("/", to: "#{resource}#create") if actions.include?(:create)
-        get("/", to: "#{resource}#show") if actions.include?(:show)
-        patch("/", to: "#{resource}#update") if actions.include?(:update)
-        put("/", to: "#{resource}#update") if actions.include?(:update)
-        delete("/", to: "#{resource}#destroy") if actions.include?(:destroy)
+      resource_name = _resources[0].to_s
+      controller_name = to_plural(resource_name)
+      __resource_scope(resource_name, _path, _module) do
+        post("/", to: "#{controller_name}#create") if actions.include?(:create)
+        get("/", to: "#{controller_name}#show") if actions.include?(:show)
+        patch("/", to: "#{controller_name}#update") if actions.include?(:update)
+        put("/", to: "#{controller_name}#update") if actions.include?(:update)
+        delete("/", to: "#{controller_name}#destroy") if actions.include?(:destroy)
 
-        scope(controller: resource, &block) if block
+        scope(controller: controller_name, &block) if block
       end
     end
 
@@ -496,6 +495,13 @@ class Rage::Router::DSL
       @regexp ||= Regexp.new("(#{@endings.keys.join("|")})$")
 
       str.sub(@regexp, @endings)
+    end
+
+    def to_plural(str)
+      @active_support_loaded ||= str.respond_to?(:pluralize) || :false
+      return str.pluralize if @active_support_loaded != :false
+
+      str.end_with?("s") ? str : "#{str}s"
     end
   end
 end
