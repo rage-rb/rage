@@ -161,6 +161,15 @@ module Rage::OpenAPI
   end
 
   # @private
+  def self.__resolve_resource(klass_str, namespace)
+    return nil if klass_str.nil?
+    namespace.const_get(klass_str)
+  rescue NameError
+    __log_warn("could not resolve resource: #{klass_str}")
+    nil
+  end
+
+  # @private
   def self.__log_warn(log)
     puts "[OpenAPI] WARNING: #{log}"
   end
