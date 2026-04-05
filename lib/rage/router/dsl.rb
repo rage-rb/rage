@@ -365,6 +365,22 @@ class Rage::Router::DSL
       end
     end
 
+    # Automatically create REST routes for a singular resource.
+    #
+    # @param [Hash] opts resource options
+    # @option opts [String] :module the namespace for the controller
+    # @option opts [String] :path the path prefix for the routes
+    # @option opts [Symbol, Array<Symbol>] :only only generate routes for the given actions
+    # @option opts [Symbol, Array<Symbol>] :except generate all routes except for the given actions
+    # @example Create singular routes mapped to a plural controller:
+    #   resource :photo
+    #   # POST   /photo => photos#create
+    #   # GET    /photo => photos#show
+    #   # PATCH  /photo => photos#update
+    #   # PUT    /photo => photos#update
+    #   # DELETE /photo => photos#destroy
+    # @note This helper doesn't generate the `new` and `edit` routes.
+    # @note :param is not supported for singular resources.
     def resource(*_resources, **opts, &block)
       if _resources.length > 1
         _resources.each { |_resource| resource(_resource, **opts, &block) }
