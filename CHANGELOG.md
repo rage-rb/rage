@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+
+- Add singular `resource` routing with plural controller mapping and document the helper by [@anuj-pal27](https://github.com/anuj-pal27).
+
 ## [1.22.1] - 2026-04-01
 
 ### Fixed
