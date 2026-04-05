@@ -34,12 +34,15 @@ class Rage::SSE::Application
 
   def start_stream(connection)
     Fiber.schedule do
+      Iodine.task_inc!
       Fiber[:__rage_logger_tags], Fiber[:__rage_logger_context] = @log_tags, @log_context
       Rage::Telemetry.tracer.span_sse_stream_process(connection:, type: @type) do
         @type == :stream ? start_formatted_stream(connection) : start_raw_stream(connection)
       end
     rescue => e
       Rage.logger.error("SSE stream failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+    ensure
+      Iodine.task_dec!
     end
   end
 
