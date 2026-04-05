@@ -37,6 +37,11 @@ Rage.routes.draw do
   get "sse/proc", to: "sse#proc"
   get "sse/stream", to: "sse#stream"
 
+  get "renderers/html", to: "renderers#html"
+  get "renderers/erb", to: "renderers#erb"
+  get "renderers/erb_over_sse", to: "renderers#erb_over_sse"
+  get "renderers/json", to: "renderers#json"
+
   mount ->(_) { [200, {}, ""] }, at: "/admin"
 
   namespace :api do
