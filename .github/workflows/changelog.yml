@@ -1,0 +1,51 @@
+name: Changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    name: Check
+    steps:
+      - name: Check for skip-changelog label
+        id: skip
+        run: |
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}" == "true" ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get changed files
+        if: steps.skip.outputs.skip == 'false'
+        id: changed
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            const hasChangelog = files.some(f => f.filename === 'CHANGELOG.md');
+            core.setOutput('has_changelog', hasChangelog);
+
+      - name: Require changelog entry
+        if: steps.skip.outputs.skip == 'false' && steps.changed.outputs.has_changelog != 'true'
+        run: |
+          echo "::error::Please add an entry to CHANGELOG.md describing your changes."
+          echo ""
+          echo "If this is a chore PR that doesn't need a changelog entry,"
+          echo "add the 'skip-changelog' label to skip this check."
+          exit 1
+
+      - name: Changelog check passed
+        if: steps.skip.outputs.skip == 'true' || steps.changed.outputs.has_changelog == 'true'
+        run: |
+          if [[ "${{ steps.skip.outputs.skip }}" == "true" ]]; then
+            echo "Skipped: 'skip-changelog' label is present"
+          else
+            echo "CHANGELOG.md was updated"
+          fi
