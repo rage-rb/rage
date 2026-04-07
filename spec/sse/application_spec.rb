@@ -106,4 +106,42 @@ RSpec.describe Rage::SSE::Application do
       expect(connection.messages).to eq(["data: hello\n\n"])
     end
   end
+
+  describe "#send_data (single-value streams)" do
+    it "writes serialized data and closes the connection" do
+      allow(Rage::SSE).to receive(:__serialize).with("hello").and_return("data: hello\n\n")
+
+      app = described_class.new("hello")
+      app.on_open(connection)
+
+      expect(connection.messages).to eq(["data: hello\n\n"])
+      expect(connection.open?).to be false
+    end
+
+    it "closes the connection even when serialization raises" do
+      stream = double("stream")
+      allow(Rage::SSE).to receive(:__serialize).with(stream).and_raise(RuntimeError, "serialization failed")
+
+      app = described_class.new(stream)
+
+      expect {
+        app.on_open(connection)
+      }.to raise_error(RuntimeError, "serialization failed")
+
+      expect(connection.open?).to be false
+    end
+
+    it "closes the connection even when write raises" do
+      allow(Rage::SSE).to receive(:__serialize).with("hello").and_return("data: hello\n\n")
+      allow(connection).to receive(:write).and_raise(IOError, "write failed")
+
+      app = described_class.new("hello")
+
+      expect {
+        app.on_open(connection)
+      }.to raise_error(IOError, "write failed")
+
+      expect(connection.open?).to be false
+    end
+  end
 end
