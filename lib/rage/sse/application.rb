@@ -28,8 +28,9 @@ class Rage::SSE::Application
   def send_data(connection)
     Rage::Telemetry.tracer.span_sse_stream_process(connection:, type: @type) do
       connection.write(Rage::SSE.__serialize(@stream))
-      connection.close
     end
+  ensure
+    connection.close
   end
 
   def start_stream(connection)

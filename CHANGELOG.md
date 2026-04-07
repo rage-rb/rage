@@ -1,4 +1,6 @@
 ## [Unreleased]
+### Fixed
+- [SSE] Ensure connection is closed for single-value SSE streams by [@jsxs0](https://github.com/jsxs0) (#264).
 
 ### Added
 
