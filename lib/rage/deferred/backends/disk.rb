@@ -58,7 +58,7 @@ class Rage::Deferred::Backends::Disk
       max_timestamp
     end.max.to_i
 
-    # apply Lamport IR2(b) From time, clocks and the ordering of 
+    # apply Lamport IR2(b) From time, clocks and the ordering of
     # events in a distributed system to guard against clock skew
     task_id_seed = [Time.now.to_i, storage_file_max_timestamp].max + 1
 
