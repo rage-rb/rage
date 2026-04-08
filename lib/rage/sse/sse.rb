@@ -60,6 +60,8 @@ module Rage::SSE
 
     InternalBroadcast.broadcast(stream_name, CLOSE_STREAM_MSG, Iodine::PubSub::CLUSTER) if Iodine.running?
     @__adapter&.publish(PUBSUB_BROADCASTER_ID, stream_name, CLOSE_STREAM_MSG)
+
+    true
   end
 
   # Broadcast a message to all clients subscribed to a given stream.
