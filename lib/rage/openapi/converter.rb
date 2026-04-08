@@ -137,6 +137,10 @@ class Rage::OpenAPI::Converter
       end
     end
 
+    if (dynamic_schemas = Rage::OpenAPI.__schema_registry).any?
+      (@spec["components"]["schemas"] ||= {}).merge!(dynamic_schemas)
+    end
+
     @spec["tags"] = @used_tags.sort.map { |tag| { "name" => tag } }
 
     @spec

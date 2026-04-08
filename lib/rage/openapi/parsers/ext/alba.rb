@@ -16,10 +16,27 @@ class Rage::OpenAPI::Parsers::Ext::Alba
   end
 
   def parse(klass_str)
-    __parse(klass_str).build_schema
+    _, raw_klass_str = Rage::OpenAPI.__try_parse_collection(klass_str)
+    visitor = __parse(klass_str)
+
+    if Rage::OpenAPI.__schema_registry.key?(raw_klass_str)
+      clean = { "type" => "object" }
+      clean["properties"] = visitor.schema if visitor.schema.any?
+      Rage::OpenAPI.__schema_registry[raw_klass_str] = clean
+    end
+
+    visitor.build_schema
   end
 
   def __parse_nested(klass_str)
+    is_collection, raw_klass_str = Rage::OpenAPI.__try_parse_collection(klass_str)
+
+    if @parsing_stack.include?(raw_klass_str)
+      Rage::OpenAPI.__schema_registry[raw_klass_str] ||= nil
+      ref = { "$ref" => "#/components/schemas/#{raw_klass_str}" }
+      return is_collection ? { "type" => "array", "items" => ref } : ref
+    end
+
     __parse(klass_str).tap { |visitor|
       visitor.root_key = visitor.root_key_for_collection = visitor.root_key_proc = visitor.key_transformer = nil
     }.build_schema

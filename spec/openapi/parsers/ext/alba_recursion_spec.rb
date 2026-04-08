@@ -9,6 +9,9 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
 
   let(:resource) { "UserResource" }
 
+  # Clear the schema registry between tests so $ref registrations don't leak
+  before { Rage::OpenAPI.__schema_registry.clear }
+
   context "with direct circular associations (UserResource ↔ PostResource)" do
     let_class("UserResource") do
       <<~'RUBY'
@@ -30,7 +33,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
       expect { subject }.not_to raise_error
     end
 
-    it "stops recursion with a fallback object schema" do
+    it "uses $ref for the circular association" do
       is_expected.to eq({
         "type" => "object",
         "properties" => {
@@ -42,7 +45,28 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
               "type" => "object",
               "properties" => {
                 "title" => { "type" => "string" },
-                "author" => { "type" => "object" }
+                "author" => { "$ref" => "#/components/schemas/UserResource" }
+              }
+            }
+          }
+        }
+      })
+    end
+
+    it "registers the referenced schema in the registry" do
+      subject
+      expect(Rage::OpenAPI.__schema_registry["UserResource"]).to eq({
+        "type" => "object",
+        "properties" => {
+          "id" => { "type" => "string" },
+          "name" => { "type" => "string" },
+          "posts" => {
+            "type" => "array",
+            "items" => {
+              "type" => "object",
+              "properties" => {
+                "title" => { "type" => "string" },
+                "author" => { "$ref" => "#/components/schemas/UserResource" }
               }
             }
           }
@@ -66,7 +90,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
       expect { subject }.not_to raise_error
     end
 
-    it "stops recursion on the self-reference" do
+    it "uses $ref for the self-reference" do
       is_expected.to eq({
         "type" => "object",
         "properties" => {
@@ -74,10 +98,15 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
           "name" => { "type" => "string" },
           "subcategories" => {
             "type" => "array",
-            "items" => { "type" => "object" }
+            "items" => { "$ref" => "#/components/schemas/CategoryResource" }
           }
         }
       })
+    end
+
+    it "registers the self-referencing schema" do
+      subject
+      expect(Rage::OpenAPI.__schema_registry).to have_key("CategoryResource")
     end
   end
 
@@ -112,7 +141,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
       expect { subject }.not_to raise_error
     end
 
-    it "stops recursion at the cycle point" do
+    it "uses $ref at the cycle point" do
       is_expected.to eq({
         "type" => "object",
         "properties" => {
@@ -125,13 +154,18 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
                 "type" => "object",
                 "properties" => {
                   "c_id" => { "type" => "string" },
-                  "a" => { "type" => "object" }
+                  "a" => { "$ref" => "#/components/schemas/AResource" }
                 }
               }
             }
           }
         }
       })
+    end
+
+    it "registers the referenced schema" do
+      subject
+      expect(Rage::OpenAPI.__schema_registry).to have_key("AResource")
     end
   end
 end
