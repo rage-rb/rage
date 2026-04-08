@@ -6,6 +6,8 @@ class SseController < RageController::API
   end
 
   def stream
+    sleep 0.1
+
     stream = Enumerator.new do |y|
       y << "first"
       sleep 0.1
@@ -29,5 +31,19 @@ class SseController < RageController::API
       conn.write(Rage::SSE.message("world"))
       conn.close
     }
+  end
+
+  def broadcast
+    stream = Rage::SSE.stream("test-stream")
+    Rage::SSE.broadcast("test-stream", "test message")
+
+    4.times { BroadcastToStream.enqueue }
+    CloseStream.enqueue(delay: 0.5)
+
+    render sse: stream
+  end
+
+  def subscribe
+    render sse: Rage::SSE.stream("test-stream")
   end
 end

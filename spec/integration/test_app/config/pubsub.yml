@@ -1,0 +1,3 @@
+development:
+  adapter: <%= ENV["ENABLE_REDIS_ADAPTER"] ? "redis" : "test" %>
+  url: <%= ENV["TEST_REDIS_URL"] %>
