@@ -3,6 +3,7 @@
 - [SSE] Ensure connection is closed for single-value SSE streams by [@jsxs0](https://github.com/jsxs0) (#264).
 
 ### Added
+- [SSE] Add tests for log context propagation across fiber boundaries by [@jsxs0](https://github.com/jsxs0) (#267).
 
 - Add singular `resource` routing with plural controller mapping and document the helper by [@anuj-pal27](https://github.com/anuj-pal27).
 
