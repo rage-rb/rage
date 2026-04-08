@@ -102,6 +102,7 @@ require_relative "context"
 require_relative "metadata"
 require_relative "middleware_chain"
 require_relative "backends/disk"
+require_relative "backends/sql"
 require_relative "backends/nil"
 
 if Iodine.running?
