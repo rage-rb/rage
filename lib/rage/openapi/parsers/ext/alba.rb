@@ -48,7 +48,6 @@ class Rage::OpenAPI::Parsers::Ext::Alba
     if @parsing_stack.include?(klass_str)
       return Visitor.new(self, is_collection)
     end
-    
     @parsing_stack.add(klass_str)
 
     klass = @namespace.const_get(klass_str)
