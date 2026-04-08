@@ -5,6 +5,7 @@ class Rage::OpenAPI::Parsers::Ext::Alba
 
   def initialize(namespace: Object, **)
     @namespace = namespace
+    @parsing_stack = Set.new
   end
 
   def known_definition?(str)
@@ -27,12 +28,20 @@ class Rage::OpenAPI::Parsers::Ext::Alba
   def __parse(klass_str)
     is_collection, klass_str = Rage::OpenAPI.__try_parse_collection(klass_str)
 
+    if @parsing_stack.include?(klass_str)
+      return Visitor.new(self, is_collection)
+    end
+    
+    @parsing_stack.add(klass_str)
+
     klass = @namespace.const_get(klass_str)
     source_path, _ = Object.const_source_location(klass.name)
     ast = Prism.parse_file(source_path)
 
     visitor = Visitor.new(self, is_collection)
     ast.value.accept(visitor)
+
+    @parsing_stack.delete(klass_str)
 
     visitor
   end
