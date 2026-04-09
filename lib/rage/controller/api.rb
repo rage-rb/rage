@@ -213,26 +213,8 @@ class RageController::API
 
     # @private
     def __register_renderer(name, block)
-      method_name = :"render_#{name}"
-
-      if method_defined?(method_name)
-        loc = instance_method(method_name).source_location
-        loc_str = loc ? "#{loc[0]}:#{loc[1]}" : "unknown location"
-
-        raise ArgumentError,
-          "cannot register renderer :#{name} — `#{method_name}` is already defined at #{loc_str}"
-      end
-
-      dynamic_method_name = Rage::Internal.define_dynamic_method(self, block)
-
-      class_eval <<~RUBY
-        def render_#{name}(*args, status: nil, **kwargs)
-          raise "Render was called multiple times in this action." if @__rendered
-          result = #{dynamic_method_name}(*args, **kwargs)
-          return if @__rendered
-          render plain: result.to_s, status: (status || 200)
-        end
-      RUBY
+      prepend(RageController::Renderers) unless ancestors.include?(RageController::Renderers)
+      RageController::Renderers.__register(name, block)
     end
 
     ############
@@ -507,10 +489,10 @@ class RageController::API
     @session ||= Rage::Session.new(cookies)
   end
 
-  # Send a response to the client.
+  # Send a response to the client. Keywords corresponding to custom renderers (see {Rage::Configuration#renderer}) will be delegated automatically.
   #
-  # @param json [String, Object] send a json response to the client; objects like arrays will be serialized automatically
-  # @param plain [String] send a text response to the client
+  # @param json [String, #to_json] send a json response to the client; objects will be serialized automatically
+  # @param plain [#to_s] send a text response to the client
   # @param sse [#each, Proc, #to_json] send an SSE response to the client
   # @param status [Integer, Symbol] set a response status
   # @example Render a JSON object

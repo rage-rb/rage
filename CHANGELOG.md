@@ -1,4 +1,10 @@
 ## [Unreleased]
+### Fixed
+- [SSE] Ensure connection is closed for single-value SSE streams by [@jsxs0](https://github.com/jsxs0) (#264).
+
+### Added
+
+- Add singular `resource` routing with plural controller mapping and document the helper by [@anuj-pal27](https://github.com/anuj-pal27).
 
 ## [1.22.1] - 2026-04-01
 

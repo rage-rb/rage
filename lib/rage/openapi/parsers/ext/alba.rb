@@ -151,12 +151,13 @@ class Rage::OpenAPI::Parsers::Ext::Alba
           with_inner_segment(key, is_array:) { visit(node.block) }
         else
           resource = context.keywords["resource"] || (::Alba.inflector && "#{::Alba.inflector.classify(association.to_s)}Resource")
-          is_valid_resource = @parser.namespace.const_get(resource) rescue false
+          resolved = Rage::OpenAPI.__resolve_resource(resource, @parser.namespace)
 
-          @segment[key] = if is_array
-            @parser.__parse_nested(is_valid_resource ? "[#{resource}]" : "[Rage]") # TODO
+          @segment[key] = if resolved
+            is_array ? @parser.__parse_nested("[#{resource}]") : @parser.__parse_nested(resource)
           else
-            @parser.__parse_nested(is_valid_resource ? resource : "Rage")
+            base = { "type" => "object" }
+            is_array ? { "type" => "array", "items" => base } : base
           end
         end
 

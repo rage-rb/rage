@@ -10,4 +10,7 @@ module Rage::Errors
 
   class InvalidCustomProxy < StandardError
   end
+
+  class AmbiguousRenderError < StandardError
+  end
 end

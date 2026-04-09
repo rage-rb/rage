@@ -17,14 +17,8 @@ RSpec.describe Rage::Configuration do
       klass
     end
 
-    def unique_renderer_name(base)
-      :"#{base}_#{SecureRandom.hex(4)}"
-    end
-
-    it "registers a renderer and defines render_<name> on RageController::API after finalize" do
-      name = unique_renderer_name(:csv)
-
-      config.renderer(name) do |object, delimiter: ","|
+    it "registers a renderer and overloads `render` on RageController::API after finalize" do
+      config.renderer(:csv) do |object, delimiter: ","|
         headers["content-type"] = "text/csv"
         object.join(delimiter)
       end
@@ -33,7 +27,7 @@ RSpec.describe Rage::Configuration do
 
       controller = build_controller do
         define_method(:index) do
-          public_send(:"render_#{name}", %w[a b c], delimiter: ";")
+          render csv: %w[a b c], delimiter: ";"
         end
       end
 
@@ -42,10 +36,8 @@ RSpec.describe Rage::Configuration do
       )
     end
 
-    it "supports status: on generated render_<name> method" do
-      name = unique_renderer_name(:csv)
-
-      config.renderer(name) do |object|
+    it "supports status: on overloaded `render` method" do
+      config.renderer(:csv) do |object|
         headers["content-type"] = "text/csv"
         object.join(",")
       end
@@ -54,7 +46,7 @@ RSpec.describe Rage::Configuration do
 
       controller = build_controller do
         define_method(:index) do
-          public_send(:"render_#{name}", %w[a b], status: :created)
+          render csv: %w[a b], status: :created
         end
       end
 
@@ -68,33 +60,15 @@ RSpec.describe Rage::Configuration do
     end
 
     it "raises on duplicate renderer names" do
-      name = unique_renderer_name(:csv)
-      config.renderer(name) { "x" }
+      config.renderer(:csv) { "x" }
 
       expect {
-        config.renderer(name) { "y" }
+        config.renderer(:csv) { "y" }
       }.to raise_error(ArgumentError)
     end
 
-    it "raises when generated method conflicts with existing API method" do
-      name = unique_renderer_name(:conflict)
-      method_name = :"render_#{name}"
-
-      # create a real method so the conflict is real
-      RageController::API.define_method(method_name) {}
-
-      config.renderer(name) { "x" }
-
-      expect {
-        config.__finalize
-      }.to raise_error(ArgumentError, /#{Regexp.escape(method_name.to_s)}/)
-    ensure
-      RageController::API.send(:remove_method, method_name) if RageController::API.method_defined?(method_name)
-    end
-
     it "executes renderer in controller context (can access headers/request/params)" do
-      name = unique_renderer_name(:ctx)
-      config.renderer(name) do |_|
+      config.renderer(:ctx) do |_|
         headers["content-type"] = "text/plain; charset=utf-8"
         "id=#{params[:id]}"
       end
@@ -103,7 +77,7 @@ RSpec.describe Rage::Configuration do
 
       controller = build_controller do
         define_method(:index) do
-          public_send(:"render_#{name}", nil)
+          render ctx: true
         end
       end
 
@@ -113,8 +87,7 @@ RSpec.describe Rage::Configuration do
     end
 
     it "converts nil return value to empty string body" do
-      name = unique_renderer_name(:empty)
-      config.renderer(name) do |_|
+      config.renderer(:empty) do |_|
         headers["content-type"] = "text/plain; charset=utf-8"
         nil
       end
@@ -123,7 +96,7 @@ RSpec.describe Rage::Configuration do
 
       controller = build_controller do
         define_method(:index) do
-          public_send(:"render_#{name}", nil)
+          render empty: true
         end
       end
 
@@ -133,9 +106,7 @@ RSpec.describe Rage::Configuration do
     end
 
     it "does not double-render when renderer block calls render internally" do
-      name = unique_renderer_name(:sse_like)
-
-      config.renderer(name) do |_|
+      config.renderer(:sse_like) do |_|
         render plain: "from-inner-render", status: :accepted
       end
 
@@ -143,7 +114,7 @@ RSpec.describe Rage::Configuration do
 
       controller = build_controller do
         define_method(:index) do
-          public_send(:"render_#{name}", nil)
+          render sse_like: true
         end
       end
 
@@ -153,18 +124,65 @@ RSpec.describe Rage::Configuration do
     end
 
     it "raises if custom renderer is called after already rendering in action" do
-      name = unique_renderer_name(:csv)
-      config.renderer(name) { |_obj| "x" }
+      config.renderer(:csv) { |_obj| "x" }
       config.__finalize
 
       controller = build_controller do
         define_method(:index) do
           render plain: "first"
-          public_send(:"render_#{name}", %w[a b])
+          render csv: %w[a b]
         end
       end
 
       expect { run_action(controller, :index) }.to raise_error(/Render was called multiple times in this action/)
+    end
+
+    it "allows to set multiple renderers" do
+      config.renderer(:csv) { |_| "csv content" }
+      config.renderer(:erb) { |_| "erb content" }
+      config.__finalize
+
+      controller = build_controller do
+        define_method(:index) do
+          render csv: true
+        end
+
+        define_method(:show) do
+          render erb: true
+        end
+      end
+
+      expect(run_action(controller, :index)).to match([200, instance_of(Hash), ["csv content"]])
+      expect(run_action(controller, :show)).to match([200, instance_of(Hash), ["erb content"]])
+    end
+
+    it "raises if multiple custom renderer are called together" do
+      config.renderer(:csv) { |_| "csv" }
+      config.renderer(:erb) { |_| "erb" }
+      config.__finalize
+
+      controller = build_controller do
+        define_method(:index) do
+          render csv: true, erb: true
+        end
+      end
+
+      expect { run_action(controller, :index) }.to raise_error(Rage::Errors::AmbiguousRenderError)
+    end
+
+    it "delegates to the original `render`" do
+      config.renderer(:csv) { |_| "csv" }
+      config.__finalize
+
+      controller = build_controller do
+        define_method(:index) do
+          render json: { message: "test" }, status: 202
+        end
+      end
+
+      expect(run_action(controller, :index)).to match(
+        [202, { "content-type" => "application/json; charset=utf-8" }, ["{\"message\":\"test\"}"]]
+      )
     end
   end
 end

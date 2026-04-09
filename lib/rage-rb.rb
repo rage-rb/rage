@@ -195,6 +195,7 @@ module Rage
 end
 
 module RageController
+  autoload :Renderers, "rage/controller/renderers"
 end
 
 require_relative "rage/env"
