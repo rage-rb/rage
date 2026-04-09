@@ -6,6 +6,10 @@
 
 - Add singular `resource` routing with plural controller mapping and document the helper by [@anuj-pal27](https://github.com/anuj-pal27).
 
+### Changed
+
+- [Deferred] Increase default retry limit to 20 and update default retry backoff to `(attempt**4) + 10 + (rand(15) * attempt)` by  [@anuj-pal27](https://github.com/anuj-pal27) (#251).
+
 ## [1.22.1] - 2026-04-01
 
 ### Fixed
