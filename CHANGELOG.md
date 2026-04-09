@@ -4,6 +4,7 @@
 - Ensure task ID seed is always greater than timestamps in existing WAL files by [@Abishekcs](https://github.com/Abishekcs) (#255)
 
 ### Added
+- [SSE] Add tests for log context propagation across fiber boundaries by [@jsxs0](https://github.com/jsxs0) (#267).
 
 - Add singular `resource` routing with plural controller mapping and document the helper by [@anuj-pal27](https://github.com/anuj-pal27).
 
