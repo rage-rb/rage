@@ -122,8 +122,8 @@ class Rage::PubSub::Adapters::Redis
         data = read_redis.blocking_call(5, "XREAD", "COUNT", "100", "BLOCK", "5000", "STREAMS", @redis_stream, last_id)
 
         if data
-          data[@redis_stream].each do |id, (_, stream_name, _, serialized_data, _, broadcaster_uuid, _, message_uuid, _, broadcaster_id)|
-            if broadcaster_uuid != @server_uuid && message_uuid != last_message_uuid
+          data[@redis_stream].each do |id, (_, stream_name, _, serialized_data, _, server_uuid, _, message_uuid, _, broadcaster_id)|
+            if server_uuid != @server_uuid && message_uuid != last_message_uuid
               @broadcasters[broadcaster_id]&.broadcast(stream_name, JSON.parse(serialized_data))
             end
 
@@ -132,10 +132,12 @@ class Rage::PubSub::Adapters::Redis
           end
         end
 
+        break if @stopping
+
       rescue RedisClient::Error => e
         Rage.logger.error("Subscriber error: #{e.message} (#{e.class})")
         sleep error_backoff_intervals.next
-      rescue => e
+      rescue SystemCallError => e
         @stopping ? break : raise(e)
       else
         error_backoff_intervals.rewind
