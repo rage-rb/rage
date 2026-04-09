@@ -200,3 +200,10 @@ end
 
 require_relative "rage/env"
 require_relative "rage/internal"
+require_relative "rage/handler"
+
+begin
+  ::Rack::Handler.register("rage", "Rage::Handler") if defined?(::Rack::Handler)
+  ::Rackup::Handler.register("rage", "Rage::Handler") if defined?(::Rackup::Handler)
+rescue StandardError
+end
