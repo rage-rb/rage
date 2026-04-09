@@ -7,8 +7,12 @@ require "pathname"
 
 module Rage
   # Builds the Rage application with the configured middlewares.
+  def self.application=(app)
+    @application = app
+  end
+
   def self.application
-    with_middlewares(Application.new(__router), config.middleware.middlewares)
+    @application ||= with_middlewares(Application.new(__router), config.middleware.middlewares)
   end
 
   # Builds the Rage application which delegates Rails requests to `Rails.application`.
