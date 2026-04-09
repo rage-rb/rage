@@ -31,11 +31,8 @@
 # ```
 #
 module Rage::Deferred::Task
-  MAX_ATTEMPTS = 5
+  MAX_ATTEMPTS = 20
   private_constant :MAX_ATTEMPTS
-
-  BACKOFF_INTERVAL = 5
-  private_constant :BACKOFF_INTERVAL
 
   # @private
   CONTEXT_KEY = :__rage_deferred_execution_context
@@ -191,7 +188,7 @@ module Rage::Deferred::Task
 
     # @private
     def __default_backoff(attempt)
-      rand(BACKOFF_INTERVAL * 2**attempt) + 1
+      (attempt**4) + 10 + (rand(15) * attempt)
     end
   end
 end
