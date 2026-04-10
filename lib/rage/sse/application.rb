@@ -12,6 +12,8 @@ class Rage::SSE::Application
       :stream
     elsif @stream.is_a?(Proc)
       :manual
+    elsif @stream.is_a?(Rage::SSE::Stream)
+      :broadcast
     else
       :single
     end
@@ -20,7 +22,13 @@ class Rage::SSE::Application
   end
 
   def on_open(connection)
-    @type == :single ? send_data(connection) : start_stream(connection)
+    if @type == :single
+      send_data(connection)
+    elsif @type == :broadcast
+      start_broadcast_stream(connection)
+    else
+      start_stream(connection)
+    end
   end
 
   private
@@ -31,6 +39,19 @@ class Rage::SSE::Application
     end
   ensure
     connection.close
+  end
+
+  def start_broadcast_stream(connection)
+    channel = "sse:#{@stream.name}"
+
+    connection.subscribe(channel) do |_, msg|
+      msg == Rage::SSE::CLOSE_STREAM_MSG ? connection.close : connection.write(msg)
+    end
+
+    buffered_messages = Rage::SSE::Stream.__claim_buffered_messages(@stream)
+    buffered_messages&.each do |msg|
+      msg == Rage::SSE::CLOSE_STREAM_MSG ? connection.close : connection.write(msg)
+    end
   end
 
   def start_stream(connection)

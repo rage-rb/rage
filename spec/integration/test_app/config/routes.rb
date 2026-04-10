@@ -36,6 +36,8 @@ Rage.routes.draw do
   post "sse/object", to: "sse#object"
   get "sse/proc", to: "sse#proc"
   get "sse/stream", to: "sse#stream"
+  get "sse/broadcast", to: "sse#broadcast"
+  get "sse/subscribe", to: "sse#subscribe"
 
   get "renderers/html", to: "renderers#html"
   get "renderers/erb", to: "renderers#erb"

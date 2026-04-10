@@ -266,6 +266,11 @@ class Rage::Configuration
   # @!endgroup
 
   # @private
+  def pubsub
+    @pubsub ||= PubSub.new
+  end
+
+  # @private
   def internal
     @internal ||= Internal.new
   end
@@ -984,6 +989,37 @@ class Rage::Configuration
   end
 
   # @private
+  class PubSub
+    attr_reader :adapter
+
+    def initialize
+      @adapter = if config.any?
+        case config[:adapter]
+        when "redis"
+          Rage::PubSub::Adapters::Redis.new(adapter_config)
+        end
+      end
+    end
+
+    def config
+      @config ||= begin
+        config_file = Rage.root.join("config/pubsub.yml")
+
+        config = if config_file.exist?
+          yaml = ERB.new(config_file.read).result
+          YAML.safe_load(yaml, aliases: true, symbolize_names: true)&.dig(Rage.env.to_sym)
+        end
+
+        config || {}
+      end
+    end
+
+    def adapter_config
+      config.except(:adapter)
+    end
+  end
+
+  # @private
   class Internal
     attr_accessor :rails_mode
 
@@ -1047,6 +1083,9 @@ class Rage::Configuration
     Rage::Telemetry.__setup(@telemetry.handlers_map) if @telemetry
 
     __define_custom_renderers if @renderers
+
+    # initialize the pubsub adapter
+    pubsub
   end
 
   # @private
