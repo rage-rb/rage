@@ -1,4 +1,6 @@
 ## [Unreleased]
+### Added
+- Support launching with `rackup` on Rack 3 by [@pratyush07-hub](https://github.com/pratyush07-hub) (#259).
 ### Fixed
 - [SSE] Ensure connection is closed for single-value SSE streams by [@jsxs0](https://github.com/jsxs0) (#264).
 - Ensure task ID seed is always greater than timestamps in existing WAL files by [@Abishekcs](https://github.com/Abishekcs) (#255)
