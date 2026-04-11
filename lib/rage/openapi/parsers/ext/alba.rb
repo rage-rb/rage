@@ -45,6 +45,8 @@ class Rage::OpenAPI::Parsers::Ext::Alba
   def __parse(klass_str)
     is_collection, klass_str = Rage::OpenAPI.__try_parse_collection(klass_str)
 
+    # return an empty visitor if we're already parsing this class;
+    # this serves as a recursion guard, specifically for the inheritance logic in `Visitor#visit_class_node`
     if @parsing_stack.include?(klass_str)
       return Visitor.new(self, is_collection)
     end

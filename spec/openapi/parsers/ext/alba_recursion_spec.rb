@@ -9,8 +9,6 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
 
   let(:resource) { "UserResource" }
 
-  # Clear the schema registry between tests so $ref registrations don't leak
-  before { Rage::OpenAPI.__schema_registry.clear }
 
   context "with direct circular associations (UserResource ↔ PostResource)" do
     let_class("UserResource") do
@@ -166,6 +164,33 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
     it "registers the referenced schema" do
       subject
       expect(Rage::OpenAPI.__schema_registry).to have_key("AResource")
+    end
+  end
+
+  context "with a collection as top-level resource and recursion" do
+    let(:resource) { "[CategoryResource]" }
+
+    let_class("CategoryResource") do
+      <<~'RUBY'
+        include Alba::Resource
+        attributes :id, :name
+        has_many :subcategories, resource: "CategoryResource"
+      RUBY
+    end
+
+    it "correctly registers the referenced schema in the registry" do
+      subject
+      expect(Rage::OpenAPI.__schema_registry["CategoryResource"]).to eq({
+        "type" => "object",
+        "properties" => {
+          "id" => { "type" => "string" },
+          "name" => { "type" => "string" },
+          "subcategories" => {
+            "type" => "array",
+            "items" => { "$ref" => "#/components/schemas/CategoryResource" }
+          }
+        }
+      })
     end
   end
 end
