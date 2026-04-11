@@ -21,6 +21,7 @@ class Rage::OpenAPI::Builder
   end
 
   def run
+    Rage::OpenAPI.__reset_data_cache
     parser = Rage::OpenAPI::Parser.new
 
     @routes.each do |controller, routes|
