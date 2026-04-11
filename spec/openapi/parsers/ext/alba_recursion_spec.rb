@@ -9,7 +9,6 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
 
   let(:resource) { "UserResource" }
 
-
   context "with direct circular associations (UserResource ↔ PostResource)" do
     let_class("UserResource") do
       <<~'RUBY'
