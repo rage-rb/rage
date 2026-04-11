@@ -138,6 +138,9 @@ class Rage::OpenAPI::Parser
       elsif expression =~ /@param\s/
         parse_param_tag(expression, node, comments[i])
 
+      elsif expression =~ /@auth_scope\s/
+        parse_auth_scope_tag(expression, node, comments[i])
+
       elsif expression =~ /@internal\b/
         # no-op
         children = find_children(comments[i + 1..], node)
@@ -254,6 +257,62 @@ class Rage::OpenAPI::Parser
       Rage::OpenAPI.__log_warn "invalid shared reference detected at #{location_msg(comment)}"
       nil
     end
+  end
+
+  def parse_auth_scope_tag(expression, node, comment)
+    parts = expression.split(" ")
+    # parts[0] = "@auth_scope"
+    # parts[1] = scheme name or start of "[scopes]"
+    # parts[1..] or parts[2..] = scopes portion
+
+    if parts.length < 2
+      Rage::OpenAPI.__log_warn "invalid `@auth_scope` tag detected at #{location_msg(comment)}; expected [scope1, scope2] syntax"
+      return
+    end
+
+    if parts[1].start_with?("[")
+      scheme_name = nil
+      scopes_str = parts[1..].join(" ")
+    else
+      scheme_name = parts[1]
+      if parts[2].nil?
+        Rage::OpenAPI.__log_warn "invalid `@auth_scope` tag detected at #{location_msg(comment)}; expected [scope1, scope2] syntax"
+        return
+      end
+      scopes_str = parts[2..].join(" ")
+    end
+
+    unless scopes_str =~ /^\[([^\]]*)\]$/
+      Rage::OpenAPI.__log_warn "invalid `@auth_scope` tag detected at #{location_msg(comment)}; expected [scope1, scope2] syntax"
+      return
+    end
+
+    scopes = $1.split(",").map(&:strip).reject(&:empty?)
+
+    if scheme_name.nil?
+      auth_entries = node.auth
+      if auth_entries.empty?
+        Rage::OpenAPI.__log_warn "no auth schemes found for `@auth_scope` shorthand at #{location_msg(comment)}; define an @auth tag on the controller first"
+        return
+      elsif auth_entries.length > 1
+        Rage::OpenAPI.__log_warn "ambiguous `@auth_scope` shorthand at #{location_msg(comment)}; multiple auth schemes found, specify the scheme name explicitly"
+        return
+      end
+      scheme_name = auth_entries[0][:name]
+    else
+      auth_names = node.auth.map { |e| e[:name] }
+      unless auth_names.include?(scheme_name)
+        Rage::OpenAPI.__log_warn "unknown scheme `#{scheme_name}` in `@auth_scope` tag at #{location_msg(comment)}; available schemes: #{auth_names.join(", ")}"
+        return
+      end
+    end
+
+    if node.auth_scopes.key?(scheme_name)
+      Rage::OpenAPI.__log_warn "duplicate `@auth_scope` tag for `#{scheme_name}` detected at #{location_msg(comment)}"
+      return
+    end
+
+    node.auth_scopes[scheme_name] = scopes
   end
 
   def parse_param_tag(expression, node, comment)
