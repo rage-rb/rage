@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 ##
-# The **sse.stream.broadcast** span wraps the process of broadcasting a message to a {Rage::SSE Rage::SSE} stream.
+# The **sse.stream.broadcast** span wraps the process of broadcasting a message to an unbounded SSE stream.
 #
 # This span is started when {Rage::SSE.broadcast Rage::SSE.broadcast} is called, and ends when the broadcast operation is complete.
 # See {handle handle} for the list of arguments passed to handler methods.

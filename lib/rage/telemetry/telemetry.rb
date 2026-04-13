@@ -83,7 +83,7 @@ module Rage::Telemetry
   # | `events.event.publish` | {PublishEvent} | Wraps the publishing of events via {Rage::Events Rage::Events} |
   # | `events.subscriber.process` | {ProcessEventSubscriber} | Wraps the processing of events by subscribers |
   # | `sse.stream.process` | {ProcessSSEStream} | Wraps the processing of an SSE stream |
-  # | `sse.stream.broadcast` | {BroadcastSSEStream} | Wraps the process of broadcasting a message to a {Rage::SSE Rage::SSE} stream |
+  # | `sse.stream.broadcast` | {BroadcastSSEStream} | Wraps the process of broadcasting a message to an unbounded SSE stream |
   #
   module Spans
   end
