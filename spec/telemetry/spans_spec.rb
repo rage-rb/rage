@@ -470,5 +470,30 @@ RSpec.describe Rage::Telemetry::Spans do
         Rage::SSE::Application.new({}).on_open(connection)
       end
     end
+
+    context "with stream" do
+      before do
+        allow(connection).to receive(:subscribe)
+      end
+
+      let(:stream) { Rage::SSE.stream(:test) }
+
+      it "doesn't create the span" do
+        expect(verifier).not_to receive(:call)
+        Rage::SSE::Application.new(stream).on_open(connection)
+      end
+    end
+  end
+
+  describe described_class::BroadcastSSEStream do
+    it "passes correct arguments" do
+      expect(verifier).to receive(:call).with({
+        id: "sse.stream.broadcast",
+        name: "Rage::SSE.broadcast",
+        stream: [:test_stream, 123]
+      })
+
+      Rage::SSE.broadcast([:test_stream, 123], {})
+    end
   end
 end

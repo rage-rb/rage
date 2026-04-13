@@ -5,8 +5,8 @@
 
 ### Added
 - [SSE] Add tests for log context propagation across fiber boundaries by [@jsxs0](https://github.com/jsxs0) (#267).
-
 - Add singular `resource` routing with plural controller mapping and document the helper by [@anuj-pal27](https://github.com/anuj-pal27).
+- [SSE] Add support for unbounded streams (#266).
 
 ## [1.22.1] - 2026-04-01
 
