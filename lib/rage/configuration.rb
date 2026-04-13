@@ -1083,9 +1083,6 @@ class Rage::Configuration
     Rage::Telemetry.__setup(@telemetry.handlers_map) if @telemetry
 
     __define_custom_renderers if @renderers
-
-    # initialize the pubsub adapter
-    pubsub
   end
 
   # @private
