@@ -104,7 +104,7 @@ RSpec.describe Rage::PubSub::Adapters::Redis do
           "4",
           instance_of(String),
           "5",
-          instance_of(String),
+          instance_of(String)
         )
 
         subject.publish("test-broadcaster", "test-stream", { hello: "world" })
@@ -310,7 +310,7 @@ RSpec.describe Rage::PubSub::Adapters::Redis do
                 "5", "test:unknown"
               ]]
             ]
-          },
+          }
         )
 
         expect { subject }.not_to raise_error
