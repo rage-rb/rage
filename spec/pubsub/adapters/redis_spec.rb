@@ -19,6 +19,7 @@ RSpec.describe Rage::PubSub::Adapters::Redis do
   describe "#publish" do
     before do
       allow(mock_pool).to receive(:with).and_yield(mock_redis)
+      allow(Rage::Internal).to receive(:pick_a_worker)
     end
 
     it "adds an entry to the stream" do
