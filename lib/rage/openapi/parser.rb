@@ -260,34 +260,39 @@ class Rage::OpenAPI::Parser
   end
 
   def parse_auth_scope_tag(expression, node, comment)
-    parts = expression.split(" ")
-    # parts[0] = "@auth_scope"
-    # parts[1] = scheme name or start of "[scopes]"
-    # parts[1..] or parts[2..] = scopes portion
+    content = expression.split(" ", 2)[1]
 
-    if parts.length < 2
+    unless content
       Rage::OpenAPI.__log_warn "invalid `@auth_scope` tag detected at #{location_msg(comment)}; expected [scope1, scope2] syntax"
       return
     end
 
-    if parts[1].start_with?("[")
+    parsed = YAML.safe_load(content)
+
+    if parsed.is_a?(Array)
       scheme_name = nil
-      scopes_str = parts[1..].join(" ")
-    else
-      scheme_name = parts[1]
-      if parts[2].nil?
+      scopes = parsed.map(&:to_s)
+    elsif parsed.is_a?(String)
+      scheme_name = parsed.split(" ", 2)[0]
+      scopes_str = content.split(" ", 2)[1]
+
+      unless scopes_str
         Rage::OpenAPI.__log_warn "invalid `@auth_scope` tag detected at #{location_msg(comment)}; expected [scope1, scope2] syntax"
         return
       end
-      scopes_str = parts[2..].join(" ")
-    end
 
-    unless scopes_str =~ /^\[([^\]]*)\]$/
+      scopes = YAML.safe_load(scopes_str)
+
+      unless scopes.is_a?(Array)
+        Rage::OpenAPI.__log_warn "invalid `@auth_scope` tag detected at #{location_msg(comment)}; expected [scope1, scope2] syntax"
+        return
+      end
+
+      scopes = scopes.map(&:to_s)
+    else
       Rage::OpenAPI.__log_warn "invalid `@auth_scope` tag detected at #{location_msg(comment)}; expected [scope1, scope2] syntax"
       return
     end
-
-    scopes = $1.split(",").map(&:strip).reject(&:empty?)
 
     if scheme_name.nil?
       auth_entries = node.auth
