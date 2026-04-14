@@ -80,6 +80,8 @@ module Rage::Deferred::Task
 
     true
   rescue Exception => e
+    Rage::Errors.report(e)
+
     unless respond_to?(:__deferred_suppress_exception_logging?, true) && __deferred_suppress_exception_logging?
       Rage.logger.with_context(task_log_context) do
         Rage.logger.error("Deferred task failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")

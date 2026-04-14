@@ -23,6 +23,7 @@ class Rage::Application
     response = @exception_app.call(400, e)
 
   rescue Exception => e
+    Rage::Errors.report(e)
     response = @exception_app.call(500, e)
 
   ensure

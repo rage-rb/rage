@@ -232,6 +232,7 @@ RSpec.describe Rage::Events do
   context "with exception inside subscriber" do
     it "correctly handles events" do
       expect(logger).to receive(:error).with(/test error/)
+      expect(Rage::Errors).to receive(:report).with(instance_of(RuntimeError))
 
       expect {
         described_class.publish(EventsPublishSpec::EventWithException.new)
