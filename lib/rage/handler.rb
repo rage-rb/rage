@@ -1,5 +1,9 @@
 module Rage
   module Handler
+    def self.name
+      "Rage"
+    end
+
     def self.run(app, options = {})
       Rage.application = app
 
