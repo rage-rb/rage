@@ -144,4 +144,67 @@ RSpec.describe Rage::SSE::Application do
       expect(connection.open?).to be false
     end
   end
+
+  describe "log context propagation across fiber boundaries" do
+    before do
+      allow(Fiber).to receive(:schedule).and_yield
+    end
+
+    after do
+      Fiber[:__rage_logger_tags] = nil
+      Fiber[:__rage_logger_context] = nil
+    end
+
+    it "captures log tags and context from the parent fiber on initialization" do
+      Fiber[:__rage_logger_tags] = ["request-abc"]
+      Fiber[:__rage_logger_context] = { user_id: 42 }
+
+      app = described_class.new([].each)
+
+      expect(app.instance_variable_get(:@log_tags)).to eq(["request-abc"])
+      expect(app.instance_variable_get(:@log_context)).to eq({ user_id: 42 })
+    end
+
+    it "restores log context in the streaming fiber for enumerator streams" do
+      Fiber[:__rage_logger_tags] = ["request-abc"]
+      Fiber[:__rage_logger_context] = { user_id: 42 }
+
+      app = described_class.new([1].each)
+
+      # clear fiber-locals to simulate a new fiber with no inherited context
+      Fiber[:__rage_logger_tags] = nil
+      Fiber[:__rage_logger_context] = nil
+
+      app.on_open(connection)
+
+      expect(Fiber[:__rage_logger_tags]).to eq(["request-abc"])
+      expect(Fiber[:__rage_logger_context]).to eq({ user_id: 42 })
+    end
+
+    it "restores log context in the streaming fiber for proc streams" do
+      Fiber[:__rage_logger_tags] = ["request-def"]
+      Fiber[:__rage_logger_context] = { tenant: "acme" }
+
+      app = described_class.new(->(conn) { conn.close })
+
+      Fiber[:__rage_logger_tags] = nil
+      Fiber[:__rage_logger_context] = nil
+
+      app.on_open(connection)
+
+      expect(Fiber[:__rage_logger_tags]).to eq(["request-def"])
+      expect(Fiber[:__rage_logger_context]).to eq({ tenant: "acme" })
+    end
+
+    it "handles nil log context gracefully" do
+      Fiber[:__rage_logger_tags] = nil
+      Fiber[:__rage_logger_context] = nil
+
+      app = described_class.new([1].each)
+      app.on_open(connection)
+
+      expect(Fiber[:__rage_logger_tags]).to be_nil
+      expect(Fiber[:__rage_logger_context]).to be_nil
+    end
+  end
 end

@@ -1157,4 +1157,143 @@ RSpec.describe Rage::Configuration do
       end
     end
   end
+
+  describe "#pubsub" do
+    require "redis-client"
+
+    subject { described_class.new.pubsub }
+
+    context "with no config" do
+      it "doesn't initialize the adapter" do
+        expect(subject.adapter).to be_nil
+      end
+
+      it "returns empty config" do
+        expect(subject.config).to eq({})
+      end
+
+      it "returns empty adapter config" do
+        expect(subject.adapter_config).to eq({})
+      end
+
+      it "doesn't initialize the adapter" do
+        expect(Rage::PubSub::Adapters::Redis).not_to receive(:new)
+        subject
+      end
+    end
+
+    context "with config" do
+      before do
+        allow(Rage.root).to receive(:join).with("config/pubsub.yml").and_return(Pathname.new(config_file))
+
+        allow(RedisClient).to receive(:config).and_return(double(new_client: mock_redis))
+        allow(mock_redis).to receive(:call).with("INFO").and_return("redis_version:7.0.5")
+        allow(mock_redis).to receive(:close)
+      end
+
+      after do
+        config_file.close
+        File.unlink(config_file.path)
+      end
+
+      let(:mock_redis) { instance_double(RedisClient) }
+      let(:config_file) do
+        Tempfile.create.tap do |f|
+          f.puts(config)
+          f.rewind
+        end
+      end
+
+      context "with env config" do
+        let(:config) do
+          <<~YAML
+            development:
+              adapter: redis
+              url: redis://localhost:6370
+              pool_timeout: 0.1
+          YAML
+        end
+
+        it "returns an adapter" do
+          expect(subject.adapter).to be_an_instance_of(Rage::PubSub::Adapters::Redis)
+        end
+
+        it "caches the adapter" do
+          expect(Rage::PubSub::Adapters::Redis).to receive(:new).once
+          2.times { subject.adapter }
+        end
+
+        it "passes config to the adapter" do
+          expect(Rage::PubSub::Adapters::Redis).to receive(:new).with({
+            url: "redis://localhost:6370",
+            pool_timeout: 0.1
+          })
+
+          subject
+        end
+      end
+
+      context "with ERB" do
+        let(:config) do
+          <<~YAML
+            development:
+              adapter: redis
+              pool_timeout: <%= 1 + 2 %>
+          YAML
+        end
+
+        it "correctly parses the config" do
+          expect(Rage::PubSub::Adapters::Redis).to receive(:new).with({ pool_timeout: 3 })
+          subject
+        end
+      end
+
+      context "with aliases" do
+        let(:config) do
+          <<~YAML
+            default: &default
+              pool_size: 2
+              pool_timeout: 0.2
+
+            development:
+              <<: *default
+              adapter: redis
+              url: redis://localhost:6370
+          YAML
+        end
+
+        it "correctly parses the config" do
+          expect(Rage::PubSub::Adapters::Redis).to receive(:new).with({
+            url: "redis://localhost:6370",
+            pool_size: 2,
+            pool_timeout: 0.2
+          })
+
+          subject
+        end
+      end
+
+      context "with empty config" do
+        let(:config) { "" }
+
+        it "doesn't initialize the adapter" do
+          expect(subject.adapter).to be_nil
+        end
+      end
+
+      context "with missing env" do
+        let(:config) do
+          <<~YAML
+            production:
+              adapter: redis
+              url: redis://localhost:6370
+          YAML
+        end
+
+        it "doesn't initialize the adapter" do
+          expect(subject.adapter).to be_nil
+        end
+      end
+    end
+  end
 end

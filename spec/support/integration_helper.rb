@@ -3,9 +3,7 @@
 module IntegrationHelper
   def launch_server(env: {})
     Bundler.with_unbundled_env do
-      system("gem build -o rage-local.gem && gem install rage-local.gem --no-document")
-      system("gem install redis-client --no-document") if ENV["GITHUB_ACTIONS"]
-      system("bundle install", chdir: "spec/integration/test_app")
+      build_gem
       @pid = spawn(env, "bundle exec rage s", chdir: "spec/integration/test_app")
       sleep(2)
     end
@@ -15,9 +13,21 @@ module IntegrationHelper
     if @pid
       Process.kill(:SIGTERM, @pid)
       Process.wait
-      system("rm spec/integration/test_app/Gemfile.lock")
-      system("rm spec/integration/test_app/log/development.log")
-      system("rm spec/integration/test_app/storage/deferred-*")
+      system("rm -f spec/integration/test_app/Gemfile.lock")
+      system("rm -f spec/integration/test_app/log/development.log")
+      system("rm -f spec/integration/test_app/storage/deferred-*")
     end
+  end
+
+  private
+
+  def build_gem
+    return if $test_gem_built
+
+    system("gem build -o rage-local.gem && gem install rage-local.gem --no-document")
+    system("gem install redis-client --no-document") if ENV["GITHUB_ACTIONS"]
+    system("bundle install", chdir: "spec/integration/test_app")
+
+    $test_gem_built = true
   end
 end

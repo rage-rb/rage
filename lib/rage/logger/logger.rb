@@ -28,7 +28,7 @@ require "logger"
 # # => [fecbba0735355738] timestamp=2023-10-19T11:12:56+00:00 pid=1825 level=info cache_key=mykey message=cache miss
 # ```
 #
-# `Rage::Logger` also implements the interface of Ruby's native {https://ruby-doc.org/3.2.2/stdlibs/logger/Logger.html Logger}:
+# `Rage::Logger` also implements the interface of Ruby's native {https://ruby-doc.org/3.4.1/stdlibs/logger/Logger.html Logger}:
 # ```ruby
 # Rage.logger.info("Initializing")
 # Rage.logger.debug { "This is a " + potentially + " expensive operation" }

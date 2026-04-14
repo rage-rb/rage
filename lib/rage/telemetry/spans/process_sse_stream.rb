@@ -6,6 +6,7 @@
 # This span starts when a connection is opened and ends when the stream is finished.
 # See {handle handle} for the list of arguments passed to handler methods.
 #
+# @note This span is not used for unbounded SSE streams created via {Rage::SSE.stream Rage::SSE.stream}.
 # @see Rage::Telemetry::Handler Rage::Telemetry::Handler
 #
 class Rage::Telemetry::Spans::ProcessSSEStream
