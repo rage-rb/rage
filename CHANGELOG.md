@@ -1,4 +1,6 @@
 ## [Unreleased]
+### Added
+- [Deferred] Add tests for log context capture and backward-compatible restore by [@jsxs0](https://github.com/jsxs0) (#274).
 
 ### Fixed
 - [SSE] Ensure connection is closed for single-value SSE streams by [@jsxs0](https://github.com/jsxs0) (#264).
