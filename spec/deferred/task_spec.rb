@@ -305,11 +305,17 @@ RSpec.describe Rage::Deferred::Task do
         allow(Rage::Deferred::Context).to receive(:get_log_context).with(context).and_return({})
         allow(task).to receive(:perform).and_raise(error)
         allow(error).to receive(:backtrace).and_return(["line 1", "line 2"])
+        allow(Rage::Errors).to receive(:report)
       end
 
       it "logs the error" do
         task.__perform(context)
         expect(logger).to have_received(:error).with("Deferred task failed with exception: StandardError (Something went wrong):\nline 1\nline 2")
+      end
+
+      it "reports the error" do
+        task.__perform(context)
+        expect(Rage::Errors).to have_received(:report).with(error)
       end
 
       it "returns the exception" do

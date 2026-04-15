@@ -125,7 +125,8 @@ module Rage::Cable
       end
 
       def log_error(e)
-        Rage.logger.error("Unhandled exception has occured - #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+        Rage.logger.error("Unhandled exception has occurred - #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+        Rage::Errors.report(e)
       end
     end
 

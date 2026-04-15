@@ -219,6 +219,14 @@ class Rage::Configuration
   end
   # @!endgroup
 
+  # @!group Error Reporting
+  # Returns the centralized error reporting interface.
+  # @return [Rage::Errors]
+  def errors
+    Rage::Errors
+  end
+  # @!endgroup
+
   # @!group OpenAPI Configuration
   # Allows configuring OpenAPI settings.
   # @return [Rage::Configuration::OpenAPI]
