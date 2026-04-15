@@ -1,4 +1,6 @@
 ## [Unreleased]
+### Added
+- Support launching with `rackup` on Rack 3 by [@pratyush07-hub](https://github.com/pratyush07-hub) (#259).
 
 ## [1.23.0] - 2026-04-15
 
