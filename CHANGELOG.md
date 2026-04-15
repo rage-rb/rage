@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.23.0] - 2026-04-15
+
 ### Fixed
 - [SSE] Ensure connection is closed for single-value SSE streams by [@jsxs0](https://github.com/jsxs0) (#264).
 - Ensure task ID seed is always greater than timestamps in existing WAL files by [@Abishekcs](https://github.com/Abishekcs) (#255)
@@ -17,7 +19,6 @@
 - [SSE] Add unit tests for `SSE::ConnectionProxy` by [@jsxs0](https://github.com/jsxs0) (#245).
 - Custom renderer support by [@anuj-pal27](https://github.com/anuj-pal27) (#244).
 - [SSE] Add graceful shutdown support for SSE streams by [@tmchow](https://github.com/tmchow) (#261).
-- Add singular resource routing by [@anuj-pal27](https://github.com/anuj-pal27) (#247).
 
 ## [1.22.1] - 2026-04-01
 
@@ -29,7 +30,6 @@
 
 ### Added
 
-- [Deferred] Support configurable retry options with `max_retries` and `retry_interval` by [@Digvijay](https://github.com/Digvijay-x1) (#215).
 - [Cable] Add support for `stop_stream_from` and `stop_stream_for`  by [@Digvijay](https://github.com/Digvijay-x1) (#217).
 - Add support for signed cookies by [@rfronczyk](https://github.com/rfronczyk) (#226).
 - [OpenAPI] Add support for shared components in `@auth` tags by [@Piyush-Goenka](https://github.com/Piyush-Goenka) (#221).
