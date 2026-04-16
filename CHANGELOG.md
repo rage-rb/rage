@@ -2,6 +2,7 @@
 ### Fixed
 - [SSE] Ensure connection is closed for single-value SSE streams by [@jsxs0](https://github.com/jsxs0) (#264).
 - Ensure task ID seed is always greater than timestamps in existing WAL files by [@Abishekcs](https://github.com/Abishekcs) (#255)
+- Reuse `define_dynamic_method` and `define_maybe_yield` methods in `RageController::API` from `Rage::Internal`
 
 ### Added
 - [SSE] Add tests for log context propagation across fiber boundaries by [@jsxs0](https://github.com/jsxs0) (#267).

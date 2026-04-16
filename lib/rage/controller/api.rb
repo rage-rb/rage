@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "../internal"
-
 class RageController::API
   class << self
     # @private
