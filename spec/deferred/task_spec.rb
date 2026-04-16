@@ -44,17 +44,24 @@ RSpec.describe Rage::Deferred::Task do
   end
 
   describe ".__next_retry_in" do
-    it "returns the next retry interval with exponential backoff" do
-      expect(task_class.__next_retry_in(0, nil)).to be_between(1, 5)
-      expect(task_class.__next_retry_in(1, nil)).to be_between(1, 10)
-      expect(task_class.__next_retry_in(2, nil)).to be_between(1, 20)
-      expect(task_class.__next_retry_in(3, nil)).to be_between(1, 40)
-      expect(task_class.__next_retry_in(4, nil)).to be_between(1, 80)
+    it "returns the next retry interval with polynomial backoff" do
+      # New formula: (attempt+1)**4 + 10 + rand(15) * (attempt+1)
+      # attempt 0 -> 1^4 + 10 + rand(15)*1 = 11-25
+      expect(task_class.__next_retry_in(0, nil)).to be_between(11, 25)
+      # attempt 1 -> 2^4 + 10 + rand(15)*2 = 26-54
+      expect(task_class.__next_retry_in(1, nil)).to be_between(26, 54)
+      # attempt 2 -> 3^4 + 10 + rand(15)*3 = 91-133
+      expect(task_class.__next_retry_in(2, nil)).to be_between(91, 133)
+      # attempt 3 -> 4^4 + 10 + rand(15)*4 = 266-322
+      expect(task_class.__next_retry_in(3, nil)).to be_between(266, 322)
+      # attempt 4 -> 5^4 + 10 + rand(15)*5 = 635-705
+      expect(task_class.__next_retry_in(4, nil)).to be_between(635, 705)
     end
 
     it "returns nil when attempts exceed max" do
-      expect(task_class.__next_retry_in(5, nil)).to be_between(1, 160)
-      expect(task_class.__next_retry_in(6, nil)).to be_nil
+      # With MAX_ATTEMPTS=15, attempt 15 should still return backoff
+      expect(task_class.__next_retry_in(15, nil)).to be_between(50635, 50845)
+      expect(task_class.__next_retry_in(16, nil)).to be_nil
     end
   end
 
@@ -167,7 +174,7 @@ RSpec.describe Rage::Deferred::Task do
 
       it "__next_retry_in uses default backoff for unmatched" do
         interval = task_class.__next_retry_in(1, StandardError.new)
-        expect(interval).to be_between(1, 10)
+        expect(interval).to be_between(26, 54)
       end
 
       it "__next_retry_in enforces max_retries even with custom interval" do
