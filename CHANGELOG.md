@@ -1,4 +1,6 @@
 ## [Unreleased]
+### Added
+- [Deferred] Add tests for log context capture and backward-compatible restore by [@jsxs0](https://github.com/jsxs0) (#274).
 
 ## [1.23.0] - 2026-04-15
 
