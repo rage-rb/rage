@@ -249,6 +249,7 @@ RSpec.describe Rage::Deferred::Task do
       before do
         allow(Rage::Deferred::Context).to receive(:get_log_tags).with(context).and_return(["request-id"])
         allow(Rage::Deferred::Context).to receive(:get_log_context).with(context).and_return({})
+        allow(Rage::Deferred::Context).to receive(:get_current_attributes).with(context).and_return(nil)
         allow(task).to receive(:perform)
       end
 
@@ -288,6 +289,7 @@ RSpec.describe Rage::Deferred::Task do
       before do
         allow(Rage::Deferred::Context).to receive(:get_log_tags).with(context).and_return("old-request-id")
         allow(Rage::Deferred::Context).to receive(:get_log_context).with(context).and_return(nil)
+        allow(Rage::Deferred::Context).to receive(:get_current_attributes).with(context).and_return(nil)
         allow(task).to receive(:perform)
       end
 
@@ -311,6 +313,7 @@ RSpec.describe Rage::Deferred::Task do
       before do
         allow(Rage::Deferred::Context).to receive(:get_log_tags).with(context).and_return(nil)
         allow(Rage::Deferred::Context).to receive(:get_log_context).with(context).and_return({})
+        allow(Rage::Deferred::Context).to receive(:get_current_attributes).with(context).and_return(nil)
         allow(task).to receive(:perform)
       end
 
@@ -320,12 +323,90 @@ RSpec.describe Rage::Deferred::Task do
       end
     end
 
+    context "when context carries CurrentAttributes snapshots" do
+      let(:current_class) do
+        Class.new do
+          @store = {}
+          class << self
+            attr_reader :store
+            def user_id=(v)
+              @store[:user_id] = v
+            end
+
+            def tenant=(v)
+              @store[:tenant] = v
+            end
+
+            def reset
+              @store.clear
+            end
+
+            def attributes
+              @store
+            end
+          end
+        end
+      end
+
+      before do
+        stub_const("TestCurrent", current_class)
+        stub_const("ActiveSupport::CurrentAttributes", Class.new)
+        allow(ActiveSupport::CurrentAttributes).to receive(:descendants).and_return([current_class])
+
+        allow(Rage::Deferred::Context).to receive(:get_log_tags).with(context).and_return(nil)
+        allow(Rage::Deferred::Context).to receive(:get_log_context).with(context).and_return(nil)
+        allow(Rage::Deferred::Context).to receive(:get_current_attributes).
+          with(context).and_return([[current_class, { user_id: 42, tenant: "acme" }]])
+        allow(task).to receive(:perform)
+      end
+
+      it "restores CurrentAttributes values before perform runs" do
+        seen = nil
+        allow(task).to receive(:perform) { seen = current_class.attributes.dup }
+        task.__perform(context)
+        expect(seen).to eq({ user_id: 42, tenant: "acme" })
+      end
+
+      it "resets CurrentAttributes after perform to prevent cross-task leakage" do
+        task.__perform(context)
+        # Why this matters: task fibers are reused by Iodine's worker pool. A
+        # leaked Current.user_id = 42 would poison the NEXT task on the same fiber.
+        expect(current_class.attributes).to be_empty
+      end
+
+      it "resets CurrentAttributes even when perform raises" do
+        allow(task).to receive(:perform).and_raise(StandardError, "boom")
+        task.__perform(context)
+        expect(current_class.attributes).to be_empty
+      end
+
+      it "continues gracefully when an individual subclass restore fails" do
+        allow(current_class).to receive(:user_id=).and_raise(RuntimeError, "bad attribute")
+        expect { task.__perform(context) }.not_to raise_error
+      end
+    end
+
+    context "when ActiveSupport is not loaded" do
+      before do
+        hide_const("ActiveSupport::CurrentAttributes") if defined?(ActiveSupport::CurrentAttributes)
+        allow(Rage::Deferred::Context).to receive(:get_log_tags).with(context).and_return(nil)
+        allow(Rage::Deferred::Context).to receive(:get_log_context).with(context).and_return(nil)
+        allow(Rage::Deferred::Context).to receive(:get_current_attributes).with(context).and_return(nil)
+        allow(task).to receive(:perform)
+      end
+
+      it "runs the task without error" do
+        expect { task.__perform(context) }.not_to raise_error
+      end
+    end
+
     context "when task fails" do
       let(:error) { StandardError.new("Something went wrong") }
 
       before do
         allow(Rage::Deferred::Context).to receive(:get_log_tags).with(context).and_return(nil)
         allow(Rage::Deferred::Context).to receive(:get_log_context).with(context).and_return({})
+        allow(Rage::Deferred::Context).to receive(:get_current_attributes).with(context).and_return(nil)
         allow(task).to receive(:perform).and_raise(error)
         allow(error).to receive(:backtrace).and_return(["line 1", "line 2"])
       end

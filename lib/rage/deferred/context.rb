@@ -14,7 +14,12 @@ class Rage::Deferred::Context
       nil,
       Fiber[:__rage_logger_tags],
       Fiber[:__rage_logger_context],
-      nil
+      nil,
+      # Index 7: ActiveSupport::CurrentAttributes snapshot.
+      # Why captured here rather than at restore time: the enqueueing fiber
+      # owns the truthful `Current.*` state. By the time the task fiber runs,
+      # the request fiber may have already reset its attributes.
+      capture_current_attributes
     ]
   end
 
@@ -71,5 +76,30 @@ class Rage::Deferred::Context
   # @return [Hash] user context associated with the task, creating it if it does not exist
   def self.get_or_create_user_context(context)
     context[6] ||= {}
+  end
+
+  # @return [Array<Array(Class, Hash)>, nil] snapshot of each ActiveSupport::CurrentAttributes
+  #   subclass and its per-attribute values at enqueue time; nil when AS is unavailable
+  #   or no subclasses exist.
+  def self.get_current_attributes(context)
+    context[7]
+  end
+
+  # Why a dedicated method: keeps the `build` array literal readable and makes this
+  # path trivial to stub in specs that run without ActiveSupport loaded.
+  #
+  # Why we snapshot the values (not the classes) here: `Current.reset` in the parent
+  # fiber after enqueue would otherwise mutate what we captured. We need value copies.
+  def self.capture_current_attributes
+    return nil unless defined?(ActiveSupport::CurrentAttributes)
+
+    subclasses = ActiveSupport::CurrentAttributes.descendants
+    return nil if subclasses.empty?
+
+    subclasses.filter_map do |klass|
+      attrs = klass.attributes
+      next if attrs.empty?
+      [klass, attrs.dup]
+    end.then { |snapshots| snapshots.empty? ? nil : snapshots }
   end
 end

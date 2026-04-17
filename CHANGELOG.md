@@ -1,5 +1,6 @@
 ## [Unreleased]
 ### Added
+- [Deferred] Propagate `ActiveSupport::CurrentAttributes` across fiber boundaries so deferred tasks see the same `Current.*` values as the enqueueing request by [@jsxs0](https://github.com/jsxs0) (#TBD).
 - [Deferred] Add tests for log context capture and backward-compatible restore by [@jsxs0](https://github.com/jsxs0) (#274).
 
 ## [1.23.0] - 2026-04-15

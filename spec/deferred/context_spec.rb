@@ -143,4 +143,94 @@ RSpec.describe Rage::Deferred::Context do
       end
     end
   end
+
+  describe ".capture_current_attributes" do
+    context "when ActiveSupport is not loaded" do
+      before { hide_const("ActiveSupport::CurrentAttributes") if defined?(ActiveSupport::CurrentAttributes) }
+
+      it "returns nil" do
+        expect(described_class.capture_current_attributes).to be_nil
+      end
+    end
+
+    context "when ActiveSupport::CurrentAttributes exists but has no subclasses" do
+      before do
+        stub_const("ActiveSupport::CurrentAttributes", Class.new {
+          def self.descendants
+            []
+          end
+        })
+      end
+
+      it "returns nil" do
+        expect(described_class.capture_current_attributes).to be_nil
+      end
+    end
+
+    context "when there are subclasses with attributes" do
+      let(:subclass) do
+        Class.new do
+          def self.name
+            "Current"
+          end
+
+          def self.attributes
+            { user_id: 42, tenant: "acme" }
+          end
+        end
+      end
+
+      before do
+        stub_const("ActiveSupport::CurrentAttributes", Class.new)
+        allow(ActiveSupport::CurrentAttributes).to receive(:descendants).and_return([subclass])
+      end
+
+      it "captures the subclass and a duplicated attribute hash" do
+        snapshots = described_class.capture_current_attributes
+        expect(snapshots).to eq([[subclass, { user_id: 42, tenant: "acme" }]])
+      end
+
+      it "returns a duplicated hash so later mutation does not leak into the snapshot" do
+        snapshots = described_class.capture_current_attributes
+        # Why: if we captured the live hash reference, a `Current.reset` in the
+        # parent fiber after enqueue would wipe the snapshot before the task runs.
+        expect(snapshots.first.last).not_to equal(subclass.attributes)
+      end
+    end
+
+    context "when a subclass has no attributes set" do
+      let(:empty_subclass) do
+        Class.new do
+          def self.name
+            "EmptyCurrent"
+          end
+
+          def self.attributes
+            {}
+          end
+        end
+      end
+
+      before do
+        stub_const("ActiveSupport::CurrentAttributes", Class.new)
+        allow(ActiveSupport::CurrentAttributes).to receive(:descendants).and_return([empty_subclass])
+      end
+
+      it "excludes the empty subclass and returns nil when nothing worth capturing" do
+        expect(described_class.capture_current_attributes).to be_nil
+      end
+    end
+  end
+
+  describe ".get_current_attributes" do
+    it "returns index 7 of the context" do
+      context = [nil, nil, nil, nil, nil, nil, nil, :ca_snapshot]
+      expect(described_class.get_current_attributes(context)).to eq(:ca_snapshot)
+    end
+
+    it "returns nil when the context array has no index 7 (backward compatible with pre-CA contexts)" do
+      context = [nil, nil, nil, nil, nil, nil, nil]
+      expect(described_class.get_current_attributes(context)).to be_nil
+    end
+  end
 end

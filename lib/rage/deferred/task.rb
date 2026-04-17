@@ -45,14 +45,6 @@ module Rage::Deferred::Task
 
   # Access metadata for the current task execution.
   # @return [Rage::Deferred::Metadata] the metadata object for the current task execution
-  # @example
-  #   class MyTask
-  #     include Rage::Deferred::Task
-  #
-  #     def perform
-  #       puts meta.retries
-  #     end
-  #   end
   def meta
     Rage::Deferred::Metadata
   end
@@ -60,6 +52,7 @@ module Rage::Deferred::Task
   # @private
   def __perform(context)
     restore_log_info(context)
+    ca_snapshots = restore_current_attributes(context)
 
     attempts = Rage::Deferred::Context.get_attempts(context)
     task_log_context = { task: self.class.name }
@@ -86,6 +79,12 @@ module Rage::Deferred::Task
       end
     end
     e
+  ensure
+    # Why reset only what we restored: task fibers are reused by Iodine's worker pool,
+    # so leftover Current.* values would poison the next task on the same fiber.
+    # But we only need to clean up subclasses whose values we actually set, not every
+    # descendant in the app, which would pointlessly fire before_reset/after_reset hooks.
+    reset_current_attributes(ca_snapshots) if ca_snapshots
   end
 
   private def restore_log_info(context)
@@ -100,23 +99,42 @@ module Rage::Deferred::Task
     end
   end
 
+  # Why direct attribute assignment and not `CurrentAttributes.set { }`:
+  # `set` with a block restores previous values after the block exits. We need
+  # the restored values to persist through `perform`, not revert. Rails' own
+  # ActiveJob::CurrentAttributes takes the same direct-assign approach.
+  #
+  # @return [Array, nil] the snapshots we restored, so the ensure block knows what to reset.
+  #   Returns nil when there was nothing to do, telling the caller "no cleanup needed."
+  private def restore_current_attributes(context)
+    snapshots = Rage::Deferred::Context.get_current_attributes(context)
+    return nil unless snapshots && !snapshots.empty?
+
+    snapshots.each do |klass, attrs|
+      attrs.each { |name, value| klass.public_send("#{name}=", value) }
+    rescue => e
+      # Why rescue-and-continue: one broken CurrentAttributes subclass must not
+      # take down the whole task. Logged so the failure stays visible.
+      Rage.logger.warn("Rage::Deferred: failed to restore #{klass}: #{e.class} (#{e.message})")
+    end
+
+    snapshots
+  end
+
+  # Resets only the subclasses we restored. See the ensure block for why.
+  private def reset_current_attributes(snapshots)
+    snapshots.each do |klass, _|
+      klass.reset
+    rescue => e
+      Rage.logger.warn("Rage::Deferred: failed to reset #{klass}: #{e.class} (#{e.message})")
+    end
+  end
+
   def self.included(klass)
     klass.extend(ClassMethods)
   end
 
   module ClassMethods
-    # Set the maximum number of retry attempts for this task.
-    #
-    # @param count [Integer] the maximum number of retry attempts
-    # @example
-    #   class SendWelcomeEmail
-    #     include Rage::Deferred::Task
-    #     max_retries 10
-    #
-    #     def perform(email)
-    #       # ...
-    #     end
-    #   end
     def max_retries(count)
       value = Integer(count)
 
@@ -129,34 +147,6 @@ module Rage::Deferred::Task
       raise ArgumentError, "max_retries should be a valid non-negative integer"
     end
 
-    # Override this method to customize retry behavior per exception.
-    #
-    # Return an Integer to retry in that many seconds.
-    # Return `super` to use the default exponential backoff.
-    # Return `false` or `nil` to abort retries.
-    #
-    # @param exception [Exception] the exception that caused the failure
-    # @param attempt [Integer] the current attempt number (1-indexed)
-    # @return [Integer, false, nil] the retry interval in seconds, or false/nil to abort
-    # @example
-    #   class ProcessPayment
-    #     include Rage::Deferred::Task
-    #
-    #     def self.retry_interval(exception, attempt:)
-    #       case exception
-    #       when TemporaryNetworkError
-    #         10 # Retry in 10 seconds
-    #       when InvalidDataError
-    #         false # Do not retry
-    #       else
-    #         super # Default backoff strategy
-    #       end
-    #     end
-    #
-    #     def perform(payment_id)
-    #       # ...
-    #     end
-    #   end
     def retry_interval(exception, attempt:)
       __default_backoff(attempt)
     end
