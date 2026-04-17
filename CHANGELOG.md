@@ -27,6 +27,7 @@
 
 ### Fixed
 
+- [OpenAPI] Fix SystemStackError in Alba parser with circular associations.
 - Only parse request body as multipart if the request is multipart by [p8](https://github.com/p8) (#256).
 
 ## [1.22.0] - 2026-03-12

@@ -3,8 +3,10 @@
 class Rage::OpenAPI::Parsers::Ext::Alba
   attr_reader :namespace
 
-  def initialize(namespace: Object, **)
+  def initialize(namespace: Object, root: Rage::OpenAPI::Nodes::Root.new, **)
     @namespace = namespace
+    @root = root
+    @parsing_stack = Set.new
   end
 
   def known_definition?(str)
@@ -15,10 +17,27 @@ class Rage::OpenAPI::Parsers::Ext::Alba
   end
 
   def parse(klass_str)
-    __parse(klass_str).build_schema
+    _, raw_klass_str = Rage::OpenAPI.__try_parse_collection(klass_str)
+    visitor = __parse(klass_str)
+
+    if @root.schema_registry.key?(raw_klass_str)
+      clean = { "type" => "object" }
+      clean["properties"] = visitor.schema if visitor.schema.any?
+      @root.schema_registry[raw_klass_str] = clean
+    end
+
+    visitor.build_schema
   end
 
   def __parse_nested(klass_str)
+    is_collection, raw_klass_str = Rage::OpenAPI.__try_parse_collection(klass_str)
+
+    if @parsing_stack.include?(raw_klass_str)
+      @root.schema_registry[raw_klass_str] ||= nil
+      ref = { "$ref" => "#/components/schemas/#{raw_klass_str}" }
+      return is_collection ? { "type" => "array", "items" => ref } : ref
+    end
+
     __parse(klass_str).tap { |visitor|
       visitor.root_key = visitor.root_key_for_collection = visitor.root_key_proc = visitor.key_transformer = nil
     }.build_schema
@@ -27,12 +46,21 @@ class Rage::OpenAPI::Parsers::Ext::Alba
   def __parse(klass_str)
     is_collection, klass_str = Rage::OpenAPI.__try_parse_collection(klass_str)
 
+    # return an empty visitor if we're already parsing this class;
+    # this serves as a recursion guard, specifically for the inheritance logic in `Visitor#visit_class_node`
+    if @parsing_stack.include?(klass_str)
+      return Visitor.new(self, is_collection)
+    end
+    @parsing_stack.add(klass_str)
+
     klass = @namespace.const_get(klass_str)
     source_path, _ = Object.const_source_location(klass.name)
     ast = Prism.parse_file(source_path)
 
     visitor = Visitor.new(self, is_collection)
     ast.value.accept(visitor)
+
+    @parsing_stack.delete(klass_str)
 
     visitor
   end

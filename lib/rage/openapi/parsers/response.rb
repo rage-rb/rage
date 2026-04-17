@@ -8,9 +8,9 @@ class Rage::OpenAPI::Parsers::Response
     Rage::OpenAPI::Parsers::YAML
   ]
 
-  def self.parse(response_tag, namespace:)
+  def self.parse(response_tag, namespace:, root:)
     parser = AVAILABLE_PARSERS.find do |parser_class|
-      parser = parser_class.new(namespace:)
+      parser = parser_class.new(namespace:, root:)
       break parser if parser.known_definition?(response_tag)
     end
 
