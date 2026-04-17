@@ -1,13 +1,28 @@
 ## [Unreleased]
+### Added
+- [Deferred] Add tests for log context capture and backward-compatible restore by [@jsxs0](https://github.com/jsxs0) (#274).
+- [OpenAPI] Add support for per-endpoint OAuth2/OpenID scopes via `@auth_scope` tag by [@Piyush-Goenka](https://github.com/Piyush-Goenka) (#272).
+- Reuse `define_dynamic_method` and `define_maybe_yield` methods in `RageController::API` from `Rage::Internal` by [@numice](https://github.com/numice) (#273).
+
+## [1.23.0] - 2026-04-15
+
 ### Fixed
 - [SSE] Ensure connection is closed for single-value SSE streams by [@jsxs0](https://github.com/jsxs0) (#264).
 - Ensure task ID seed is always greater than timestamps in existing WAL files by [@Abishekcs](https://github.com/Abishekcs) (#255)
-- Reuse `define_dynamic_method` and `define_maybe_yield` methods in `RageController::API` from `Rage::Internal`
+- Correctly load routes in Rails apps (#249).
+- [SSE] Ensure connection is closed when raw SSE stream raises by [@jsxs0](https://github.com/jsxs0) (#248).
+- [OpenAPI] Alba parser: silent fallback for unresolvable association resources by [@pratyush07-hub](https://github.com/pratyush07-hub) (#258).
+- Fix `Rage::UploadedFile#close` (#262).
 
 ### Added
 - [SSE] Add tests for log context propagation across fiber boundaries by [@jsxs0](https://github.com/jsxs0) (#267).
-
-- Add singular `resource` routing with plural controller mapping and document the helper by [@anuj-pal27](https://github.com/anuj-pal27).
+- Add singular `resource` routing with plural controller mapping and document the helper by [@anuj-pal27](https://github.com/anuj-pal27) (#247).
+- [SSE] Add support for unbounded streams (#266).
+- [OpenAPI] Support OpenAPI generation for file parameters by [@Digvijay-x1](https://github.com/Digvijay-x1) (#229).
+- [Deferred] Add configurable retry options by [@Digvijay-x1](https://github.com/Digvijay-x1) (#225).
+- [SSE] Add unit tests for `SSE::ConnectionProxy` by [@jsxs0](https://github.com/jsxs0) (#245).
+- Custom renderer support by [@anuj-pal27](https://github.com/anuj-pal27) (#244).
+- [SSE] Add graceful shutdown support for SSE streams by [@tmchow](https://github.com/tmchow) (#261).
 
 ## [1.22.1] - 2026-04-01
 
@@ -19,7 +34,6 @@
 
 ### Added
 
-- [Deferred] Support configurable retry options with `max_retries` and `retry_interval` by [@Digvijay](https://github.com/Digvijay-x1) (#215).
 - [Cable] Add support for `stop_stream_from` and `stop_stream_for`  by [@Digvijay](https://github.com/Digvijay-x1) (#217).
 - Add support for signed cookies by [@rfronczyk](https://github.com/rfronczyk) (#226).
 - [OpenAPI] Add support for shared components in `@auth` tags by [@Piyush-Goenka](https://github.com/Piyush-Goenka) (#221).

@@ -93,4 +93,14 @@ RSpec.describe "SSE" do
       expect(response.to_s).to match(/"count":42/)
     end
   end
+
+  describe "broadcast mode" do
+    it "correctly broadcasts responses" do
+      response = HTTP.timeout(2).persistent("http://localhost:3000").get("/sse/broadcast")
+
+      chunks = response.to_s.split("\n\n")
+      expect(chunks.size).to eq(5)
+      expect(chunks.uniq).to eq(["data: test message"])
+    end
+  end
 end

@@ -270,28 +270,6 @@ RSpec.describe Rage::CLI do
         expect(execution_order).to eq([1, 2, 3])
       end
     end
-
-    context "when Fiber is not monkey patched" do
-      before do
-        require "irb"
-        allow(rage_cli).to receive(:patch_fiber_for_irb)
-        allow(rage_cli).to receive(:environment)
-        allow(IRB).to receive(:start)
-        rage_cli.console
-      end
-
-      it "Fiber.await raises an error during the rage console (binding.irb)" do
-        expect {
-          Fiber.await(Fiber.schedule { :test })
-        }.to raise_error(RuntimeError, "No scheduler is available!")
-      end
-
-      it "Fiber.schedule raises an error during the rage console (binding.irb)" do
-        expect {
-          Fiber.schedule { :test }
-        }.to raise_error(RuntimeError, "No scheduler is available!")
-      end
-    end
   end
 
   describe "#events" do
