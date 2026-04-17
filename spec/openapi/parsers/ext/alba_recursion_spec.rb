@@ -5,8 +5,8 @@ require "prism"
 RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
   include_context "mocked_classes"
 
-  subject { described_class.new.parse(resource) }
-
+  subject { described_class.new(root: root).parse(resource) }
+  let(:root) { Rage::OpenAPI::Nodes::Root.new }
   let(:resource) { "UserResource" }
 
   context "with direct circular associations (UserResource ↔ PostResource)" do
@@ -52,7 +52,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
 
     it "registers the referenced schema in the registry" do
       subject
-      expect(Rage::OpenAPI.__schema_registry["UserResource"]).to eq({
+      expect(root.schema_registry["UserResource"]).to eq({
         "type" => "object",
         "properties" => {
           "id" => { "type" => "string" },
@@ -103,7 +103,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
 
     it "registers the self-referencing schema" do
       subject
-      expect(Rage::OpenAPI.__schema_registry).to have_key("CategoryResource")
+      expect(root.schema_registry).to have_key("CategoryResource")
     end
   end
 
@@ -162,7 +162,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
 
     it "registers the referenced schema" do
       subject
-      expect(Rage::OpenAPI.__schema_registry).to have_key("AResource")
+      expect(root.schema_registry).to have_key("AResource")
     end
   end
 
@@ -179,7 +179,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Alba do
 
     it "correctly registers the referenced schema in the registry" do
       subject
-      expect(Rage::OpenAPI.__schema_registry["CategoryResource"]).to eq({
+      expect(root.schema_registry["CategoryResource"]).to eq({
         "type" => "object",
         "properties" => {
           "id" => { "type" => "string" },

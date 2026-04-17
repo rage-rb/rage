@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
 class Rage::OpenAPI::Parser
+  # @param root [Rage::OpenAPI::Nodes::Root]
+  def initialize(root)
+    @root = root
+  end
+
   # @param node [Rage::OpenAPI::Nodes::Parent]
   # @param comments [Array<Prism::InlineComment>]
   def parse_dangling_comments(node, comments)
@@ -125,7 +130,8 @@ class Rage::OpenAPI::Parser
         else
           parsed = Rage::OpenAPI::Parsers::Request.parse(
             request,
-            namespace: Rage::OpenAPI.__module_parent(node.controller)
+            namespace: Rage::OpenAPI.__module_parent(node.controller),
+            root: @root
           )
 
           if parsed
@@ -203,7 +209,8 @@ class Rage::OpenAPI::Parser
     else
       parsed = Rage::OpenAPI::Parsers::Response.parse(
         response_data,
-        namespace: Rage::OpenAPI.__module_parent(node.controller)
+        namespace: Rage::OpenAPI.__module_parent(node.controller),
+        root: @root
       )
 
       if parsed

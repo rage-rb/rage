@@ -137,7 +137,7 @@ class Rage::OpenAPI::Converter
       end
     end
 
-    if (dynamic_schemas = Rage::OpenAPI.__schema_registry).any?
+    if (dynamic_schemas = @nodes.schema_registry).any?
       (@spec["components"]["schemas"] ||= {}).merge!(dynamic_schemas)
     end
 

@@ -3,8 +3,9 @@
 class Rage::OpenAPI::Parsers::Ext::Alba
   attr_reader :namespace
 
-  def initialize(namespace: Object, **)
+  def initialize(namespace: Object, root: Rage::OpenAPI::Nodes::Root.new, **)
     @namespace = namespace
+    @root = root
     @parsing_stack = Set.new
   end
 
@@ -19,10 +20,10 @@ class Rage::OpenAPI::Parsers::Ext::Alba
     _, raw_klass_str = Rage::OpenAPI.__try_parse_collection(klass_str)
     visitor = __parse(klass_str)
 
-    if Rage::OpenAPI.__schema_registry.key?(raw_klass_str)
+    if @root.schema_registry.key?(raw_klass_str)
       clean = { "type" => "object" }
       clean["properties"] = visitor.schema if visitor.schema.any?
-      Rage::OpenAPI.__schema_registry[raw_klass_str] = clean
+      @root.schema_registry[raw_klass_str] = clean
     end
 
     visitor.build_schema
@@ -32,7 +33,7 @@ class Rage::OpenAPI::Parsers::Ext::Alba
     is_collection, raw_klass_str = Rage::OpenAPI.__try_parse_collection(klass_str)
 
     if @parsing_stack.include?(raw_klass_str)
-      Rage::OpenAPI.__schema_registry[raw_klass_str] ||= nil
+      @root.schema_registry[raw_klass_str] ||= nil
       ref = { "$ref" => "#/components/schemas/#{raw_klass_str}" }
       return is_collection ? { "type" => "array", "items" => ref } : ref
     end

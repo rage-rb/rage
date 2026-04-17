@@ -21,9 +21,7 @@ class Rage::OpenAPI::Builder
   end
 
   def run
-    # reset the data cache at the beginning of each build to prevent data leakage between builds in long-running processes
-    Rage::OpenAPI.__reset_data_cache
-    parser = Rage::OpenAPI::Parser.new
+    parser = Rage::OpenAPI::Parser.new(@nodes)
 
     @routes.each do |controller, routes|
       next if skip_controller?(controller)
