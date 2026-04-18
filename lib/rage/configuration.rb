@@ -753,10 +753,13 @@ class Rage::Configuration
       when :disk
         @backend_options = parse_disk_backend_options(opts)
         Rage::Deferred::Backends::Disk
+      when :sql
+        @backend_options = parse_sql_backend_options(opts)
+        Rage::Deferred::Backends::SQL
       when nil
         Rage::Deferred::Backends::Nil
       else
-        raise ArgumentError, "unsupported backend value; supported keys are `:disk` and `nil`"
+        raise ArgumentError, "unsupported backend value; supported keys are `:disk`, `:sql`, and `nil`"
       end
     end
 
@@ -915,6 +918,12 @@ class Rage::Configuration
       end
 
       parsed_options
+    end
+
+    def parse_sql_backend_options(opts)
+      raise ArgumentError, "sql backend only supports :table_name" if opts.except(:table_name).any?
+
+      { table_name: (opts[:table_name] || "rage_deferred_tasks").to_s }
     end
   end
 
@@ -1195,6 +1204,42 @@ end
 #     #       yield
 #     #
 #     #     rescue
+#     #       # Re-encrypt the arguments in case of an error
+#     #       args.map! { |arg| MyEncryptionSDK.encrypt(arg) }
+#     #       kwargs.transform_values! { |value| MyEncryptionSDK.encrypt(value) }
+#     #       raise
+#     #     end
+#     #   end
+#     def call(task_class:, task:, phase:, args:, kwargs:, context:)
+#     end
+#   end
+#     #       # Re-encrypt the arguments in case of an error
+#     #       args.map! { |arg| MyEncryptionSDK.encrypt(arg) }
+#     #       kwargs.transform_values! { |value| MyEncryptionSDK.encrypt(value) }
+#     #       raise
+#     #     end
+#     #   end
+#     def call(task_class:, task:, phase:, args:, kwargs:, context:)
+#     end
+#   end
+#     #       # Re-encrypt the arguments in case of an error
+#     #       args.map! { |arg| MyEncryptionSDK.encrypt(arg) }
+#     #       kwargs.transform_values! { |value| MyEncryptionSDK.encrypt(value) }
+#     #       raise
+#     #     end
+#     #   end
+#     def call(task_class:, task:, phase:, args:, kwargs:, context:)
+#     end
+#   end
+#     #       # Re-encrypt the arguments in case of an error
+#     #       args.map! { |arg| MyEncryptionSDK.encrypt(arg) }
+#     #       kwargs.transform_values! { |value| MyEncryptionSDK.encrypt(value) }
+#     #       raise
+#     #     end
+#     #   end
+#     def call(task_class:, task:, phase:, args:, kwargs:, context:)
+#     end
+#   end
 #     #       # Re-encrypt the arguments in case of an error
 #     #       args.map! { |arg| MyEncryptionSDK.encrypt(arg) }
 #     #       kwargs.transform_values! { |value| MyEncryptionSDK.encrypt(value) }
