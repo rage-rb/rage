@@ -44,17 +44,27 @@ RSpec.describe Rage::Deferred::Task do
   end
 
   describe ".__next_retry_in" do
-    it "returns the next retry interval with exponential backoff" do
-      expect(task_class.__next_retry_in(0, nil)).to be_between(1, 5)
-      expect(task_class.__next_retry_in(1, nil)).to be_between(1, 10)
-      expect(task_class.__next_retry_in(2, nil)).to be_between(1, 20)
-      expect(task_class.__next_retry_in(3, nil)).to be_between(1, 40)
-      expect(task_class.__next_retry_in(4, nil)).to be_between(1, 80)
+    it "returns the next retry interval with quartic backoff" do
+      # Formula: (attempt**4) + 10 + (rand(15) * attempt)
+      # rand(15) => 0..14
+
+      # attempt 0 -> 0^4 + 10 + (0..14)*0 = 10
+      expect(task_class.__next_retry_in(0, nil)).to eq(10)
+      # attempt 1 -> 1^4 + 10 + (0..14)*1 = 11..25
+      expect(task_class.__next_retry_in(1, nil)).to be_between(11, 25)
+      # attempt 2 -> 2^4 + 10 + (0..14)*2 = 26..54
+      expect(task_class.__next_retry_in(2, nil)).to be_between(26, 54)
+      # attempt 3 -> 3^4 + 10 + (0..14)*3 = 91..133
+      expect(task_class.__next_retry_in(3, nil)).to be_between(91, 133)
+      # attempt 4 -> 4^4 + 10 + (0..14)*4 = 266..322
+      expect(task_class.__next_retry_in(4, nil)).to be_between(266, 322)
     end
 
     it "returns nil when attempts exceed max" do
-      expect(task_class.__next_retry_in(5, nil)).to be_between(1, 160)
-      expect(task_class.__next_retry_in(6, nil)).to be_nil
+      # With MAX_ATTEMPTS=20 and current guard (attempts > max),
+      # attempt 20 still retries, attempt 21 stops.
+      expect(task_class.__next_retry_in(20, nil)).to be_a(Numeric)
+      expect(task_class.__next_retry_in(21, nil)).to be_nil
     end
   end
 
@@ -167,7 +177,7 @@ RSpec.describe Rage::Deferred::Task do
 
       it "__next_retry_in uses default backoff for unmatched" do
         interval = task_class.__next_retry_in(1, StandardError.new)
-        expect(interval).to be_between(1, 10)
+        expect(interval).to be_between(11, 25)
       end
 
       it "__next_retry_in enforces max_retries even with custom interval" do

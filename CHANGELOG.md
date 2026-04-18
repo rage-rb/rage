@@ -24,6 +24,10 @@
 - Custom renderer support by [@anuj-pal27](https://github.com/anuj-pal27) (#244).
 - [SSE] Add graceful shutdown support for SSE streams by [@tmchow](https://github.com/tmchow) (#261).
 
+### Changed
+
+- [Deferred] Increase default retry limit to 20 and update default retry backoff to `(attempt**4) + 10 + (rand(15) * attempt)` by  [@anuj-pal27](https://github.com/anuj-pal27) (#251).
+
 ## [1.22.1] - 2026-04-01
 
 ### Fixed
