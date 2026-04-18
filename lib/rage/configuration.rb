@@ -707,6 +707,22 @@ class Rage::Configuration
     # @private
     def initialize
       @configured = false
+      @scheduled_tasks = []
+    end
+
+    # Evaluates the scheduling DSL block, making `every` available as a method
+    def schedule(&block)
+      instance_eval(&block)
+    end
+
+    # Registers a task to run on a fixed interval (in seconds)
+    def every(interval, task:)
+      @scheduled_tasks << { interval:, task: }
+    end
+
+    # Returns all registered scheduled tasks
+    def scheduled_tasks
+      @scheduled_tasks
     end
 
     # Returns the backend instance used by `Rage::Deferred`.
