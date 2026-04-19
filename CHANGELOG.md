@@ -5,6 +5,11 @@
 - Reuse `define_dynamic_method` and `define_maybe_yield` methods in `RageController::API` from `Rage::Internal` by [@numice](https://github.com/numice) (#273).
 - Add the `form_actions` router configuration (#278).
 
+### Fixed
+
+- [OpenAPI] Fix SystemStackError in Alba parser with circular associations (#268).
+- Rewind `rack.input` when parsing request body (#279).
+
 ## [1.23.0] - 2026-04-15
 
 ### Fixed
@@ -29,7 +34,6 @@
 
 ### Fixed
 
-- [OpenAPI] Fix SystemStackError in Alba parser with circular associations.
 - Only parse request body as multipart if the request is multipart by [p8](https://github.com/p8) (#256).
 
 ## [1.22.0] - 2026-03-12
