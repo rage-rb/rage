@@ -114,6 +114,11 @@ module Rage::OpenAPI
   end
 
   # @private
+  def self.__schema_registry
+    __data_cache[:schema_registry] ||= {}
+  end
+
+  # @private
   def self.__reset_data_cache
     __data_cache.clear
   end
