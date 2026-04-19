@@ -265,6 +265,14 @@ class Rage::Configuration
   end
   # @!endgroup
 
+  # @!group Router Configuration
+  # Allows configuring router settings.
+  # @return [Rage::Configuration::Router]
+  def router
+    @router ||= Router.new
+  end
+  # @!endgroup
+
   # @private
   def pubsub
     @pubsub ||= PubSub.new
@@ -986,6 +994,17 @@ class Rage::Configuration
     #       config.session.key = "_myapp_session"
     #     end
     attr_accessor :key
+  end
+
+  class Router
+    # @!attribute form_actions
+    #   Enable the automatic generation of `new` and `edit` routes via resource helpers.
+    #   @return [Boolean]
+    #   @example Enable form actions
+    #     Rage.configure do
+    #       config.router.form_actions = true
+    #     end
+    attr_accessor :form_actions
   end
 
   # @private

@@ -62,6 +62,8 @@ class Rage::Router::DSL
       @router = router
 
       @default_actions = %i(index create show update destroy)
+      @default_actions += %i(new edit) if Rage.config.router.form_actions
+
       @default_match_methods = %i(get post put patch delete head)
       @scope_opts = %i(module path controller)
 
@@ -359,6 +361,8 @@ class Rage::Router::DSL
         get("/:#{_param}", to: "#{resource}#show") if actions.include?(:show)
         patch("/:#{_param}", to: "#{resource}#update") if actions.include?(:update)
         put("/:#{_param}", to: "#{resource}#update") if actions.include?(:update)
+        get("/new", to: "#{resource}#new") if actions.include?(:new)
+        get("/:#{_param}/edit", to: "#{resource}#edit") if actions.include?(:edit)
         delete("/:#{_param}", to: "#{resource}#destroy") if actions.include?(:destroy)
 
         scope(path: ":#{to_singular(resource)}_#{_param}", controller: resource, &block) if block
@@ -379,7 +383,6 @@ class Rage::Router::DSL
     #   # PATCH  /photo => photos#update
     #   # PUT    /photo => photos#update
     #   # DELETE /photo => photos#destroy
-    # @note This helper doesn't generate the `new` and `edit` routes.
     # @note :param is not supported for singular resources.
     def resource(*_resources, **opts, &block)
       if _resources.length > 1
@@ -389,7 +392,7 @@ class Rage::Router::DSL
 
       _module, _path, _only, _except = opts.values_at(:module, :path, :only, :except)
 
-      actions = __filter_actions(%i(create show update destroy), _only, _except)
+      actions = __filter_actions(@default_actions - [:index], _only, _except)
 
       resource_name = _resources[0].to_s
       controller_name = to_plural(resource_name)
@@ -398,6 +401,8 @@ class Rage::Router::DSL
         get("/", to: "#{controller_name}#show") if actions.include?(:show)
         patch("/", to: "#{controller_name}#update") if actions.include?(:update)
         put("/", to: "#{controller_name}#update") if actions.include?(:update)
+        get("/new", to: "#{controller_name}#new") if actions.include?(:new)
+        get("/edit", to: "#{controller_name}#edit") if actions.include?(:edit)
         delete("/", to: "#{controller_name}#destroy") if actions.include?(:destroy)
 
         scope(controller: controller_name, &block) if block
