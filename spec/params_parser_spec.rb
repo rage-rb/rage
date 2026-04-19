@@ -22,7 +22,7 @@ RSpec.describe Rage::ParamsParser do
       "multipart/form-data; boundary=--aa123"
     end
   end
-  let(:rack_input) { instance_double(StringIO, read: body) }
+  let(:rack_input) { instance_double(StringIO, read: body, rewind: 0) }
 
   let(:env) do
     {
@@ -327,6 +327,54 @@ RSpec.describe Rage::ParamsParser do
 
       it "prioritizes url params" do
         expect(subject).to eq({ id: "11" })
+      end
+    end
+  end
+
+  context "when rack.input has been consumed by middleware" do
+    let(:url_params) { {} }
+
+    context "with json body" do
+      let(:raw_body) { '{"id":5,"name":"test"}' }
+      let(:rack_input) { StringIO.new(raw_body) }
+      let(:env) do
+        {
+          "IODINE_HAS_BODY" => true,
+          "QUERY_STRING" => "",
+          "CONTENT_TYPE" => "application/json",
+          "rack.input" => rack_input
+        }
+      end
+
+      before do
+        rack_input.read
+        allow(JSON).to receive(:parse).with(raw_body, symbolize_names: true).and_return({ id: 5, name: "test" })
+      end
+
+      it "can still parse the body after rewind" do
+        expect(subject).to eq({ id: 5, name: "test" })
+      end
+    end
+
+    context "with urlencoded body" do
+      let(:raw_body) { "id=15&name=test" }
+      let(:rack_input) { StringIO.new(raw_body) }
+      let(:env) do
+        {
+          "IODINE_HAS_BODY" => true,
+          "QUERY_STRING" => "",
+          "CONTENT_TYPE" => "application/x-www-form-urlencoded",
+          "rack.input" => rack_input
+        }
+      end
+
+      before do
+        rack_input.read
+        allow(Iodine::Rack::Utils).to receive(:parse_urlencoded_nested_query).with(raw_body).and_return({ id: "15", name: "test" })
+      end
+
+      it "can still parse the body after rewind" do
+        expect(subject).to eq({ id: "15", name: "test" })
       end
     end
   end
