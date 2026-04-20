@@ -598,6 +598,258 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
     end
 
+    context "with @auth_scope and scheme ID" do
+      before do
+        allow(RageController::API).to receive(:__before_action_exists?).with(:authenticate_user).and_return(true)
+        allow(RageController::API).to receive(:__before_actions_for).with(:update).and_return([{ name: :authenticate_user }])
+
+        allow(Rage::OpenAPI).to receive(:__shared_components).and_return(YAML.safe_load(<<~YAML
+          components:
+            securitySchemes:
+              OAuth2:
+                type: oauth2
+                flows:
+                  authorizationCode:
+                    authorizationUrl: https://example.com/oauth/authorize
+                    tokenUrl: https://example.com/oauth/token
+                    scopes:
+                      read:users: Read users
+                      write:users: Write users
+        YAML
+                                                                                       ))
+      end
+
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # @auth authenticate_user #/components/securitySchemes/OAuth2
+
+          # @auth_scope OAuth2 [read:users, write:users]
+          def update
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "PUT /users/:id" => "UsersController#update" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => { "securitySchemes" => { "OAuth2" => { "type" => "oauth2", "flows" => { "authorizationCode" => { "authorizationUrl" => "https://example.com/oauth/authorize", "tokenUrl" => "https://example.com/oauth/token", "scopes" => { "read:users" => "Read users", "write:users" => "Write users" } } } } } }, "tags" => [{ "name" => "Users" }], "paths" => { "/users/{id}" => { "parameters" => [{ "in" => "path", "name" => "id", "required" => true, "description" => "", "schema" => { "type" => "integer" } }], "put" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [{ "OAuth2" => ["read:users", "write:users"] }], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+    end
+
+    context "with @auth_scope shorthand" do
+      before do
+        allow(RageController::API).to receive(:__before_action_exists?).with(:authenticate!).and_return(true)
+        allow(RageController::API).to receive(:__before_actions_for).with(:index).and_return([{ name: :authenticate! }])
+
+        allow(Rage::OpenAPI).to receive(:__shared_components).and_return(YAML.safe_load(<<~YAML
+          components:
+            securitySchemes:
+              OAuth2:
+                type: oauth2
+                flows:
+                  authorizationCode:
+                    authorizationUrl: https://example.com/oauth/authorize
+                    tokenUrl: https://example.com/oauth/token
+                    scopes:
+                      read:users: Read users
+        YAML
+                                                                                       ))
+      end
+
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # @auth authenticate! #/components/securitySchemes/OAuth2
+
+          # @auth_scope [read:users]
+          def index
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "GET /users" => "UsersController#index" }
+      end
+
+      it "returns correct schema" do
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => { "securitySchemes" => { "OAuth2" => { "type" => "oauth2", "flows" => { "authorizationCode" => { "authorizationUrl" => "https://example.com/oauth/authorize", "tokenUrl" => "https://example.com/oauth/token", "scopes" => { "read:users" => "Read users" } } } } } }, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [{ "OAuth2" => ["read:users"] }], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } } } } } })
+      end
+    end
+
+    context "with @auth_scope shorthand and ambiguous schemes" do
+      before do
+        allow(RageController::API).to receive(:__before_action_exists?).with(:auth_internal).and_return(true)
+        allow(RageController::API).to receive(:__before_action_exists?).with(:auth_external).and_return(true)
+        allow(RageController::API).to receive(:__before_actions_for).with(:index).and_return([
+          { name: :auth_internal },
+          { name: :auth_external }
+        ])
+      end
+
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # @auth auth_internal
+          # @auth auth_external
+
+          # @auth_scope [read:users]
+          def index
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "GET /users" => "UsersController#index" }
+      end
+
+      it "logs error" do
+        expect(Rage::OpenAPI).to receive(:__log_warn).with(/ambiguous `@auth_scope` shorthand/)
+        subject
+      end
+
+      it "returns schema without scopes" do
+        expect(subject.dig("paths", "/users", "get", "security")).to eq([{ "auth_internal" => [] }, { "auth_external" => [] }])
+      end
+    end
+
+    context "with @auth_scope and unknown scheme" do
+      before do
+        allow(RageController::API).to receive(:__before_action_exists?).with(:authenticate!).and_return(true)
+        allow(RageController::API).to receive(:__before_actions_for).with(:index).and_return([{ name: :authenticate! }])
+      end
+
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # @auth authenticate!
+
+          # @auth_scope UnknownScheme [read:users]
+          def index
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "GET /users" => "UsersController#index" }
+      end
+
+      it "logs error" do
+        expect(Rage::OpenAPI).to receive(:__log_warn).with(/unknown scheme `UnknownScheme`/)
+        subject
+      end
+
+      it "returns schema without scopes" do
+        expect(subject.dig("paths", "/users", "get", "security")).to eq([{ "authenticate" => [] }])
+      end
+    end
+
+    context "with duplicate @auth_scope" do
+      before do
+        allow(RageController::API).to receive(:__before_action_exists?).with(:authenticate!).and_return(true)
+        allow(RageController::API).to receive(:__before_actions_for).with(:index).and_return([{ name: :authenticate! }])
+
+        allow(Rage::OpenAPI).to receive(:__shared_components).and_return(YAML.safe_load(<<~YAML
+          components:
+            securitySchemes:
+              OAuth2:
+                type: oauth2
+                flows:
+                  authorizationCode:
+                    authorizationUrl: https://example.com/oauth/authorize
+                    tokenUrl: https://example.com/oauth/token
+                    scopes: {}
+        YAML
+                                                                                       ))
+      end
+
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # @auth authenticate! #/components/securitySchemes/OAuth2
+
+          # @auth_scope OAuth2 [read:users]
+          # @auth_scope OAuth2 [write:users]
+          def index
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "GET /users" => "UsersController#index" }
+      end
+
+      it "logs error" do
+        expect(Rage::OpenAPI).to receive(:__log_warn).with(/duplicate `@auth_scope` tag for `OAuth2`/)
+        subject
+      end
+    end
+
+    context "with @auth_scope and no auth schemes" do
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # @auth_scope [read:users]
+          def index
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        { "GET /users" => "UsersController#index" }
+      end
+
+      it "logs error" do
+        expect(Rage::OpenAPI).to receive(:__log_warn).with(/no auth schemes found/)
+        subject
+      end
+    end
+
+    context "with @auth_scope on one endpoint and not another" do
+      before do
+        allow(RageController::API).to receive(:__before_action_exists?).with(:authenticate!).and_return(true)
+        allow(RageController::API).to receive(:__before_actions_for).with(:index).and_return([{ name: :authenticate! }])
+        allow(RageController::API).to receive(:__before_actions_for).with(:create).and_return([{ name: :authenticate! }])
+
+        allow(Rage::OpenAPI).to receive(:__shared_components).and_return(YAML.safe_load(<<~YAML
+          components:
+            securitySchemes:
+              OAuth2:
+                type: oauth2
+                flows:
+                  authorizationCode:
+                    authorizationUrl: https://example.com/oauth/authorize
+                    tokenUrl: https://example.com/oauth/token
+                    scopes:
+                      read:users: Read users
+                      write:users: Write users
+        YAML
+                                                                                       ))
+      end
+
+      let_class("UsersController", parent: RageController::API) do
+        <<~'RUBY'
+          # @auth authenticate! #/components/securitySchemes/OAuth2
+
+          # @auth_scope OAuth2 [read:users]
+          def index
+          end
+
+          # @auth_scope OAuth2 [read:users, write:users]
+          def create
+          end
+        RUBY
+      end
+
+      let(:routes) do
+        {
+          "GET /users" => "UsersController#index",
+          "POST /users" => "UsersController#create"
+        }
+      end
+
+      it "returns correct per-endpoint scopes" do
+        expect(subject.dig("paths", "/users", "get", "security")).to eq([{ "OAuth2" => ["read:users"] }])
+        expect(subject.dig("paths", "/users", "post", "security")).to eq([{ "OAuth2" => ["read:users", "write:users"] }])
+      end
+    end
+
     context "with no before_actions" do
       let_class("UsersController", parent: RageController::API) do
         <<~'RUBY'

@@ -1076,4 +1076,104 @@ RSpec.describe Rage::Router::DSL do
       expect { dsl.draw { get("test", action: "index") } }.to raise_error(/Could not derive/)
     end
   end
+
+  context "with form_actions enabled" do
+    before do
+      allow(Rage.config.router).to receive(:form_actions).and_return(true)
+    end
+
+    context "with resources" do
+      it "creates new and edit routes" do
+        expect(router).to receive(:on).with("GET", "/photos", "photos#index", instance_of(Hash))
+        expect(router).to receive(:on).with("POST", "/photos", "photos#create", instance_of(Hash))
+        expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", instance_of(Hash))
+        expect(router).to receive(:on).with("PATCH", "/photos/:id", "photos#update", instance_of(Hash))
+        expect(router).to receive(:on).with("PUT", "/photos/:id", "photos#update", instance_of(Hash))
+        expect(router).to receive(:on).with("GET", "/photos/new", "photos#new", instance_of(Hash))
+        expect(router).to receive(:on).with("GET", "/photos/:id/edit", "photos#edit", instance_of(Hash))
+        expect(router).to receive(:on).with("DELETE", "/photos/:id", "photos#destroy", instance_of(Hash))
+
+        dsl.draw do
+          resources :photos
+        end
+      end
+
+      it "respects the :only option for new and edit" do
+        expect(router).to receive(:on).with("GET", "/photos/new", "photos#new", instance_of(Hash))
+        expect(router).to receive(:on).with("GET", "/photos/:id/edit", "photos#edit", instance_of(Hash))
+
+        dsl.draw do
+          resources :photos, only: %i(new edit)
+        end
+      end
+
+      it "respects the :except option for new and edit" do
+        expect(router).to receive(:on).with("GET", "/photos", "photos#index", instance_of(Hash))
+        expect(router).to receive(:on).with("POST", "/photos", "photos#create", instance_of(Hash))
+        expect(router).to receive(:on).with("GET", "/photos/:id", "photos#show", instance_of(Hash))
+        expect(router).to receive(:on).with("PATCH", "/photos/:id", "photos#update", instance_of(Hash))
+        expect(router).to receive(:on).with("PUT", "/photos/:id", "photos#update", instance_of(Hash))
+        expect(router).to receive(:on).with("DELETE", "/photos/:id", "photos#destroy", instance_of(Hash))
+
+        dsl.draw do
+          resources :photos, except: %i(new edit)
+        end
+      end
+
+      it "uses custom param for edit route" do
+        expect(router).to receive(:on).with("GET", "/photos/new", "photos#new", instance_of(Hash))
+        expect(router).to receive(:on).with("GET", "/photos/:slug/edit", "photos#edit", instance_of(Hash))
+
+        dsl.draw do
+          resources :photos, only: %i(new edit), param: :slug
+        end
+      end
+    end
+
+    context "with resource" do
+      it "creates new and edit routes" do
+        expect(router).to receive(:on).with("POST", "/photo", "photos#create", instance_of(Hash))
+        expect(router).to receive(:on).with("GET", "/photo", "photos#show", instance_of(Hash))
+        expect(router).to receive(:on).with("PATCH", "/photo", "photos#update", instance_of(Hash))
+        expect(router).to receive(:on).with("PUT", "/photo", "photos#update", instance_of(Hash))
+        expect(router).to receive(:on).with("GET", "/photo/new", "photos#new", instance_of(Hash))
+        expect(router).to receive(:on).with("GET", "/photo/edit", "photos#edit", instance_of(Hash))
+        expect(router).to receive(:on).with("DELETE", "/photo", "photos#destroy", instance_of(Hash))
+
+        dsl.draw do
+          resource :photo
+        end
+      end
+
+      it "respects the :only option for new and edit" do
+        expect(router).to receive(:on).with("GET", "/photo/new", "photos#new", instance_of(Hash))
+        expect(router).to receive(:on).with("GET", "/photo/edit", "photos#edit", instance_of(Hash))
+
+        dsl.draw do
+          resource :photo, only: %i(new edit)
+        end
+      end
+
+      it "respects the :except option for new and edit" do
+        expect(router).to receive(:on).with("POST", "/photo", "photos#create", instance_of(Hash))
+        expect(router).to receive(:on).with("GET", "/photo", "photos#show", instance_of(Hash))
+        expect(router).to receive(:on).with("PATCH", "/photo", "photos#update", instance_of(Hash))
+        expect(router).to receive(:on).with("PUT", "/photo", "photos#update", instance_of(Hash))
+        expect(router).to receive(:on).with("DELETE", "/photo", "photos#destroy", instance_of(Hash))
+
+        dsl.draw do
+          resource :photo, except: %i(new edit)
+        end
+      end
+
+      it "creates routes under module" do
+        expect(router).to receive(:on).with("GET", "/photo/new", "api/photos#new", instance_of(Hash))
+        expect(router).to receive(:on).with("GET", "/photo/edit", "api/photos#edit", instance_of(Hash))
+
+        dsl.draw do
+          resource :photo, only: %i(new edit), module: "api"
+        end
+      end
+    end
+  end
 end

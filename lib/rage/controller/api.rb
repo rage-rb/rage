@@ -186,32 +186,6 @@ class RageController::API
     end
 
     # @private
-    @@__dynamic_name_seed = ("a".."i").to_a.permutation
-
-    # @private
-    # define a method based on a block
-    def define_dynamic_method(block)
-      name = @@__dynamic_name_seed.next.join
-      define_method("__rage_dynamic_#{name}", block)
-    end
-
-    # @private
-    # define a method that will call a specified method if a condition is `true` or yield if `false`
-    def define_maybe_yield(method_name)
-      name = @@__dynamic_name_seed.next.join
-
-      class_eval <<~RUBY, __FILE__, __LINE__ + 1
-        def __rage_dynamic_#{name}(condition)
-          if condition
-            #{method_name} { yield }
-          else
-            yield
-          end
-        end
-      RUBY
-    end
-
-    # @private
     def __register_renderer(name, block)
       prepend(RageController::Renderers) unless ancestors.include?(RageController::Renderers)
       RageController::Renderers.__register(name, block)
@@ -240,7 +214,7 @@ class RageController::API
     def rescue_from(*klasses, with: nil, &block)
       unless with
         if block_given?
-          with = define_dynamic_method(block)
+          with = Rage::Internal.define_dynamic_method(self, block)
         else
           raise ArgumentError, "No handler provided. Pass the `with` keyword argument or provide a block."
         end
@@ -314,7 +288,7 @@ class RageController::API
     #   end
     def around_action(action_name = nil, **opts, &block)
       action = prepare_action_params(action_name, **opts, &block)
-      action.merge!(around: true, wrapper: define_maybe_yield(action[:name]))
+      action.merge!(around: true, wrapper: Rage::Internal.define_maybe_yield(self, action[:name]))
 
       if @__before_actions && @__before_actions.frozen?
         @__before_actions = @__before_actions.dup
@@ -429,7 +403,7 @@ class RageController::API
     # used by `before_action` and `after_action`
     def prepare_action_params(action_name = nil, **opts, &block)
       if block_given?
-        action_name = define_dynamic_method(block)
+        action_name = Rage::Internal.define_dynamic_method(self, block)
       elsif action_name.nil?
         raise ArgumentError, "No handler provided. Pass the `action_name` parameter or provide a block."
       end
@@ -444,8 +418,8 @@ class RageController::API
         unless: _unless
       }
 
-      action[:if] = define_dynamic_method(action[:if]) if action[:if].is_a?(Proc)
-      action[:unless] = define_dynamic_method(action[:unless]) if action[:unless].is_a?(Proc)
+      action[:if] = Rage::Internal.define_dynamic_method(self, action[:if]) if action[:if].is_a?(Proc)
+      action[:unless] = Rage::Internal.define_dynamic_method(self, action[:unless]) if action[:unless].is_a?(Proc)
 
       action
     end
