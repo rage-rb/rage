@@ -99,6 +99,7 @@ RSpec.describe Rage::Internal do
     let(:on_start_callbacks) { [] }
 
     before do
+      allow(Iodine).to receive(:running?).and_return(false)
       allow(Iodine).to receive(:on_state).with(:on_start) do |&block|
         on_start_callbacks << block
       end
@@ -116,11 +117,25 @@ RSpec.describe Rage::Internal do
       expect(on_start_callbacks.size).to eq(1)
     end
 
+    it "executes the block immediately when Iodine is already running" do
+      allow(Iodine).to receive(:running?).and_return(true)
+      executed = false
+      described_class.pick_a_worker { executed = true }
+      expect(executed).to be(true)
+    end
+
     it "creates a lock file" do
       described_class.pick_a_worker { "work" }
 
       lock_file = described_class.instance_variable_get(:@lock_file)
       expect(File.exist?(lock_file.path)).to be(true)
+    end
+
+    it "uses provided lock_path instead of creating a new tempfile" do
+      lock_path = Tempfile.new.path
+      expect(Tempfile).not_to receive(:new)
+      described_class.pick_a_worker(lock_path: lock_path) { "work" }
+      on_start_callbacks.first.call
     end
 
     it "executes the block when lock is acquired" do
