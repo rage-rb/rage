@@ -14,6 +14,10 @@ RSpec.describe Rage::Deferred::Task do
     stub_const("MyTask", task_class)
   end
 
+  after do
+    Fiber[:__rage_deferred_retry_in] = nil
+  end
+
   describe ".enqueue" do
     let(:queue) { instance_double(Rage::Deferred::Queue, enqueue: true) }
     let(:context) { { class: "MyTask" } }
@@ -65,6 +69,19 @@ RSpec.describe Rage::Deferred::Task do
       # attempt 20 still retries, attempt 21 stops.
       expect(task_class.__next_retry_in(20, nil)).to be_a(Numeric)
       expect(task_class.__next_retry_in(21, nil)).to be_nil
+    end
+
+    it "returns the same value on repeated calls with the same attempts" do
+      first = task_class.__next_retry_in(2, nil)
+      second = task_class.__next_retry_in(2, nil)
+      expect(first).to eq(second)
+    end
+
+    it "returns different values for different attempts" do
+      val_at_0 = task_class.__next_retry_in(0, nil)
+      val_at_4 = task_class.__next_retry_in(4, nil)
+      expect(val_at_0).to be_a(Numeric)
+      expect(val_at_4).to be_a(Numeric)
     end
   end
 
@@ -124,7 +141,7 @@ RSpec.describe Rage::Deferred::Task do
       it "returns an interval for any attempt" do
         interval = task_class.retry_interval(StandardError.new, attempt: 1)
         expect(interval).to be_a(Integer)
-        expect(interval).to be >= 1
+        expect(interval).to be_between(11, 25)
       end
 
       it "always returns a backoff (max check is in __next_retry_in)" do
@@ -164,7 +181,7 @@ RSpec.describe Rage::Deferred::Task do
       it "falls back to default for unmatched exception" do
         interval = task_class.retry_interval(StandardError.new, attempt: 1)
         expect(interval).to be_a(Integer)
-        expect(interval).to be >= 1
+        expect(interval).to be_between(11, 25)
       end
 
       it "__next_retry_in returns interval for retryable" do
@@ -226,7 +243,7 @@ RSpec.describe Rage::Deferred::Task do
         task_class.define_singleton_method(:retry_interval) { |_exception, attempt:| "invalid" }
         result = task_class.__next_retry_in(1, StandardError.new)
         expect(result).to be_a(Numeric)
-        expect(result).to be >= 1
+        expect(result).to be_between(11, 25)
         expect(logger).to have_received(:warn).with(/returned String, expected Numeric/)
       end
 
@@ -234,7 +251,7 @@ RSpec.describe Rage::Deferred::Task do
         task_class.define_singleton_method(:retry_interval) { |_exception, attempt:| [10] }
         result = task_class.__next_retry_in(1, StandardError.new)
         expect(result).to be_a(Numeric)
-        expect(result).to be >= 1
+        expect(result).to be_between(11, 25)
         expect(logger).to have_received(:warn).with(/returned Array, expected Numeric/)
       end
     end

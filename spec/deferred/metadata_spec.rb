@@ -79,4 +79,20 @@ RSpec.describe Rage::Deferred::Metadata do
       expect(subject.will_retry?).to eq(false)
     end
   end
+
+  describe ".will_retry_in" do
+    before do
+      Rage::Deferred::Context.inc_attempts(context)
+    end
+
+    it "returns the retry interval when retries remain" do
+      expect(task).to receive(:__next_retry_in).with(2, nil).and_return(15)
+      expect(subject.will_retry_in).to eq(15)
+    end
+
+    it "returns nil when no retries remain" do
+      expect(task).to receive(:__next_retry_in).with(2, nil).and_return(nil)
+      expect(subject.will_retry_in).to be_nil
+    end
+  end
 end
