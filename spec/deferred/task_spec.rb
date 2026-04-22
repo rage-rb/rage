@@ -294,6 +294,29 @@ RSpec.describe Rage::Deferred::Task do
       end
     end
 
+    context "when log tags are in the legacy string format" do
+      before do
+        allow(Rage::Deferred::Context).to receive(:get_log_tags).with(context).and_return("old-request-id")
+        allow(Rage::Deferred::Context).to receive(:get_log_context).with(context).and_return(nil)
+        allow(task).to receive(:perform)
+      end
+
+      after do
+        Fiber[:__rage_logger_tags] = nil
+        Fiber[:__rage_logger_context] = nil
+      end
+
+      it "wraps the string in an array" do
+        task.__perform(context)
+        expect(Fiber[:__rage_logger_tags]).to eq(["old-request-id"])
+      end
+
+      it "defaults log context to an empty hash" do
+        task.__perform(context)
+        expect(Fiber[:__rage_logger_context]).to eq({})
+      end
+    end
+
     context "when request_id is not present" do
       before do
         allow(Rage::Deferred::Context).to receive(:get_log_tags).with(context).and_return(nil)

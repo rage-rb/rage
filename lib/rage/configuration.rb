@@ -265,6 +265,19 @@ class Rage::Configuration
   end
   # @!endgroup
 
+  # @!group Router Configuration
+  # Allows configuring router settings.
+  # @return [Rage::Configuration::Router]
+  def router
+    @router ||= Router.new
+  end
+  # @!endgroup
+
+  # @private
+  def pubsub
+    @pubsub ||= PubSub.new
+  end
+
   # @private
   def internal
     @internal ||= Internal.new
@@ -981,6 +994,48 @@ class Rage::Configuration
     #       config.session.key = "_myapp_session"
     #     end
     attr_accessor :key
+  end
+
+  class Router
+    # @!attribute form_actions
+    #   Enable the automatic generation of `new` and `edit` routes via resource helpers.
+    #   @return [Boolean]
+    #   @example Enable form actions
+    #     Rage.configure do
+    #       config.router.form_actions = true
+    #     end
+    attr_accessor :form_actions
+  end
+
+  # @private
+  class PubSub
+    attr_reader :adapter
+
+    def initialize
+      @adapter = if config.any?
+        case config[:adapter]
+        when "redis"
+          Rage::PubSub::Adapters::Redis.new(adapter_config)
+        end
+      end
+    end
+
+    def config
+      @config ||= begin
+        config_file = Rage.root.join("config/pubsub.yml")
+
+        config = if config_file.exist?
+          yaml = ERB.new(config_file.read).result
+          YAML.safe_load(yaml, aliases: true, symbolize_names: true)&.dig(Rage.env.to_sym)
+        end
+
+        config || {}
+      end
+    end
+
+    def adapter_config
+      config.except(:adapter)
+    end
   end
 
   # @private

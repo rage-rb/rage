@@ -137,6 +137,10 @@ class Rage::OpenAPI::Converter
       end
     end
 
+    if (dynamic_schemas = @nodes.schema_registry).any?
+      (@spec["components"]["schemas"] ||= {}).merge!(dynamic_schemas)
+    end
+
     @spec["tags"] = @used_tags.sort.map { |tag| { "name" => tag } }
 
     @spec
@@ -177,7 +181,7 @@ class Rage::OpenAPI::Converter
           @used_security_schemes << auth_entry.merge(name: auth_name)
         end
 
-        { auth_name => [] }
+        { auth_name => node.auth_scopes.fetch(auth_name, []) }
       end
     end
   end
