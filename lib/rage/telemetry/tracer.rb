@@ -74,6 +74,7 @@ class Rage::Telemetry::Tracer
           #{calls_chain}
         rescue Exception => e
           Rage.logger.error("Telemetry handler failed with error \#{e}:\\n\#{e.backtrace.join("\\n")}")
+          Rage::Errors.report(e)
         end
 
         unless yield_called

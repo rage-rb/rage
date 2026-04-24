@@ -26,6 +26,7 @@
 - Fix `Rage::UploadedFile#close` (#262).
 
 ### Added
+- [Errors] Add centralized error reporting interface via Rage::Errors by [@Digvijay-x1](https://github.com/Digvijay-x1).
 - [SSE] Add tests for log context propagation across fiber boundaries by [@jsxs0](https://github.com/jsxs0) (#267).
 - Add singular `resource` routing with plural controller mapping and document the helper by [@anuj-pal27](https://github.com/anuj-pal27) (#247).
 - [SSE] Add support for unbounded streams (#266).

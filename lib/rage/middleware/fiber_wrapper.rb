@@ -20,6 +20,7 @@ class Rage::FiberWrapper
     rescue Exception => e
       exception_str = "#{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}"
       Rage.logger << exception_str
+      Rage::Errors.report(e)
       if Rage.env.development?
         [500, {}, [exception_str]]
       else

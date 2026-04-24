@@ -185,6 +185,7 @@ RSpec.describe Rage::Cable::Adapters::Redis do
   describe "#poll" do
     before do
       allow_any_instance_of(described_class).to receive(:pick_a_worker).and_yield
+      allow_any_instance_of(described_class).to receive(:sleep)
       allow(Iodine).to receive(:on_state).with(:start_shutdown).and_yield
     end
 
@@ -264,6 +265,19 @@ RSpec.describe Rage::Cable::Adapters::Redis do
       )
 
       expect(Rage.cable.__protocol).not_to receive(:broadcast)
+
+      subject
+    end
+
+    it "reports redis subscriber errors" do
+      allow(mock_redis).to receive(:blocking_call).and_invoke(
+        proc { raise RedisClient::CannotConnectError, "redis down" },
+        proc { raise }
+      )
+
+      logger = double(error: nil)
+      allow(Rage).to receive(:logger).and_return(logger)
+      expect(Rage::Errors).to receive(:report).with(instance_of(RedisClient::CannotConnectError))
 
       subject
     end
