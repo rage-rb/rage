@@ -715,6 +715,39 @@ class Rage::Configuration
     # @private
     def initialize
       @configured = false
+      @schedule_blocks = []
+    end
+
+    # Stores the scheduling block for later execution
+    def schedule(&block)
+      @schedule_blocks << block
+    end
+
+    # Evaluates all stored schedule blocks and returns the collected tasks.
+    # Called at boot time after all app constants are loaded.
+    def scheduled_tasks
+      @schedule_blocks.flat_map do |block|
+        dsl = ScheduleDSL.new
+        dsl.instance_eval(&block)
+        dsl.tasks
+      end
+    end
+
+    # @private
+    class ScheduleDSL
+      attr_reader :tasks
+
+      def initialize
+        @tasks = []
+      end
+
+      # Registers a task to run on a fixed interval (in seconds)
+      def every(interval, task:)
+        unless task.is_a?(Class) && task.include?(Rage::Deferred::Task)
+          raise ArgumentError, "#{task} must be a class that includes Rage::Deferred::Task"
+        end
+        @tasks << { interval:, task: }
+      end
     end
 
     # Returns the backend instance used by `Rage::Deferred`.

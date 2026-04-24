@@ -67,17 +67,18 @@ class Rage::Internal
     # Pick a worker process to execute a block of code.
     # This is useful for ensuring that certain code is only executed by a single worker in a multi-worker setup, e.g. for broadcasting messages to known streams or for running periodic tasks.
     # @yield The block of code to be executed by the picked worker
-    def pick_a_worker(&block)
-      @lock_file, lock_path = Tempfile.new.yield_self { |file| [file, file.path] }
+    def pick_a_worker(lock_path: nil, &block)
+      @lock_file, lock_path = Tempfile.new.yield_self { |f| [f, f.path] } unless lock_path
 
-      Iodine.on_state(:on_start) do
-        worker_lock = File.new(lock_path)
-
+      attempt = proc do
+        worker_lock = File.open(lock_path, File::CREAT | File::WRONLY)
         if worker_lock.flock(File::LOCK_EX | File::LOCK_NB)
           @worker_lock = worker_lock
           block.call
         end
       end
+
+      Iodine.running? ? attempt.call : Iodine.on_state(:on_start) { attempt.call }
     end
 
     private
