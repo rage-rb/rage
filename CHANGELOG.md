@@ -10,6 +10,10 @@
 - [OpenAPI] Fix SystemStackError in Alba parser with circular associations (#268).
 - Rewind `rack.input` when parsing request body (#279).
 
+### Changed
+
+- [Deferred] Increase default retry limit to 20 and update default retry backoff to `(attempt**4) + 10 + (rand(15) * attempt)` by  [@anuj-pal27](https://github.com/anuj-pal27) (#271).
+
 ## [1.23.0] - 2026-04-15
 
 ### Fixed

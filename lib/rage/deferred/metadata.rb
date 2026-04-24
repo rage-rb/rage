@@ -30,6 +30,14 @@ class Rage::Deferred::Metadata
       !!task.__next_retry_in(attempts, nil)
     end
 
+    # Returns the number of seconds until the next retry, or `nil` if no retry will occur.
+    # The result is memoized per attempt so that the value reported here matches what the queue uses to schedule the retry.
+    # @return [Numeric, nil] retry delay in seconds, or `nil` if the task won't be retried
+    def will_retry_in
+      task = Rage::Deferred::Context.get_task(context)
+      task.__next_retry_in(attempts, nil)
+    end
+
     private
 
     def context
