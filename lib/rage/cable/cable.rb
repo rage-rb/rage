@@ -29,6 +29,9 @@
 # ```
 #
 module Rage::Cable
+  PUBSUB_BROADCASTER_ID = "cable"
+  private_constant :PUBSUB_BROADCASTER_ID
+
   # Create a new Cable application.
   #
   # @example
@@ -36,9 +39,6 @@ module Rage::Cable
   #     run Rage.cable.application
   #   end
   def self.application
-    # explicitly initialize the adapter
-    __adapter
-
     handler = __build_handler(__protocol)
     accept_response = [0, __protocol.protocol_definition, []]
 
@@ -62,6 +62,14 @@ module Rage::Cable
   end
 
   # @private
+  def self.__initialize
+    if (adapter = Rage.config.pubsub.adapter)
+      adapter.add_broadcaster(PUBSUB_BROADCASTER_ID, __protocol)
+      @__adapter = adapter
+    end
+  end
+
+  # @private
   def self.__router
     @__router ||= Router.new
   end
@@ -69,11 +77,6 @@ module Rage::Cable
   # @private
   def self.__protocol
     @__protocol ||= Rage.config.cable.protocol.tap { |protocol| protocol.init(__router) }
-  end
-
-  # @private
-  def self.__adapter
-    @__adapter ||= Rage.config.cable.adapter
   end
 
   # @private
@@ -142,7 +145,7 @@ module Rage::Cable
   def self.broadcast(stream, data)
     Rage::Telemetry.tracer.span_cable_stream_broadcast(stream:) do
       __protocol.broadcast(stream, data)
-      __adapter&.publish(stream, data)
+      @__adapter&.publish(PUBSUB_BROADCASTER_ID, stream, data)
     end
 
     true
@@ -174,11 +177,6 @@ module Rage::Cable
   #     end
   #   end
 
-  module Adapters
-    autoload :Base, "rage/cable/adapters/base"
-    autoload :Redis, "rage/cable/adapters/redis"
-  end
-
   module Protocols
   end
 
@@ -191,3 +189,9 @@ require_relative "protocols/raw_web_socket_json"
 require_relative "channel"
 require_relative "connection"
 require_relative "router"
+
+if Rage.config.internal.initialized?
+  Rage::Cable.__initialize
+else
+  Rage.config.after_initialize { Rage::Cable.__initialize }
+end
