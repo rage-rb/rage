@@ -640,33 +640,6 @@ class Rage::Configuration
         end
       end
     end
-
-    # @private
-    def config
-      @config ||= begin
-        config_file = Rage.root.join("config/cable.yml")
-
-        if config_file.exist?
-          yaml = ERB.new(config_file.read).result
-          YAML.safe_load(yaml, aliases: true, symbolize_names: true)[Rage.env.to_sym] || {}
-        else
-          {}
-        end
-      end
-    end
-
-    # @private
-    def adapter_config
-      config.except(:adapter)
-    end
-
-    # @private
-    def adapter
-      case config[:adapter]
-      when "redis"
-        Rage::Cable::Adapters::Redis.new(adapter_config)
-      end
-    end
   end
 
   class PublicFileServer
@@ -1056,6 +1029,7 @@ class Rage::Configuration
     def config
       @config ||= begin
         config_file = Rage.root.join("config/pubsub.yml")
+        config_file = Rage.root.join("config/cable.yml") unless config_file.exist?
 
         config = if config_file.exist?
           yaml = ERB.new(config_file.read).result
