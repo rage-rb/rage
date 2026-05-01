@@ -500,7 +500,7 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
 
       it "returns correct schema" do
-        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Photos" }], "paths" => { "/photos" => { "post" => { "summary" => "", "description" => "", "deprecated" => false, "requestBody" => { "content" => { "multipart/form-data" => { "schema" => { "type" => "object", "properties" => { "image" => { "type" => "string", "format" => "binary", "description" => "The photo to upload" } }, "required" => ["image"] } }, "application/json" => { "schema" => { "type" => "object", "properties" => { "email" => { "type" => "string" }, "password" => { "type" => "string" } } } } } }, "security" => [], "tags" => ["Photos"], "responses" => { "200" => { "description" => "" } } } } } })
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Photos" }], "paths" => { "/photos" => { "post" => { "summary" => "", "description" => "", "deprecated" => false, "requestBody" => { "content" => { "multipart/form-data" => { "schema" => { "type" => "object", "properties" => { "image" => { "type" => "string", "format" => "binary", "description" => "The photo to upload" } }, "required" => ["image"] } }, "application/json" => { "schema" => { "type" => "object", "properties" => { "email" => { "type" => "string" }, "password" => { "type" => "string" } }, "required" => ["email", "password"] } } } }, "security" => [], "tags" => ["Photos"], "responses" => { "200" => { "description" => "" } } } } } })
       end
     end
 
