@@ -23,7 +23,7 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
 
       it "returns correct schema" do
-        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "post" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } }, "requestBody" => { "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "email" => { "type" => "string" }, "password" => { "type" => "string" } } } } } } } } } })
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "post" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } }, "requestBody" => { "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "email" => { "type" => "string" }, "password" => { "type" => "string" } }, "required" => ["email", "password"] } } } } } } } })
       end
     end
 
@@ -156,7 +156,7 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
 
       it "returns correct schema" do
-        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "post" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } }, "requestBody" => { "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "email" => { "type" => "string" }, "password" => { "type" => "string" } } } } } } } } } })
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "post" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "" } }, "requestBody" => { "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "email" => { "type" => "string" }, "password" => { "type" => "string" } }, "required" => ["email", "password"] } } } } } } } })
       end
 
       it "logs error" do

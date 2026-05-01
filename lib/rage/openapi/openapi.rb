@@ -125,7 +125,7 @@ module Rage::OpenAPI
 
   # @private
   def self.__try_parse_collection(str)
-    if str =~ /^Array<([\w\s:\(\)]+)>$/ || str =~ /^\[([\w\s:\(\)]+)\]$/
+    if str =~ /^Array<([\w\s:\(\),]+)>$/ || str =~ /^\[([\w\s:\(\),]+)\]$/
       [true, $1]
     else
       [false, str]
