@@ -182,7 +182,8 @@ RSpec.describe Rage::OpenAPI::Parsers::YAML do
             "properties" => {
               "name" => { "type" => "string" },
               "email" => { "type" => "string" }
-            }
+            },
+            "required" => []
           })
         end
       end
@@ -264,7 +265,7 @@ RSpec.describe Rage::OpenAPI::Parsers::YAML do
             "type" => "object",
             "required" => ["statuses"],
             "properties" => {
-              "statuses" => { "type" => "array", "items" => { "type" => "string", "enum" => ["IN_PROGRESS", "COMPLETED"] } }
+              "statuses" => { "type" => "string", "enum" => ["IN_PROGRESS", "COMPLETED"] }
             }
           })
         end
