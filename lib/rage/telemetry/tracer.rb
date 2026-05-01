@@ -6,20 +6,18 @@ class Rage::Telemetry::Tracer
   private_constant :DEFAULT_SPAN_RESULT
 
   # @param spans_registry [Hash{String => Rage::Telemetry::Spans}]
-  # @param handlers_map [Hash{String => Array<Rage::Telemetry::HandlerRef>}]
-  def initialize(spans_registry, handlers_map)
+  def initialize(spans_registry)
     @spans_registry = spans_registry
-    @handlers_map = handlers_map
-
-    @all_handler_refs = handlers_map.values.flatten
 
     @spans_registry.each do |_, span|
       setup_noop(span)
     end
   end
 
-  def setup
-    @handlers_map.each do |span_id, handler_refs|
+  def setup(handlers_map)
+    @all_handler_refs = handlers_map.values.flatten
+
+    handlers_map.each do |span_id, handler_refs|
       setup_tracer(@spans_registry[span_id], handler_refs)
     end
   end

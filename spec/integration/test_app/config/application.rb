@@ -53,12 +53,48 @@ Rage.configure do
     end
   end
 
+  if ENV["ENABLE_RENDERERS"]
+    config.renderer(:html) do |content|
+      headers["content-type"] = "text/html"
+      content
+    end
+
+    config.after_initialize do
+      config.renderer(:erb) do |path, sse: false|
+        template = Rage.root.join("app/views/#{path}.html.erb").read
+        content = ERB.new(template).result(binding)
+
+        if sse
+          render sse: content
+        else
+          headers["content-type"] = "text/html"
+          content
+        end
+      end
+    end
+  end
+
   config.after_initialize do
     config.deferred.enqueue_middleware.use EnqueueMiddleware1
     config.deferred.enqueue_middleware.use EnqueueMiddleware2
 
     config.deferred.perform_middleware.use PerformMiddleware1
     config.deferred.perform_middleware.use PerformMiddleware2
+  end
+end
+
+class TestSseObserver < Rage::Telemetry::Handler
+  handle "sse.stream.process", with: :monitor_stream
+
+  def self.monitor_stream
+    Rage.logger.info "starting test sse stream"
+    yield
+  end
+end
+
+Rage.configure do
+  if ENV["ENABLE_TELEMETRY"]
+    config.telemetry.use TestSseObserver
   end
 end
 

@@ -128,5 +128,23 @@ RSpec.describe "File server" do
         expect(subject.code).to eq(404)
       end
     end
+
+    context "with shadowing an upgrade endpoint" do
+      let(:url) { "http://localhost:3000/sse/stream" }
+
+      before do
+        FileUtils.mkdir_p("spec/integration/test_app/public/sse")
+        File.write("spec/integration/test_app/public/sse/stream", "static stream file")
+      end
+
+      after do
+        FileUtils.rm_r("spec/integration/test_app/public/sse")
+      end
+
+      it "returns correct response" do
+        expect(subject.code).to eq(200)
+        expect(subject.to_s).to eq("static stream file")
+      end
+    end
   end
 end

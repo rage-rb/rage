@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
   spec.summary = "A modern Ruby framework designed for non-blocking I/O and simpler infrastructure"
   spec.homepage = "https://rage-rb.dev"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.2.0"
+  spec.required_ruby_version = ">= 3.3.0"
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/rage-rb/rage"
@@ -29,7 +29,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "thor", "~> 1.0"
   spec.add_dependency "rack", "< 4"
-  spec.add_dependency "rage-iodine", "~> 4.3"
+  spec.add_dependency "rage-iodine", "~> 5.2"
   spec.add_dependency "zeitwerk", "~> 2.6"
   spec.add_dependency "rack-test", "~> 2.1"
   spec.add_dependency "rake", ">= 12.0"

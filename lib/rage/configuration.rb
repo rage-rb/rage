@@ -139,6 +139,52 @@ class Rage::Configuration
   def after_initialize(&block)
     push_hook(block, :after_initialize)
   end
+
+  # Register a custom renderer that generates overloads `render` on all controllers.
+  # The block receives the object passed to `render` together with any additional keyword arguments.
+  # The code inside the block is executed in the context of the controller instance, so you can access all usual controller methods in it.
+  # The return value of the block is used as the response body.
+  #
+  # @param name [Symbol, String] the name of the renderer
+  # @param block [Proc] the rendering logic. The block is executed in the controller's context and its return value becomes the response body
+  # @raise [ArgumentError] if no block is given or if a renderer with the same name is already registered
+  #
+  # @example Register an ERB renderer
+  #   Rage.configure do
+  #     config.renderer(:erb) do |path, trim_mode: nil|
+  #       headers["content-type"] = "text/html"
+  #       template = File.read("app/views/#{path}.html.erb")
+  #
+  #       ERB.new(template, trim_mode:).result(binding)
+  #     end
+  #   end
+  # @example Use in a controller
+  #   class ReportsController < RageController::API
+  #     def index
+  #       render erb: "reports/index"
+  #     end
+  #   end
+  # @example Pass arguments
+  #   class ReportsController < RageController::API
+  #     def index
+  #       render erb: "reports/index", trim_mode: "%<>"
+  #     end
+  #   end
+  # @example Set response status
+  #   class ReportsController < RageController::API
+  #     def index
+  #       render erb: "reports/index", status: 202
+  #     end
+  #   end
+  def renderer(name, &block)
+    @renderers ||= {}
+    raise ArgumentError, "renderer requires a block" unless block_given?
+    name = name.to_sym
+    if @renderers.key?(name)
+      raise ArgumentError, "a renderer named :#{name} is already registered"
+    end
+    @renderers[name] = RendererEntry.new(block)
+  end
   # @!endgroup
 
   # @!group Middleware Configuration
@@ -218,6 +264,19 @@ class Rage::Configuration
     @session ||= Session.new
   end
   # @!endgroup
+
+  # @!group Router Configuration
+  # Allows configuring router settings.
+  # @return [Rage::Configuration::Router]
+  def router
+    @router ||= Router.new
+  end
+  # @!endgroup
+
+  # @private
+  def pubsub
+    @pubsub ||= PubSub.new
+  end
 
   # @private
   def internal
@@ -656,6 +715,39 @@ class Rage::Configuration
     # @private
     def initialize
       @configured = false
+      @schedule_blocks = []
+    end
+
+    # Stores the scheduling block for later execution
+    def schedule(&block)
+      @schedule_blocks << block
+    end
+
+    # Evaluates all stored schedule blocks and returns the collected tasks.
+    # Called at boot time after all app constants are loaded.
+    def scheduled_tasks
+      @schedule_blocks.flat_map do |block|
+        dsl = ScheduleDSL.new
+        dsl.instance_eval(&block)
+        dsl.tasks
+      end
+    end
+
+    # @private
+    class ScheduleDSL
+      attr_reader :tasks
+
+      def initialize
+        @tasks = []
+      end
+
+      # Registers a task to run on a fixed interval (in seconds)
+      def every(interval, task:)
+        unless task.is_a?(Class) && task.include?(Rage::Deferred::Task)
+          raise ArgumentError, "#{task} must be a class that includes Rage::Deferred::Task"
+        end
+        @tasks << { interval:, task: }
+      end
     end
 
     # Returns the backend instance used by `Rage::Deferred`.
@@ -937,6 +1029,48 @@ class Rage::Configuration
     attr_accessor :key
   end
 
+  class Router
+    # @!attribute form_actions
+    #   Enable the automatic generation of `new` and `edit` routes via resource helpers.
+    #   @return [Boolean]
+    #   @example Enable form actions
+    #     Rage.configure do
+    #       config.router.form_actions = true
+    #     end
+    attr_accessor :form_actions
+  end
+
+  # @private
+  class PubSub
+    attr_reader :adapter
+
+    def initialize
+      @adapter = if config.any?
+        case config[:adapter]
+        when "redis"
+          Rage::PubSub::Adapters::Redis.new(adapter_config)
+        end
+      end
+    end
+
+    def config
+      @config ||= begin
+        config_file = Rage.root.join("config/pubsub.yml")
+
+        config = if config_file.exist?
+          yaml = ERB.new(config_file.read).result
+          YAML.safe_load(yaml, aliases: true, symbolize_names: true)&.dig(Rage.env.to_sym)
+        end
+
+        config || {}
+      end
+    end
+
+    def adapter_config
+      config.except(:adapter)
+    end
+  end
+
   # @private
   class Internal
     attr_accessor :rails_mode
@@ -998,8 +1132,33 @@ class Rage::Configuration
       middleware.insert_before(::Rack::Events, Rage::BodyFinalizer)
     end
 
-    Rage::Telemetry.__setup if @telemetry
+    Rage::Telemetry.__setup(@telemetry.handlers_map) if @telemetry
+
+    __define_custom_renderers if @renderers
   end
+
+  # @private
+  class RendererEntry
+    attr_reader :block
+
+    def initialize(block)
+      @block = block
+      @applied = false
+    end
+
+    def applied? = @applied
+    def applied! = (@applied = true)
+  end
+  private_constant :RendererEntry
+
+  def __define_custom_renderers
+    @renderers.each do |name, entry|
+      next if entry.applied?
+      RageController::API.__register_renderer(name, entry.block)
+      entry.applied!
+    end
+  end
+  private :__define_custom_renderers
 end
 
 # @!parse [ruby]

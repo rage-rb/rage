@@ -186,29 +186,9 @@ class RageController::API
     end
 
     # @private
-    @@__dynamic_name_seed = ("a".."i").to_a.permutation
-
-    # @private
-    # define a method based on a block
-    def define_dynamic_method(block)
-      name = @@__dynamic_name_seed.next.join
-      define_method("__rage_dynamic_#{name}", block)
-    end
-
-    # @private
-    # define a method that will call a specified method if a condition is `true` or yield if `false`
-    def define_maybe_yield(method_name)
-      name = @@__dynamic_name_seed.next.join
-
-      class_eval <<~RUBY, __FILE__, __LINE__ + 1
-        def __rage_dynamic_#{name}(condition)
-          if condition
-            #{method_name} { yield }
-          else
-            yield
-          end
-        end
-      RUBY
+    def __register_renderer(name, block)
+      prepend(RageController::Renderers) unless ancestors.include?(RageController::Renderers)
+      RageController::Renderers.__register(name, block)
     end
 
     ############
@@ -234,7 +214,7 @@ class RageController::API
     def rescue_from(*klasses, with: nil, &block)
       unless with
         if block_given?
-          with = define_dynamic_method(block)
+          with = Rage::Internal.define_dynamic_method(self, block)
         else
           raise ArgumentError, "No handler provided. Pass the `with` keyword argument or provide a block."
         end
@@ -308,7 +288,7 @@ class RageController::API
     #   end
     def around_action(action_name = nil, **opts, &block)
       action = prepare_action_params(action_name, **opts, &block)
-      action.merge!(around: true, wrapper: define_maybe_yield(action[:name]))
+      action.merge!(around: true, wrapper: Rage::Internal.define_maybe_yield(self, action[:name]))
 
       if @__before_actions && @__before_actions.frozen?
         @__before_actions = @__before_actions.dup
@@ -423,7 +403,7 @@ class RageController::API
     # used by `before_action` and `after_action`
     def prepare_action_params(action_name = nil, **opts, &block)
       if block_given?
-        action_name = define_dynamic_method(block)
+        action_name = Rage::Internal.define_dynamic_method(self, block)
       elsif action_name.nil?
         raise ArgumentError, "No handler provided. Pass the `action_name` parameter or provide a block."
       end
@@ -438,18 +418,21 @@ class RageController::API
         unless: _unless
       }
 
-      action[:if] = define_dynamic_method(action[:if]) if action[:if].is_a?(Proc)
-      action[:unless] = define_dynamic_method(action[:unless]) if action[:unless].is_a?(Proc)
+      action[:if] = Rage::Internal.define_dynamic_method(self, action[:if]) if action[:if].is_a?(Proc)
+      action[:unless] = Rage::Internal.define_dynamic_method(self, action[:unless]) if action[:unless].is_a?(Proc)
 
       action
     end
   end # class << self
 
+  DEFAULT_CONTENT_TYPE = "application/json; charset=utf-8"
+  private_constant :DEFAULT_CONTENT_TYPE
+
   # @private
   def initialize(env, params)
     @__env = env
     @__params = params
-    @__status, @__headers, @__body = 204, { "content-type" => "application/json; charset=utf-8" }, []
+    @__status, @__headers, @__body = 204, { "content-type" => DEFAULT_CONTENT_TYPE }, []
     @__rendered = false
   end
 
@@ -480,27 +463,36 @@ class RageController::API
     @session ||= Rage::Session.new(cookies)
   end
 
-  # Send a response to the client.
+  # Send a response to the client. Keywords corresponding to custom renderers (see {Rage::Configuration#renderer}) will be delegated automatically.
   #
-  # @param json [String, Object] send a json response to the client; objects like arrays will be serialized automatically
-  # @param plain [String] send a text response to the client
+  # @param json [String, #to_json] send a json response to the client; objects will be serialized automatically
+  # @param plain [#to_s] send a text response to the client
+  # @param sse [#each, Proc, #to_json] send an SSE response to the client
   # @param status [Integer, Symbol] set a response status
-  # @example
+  # @example Render a JSON object
   #   render json: { hello: "world" }
-  # @example
+  # @example Set a response status
   #   render status: :ok
-  # @example
-  #   render plain: "hello world", status: 201
+  # @example Render an SSE stream
+  #   render sse: "hello world".each_char
+  # @example Render a one-off SSE update
+  #   render sse: { message: "hello world" }
+  # @example Write to an SSE connection manually
+  #   render sse: ->(connection) do
+  #     connection.write("data: Hello, World!\n\n")
+  #     connection.close
+  #   end
   # @note `render` doesn't terminate execution of the action, so if you want to exit an action after rendering, you need to do something like `render(...) and return`.
-  def render(json: nil, plain: nil, status: nil)
-    raise "Render was called multiple times in this action" if @__rendered
+  def render(json: nil, plain: nil, sse: nil, status: nil)
+    raise "Render was called multiple times in this action." if @__rendered
     @__rendered = true
 
     if json || plain
       @__body << if json
         json.is_a?(String) ? json : json.to_json
       else
-        headers["content-type"] = "text/plain; charset=utf-8"
+        ct = @__headers["content-type"]
+        @__headers["content-type"] = "text/plain; charset=utf-8" if ct.nil? || ct == DEFAULT_CONTENT_TYPE
         plain.to_s
       end
 
@@ -513,6 +505,20 @@ class RageController::API
       else
         status
       end
+    end
+
+    if sse
+      raise ArgumentError, "Cannot render both a standard body and an SSE stream." unless @__body.empty?
+
+      if status
+        return if @__status == 204
+        raise ArgumentError, "SSE responses only support 200 and 204 statuses." if @__status != 200
+      end
+
+      @__env["rack.upgrade?"] = :sse
+      @__env["rack.upgrade"] = Rage::SSE::Application.new(sse)
+      @__status = 200
+      @__headers["content-type"] = "text/event-stream; charset=utf-8"
     end
   end
 

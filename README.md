@@ -4,7 +4,7 @@
 
 [![Gem Version](https://badge.fury.io/rb/rage-rb.svg)](https://badge.fury.io/rb/rage-rb)
 ![Tests](https://github.com/rage-rb/rage/actions/workflows/main.yml/badge.svg)
-![Ruby Requirement](https://img.shields.io/badge/Ruby-3.2%2B-%23f40000)
+![Ruby Requirement](https://img.shields.io/badge/Ruby-3.3%2B-%23f40000)
 
 **Rage** is an API-first Ruby framework with a modern, fiber-based runtime that enables transparent, non-blocking concurrency while preserving familiar developer ergonomics. It focuses on **capability and operational simplicity**, letting teams build production-grade systems in a single, coherent runtime.
 

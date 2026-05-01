@@ -28,6 +28,12 @@ class Rage::Tasks
         end
       end)
 
+      begin
+        StandaloneMigrations::MinimalRailtieConfig.paths["lib/tasks"] = []
+      rescue => e
+        warn("WARNING: Failed to disable StandaloneMigrations task auto-loading (#{e.class}: #{e.message})")
+      end
+
       StandaloneMigrations::Tasks.load_tasks
     end
 

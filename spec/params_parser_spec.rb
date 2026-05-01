@@ -22,7 +22,7 @@ RSpec.describe Rage::ParamsParser do
       "multipart/form-data; boundary=--aa123"
     end
   end
-  let(:rack_input) { instance_double(StringIO, read: body) }
+  let(:rack_input) { instance_double(StringIO, read: body, rewind: 0) }
 
   let(:env) do
     {
@@ -160,8 +160,8 @@ RSpec.describe Rage::ParamsParser do
     let(:body) { "test" }
     let(:content_type) { "text/plain" }
 
-    it "defaults to multipart" do
-      expect(Iodine::Rack::Utils).to receive(:parse_multipart).once
+    it "does not read the body" do
+      expect(rack_input).to_not receive(:read)
       subject
     end
   end
@@ -190,6 +190,16 @@ RSpec.describe Rage::ParamsParser do
 
     it "returns merged params" do
       expect(subject).to eq({ id: "13", timestamp: "1539343257" })
+    end
+  end
+
+  context "with unknown content-type body and query string" do
+    let(:body) { "test" }
+    let(:content_type) { "text/plain" }
+    let(:query_params) { { timestamp: "1539343257" } }
+
+    it "returns query params" do
+      expect(subject).to eq({ timestamp: "1539343257" })
     end
   end
 
@@ -297,6 +307,74 @@ RSpec.describe Rage::ParamsParser do
 
       it "prioritizes url params" do
         expect(subject).to eq({ id: "11" })
+      end
+    end
+  end
+
+  context "with unknown content-type body and query and url params" do
+    let(:body) { "test" }
+    let(:content_type) { "text/plain" }
+    let(:url_params) { { location_id: "11" } }
+    let(:query_params) { { product_id: "12" } }
+
+    it "returns merged params" do
+      expect(subject).to eq({ location_id: "11", product_id: "12" })
+    end
+
+    context "with conflicting params" do
+      let(:url_params) { { id: "11" } }
+      let(:query_params) { { id: "12" } }
+
+      it "prioritizes url params" do
+        expect(subject).to eq({ id: "11" })
+      end
+    end
+  end
+
+  context "when rack.input has been consumed by middleware" do
+    let(:url_params) { {} }
+
+    context "with json body" do
+      let(:raw_body) { '{"id":5,"name":"test"}' }
+      let(:rack_input) { StringIO.new(raw_body) }
+      let(:env) do
+        {
+          "IODINE_HAS_BODY" => true,
+          "QUERY_STRING" => "",
+          "CONTENT_TYPE" => "application/json",
+          "rack.input" => rack_input
+        }
+      end
+
+      before do
+        rack_input.read
+        allow(JSON).to receive(:parse).with(raw_body, symbolize_names: true).and_return({ id: 5, name: "test" })
+      end
+
+      it "can still parse the body after rewind" do
+        expect(subject).to eq({ id: 5, name: "test" })
+      end
+    end
+
+    context "with urlencoded body" do
+      let(:raw_body) { "id=15&name=test" }
+      let(:rack_input) { StringIO.new(raw_body) }
+      let(:env) do
+        {
+          "IODINE_HAS_BODY" => true,
+          "QUERY_STRING" => "",
+          "CONTENT_TYPE" => "application/x-www-form-urlencoded",
+          "rack.input" => rack_input
+        }
+      end
+
+      before do
+        rack_input.read
+        allow(Iodine::Rack::Utils).to receive(:parse_urlencoded_nested_query).with(raw_body).and_return({ id: "15", name: "test" })
+      end
+
+      it "can still parse the body after rewind" do
+        expect(subject).to eq({ id: "15", name: "test" })
       end
     end
   end

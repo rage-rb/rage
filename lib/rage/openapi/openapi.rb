@@ -114,6 +114,11 @@ module Rage::OpenAPI
   end
 
   # @private
+  def self.__schema_registry
+    __data_cache[:schema_registry] ||= {}
+  end
+
+  # @private
   def self.__reset_data_cache
     __data_cache.clear
   end
@@ -153,9 +158,20 @@ module Rage::OpenAPI
       { "type" => "string", "format" => "date-time" }
     when "String"
       { "type" => "string" }
+    when "File"
+      { "type" => "string", "format" => "binary" }
     else
       { "type" => "string" } if default
     end
+  end
+
+  # @private
+  def self.__resolve_resource(klass_str, namespace)
+    return nil if klass_str.nil?
+    namespace.const_get(klass_str)
+  rescue NameError
+    __log_warn("could not resolve resource: #{klass_str}")
+    nil
   end
 
   # @private

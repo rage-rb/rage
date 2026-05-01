@@ -83,9 +83,15 @@ module Rage::Deferred
   end
 
   # @private
+  def self.__start_scheduler
+    Rage::Deferred::Scheduler.start(Rage.config.deferred.scheduled_tasks)
+  end
+
+  # @private
   def self.__initialize
     __middleware_chain
     __load_tasks
+    __start_scheduler
   end
 
   module Backends
@@ -96,6 +102,7 @@ module Rage::Deferred
 end
 
 require_relative "task"
+require_relative "scheduler"
 require_relative "queue"
 require_relative "proxy"
 require_relative "context"
