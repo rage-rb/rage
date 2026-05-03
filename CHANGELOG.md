@@ -14,6 +14,7 @@
 ### Changed
 
 - [Deferred] Increase default retry limit to 20 and update default retry backoff to `(attempt**4) + 10 + (rand(15) * attempt)` by  [@anuj-pal27](https://github.com/anuj-pal27) (#271).
+- Update `Rage::Cable` to use the new `PubSub` module (#281).
 
 ## [1.23.0] - 2026-04-15
 
