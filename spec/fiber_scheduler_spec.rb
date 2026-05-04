@@ -365,12 +365,12 @@ RSpec.describe Rage::FiberScheduler do
     it "correctly interrupts a fiber" do
       within_reactor do
         error = begin
-          r, w = IO.pipe
+          r, _ = IO.pipe
 
           child = Fiber.schedule do
             r.gets
           end
-          
+
           Fiber.schedule do
             r.close # This will interrupt the child fiber.
           end
