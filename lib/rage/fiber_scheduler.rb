@@ -12,7 +12,11 @@ class Rage::FiberScheduler
 
   def io_wait(io, events, timeout = nil)
     f = Fiber.current
-    ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil) { |err| f.resume(err) }
+    gen = (f.__wait_generation += 1)
+
+    ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil) do |err|
+      f.resume(err) if f.alive? && gen == f.__wait_generation
+    end
 
     err = Fiber.defer(io.fileno)
     if err == false || (err && err < 0)
@@ -91,13 +95,16 @@ class Rage::FiberScheduler
   end
 
   def block(_blocker, timeout = nil)
-    f, fulfilled, channel = Fiber.current, false, Fiber.current.__block_channel(true)
+    f, fulfilled = Fiber.current, false
+
+    gen = (f.__wait_generation += 1)
+    channel = f.__block_channel = "block:#{f.object_id}:#{gen}"
 
     resume_fiber_block = proc do
       unless fulfilled
         fulfilled = true
         ::Iodine.defer { ::Iodine.unsubscribe(channel) }
-        f.resume if f.alive?
+        f.resume if f.alive? && gen == f.__wait_generation
       end
     end
 
@@ -110,7 +117,12 @@ class Rage::FiberScheduler
   end
 
   def unblock(_blocker, fiber)
-    ::Iodine.publish(fiber.__block_channel, "", Iodine::PubSub::PROCESS)
+    ::Iodine.publish(fiber.__block_channel, "", Iodine::PubSub::PROCESS) if fiber.__block_channel
+  end
+
+  def fiber_interrupt(fiber, exception)
+    fiber.__wait_generation += 1
+    fiber.raise(exception)
   end
 
   def fiber(&block)
@@ -131,13 +143,14 @@ class Rage::FiberScheduler
           Fiber.current.__set_result(block.call)
         end
         # send a message for `Fiber.await` to work
-        Iodine.publish(parent.__await_channel, "", Iodine::PubSub::PROCESS) if parent.alive?
+        Iodine.publish(parent.__await_channel, "", Iodine::PubSub::PROCESS) if parent.__await_channel
       rescue Exception => e
         Fiber.current.__set_err(e)
-        Iodine.publish(parent.__await_channel, Fiber::AWAIT_ERROR_MESSAGE, Iodine::PubSub::PROCESS) if parent.alive?
+        Iodine.publish(parent.__await_channel, Fiber::AWAIT_ERROR_MESSAGE, Iodine::PubSub::PROCESS) if parent.__await_channel
       end
     end
 
+    fiber.__wait_generation = 0
     fiber.resume
 
     fiber

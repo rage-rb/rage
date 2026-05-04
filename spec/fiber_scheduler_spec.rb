@@ -356,4 +356,163 @@ RSpec.describe Rage::FiberScheduler do
       -> { raise e }
     end
   end
+
+  context "fiber interruption" do
+    before do
+      skip("skipping on Ruby < 4") if Gem::Version.create(RUBY_VERSION) < Gem::Version.create(4)
+    end
+
+    it "correctly interrupts a fiber" do
+      within_reactor do
+        error = begin
+          r, w = IO.pipe
+
+          child = Fiber.schedule do
+            r.gets
+          end
+          
+          Fiber.schedule do
+            r.close # This will interrupt the child fiber.
+          end
+
+          Fiber.await(child)
+        rescue => e
+          e
+        end
+
+        -> { expect(error).to be_a(IOError) }
+      end
+    end
+  end
+
+  context "with wait generation tracking" do
+    it "initializes __wait_generation to 0 for scheduled fibers" do
+      within_reactor do
+        fiber = Fiber.schedule { Fiber.current.__wait_generation }
+        result = Fiber.await(fiber)
+
+        -> { expect(result).to eq([0]) }
+      end
+    end
+
+    it "increments __wait_generation on each block call" do
+      queue1 = Queue.new
+      queue2 = Queue.new
+
+      Thread.new do
+        sleep 0.2
+        queue1 << "first"
+        sleep 0.2
+        queue2 << "second"
+      end
+
+      within_reactor do
+        gen_before = Fiber.current.__wait_generation
+        queue1.pop
+        gen_after_first = Fiber.current.__wait_generation
+        queue2.pop
+        gen_after_second = Fiber.current.__wait_generation
+
+        -> do
+          expect(gen_after_first).to eq(gen_before + 1)
+          expect(gen_after_second).to eq(gen_before + 2)
+        end
+      end
+    end
+
+    it "increments __wait_generation on Fiber.await" do
+      within_reactor do
+        gen_before = Fiber.current.__wait_generation
+
+        Fiber.await(Fiber.schedule { sleep 0.1 })
+        gen_after_first = Fiber.current.__wait_generation
+
+        Fiber.await(Fiber.schedule { sleep 0.1 })
+        gen_after_second = Fiber.current.__wait_generation
+
+        -> do
+          expect(gen_after_first).to eq(gen_before + 1)
+          expect(gen_after_second).to eq(gen_before + 2)
+        end
+      end
+    end
+
+    it "prevents stale resume when fiber moves to new wait state" do
+      queue1 = Queue.new
+      queue2 = Queue.new
+      old_channel = nil
+      results = []
+
+      within_reactor do
+        fiber = Fiber.schedule do
+          f = Fiber.current
+
+          # Start a thread that will:
+          # 1. Unblock the first wait
+          # 2. Capture the old channel
+          # 3. Try to publish to the old channel while fiber is in second wait
+          Thread.new do
+            sleep 0.1
+            old_channel = f.__block_channel
+            queue1 << "first"
+
+            sleep 0.2
+            # Try to publish to the old channel (simulating a stale unblock)
+            # This shouldn't resume the fiber because generation has changed
+            Iodine.publish(old_channel, "", Iodine::PubSub::PROCESS)
+          end
+
+          results << queue1.pop
+          results << "starting second wait"
+
+          # Start second unblock thread
+          Thread.new { sleep 0.5; queue2 << "second" }
+
+          # Now block on second queue - stale resume from old_channel should be ignored
+          results << queue2.pop
+          results
+        end
+
+        result = Fiber.await(fiber)
+        -> { expect(result.first).to eq(["first", "starting second wait", "second"]) }
+      end
+    end
+
+    it "fiber_interrupt increments generation before raising" do
+      test_fiber = nil
+      generation_before = nil
+      generation_in_rescue = nil
+
+      within_reactor do
+        test_fiber = Fiber.schedule do
+          generation_before = Fiber.current.__wait_generation
+
+          begin
+            sleep 10 # Block for a long time
+          rescue => e
+            generation_in_rescue = Fiber.current.__wait_generation
+            raise e
+          end
+        end
+
+        # Give the fiber time to start sleeping
+        sleep 0.1
+
+        # Interrupt the fiber
+        Fiber.scheduler.fiber_interrupt(test_fiber, RuntimeError.new("interrupted"))
+
+        # Wait for fiber to process the exception
+        sleep 0.1
+
+        -> do
+          # generation_before is 0 (after init)
+          # sleep increments to 1
+          # fiber_interrupt increments to 2
+          expect(generation_in_rescue).to eq(generation_before + 2)
+          expect(test_fiber.__get_err).to be_a(RuntimeError)
+          expect(test_fiber.__get_err.message).to eq("interrupted")
+        end
+      end
+    end
+  end
 end

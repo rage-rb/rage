@@ -111,23 +111,7 @@ class Fiber
   end
 
   # @private
-  def __block_channel(force = false)
-    @__block_channel_i ||= 0
-    @__block_channel_i += 1 if force
-
-    "block:#{object_id}:#{@__block_channel_i}"
-  end
-
-  # @private
-  def __await_channel(force = false)
-    @__fiber_channel_i ||= 0
-    @__fiber_channel_i += 1 if force
-
-    "await:#{object_id}:#{@__fiber_channel_i}"
-  end
-
-  # @private
-  attr_accessor :__awaited_fileno
+  attr_accessor :__awaited_fileno, :__wait_generation, :__block_channel, :__await_channel
 
   # @private
   # pause a fiber and resume in the next iteration of the event loop
@@ -156,7 +140,9 @@ class Fiber
   # @note This method should only be used when multiple fibers have to be processed in parallel. There's no need to use `Fiber.await` for single IO calls.
   def self.await(fibers)
     f, fibers = Fiber.current, Array(fibers)
-    await_channel = f.__await_channel(true)
+
+    gen = (f.__wait_generation += 1)
+    channel = f.__await_channel = "await:#{f.object_id}:#{gen}"
 
     Rage::Telemetry.tracer.span_core_fiber_await(fibers:) do
       # check which fibers are alive (i.e. have yielded) and which have errored out
@@ -179,17 +165,21 @@ class Fiber
       end
 
       # wait on async fibers; resume right away if one of the fibers errors out
-      Iodine.subscribe(await_channel) do |_, err|
-        if err == AWAIT_ERROR_MESSAGE
-          f.resume
+      Iodine.subscribe(channel) do |_, err|
+        done = if err == AWAIT_ERROR_MESSAGE
+          true
         else
           num_wait_for -= 1
-          f.resume if num_wait_for == 0
+          num_wait_for == 0
+        end
+
+        if done
+          Iodine.defer { Iodine.unsubscribe(channel) }
+          f.resume if f.alive? && gen == f.__wait_generation
         end
       end
 
       Fiber.defer(-1)
-      Iodine.defer { Iodine.unsubscribe(await_channel) }
 
       # if num_wait_for is not 0 means we exited prematurely because of an error
       if num_wait_for > 0

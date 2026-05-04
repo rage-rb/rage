@@ -108,16 +108,22 @@ RSpec.describe Fiber do
   end
 
   it "correctly watches on an empty list" do
-    expect(Fiber.await([])).to eq([])
+    within_reactor do
+      result = Fiber.await([])
+      -> { expect(result).to eq([]) }
+    end
   end
 
   it "correctly watches on terminated fibers" do
     within_reactor do
       fiber = Fiber.schedule { 125 }
 
+      result_1 = Fiber.await(fiber)
+      result_2 = Fiber.await(fiber)
+
       -> do
-        expect(Fiber.await(fiber)).to eq([125])
-        expect(Fiber.await(fiber)).to eq([125])
+        expect(result_1).to eq([125])
+        expect(result_2).to eq([125])
       end
     end
   end
@@ -191,6 +197,42 @@ RSpec.describe Fiber do
       Fiber.await(Fiber.schedule { sleep 0.3 })
 
       -> {}
+    end
+  end
+
+  context "with wait generation tracking" do
+    it "uses unique await channels for each Fiber.await call" do
+      within_reactor do
+        channels = []
+
+        Fiber.await(Fiber.schedule { sleep 0.05 })
+        channels << Fiber.current.__await_channel
+
+        Fiber.await(Fiber.schedule { sleep 0.05 })
+        channels << Fiber.current.__await_channel
+
+        Fiber.await(Fiber.schedule { sleep 0.05 })
+        channels << Fiber.current.__await_channel
+
+        -> { expect(channels.uniq.size).to eq(3) }
+      end
+    end
+
+    it "increments __wait_generation for each await" do
+      within_reactor do
+        generations = [Fiber.current.__wait_generation]
+
+        Fiber.await(Fiber.schedule { sleep 0.05 })
+        generations << Fiber.current.__wait_generation
+
+        Fiber.await(Fiber.schedule { sleep 0.05 })
+        generations << Fiber.current.__wait_generation
+
+        -> do
+          expect(generations[1]).to eq(generations[0] + 1)
+          expect(generations[2]).to eq(generations[0] + 2)
+        end
+      end
     end
   end
 end
