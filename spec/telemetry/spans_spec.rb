@@ -43,7 +43,6 @@ RSpec.describe Rage::Telemetry::Spans do
 
       expect(verifier).to receive(:call).with({ id: "core.fiber.await", name: "Fiber.await", fibers: [f1, f2] })
 
-      Fiber.current.__wait_generation = 0
       Fiber.await([f1, f2])
     end
   end

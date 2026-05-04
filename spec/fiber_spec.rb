@@ -108,22 +108,16 @@ RSpec.describe Fiber do
   end
 
   it "correctly watches on an empty list" do
-    within_reactor do
-      result = Fiber.await([])
-      -> { expect(result).to eq([]) }
-    end
+    expect(Fiber.await([])).to eq([])
   end
 
   it "correctly watches on terminated fibers" do
     within_reactor do
       fiber = Fiber.schedule { 125 }
 
-      result_1 = Fiber.await(fiber)
-      result_2 = Fiber.await(fiber)
-
       -> do
-        expect(result_1).to eq([125])
-        expect(result_2).to eq([125])
+        expect(Fiber.await(fiber)).to eq([125])
+        expect(Fiber.await(fiber)).to eq([125])
       end
     end
   end

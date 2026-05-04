@@ -141,6 +141,7 @@ class Fiber
   def self.await(fibers)
     f, fibers = Fiber.current, Array(fibers)
 
+    f.__wait_generation ||= 0
     gen = (f.__wait_generation += 1)
     channel = f.__await_channel = "await:#{f.object_id}:#{gen}"
 
