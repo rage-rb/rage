@@ -206,6 +206,7 @@ Rage is a good fit if you:
 - Documentation: [https://rage-rb.dev](https://rage-rb.dev/docs/intro)
 - API Reference: [https://rage-rb.dev/api](https://rage-rb.dev/api)
 - Architecture: [ARCHITECTURE.md](https://github.com/rage-rb/rage/blob/main/ARCHITECTURE.md)
+- Contributing: [CONTRIBUTING.md](https://github.com/rage-rb/rage/blob/main/CONTRIBUTING.md)
 
 Contributions and thoughtful feedback are welcome.
 
