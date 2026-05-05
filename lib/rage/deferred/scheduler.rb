@@ -2,12 +2,10 @@
 
 # @private
 class Rage::Deferred::Scheduler
-  LOCK_PATH = "/tmp/rage_deferred_scheduler.lock"
-
   def self.start(tasks)
     return if tasks.empty?
 
-    Rage::Internal.pick_a_worker(lock_path: LOCK_PATH) do
+    Rage::Internal.pick_a_worker(purpose: "deferred-scheduler") do
       puts("INFO: #{Process.pid} is managing scheduled tasks.") if Rage.logger.info?
       register_timers(tasks)
     end
