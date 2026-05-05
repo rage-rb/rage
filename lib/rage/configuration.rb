@@ -691,11 +691,18 @@ class Rage::Configuration
       @schedule_blocks = []
     end
 
-    # Stores the scheduling block for later execution
+    # Schedule a periodic task to run at a fixed interval.
+    # @example
+    #   Rage.configure do
+    #     config.deferred.schedule do
+    #       every 5.minutes, task: ClearCache
+    #     end
+    #   end
     def schedule(&block)
       @schedule_blocks << block
     end
 
+    # @private
     # Evaluates all stored schedule blocks and returns the collected tasks.
     # Called at boot time after all app constants are loaded.
     def scheduled_tasks
