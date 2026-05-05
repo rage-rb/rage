@@ -7,8 +7,8 @@ class Rage::Deferred::Scheduler
     return if tasks.empty?
 
     Rage::Internal.pick_a_worker(lock_path: LOCK_PATH) do
-      Rage.logger.info " Worker PID #{Process.pid} is managing scheduled tasks"
-      register_timers tasks
+      puts("INFO: #{Process.pid} is managing scheduled tasks.") if Rage.logger.info?
+      register_timers(tasks)
     end
   end
 
