@@ -97,21 +97,29 @@ RSpec.describe Rage::Internal do
 
   describe ".pick_a_worker" do
     let(:on_start_callbacks) { [] }
+    let(:on_finish_callbacks) { [] }
 
     before do
       allow(Iodine).to receive(:running?).and_return(false)
       allow(Iodine).to receive(:on_state).with(:on_start) do |&block|
         on_start_callbacks << block
       end
+
+      allow(Iodine).to receive(:on_state).with(:on_finish) do |&block|
+        on_finish_callbacks << block
+      end
+
+      allow(File).to receive(:open).and_return(lock_file)
     end
 
+    let(:lock_file) { Tempfile.create }
+
     after do
-      described_class.instance_variable_set(:@lock_file, nil)
-      described_class.instance_variable_set(:@worker_lock, nil)
+      described_class.send(:worker_locks).clear
     end
 
     it "registers a callback" do
-      described_class.pick_a_worker { "work" }
+      described_class.pick_a_worker(purpose: "test") { "work" }
 
       expect(Iodine).to have_received(:on_state).with(:on_start)
       expect(on_start_callbacks.size).to eq(1)
@@ -120,27 +128,30 @@ RSpec.describe Rage::Internal do
     it "executes the block immediately when Iodine is already running" do
       allow(Iodine).to receive(:running?).and_return(true)
       executed = false
-      described_class.pick_a_worker { executed = true }
+      described_class.pick_a_worker(purpose: "test") { executed = true }
       expect(executed).to be(true)
     end
 
     it "creates a lock file" do
-      described_class.pick_a_worker { "work" }
+      described_class.pick_a_worker(purpose: "test") { "work" }
 
-      lock_file = described_class.instance_variable_get(:@lock_file)
+      on_start_callbacks.first.call
+
       expect(File.exist?(lock_file.path)).to be(true)
     end
 
-    it "uses provided lock_path instead of creating a new tempfile" do
-      lock_path = Tempfile.new.path
-      expect(Tempfile).not_to receive(:new)
-      described_class.pick_a_worker(lock_path: lock_path) { "work" }
+    it "deletes the lock file" do
+      described_class.pick_a_worker(purpose: "test") { "work" }
+
       on_start_callbacks.first.call
+      on_finish_callbacks.first.call
+
+      expect(File.exist?(lock_file.path)).to be(false)
     end
 
     it "executes the block when lock is acquired" do
       executed = false
-      described_class.pick_a_worker { executed = true }
+      described_class.pick_a_worker(purpose: "test") { executed = true }
 
       on_start_callbacks.first.call
 
@@ -148,19 +159,17 @@ RSpec.describe Rage::Internal do
     end
 
     it "stores the worker lock when acquired" do
-      described_class.pick_a_worker { "work" }
+      described_class.pick_a_worker(purpose: "test") { "work" }
 
       on_start_callbacks.first.call
 
-      worker_lock = described_class.instance_variable_get(:@worker_lock)
-      expect(worker_lock).to be_a(File)
+      worker_lock = described_class.send(:worker_locks).first
+      expect(worker_lock).to eq(lock_file)
     end
 
     it "does not execute the block when lock cannot be acquired" do
       executed = false
-      described_class.pick_a_worker { executed = true }
-
-      lock_file = described_class.instance_variable_get(:@lock_file)
+      described_class.pick_a_worker(purpose: "test") { executed = true }
 
       external_lock = File.new(lock_file.path)
       external_lock.flock(File::LOCK_EX | File::LOCK_NB)
@@ -174,9 +183,7 @@ RSpec.describe Rage::Internal do
 
     it "allows only one worker to execute the block" do
       execution_count = 0
-      described_class.pick_a_worker { execution_count += 1 }
-
-      lock_file = described_class.instance_variable_get(:@lock_file)
+      described_class.pick_a_worker(purpose: "test") { execution_count += 1 }
 
       on_start_callbacks.first.call
       expect(execution_count).to eq(1)

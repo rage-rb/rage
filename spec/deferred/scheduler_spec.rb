@@ -3,7 +3,7 @@
 RSpec.describe Rage::Deferred::Scheduler do
   let(:task) { double("Rage::Deferred::Task") }
   let(:tasks) { [{ interval: 60, task: task }] }
-  let(:logger) { double("Logger", info: nil) }
+  let(:logger) { double("Logger", info: nil, info?: true) }
 
   before do
     allow(Rage).to receive(:logger).and_return(logger)
@@ -15,7 +15,7 @@ RSpec.describe Rage::Deferred::Scheduler do
   describe ".start" do
     it "does not start when no tasks are configured" do
       described_class.start([])
-      expect(Iodine).not_to have_received(:run_every)
+      expect(Rage::Internal).not_to have_received(:pick_a_worker)
     end
 
     it "registers timers when leader is elected" do
@@ -40,14 +40,26 @@ RSpec.describe Rage::Deferred::Scheduler do
     end
 
     it "calls enqueue on the task when timer fires" do
+      allow(Rage.env).to receive(:development?).and_return(false)
       allow(Iodine).to receive(:run_every).with(60_000) { |&block| block.call }
       described_class.start(tasks)
       expect(task).to have_received(:enqueue)
     end
 
-    it "passes the correct lock path to pick_a_worker" do
+    it "reloads the task in development" do
+      allow(Rage.env).to receive(:development?).and_return(true)
+
+      allow(task).to receive(:name).and_return("TestTask")
+      stub_const("TestTask", task)
+
+      allow(Iodine).to receive(:run_every).with(60_000) { |&block| block.call }
       described_class.start(tasks)
-      expect(Rage::Internal).to have_received(:pick_a_worker).with(lock_path: Rage::Deferred::Scheduler::LOCK_PATH)
+      expect(task).to have_received(:enqueue)
+    end
+
+    it "passes the correct purpose to pick_a_worker" do
+      described_class.start(tasks)
+      expect(Rage::Internal).to have_received(:pick_a_worker).with(purpose: "deferred-scheduler")
     end
   end
 end
