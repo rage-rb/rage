@@ -56,12 +56,15 @@ RSpec.describe Rage::SSE::Application do
       logger = double("logger")
       allow(Rage).to receive(:logger).and_return(logger)
       allow(logger).to receive(:error)
+      allow(Rage::Errors).to receive(:report)
 
       expect(Iodine).to receive(:task_inc!)
       expect(Iodine).to receive(:task_dec!)
 
       app = described_class.new(stream)
       app.on_open(connection)
+
+      expect(Rage::Errors).to have_received(:report).with(instance_of(RuntimeError))
     end
   end
 

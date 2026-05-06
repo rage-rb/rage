@@ -74,11 +74,14 @@ RSpec.describe Rage::Events do
 
     context "with exception" do
       it "it re-raises the exception" do
+        allow(Rage::Errors).to receive(:report)
         expect(logger).to receive(:error).with(/Subscriber failed with exception: RuntimeError/)
 
         expect {
           EventsDeferredSpec::EventWithExceptionSubscriber.new.perform(EventsDeferredSpec::EventWithException.new)
         }.to raise_error(RuntimeError, "test")
+
+        expect(Rage::Errors).not_to have_received(:report)
       end
     end
   end

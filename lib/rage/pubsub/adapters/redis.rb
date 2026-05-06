@@ -136,6 +136,7 @@ class Rage::PubSub::Adapters::Redis
 
       rescue RedisClient::Error => e
         Rage.logger.error("Subscriber error: #{e.message} (#{e.class})")
+        Rage::Errors.report(e)
         sleep error_backoff_intervals.next
       rescue SystemCallError => e
         @stopping ? break : raise(e)

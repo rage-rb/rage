@@ -7,6 +7,7 @@
 - Add the `form_actions` router configuration (#278).
 - [Deferred] Add native periodic task scheduling with multi-process leader election via `File#flock` by [@Abishekcs](https://github.com/Abishekcs) (#233).
 - [OpenAPI] Support optional attributes and `Array<>` syntax by [@ayushman1210](https://github.com/ayushman1210) (#228).
+- [Errors] Add centralized error reporting interface via `Rage.errors` and `config.error_handlers` by [@Digvijay-x1](https://github.com/Digvijay-x1) (#275).
 
 ### Fixed
 

@@ -331,7 +331,8 @@ class Rage::Cable::Channel
               Fiber.schedule do
                 slice.each { |channel| callback.call(channel) }
               rescue => e
-                Rage.logger.error("Unhandled exception has occured - #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+                Rage.logger.error("Unhandled exception has occurred - #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+                Rage::Errors.report(e)
               end
             end
           end

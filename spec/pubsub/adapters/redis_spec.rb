@@ -236,9 +236,11 @@ RSpec.describe Rage::PubSub::Adapters::Redis do
         poller << block
       end
 
+      allow_any_instance_of(described_class).to receive(:sleep)
       allow(Iodine).to receive(:on_state).with(:start_shutdown).and_yield
 
       allow(logger).to receive(:info?).and_return(false)
+      allow(logger).to receive(:error)
       allow(Rage).to receive(:logger).and_return(logger)
     end
 
@@ -353,6 +355,17 @@ RSpec.describe Rage::PubSub::Adapters::Redis do
       )
 
       expect(broadcaster).not_to receive(:broadcast)
+
+      subject
+    end
+
+    it "reports redis subscriber errors" do
+      allow(mock_redis).to receive(:blocking_call).and_invoke(
+        proc { raise RedisClient::CannotConnectError, "redis down" },
+        proc { raise Errno::ECONNRESET }
+      )
+
+      expect(Rage::Errors).to receive(:report).with(instance_of(RedisClient::CannotConnectError))
 
       subject
     end

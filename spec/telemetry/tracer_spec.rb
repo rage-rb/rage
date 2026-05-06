@@ -271,6 +271,7 @@ RSpec.describe Rage::Telemetry::Tracer do
         end
 
         it "logs the error" do
+          expect(Rage::Errors).to receive(:report).with(instance_of(RuntimeError))
           expect(Rage.logger).to receive(:error) do |msg|
             expect(msg).to match(/Telemetry handler failed with error/)
             expect(msg).to include("test error")
@@ -304,6 +305,7 @@ RSpec.describe Rage::Telemetry::Tracer do
         end
 
         it "logs the error" do
+          expect(Rage::Errors).to receive(:report).with(instance_of(RuntimeError))
           expect(Rage.logger).to receive(:error) do |msg|
             expect(msg).to match(/Telemetry handler failed with error/)
             expect(msg).to include("test error")

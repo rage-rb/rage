@@ -63,6 +63,7 @@ class Rage::SSE::Application
       end
     rescue => e
       Rage.logger.error("SSE stream failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+      Rage::Errors.report(e)
     ensure
       Iodine.task_dec!
     end

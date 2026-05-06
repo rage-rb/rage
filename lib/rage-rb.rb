@@ -40,6 +40,12 @@ module Rage
     Rage::Events
   end
 
+  # Shorthand to access {Rage::Errors Rage::Errors}.
+  # @return [Rage::Errors]
+  def self.errors
+    Rage::Errors
+  end
+
   # Shorthand to access {Rage::SSE Rage::SSE}.
   # @return [Rage::SSE]
   def self.sse
@@ -191,6 +197,7 @@ module Rage
   autoload :OpenAPI, "rage/openapi/openapi"
   autoload :Deferred, "rage/deferred/deferred"
   autoload :Events, "rage/events/events"
+  autoload :Errors, "rage/errors"
   autoload :PubSub, "rage/pubsub/pubsub"
 end
 
