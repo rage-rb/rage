@@ -40,7 +40,7 @@ class Rage::PubSub::Adapters::Redis
 
     @trimming_strategy = redis_version < Gem::Version.create("6.2.0") ? :maxlen : :minid
 
-    Rage::Internal.pick_a_worker do
+    Rage::Internal.pick_a_worker(purpose: "redis-pubsub") do
       puts("INFO: #{Process.pid} is managing Redis subscriptions.") if Rage.logger.info?
       poll
     end
