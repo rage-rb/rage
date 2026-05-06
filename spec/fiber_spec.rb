@@ -194,6 +194,41 @@ RSpec.describe Fiber do
     end
   end
 
+  it "correctly processes killed fibers" do
+    within_reactor do
+      f = Fiber.schedule { sleep 30 }
+
+      Fiber.schedule do
+        sleep 1
+        f.kill
+      end
+
+      result = Fiber.await(f)
+
+      -> { expect(result).to eq([nil]) }
+    end
+  end
+
+  it "correctly processes killed fibers" do
+    within_reactor do
+      f1 = Fiber.schedule { sleep 30 }
+
+      f2 = Fiber.schedule do
+        sleep 0.5
+        "test result"
+      end
+
+      Fiber.schedule do
+        sleep 1
+        f1.kill
+      end
+
+      result = Fiber.await([f1, f2])
+
+      -> { expect(result).to eq([nil, "test result"]) }
+    end
+  end
+
   context "with wait generation tracking" do
     it "uses unique await channels for each Fiber.await call" do
       within_reactor do
