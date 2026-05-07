@@ -555,7 +555,7 @@ class RageController::API
   #   head :unauthorized
   # @example
   #   head 429
-  def head(status)
+  def head(status, options = nil)
     @__rendered = true
 
     @__status = if status.is_a?(Symbol)
