@@ -76,7 +76,7 @@ class Rage::Internal
         lock_file = File.open(lock_path, File::CREAT | File::WRONLY)
 
         if lock_file.flock(File::LOCK_EX | File::LOCK_NB)
-          Iodine.on_state(:on_finish) { File.unlink(lock_file) }
+          Iodine.on_state(:on_finish) { File.unlink(lock_file) if File.exist?(lock_file) }
           worker_locks << lock_file
           block.call
         end
