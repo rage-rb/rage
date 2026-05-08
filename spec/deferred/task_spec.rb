@@ -48,75 +48,93 @@ RSpec.describe Rage::Deferred::Task do
   end
 
   describe ".__next_retry_in" do
+    let(:calculate_next_retry_in) do
+      ->(attempt) do
+        Fiber.new { task_class.__next_retry_in(attempt, nil) }.resume
+      end
+    end
+
     it "returns the next retry interval with quartic backoff" do
       # Formula: (attempt**4) + 10 + (rand(15) * attempt)
       # rand(15) => 0..14
 
       # attempt 0 -> 0^4 + 10 + (0..14)*0 = 10
-      expect(task_class.__next_retry_in(0, nil)).to eq(10)
+      expect(calculate_next_retry_in.call(0)).to eq(10)
       # attempt 1 -> 1^4 + 10 + (0..14)*1 = 11..25
-      expect(task_class.__next_retry_in(1, nil)).to be_between(11, 25)
+      expect(calculate_next_retry_in.call(1)).to be_between(11, 25)
       # attempt 2 -> 2^4 + 10 + (0..14)*2 = 26..54
-      expect(task_class.__next_retry_in(2, nil)).to be_between(26, 54)
+      expect(calculate_next_retry_in.call(2)).to be_between(26, 54)
       # attempt 3 -> 3^4 + 10 + (0..14)*3 = 91..133
-      expect(task_class.__next_retry_in(3, nil)).to be_between(91, 133)
+      expect(calculate_next_retry_in.call(3)).to be_between(91, 133)
       # attempt 4 -> 4^4 + 10 + (0..14)*4 = 266..322
-      expect(task_class.__next_retry_in(4, nil)).to be_between(266, 322)
+      expect(calculate_next_retry_in.call(4)).to be_between(266, 322)
     end
 
     it "returns nil when attempts exceed max" do
       # With MAX_ATTEMPTS=20 and current guard (attempts > max),
       # attempt 20 still retries, attempt 21 stops.
-      expect(task_class.__next_retry_in(20, nil)).to be_a(Numeric)
-      expect(task_class.__next_retry_in(21, nil)).to be_nil
+      expect(calculate_next_retry_in.call(20)).to be_a(Numeric)
+      expect(calculate_next_retry_in.call(21)).to be_nil
     end
 
-    it "returns the same value on repeated calls with the same attempts" do
-      first = task_class.__next_retry_in(2, nil)
-      second = task_class.__next_retry_in(2, nil)
-      expect(first).to eq(second)
-    end
+    context "with custom retry_interval" do
+      around do |example|
+        Fiber.new(&example).resume
+      end
 
-    it "returns different values for different attempts" do
-      val_at_0 = task_class.__next_retry_in(0, nil)
-      val_at_4 = task_class.__next_retry_in(4, nil)
-      expect(val_at_0).to be_a(Numeric)
-      expect(val_at_4).to be_a(Numeric)
+      it "passes context to retry_interval" do
+        expect(task_class).to receive(:retry_interval).with(ZeroDivisionError, attempt: 17)
+        task_class.__next_retry_in(17, ZeroDivisionError)
+      end
+
+      it "caches the interval value" do
+        expect(task_class).to receive(:retry_interval).once
+
+        2.times do
+          task_class.__next_retry_in(5, nil)
+        end
+      end
     end
   end
 
   describe ".max_retries" do
+    let(:calculate_next_retry_in) do
+      ->(attempt, ex) do
+        Fiber.new { task_class.__next_retry_in(attempt, ex) }.resume
+      end
+    end
+
     context "with custom max" do
       before { task_class.max_retries(3) }
 
       it "retries up to custom max" do
-        expect(task_class.__next_retry_in(3, StandardError.new)).to be_a(Numeric)
+        expect(calculate_next_retry_in.call(3, StandardError.new)).to be_a(Numeric)
       end
 
       it "stops after custom max" do
-        expect(task_class.__next_retry_in(4, StandardError.new)).to be_nil
+        expect(calculate_next_retry_in.call(4, StandardError.new)).to be_nil
       end
 
       it "means the task is executed up to 4 times total" do
         # attempt 1 = original, attempt 2-4 = retries
-        expect(task_class.__next_retry_in(1, StandardError.new)).to be_a(Numeric)
-        expect(task_class.__next_retry_in(2, StandardError.new)).to be_a(Numeric)
-        expect(task_class.__next_retry_in(3, StandardError.new)).to be_a(Numeric)
-        expect(task_class.__next_retry_in(4, StandardError.new)).to be_nil
+        expect(calculate_next_retry_in.call(1, StandardError.new)).to be_a(Numeric)
+        expect(calculate_next_retry_in.call(2, StandardError.new)).to be_a(Numeric)
+        expect(calculate_next_retry_in.call(3, StandardError.new)).to be_a(Numeric)
+        expect(calculate_next_retry_in.call(4, StandardError.new)).to be_nil
       end
     end
 
     context "input validation" do
       it "converts string to integer" do
         task_class.max_retries("3")
-        expect(task_class.__next_retry_in(3, StandardError.new)).to be_a(Numeric)
-        expect(task_class.__next_retry_in(4, StandardError.new)).to be_nil
+        expect(calculate_next_retry_in.call(3, StandardError.new)).to be_a(Numeric)
+        expect(calculate_next_retry_in.call(4, StandardError.new)).to be_nil
       end
 
       it "converts float to integer" do
         task_class.max_retries(2.9)
-        expect(task_class.__next_retry_in(2, StandardError.new)).to be_a(Numeric)
-        expect(task_class.__next_retry_in(3, StandardError.new)).to be_nil
+        expect(calculate_next_retry_in.call(2, StandardError.new)).to be_a(Numeric)
+        expect(calculate_next_retry_in.call(3, StandardError.new)).to be_nil
       end
 
       it "raises ArgumentError for negative values" do
@@ -170,6 +188,12 @@ RSpec.describe Rage::Deferred::Task do
         end
       end
 
+      let(:calculate_next_retry_in) do
+        ->(attempt, ex) do
+          Fiber.new { task_class.__next_retry_in(attempt, ex) }.resume
+        end
+      end
+
       it "returns custom interval for matching exception" do
         expect(task_class.retry_interval(temporary_error.new, attempt: 1)).to eq(10)
       end
@@ -185,30 +209,36 @@ RSpec.describe Rage::Deferred::Task do
       end
 
       it "__next_retry_in returns interval for retryable" do
-        expect(task_class.__next_retry_in(1, temporary_error.new)).to eq(10)
+        expect(calculate_next_retry_in.call(1, temporary_error.new)).to eq(10)
       end
 
       it "__next_retry_in returns nil for non-retryable" do
-        expect(task_class.__next_retry_in(1, fatal_error.new)).to be_nil
+        expect(calculate_next_retry_in.call(1, fatal_error.new)).to be_nil
       end
 
       it "__next_retry_in uses default backoff for unmatched" do
-        interval = task_class.__next_retry_in(1, StandardError.new)
+        interval = calculate_next_retry_in.call(1, StandardError.new)
         expect(interval).to be_between(11, 25)
       end
 
       it "__next_retry_in enforces max_retries even with custom interval" do
         task_class.max_retries(2)
         # attempt 1 & 2 should retry with custom interval
-        expect(task_class.__next_retry_in(1, temporary_error.new)).to eq(10)
-        expect(task_class.__next_retry_in(2, temporary_error.new)).to eq(10)
+        expect(calculate_next_retry_in.call(1, temporary_error.new)).to eq(10)
+        expect(calculate_next_retry_in.call(2, temporary_error.new)).to eq(10)
         # attempt 3 should be capped by max_retries
-        expect(task_class.__next_retry_in(3, temporary_error.new)).to be_nil
+        expect(calculate_next_retry_in.call(3, temporary_error.new)).to be_nil
       end
     end
 
     context "with edge case return values" do
       let(:logger) { double(warn: nil) }
+
+      let(:calculate_next_retry_in) do
+        ->(attempt, ex) do
+          Fiber.new { task_class.__next_retry_in(attempt, ex) }.resume
+        end
+      end
 
       before do
         allow(Rage).to receive(:logger).and_return(logger)
@@ -216,32 +246,32 @@ RSpec.describe Rage::Deferred::Task do
 
       it "accepts a Float return value" do
         task_class.define_singleton_method(:retry_interval) { |_exception, attempt:| 2.5 }
-        expect(task_class.__next_retry_in(1, StandardError.new)).to eq(2.5)
+        expect(calculate_next_retry_in.call(1, StandardError.new)).to eq(2.5)
       end
 
       it "returns nil when retry_interval returns nil" do
         task_class.define_singleton_method(:retry_interval) { |_exception, attempt:| nil }
-        expect(task_class.__next_retry_in(1, StandardError.new)).to be_nil
+        expect(calculate_next_retry_in.call(1, StandardError.new)).to be_nil
       end
 
       it "returns nil when retry_interval returns false" do
         task_class.define_singleton_method(:retry_interval) { |_exception, attempt:| false }
-        expect(task_class.__next_retry_in(1, StandardError.new)).to be_nil
+        expect(calculate_next_retry_in.call(1, StandardError.new)).to be_nil
       end
 
       it "accepts zero as a valid interval" do
         task_class.define_singleton_method(:retry_interval) { |_exception, attempt:| 0 }
-        expect(task_class.__next_retry_in(1, StandardError.new)).to eq(0)
+        expect(calculate_next_retry_in.call(1, StandardError.new)).to eq(0)
       end
 
       it "accepts a negative number as a Numeric" do
         task_class.define_singleton_method(:retry_interval) { |_exception, attempt:| -5 }
-        expect(task_class.__next_retry_in(1, StandardError.new)).to eq(-5)
+        expect(calculate_next_retry_in.call(1, StandardError.new)).to eq(-5)
       end
 
       it "logs a warning and falls back to default backoff for String" do
         task_class.define_singleton_method(:retry_interval) { |_exception, attempt:| "invalid" }
-        result = task_class.__next_retry_in(1, StandardError.new)
+        result = calculate_next_retry_in.call(1, StandardError.new)
         expect(result).to be_a(Numeric)
         expect(result).to be_between(11, 25)
         expect(logger).to have_received(:warn).with(/returned String, expected Numeric/)
@@ -249,7 +279,7 @@ RSpec.describe Rage::Deferred::Task do
 
       it "logs a warning and falls back to default backoff for Array" do
         task_class.define_singleton_method(:retry_interval) { |_exception, attempt:| [10] }
-        result = task_class.__next_retry_in(1, StandardError.new)
+        result = calculate_next_retry_in.call(1, StandardError.new)
         expect(result).to be_a(Numeric)
         expect(result).to be_between(11, 25)
         expect(logger).to have_received(:warn).with(/returned Array, expected Numeric/)

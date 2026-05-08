@@ -38,8 +38,8 @@ module Rage::Deferred::Task
   CONTEXT_KEY = :__rage_deferred_execution_context
 
   # @private
-  RETRY_IN_CACHE_KEY = :__rage_deferred_retry_in
-  private_constant :RETRY_IN_CACHE_KEY
+  RETRY_IN_CACHE_VAR = :@__rage_deferred_retry_in
+  private_constant :RETRY_IN_CACHE_VAR
 
   def perform
   end
@@ -178,29 +178,29 @@ module Rage::Deferred::Task
 
     # @private
     def __next_retry_in(attempts, exception)
-      cached = Fiber[RETRY_IN_CACHE_KEY]
-      if cached && cached[0] == attempts
-        return cached[1]
+      f = Fiber.current
+
+      if f.instance_variable_defined?(RETRY_IN_CACHE_VAR)
+        f.instance_variable_get(RETRY_IN_CACHE_VAR)
+      else
+        f.instance_variable_set(RETRY_IN_CACHE_VAR, __calculate_next_retry_in(attempts, exception))
       end
-
-      max = @__max_retries || MAX_ATTEMPTS
-      return __cache_retry_in(attempts, nil) if attempts > max
-
-      interval = retry_interval(exception, attempt: attempts)
-      return __cache_retry_in(attempts, nil) if !interval
-
-      unless interval.is_a?(Numeric)
-        Rage.logger.warn("#{name}.retry_interval returned #{interval.class}, expected Numeric, false, or nil; falling back to default backoff")
-        return __cache_retry_in(attempts, __default_backoff(attempts))
-      end
-
-      __cache_retry_in(attempts, interval)
     end
 
     # @private
-    def __cache_retry_in(attempts, value)
-      Fiber[RETRY_IN_CACHE_KEY] = [attempts, value]
-      value
+    def __calculate_next_retry_in(attempts, exception)
+      max = @__max_retries || MAX_ATTEMPTS
+      return if attempts > max
+
+      interval = retry_interval(exception, attempt: attempts)
+      return if !interval
+
+      unless interval.is_a?(Numeric)
+        Rage.logger.warn("#{name}.retry_interval returned #{interval.class}, expected Numeric, false, or nil; falling back to default backoff")
+        return __default_backoff(attempts)
+      end
+
+      interval
     end
 
     # @private
