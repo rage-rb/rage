@@ -197,7 +197,6 @@ module Rage
   autoload :OpenAPI, "rage/openapi/openapi"
   autoload :Deferred, "rage/deferred/deferred"
   autoload :Events, "rage/events/events"
-  autoload :Errors, "rage/errors"
   autoload :PubSub, "rage/pubsub/pubsub"
 end
 
