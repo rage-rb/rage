@@ -1215,6 +1215,7 @@ RSpec.describe Rage::Configuration do
         end
 
         it "returns an adapter" do
+          allow(Rage::Internal).to receive(:pick_a_worker)
           expect(subject.adapter).to be_an_instance_of(Rage::PubSub::Adapters::Redis)
         end
 
