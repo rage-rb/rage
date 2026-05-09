@@ -11,7 +11,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
       @arr << el
     end
 
-    def shift
+    def pop
       nil
     end
 
@@ -128,12 +128,12 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   # Retrieve the connection associated with the current fiber, or obtain one if necessary.
   def connection
-    @__in_use[Fiber.current] ||= @__connections.shift || begin
+    @__in_use[Fiber.current] ||= @__connections.pop || begin
       fiber, blocked_since = Fiber.current, Process.clock_gettime(Process::CLOCK_MONOTONIC)
       @__blocked[fiber] = blocked_since
       Fiber.yield
 
-      @__connections.shift
+      @__connections.pop
     end
   end
 
