@@ -334,9 +334,17 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   private
 
+  def under_min_connections?
+    return false unless respond_to?(:min_connections)
+    @__connections.count { |conn| conn.connected? && conn.verified? } < min_connections
+  end
+
   def build_new_connections(num_connections = size)
     (1..num_connections).map do
-      __checkout__.tap { |conn| conn.__idle_since = Process.clock_gettime(Process::CLOCK_MONOTONIC) }
+      __checkout__.tap do |conn|
+        conn.__idle_since = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        Iodine.defer { conn.connect! if under_min_connections? }
+      end
     end
   end
 end
