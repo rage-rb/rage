@@ -105,6 +105,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     end
 
     @release_connection_channel = "ext:ar-connection-released:#{object_id}"
+    @__owner_thread = Thread.current 
 
     # resume blocked fibers once connections become available
     Iodine.subscribe(@release_connection_channel) do
@@ -149,6 +150,8 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   # Recover lost connections for the pool.
   def reap
+    return unless Thread.current == @__owner_thread
+
     crashed_fibers = nil
 
     @__in_use.each do |fiber, conn|
@@ -176,7 +179,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
   # `minimum_idle` seconds. Connections currently checked out, or that were
   # checked in less than `minimum_idle` seconds ago, are unaffected.
   def flush(minimum_idle = @__idle_timeout)
-    return if minimum_idle.nil? || @__connections.length == 0
+    return if Thread.current != @__owner_thread || minimum_idle.nil? || @__connections.length == 0
 
     current_time, i = Process.clock_gettime(Process::CLOCK_MONOTONIC), 0
     while i < @__connections.length
@@ -286,6 +289,10 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   def lease_connection
     connection
+  end
+
+  def maintainable?
+    false
   end
 
   # Check in a database connection back into the pool, indicating that you no longer need this connection.
