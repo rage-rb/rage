@@ -3,7 +3,7 @@
 #
 default: &default
   adapter: sqlite3
-  pool: <%%= ENV.fetch("DB_MAX_CONNECTIONS") { 5 } %>
+  max_connections: <%%= ENV.fetch("DB_MAX_CONNECTIONS") { 5 } %>
   timeout: 5000
 
 development:

@@ -4,7 +4,7 @@
 default: &default
   adapter: trilogy
   encoding: utf8mb4
-  pool: <%%= ENV.fetch("DB_MAX_THREADS") { 5 } %>
+  max_connections: <%%= ENV.fetch("DB_MAX_THREADS") { 5 } %>
   username: root
   password:
   socket: /tmp/mysql.sock
