@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Added
+- Support launching with `rackup` on Rack 3 by [@pratyush07-hub](https://github.com/pratyush07-hub) (#259).
 - [Deferred] Add tests for log context capture and backward-compatible restore by [@jsxs0](https://github.com/jsxs0) (#274).
 - [OpenAPI] Add support for per-endpoint OAuth2/OpenID scopes via `@auth_scope` tag by [@Piyush-Goenka](https://github.com/Piyush-Goenka) (#272).
 - Reuse `define_dynamic_method` and `define_maybe_yield` methods in `RageController::API` from `Rage::Internal` by [@numice](https://github.com/numice) (#273).
