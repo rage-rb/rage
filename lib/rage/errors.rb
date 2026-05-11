@@ -32,7 +32,7 @@ module Rage::Errors
 
     # @private
     def __register_reporter(reporter)
-      raise ArgumentError, "error handler must respond to #call" unless reporter.respond_to?(:call)
+      raise ArgumentError, "error reporter must respond to #call" unless reporter.respond_to?(:call)
 
       reporter_id = @next_reporter_id
       @next_reporter_id += 1

@@ -219,11 +219,11 @@ class Rage::Configuration
   end
   # @!endgroup
 
-  # @!group Error Handler Configuration
-  # Allows configuring error handlers.
-  # @return [Rage::Configuration::ErrorHandlers]
-  def error_handlers
-    @error_handlers ||= ErrorHandlers.new
+  # @!group Error Reporter Configuration
+  # Allows configuring error reporters.
+  # @return [Rage::Configuration::ErrorReporters]
+  def error_reporters
+    @error_reporters ||= ErrorReporters.new
   end
   # @!endgroup
 
@@ -394,7 +394,7 @@ class Rage::Configuration
     end
   end
 
-  class ErrorHandlers
+  class ErrorReporters
     # @private
     def initialize
       @objects = []
@@ -405,46 +405,46 @@ class Rage::Configuration
       @objects.dup
     end
 
-    # Add a new error handler.
-    # Error handlers should respond to `#call` and accept one of:
+    # Add a new error reporter.
+    # Error reporters should respond to `#call` and accept one of:
     # - `call(exception)`
     # - `call(exception, context: {})`
     #
-    # @param handler [#call]
+    # @param reporter [#call]
     # @return [self]
     # @example
     #   Rage.configure do
-    #     config.error_handlers << SentryReporter.new
+    #     config.error_reporters << SentryReporter.new
     #   end
-    def <<(handler)
-      validate_input!(handler)
-      return self if @objects.include?(handler)
+    def <<(reporter)
+      validate_input!(reporter)
+      return self if @objects.include?(reporter)
 
-      @objects << handler
-      Rage::Errors.__send__(:__register_reporter, handler)
+      @objects << reporter
+      Rage::Errors.__send__(:__register_reporter, reporter)
 
       self
     end
 
     alias_method :push, :<<
 
-    # Remove an error handler.
-    # @param handler [#call] the handler to remove
+    # Remove an error reporter.
+    # @param reporter [#call] the reporter to remove
     # @example
-    #   handler = SentryReporter.new
+    #   reporter = SentryReporter.new
     #   Rage.configure do
-    #     config.error_handlers.delete(handler)
+    #     config.error_reporters.delete(reporter)
     #   end
-    def delete(handler)
-      deleted = @objects.delete(handler)
-      Rage::Errors.__send__(:__unregister_reporter, handler) if deleted
+    def delete(reporter)
+      deleted = @objects.delete(reporter)
+      Rage::Errors.__send__(:__unregister_reporter, reporter) if deleted
       deleted
     end
 
     private
 
-    def validate_input!(handler)
-      raise ArgumentError, "error handler must respond to #call" unless handler.respond_to?(:call)
+    def validate_input!(reporter)
+      raise ArgumentError, "error reporter must respond to #call" unless reporter.respond_to?(:call)
     end
   end
 
