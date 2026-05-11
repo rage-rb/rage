@@ -12,31 +12,31 @@ RSpec.describe Rage::Errors do
     described_class.instance_variable_set(:@next_reporter_id, original_next_reporter_id)
   end
 
-  let(:error_handlers) { Rage::Configuration.new.error_handlers }
+  let(:error_reporters) { Rage::Configuration.new.error_reporters }
 
   describe "configuration integration" do
-    it "is available via config.error_handlers" do
-      expect(Rage::Configuration.new.error_handlers).to be_an_instance_of(Rage::Configuration::ErrorHandlers)
+    it "is available via config.error_reporters" do
+      expect(Rage::Configuration.new.error_reporters).to be_an_instance_of(Rage::Configuration::ErrorReporters)
     end
 
     it "is available via Rage.errors" do
       expect(Rage.errors).to eq(described_class)
     end
 
-    it "requires error handlers to respond to #call" do
+    it "requires error reporters to respond to #call" do
       expect {
-        error_handlers << Object.new
-      }.to raise_error(ArgumentError, "error handler must respond to #call")
+        error_reporters << Object.new
+      }.to raise_error(ArgumentError, "error reporter must respond to #call")
     end
 
-    it "allows removing a registered error handler" do
+    it "allows removing a registered error reporter" do
       call_count = 0
       reporter = Class.new do
         define_method(:call) { |_exception| call_count += 1 }
       end.new
 
-      error_handlers << reporter
-      error_handlers.delete(reporter)
+      error_reporters << reporter
+      error_reporters.delete(reporter)
 
       described_class.report(StandardError.new("test"))
 
@@ -65,7 +65,7 @@ RSpec.describe Rage::Errors do
       end.new
 
       error = StandardError.new("test")
-      error_handlers << reporter
+      error_reporters << reporter
       described_class.report(error, context: { user_id: 42 })
 
       expect(reporter.exception).to be(error)
@@ -82,7 +82,7 @@ RSpec.describe Rage::Errors do
       end.new
 
       error = StandardError.new("test")
-      error_handlers << reporter
+      error_reporters << reporter
       described_class.report(error, context: { user_id: 42 })
 
       expect(reporter.exception).to be(error)
@@ -101,7 +101,7 @@ RSpec.describe Rage::Errors do
       error = StandardError.new("test")
       expect(error.backtrace).to be_nil
 
-      error_handlers << reporter
+      error_reporters << reporter
       described_class.report(error)
 
       expect(reporter.exception.backtrace).to be_an(Array)
@@ -124,8 +124,8 @@ RSpec.describe Rage::Errors do
       end.new
 
       error = StandardError.new("test")
-      error_handlers << failed_reporter
-      error_handlers << successful_reporter
+      error_reporters << failed_reporter
+      error_reporters << successful_reporter
 
       described_class.report(error)
 
@@ -140,7 +140,7 @@ RSpec.describe Rage::Errors do
       end.new
 
       error = StandardError.new("test")
-      error_handlers << reporter
+      error_reporters << reporter
 
       described_class.report(error)
       described_class.report(error)
