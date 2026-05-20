@@ -71,6 +71,9 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     # connections older than this are automatically disconnected
     @__max_age = respond_to?(:max_age) ? max_age : Float::INFINITY
 
+    # seconds between keepalive pings on idle connections 
+    @__keepalive = respond_to?(:keepalive) ? keepalive : nil
+
     # how often should we check for fibers that wait for a connection for too long
     @__timeout_worker_frequency = 0.5
 
@@ -130,6 +133,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
       # reap
       flush
       disconnected = retire_old_connections
+      keep_alive
       preconnect if disconnected
     end
   end
@@ -232,6 +236,21 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     end
 
     disconnected
+  end
+
+  # Ping idle connections to prevent firewall/server timeouts
+  def keep_alive(threshold = @__keepalive)
+    return if threshold.nil?
+
+    i = 0
+
+    while i < @__connections.length
+      conn = @__connections[i]
+      if (conn.seconds_since_last_activity || 0) >= conn.pool_jitter(threshold)
+        Fiber.schedule { conn.disconnect! unless conn.active? }
+      end
+      i += 1
+    end
   end
 
   # Proactively establish DB connections
