@@ -194,15 +194,25 @@ module Rage::Ext::ActiveRecord::ConnectionPool
   def flush(minimum_idle = @__idle_timeout)
     return if Thread.current != @__owner_thread || minimum_idle.nil? || @__connections.length == 0
 
-    current_time, i = Process.clock_gettime(Process::CLOCK_MONOTONIC), 0
-    while i < @__connections.length
+    current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    i = @__connections.length - 1
+    connections_to_preserve = @__min_connections
+
+    while i >= 0
       conn = @__connections[i]
+
+      if connections_to_preserve > 0 && conn.connected? && conn.verified?
+        connections_to_preserve -= 1
+        i -= 1
+        next
+      end
+
       if conn.__idle_since && current_time - conn.__idle_since >= minimum_idle
         conn.__idle_since = nil
         conn.__needs_reconnect = true
         conn.disconnect!
       end
-      i += 1
+      i -= 1
     end
   end
 
