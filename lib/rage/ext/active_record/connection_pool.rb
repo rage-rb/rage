@@ -253,7 +253,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   # Proactively establish DB connections
   def preconnect
-    active_connections_count = @__connections.count { |conn| conn.connected? && conn.verified? }
+    active_connections_count = @__in_use.length + @__connections.count { |conn| conn.connected? && conn.verified? }
 
     while @__min_connections - active_connections_count > 0
       i = @__connections.rindex { |conn| !conn.connected? || !conn.verified? }
