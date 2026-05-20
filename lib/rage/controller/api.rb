@@ -551,12 +551,19 @@ class RageController::API
   # Send a response with no body.
   #
   # @param status [Integer, Symbol] set a response status
+  # @param options [Symbol] pass extra options to the response headers
   # @example
   #   head :unauthorized
   # @example
   #   head 429
   def head(status, options = nil)
     @__rendered = true
+
+    if options
+      options.each do |key, value|
+        @__headers[key] = value.to_s
+      end
+    end
 
     @__status = if status.is_a?(Symbol)
       ::Rack::Utils::SYMBOL_TO_STATUS_CODE[status]
