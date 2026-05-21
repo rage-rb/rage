@@ -3,7 +3,8 @@
 ### Added
 
 - Implement `FiberScheduler#fiber_interrupt` (#283).
-- Add Blueprinter parser scaffold and class detection (#287)
+- [OpenAPI] Add Blueprinter parser scaffold and class detection (#287)
+- [OpenAPI] Extend @response / @request tag syntax to accept serializer options (#299)
 
 ## [1.24.0] - 2026-05-12
 
