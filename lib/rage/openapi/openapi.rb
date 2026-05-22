@@ -128,14 +128,15 @@ module Rage::OpenAPI
   end
 
   # @private
+  # @return [Array<Boolean, String, Hash>] a tuple of (is_collection, serializer, args)
   def self.__parse_serializer_args(str)
     is_collection, inner = __try_parse_collection(str)
 
     if is_collection
       # discard is_collection since we already know this is a collection from the outer call
-      _, clean_inner, options = __parse_serializer_args(inner)
-      if options.any?
-        [is_collection, clean_inner, options]
+      _, clean_inner, args = __parse_serializer_args(inner)
+      if args.any?
+        [is_collection, clean_inner, args]
       else
         [is_collection, clean_inner, {}]
       end

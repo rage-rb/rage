@@ -179,6 +179,11 @@ RSpec.describe Rage::OpenAPI do
       let(:str) { "view: :extended, root: :user" }
       it { is_expected.to eq({ view: :extended, root: :user }) }
     end
+
+    context "with an invalid option (not a key value pair)" do
+      let(:str) { "extended" }
+      it { is_expected.to be_nil }
+    end
   end
 
   describe ".__module_parent" do
