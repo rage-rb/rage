@@ -130,7 +130,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     end
 
     Iodine.run_every((db_config.reaping_frequency * 1_000).to_i) do
-      # reap
+      reap
       flush
       disconnected = retire_old_connections
       keep_alive
@@ -167,26 +167,29 @@ module Rage::Ext::ActiveRecord::ConnectionPool
   def reap
     return unless Thread.current == @__owner_thread
 
-    crashed_fibers = nil
+    dead = nil
 
-    @__in_use.each do |fiber, conn|
+    @__in_use.delete_if do |fiber, conn|
       unless fiber.alive?
-        if conn.active?
-          conn.reset!
-          (crashed_fibers ||= []) << fiber
-        else
-          @__in_use.delete(fiber)
-          conn.disconnect!
-          __remove__(conn)
-          self.automatic_reconnect = true
-          @__connections += build_new_connections(1)
-          Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
-        end
+        (dead ||= []) << [fiber, conn]
+        true
       end
     end
 
-    if crashed_fibers
-      crashed_fibers.each { |fiber| release_connection(fiber) }
+    dead&.each do |fiber, conn|
+      Fiber.schedule do
+        if conn.active?
+          conn.reset!
+          @__in_use[fiber] = conn
+          release_connection(fiber)
+        else
+          conn.disconnect!
+          __remove__(conn)
+          self.automatic_reconnect = true
+          @__connections.unshift(*build_new_connections(1))
+          Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
+        end
+      end
     end
   end
 
