@@ -243,14 +243,25 @@ module Rage::Ext::ActiveRecord::ConnectionPool
   def keep_alive(threshold = @__keepalive)
     return if threshold.nil?
 
-    i = 0
+    to_ping = nil
 
-    while i < @__connections.length
-      conn = @__connections[i]
+    @__connections.delete_if do |conn|
       if (conn.seconds_since_last_activity || 0) >= conn.pool_jitter(threshold)
-        Fiber.schedule { conn.disconnect! unless conn.active? }
+        (to_ping ||= []) << conn
+        true
       end
-      i += 1
+    end
+
+    to_ping&.each do |conn|
+      Fiber.schedule do
+        if conn.active?
+          @__connections << conn
+        else
+          conn.disconnect!
+          @__connections.unshift(conn)
+        end
+        Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
+      end
     end
   end
 
