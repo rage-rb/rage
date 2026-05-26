@@ -6,6 +6,7 @@
 - [OpenAPI] Add Blueprinter parser scaffold and class detection (#287)
 - [OpenAPI] Extend @response / @request tag syntax to accept serializer options (#299)
 - Add `FiberScheduler#blocking_operation_wait` (#303).
+- [OpenAPI] Added static parsing of basic Blueprinter fields (`identifier`, `field`, `fields`) for OpenAPI schema generation. (#289)
 
 ### Fixed
 
