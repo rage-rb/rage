@@ -32,7 +32,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   end
 
   class VisitorContext
-    attr_accessor :symbols, :hashes, :keywords
+    attr_accessor :symbols, :keywords
 
     def initialize
       @symbols = []
