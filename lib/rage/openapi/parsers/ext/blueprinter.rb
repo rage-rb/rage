@@ -36,7 +36,6 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
 
     def initialize
       @symbols = []
-      @hashes = []
       @keywords = {}
     end
   end
@@ -69,8 +68,8 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
       when :fields, :field
         context = with_context { visit(node.arguments) }
 
-        if context.keywords.any?
-          @segment[context.keywords["name"].delete_prefix(":")] = { "type" => "string" }
+        if context.keywords["name"]
+          @segment[context.keywords["name"]] = { "type" => "string" }
         elsif node.block
           @segment[context.symbols.first] = { "type" => "string" }
         else
@@ -80,7 +79,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
     end
 
     def visit_assoc_node(node)
-      @context.keywords[node.key.value] = node.value.slice
+      @context.keywords[node.key.value] = node.value.unescaped
     end
 
     def visit_symbol_node(node)
