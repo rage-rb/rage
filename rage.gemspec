@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
   spec.authors = ["Roman Samoilov"]
   spec.email = ["developers@rage-rb.dev"]
 
-  spec.summary = "A modern Ruby framework designed for non-blocking I/O and simpler infrastructure"
+  spec.summary = "Fiber-based Ruby web framework combining Rails ergonomics with a unified runtime"
   spec.homepage = "https://rage-rb.dev"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.3.0"
