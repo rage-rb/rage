@@ -23,6 +23,7 @@ require "erb"
 # - _RAGE_DISABLE_IO_WRITE_ - disables the `io_write` hook to fix the ["zero-length iov"](https://bugs.ruby-lang.org/issues/19640) error on Ruby < 3.3.
 # - _RAGE_DISABLE_AR_POOL_PATCH_ - disables the `ActiveRecord::ConnectionPool` patch and makes Rage use the original ActiveRecord implementation.
 # - _RAGE_DISABLE_AR_WEAK_CONNECTIONS_ - instructs Rage to not reuse Active Record connections between different fibers. Only applies to Active Record < 7.2.
+# - _RAGE_ENABLE_WORKER_POOL_ - enables a background thread pool for offloading native calls that can be executed outside the GVL, freeing the main server thread to continue processing other requests. This acts as a preemption mechanism: native calls won't stall requests, as the OS will context-switch between the server thread and the worker threads.
 #
 class Rage::Configuration
   # @private

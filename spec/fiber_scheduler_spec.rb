@@ -515,4 +515,132 @@ RSpec.describe Rage::FiberScheduler do
       end
     end
   end
+
+  context "with worker pool" do
+    subject { Fiber.scheduler.send(:worker_pool) }
+
+    before :all do
+      skip("skipping on Ruby < 4") if Gem::Version.create(RUBY_VERSION) < Gem::Version.create(4)
+    end
+
+    around do |example|
+      result = 20.times do
+        break :completed if subject.stats[:in_progress] == 0
+        sleep 0.1
+      end
+
+      unless result == :completed
+        raise "couldn't drain worker pool before running new test"
+      end
+
+      example.call
+    end
+
+    it "delegates nogvl operations to the worker pool" do
+      within_reactor do
+        io_fiber = Fiber.schedule do
+          sleep 0.1
+        end
+
+        blocking_fiber = Fiber.schedule do
+          Fiber.pause
+          Iodine::WorkerPool.__busy(duration: 1)
+        end
+
+        time = Benchmark.realtime { Fiber.await(io_fiber) }
+
+        -> { expect(time).to be < 0.2 }
+      end
+    end
+
+    it "performs nogvl operations sequentially" do
+      within_reactor do
+        results = []
+
+        fibers = 3.times.map do |i|
+          Fiber.schedule do
+            Fiber.pause
+            Iodine::WorkerPool.__busy(duration: 0.1)
+            results << "fiber-#{i}"
+          end
+        end
+
+        time = Benchmark.realtime { Fiber.await(fibers) }
+
+        -> do
+          expect(time).to be_between(0.25, 0.35)
+          expect(results).to eq(%w(fiber-0 fiber-1 fiber-2))
+        end
+      end
+    end
+
+    it "allows to interrupt a nogvl operation" do
+      within_reactor do
+        result = nil
+
+        fiber = Fiber.schedule do
+          Fiber.pause
+          Iodine::WorkerPool.__busy(duration: 0.2)
+        ensure
+          Fiber.yield
+          result = "not expected"
+        end
+
+        sleep 0.1
+        Fiber.scheduler.fiber_interrupt(fiber, RuntimeError.new)
+        sleep 0.5
+
+        -> { expect(result).to be_nil }
+      end
+    end
+
+    context "#stats" do
+      it "returns correct stats" do
+        within_reactor do
+          -> do
+            expect(subject.stats).to match({
+              workers: 1,
+              queued: 0,
+              in_progress: 0,
+              completed: instance_of(Integer),
+              submitted: instance_of(Integer),
+              closed: false
+            })
+          end
+        end
+      end
+
+      it "calculates queued work items" do
+        within_reactor do
+          3.times do
+            Fiber.schedule do
+              Iodine::WorkerPool.__busy(duration: 0.1)
+            end
+          end
+
+          sleep 0.01
+          stats = subject.stats
+
+          -> { expect(stats).to include({ in_progress: 1, queued: 2 }) }
+        end
+      end
+
+      it "calculates completed work items" do
+        within_reactor do
+          completed_before = subject.stats[:completed]
+
+          3.times do
+            Fiber.schedule do
+              Iodine::WorkerPool.__busy(duration: 0.01)
+            end
+          end
+
+          sleep 0.1
+          completed_after = subject.stats[:completed]
+
+          -> { expect(completed_after - completed_before).to eq(3) }
+        end
+      end
+    end
+  end
 end
