@@ -5,6 +5,7 @@
 - Implement `FiberScheduler#fiber_interrupt` (#283).
 - [OpenAPI] Add Blueprinter parser scaffold and class detection (#287)
 - [OpenAPI] Extend @response / @request tag syntax to accept serializer options (#299)
+- Add `FiberScheduler#blocking_operation_wait` (#303).
 
 ### Fixed
 
