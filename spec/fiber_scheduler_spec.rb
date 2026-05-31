@@ -542,7 +542,7 @@ RSpec.describe Rage::FiberScheduler do
           sleep 0.1
         end
 
-        blocking_fiber = Fiber.schedule do
+        Fiber.schedule do
           Fiber.pause
           Iodine::WorkerPool.__busy(duration: 1)
         end
