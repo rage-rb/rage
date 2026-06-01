@@ -134,23 +134,23 @@ class Rage::FiberScheduler
     fiber.raise(exception)
   end
 
-  if ENV["RAGE_ENABLE_WORKER_POOL"] && defined?(Iodine::WorkerPool)
-    Iodine.on_state(:pre_start) { puts "INFO: Using Worker Pool" }
+  if defined?(Iodine::WorkerPool)
+    module BlockingOperationWait
+      # Offload a native call to the worker pool, yielding until complete.
+      def blocking_operation_wait(work)
+        f = Fiber.current
+        gen = (f.__wait_generation += 1)
 
-    # Offload a blocking operation to a worker pool, yielding until complete.
-    def blocking_operation_wait(work)
-      f = Fiber.current
-      gen = (f.__wait_generation += 1)
+        worker_pool.enqueue(work) do
+          f.resume if f.alive? && gen == f.__wait_generation
+        end
 
-      worker_pool.enqueue(work) do
-        f.resume if f.alive? && gen == f.__wait_generation
+        Fiber.yield
       end
 
-      Fiber.yield
-    end
-
-    private def worker_pool
-      @worker_pool ||= Iodine::WorkerPool.new(1)
+      private def worker_pool
+        @worker_pool ||= Iodine::WorkerPool.new(Rage.config.blocking_operation_pool.size)
+      end
     end
   end
 

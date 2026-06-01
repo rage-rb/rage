@@ -81,6 +81,8 @@ Rage.configure do
     config.deferred.perform_middleware.use PerformMiddleware1
     config.deferred.perform_middleware.use PerformMiddleware2
   end
+
+  config.blocking_operation_pool.enabled = true
 end
 
 class TestSseObserver < Rage::Telemetry::Handler

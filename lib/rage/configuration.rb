@@ -23,7 +23,6 @@ require "erb"
 # - _RAGE_DISABLE_IO_WRITE_ - disables the `io_write` hook to fix the ["zero-length iov"](https://bugs.ruby-lang.org/issues/19640) error on Ruby < 3.3.
 # - _RAGE_DISABLE_AR_POOL_PATCH_ - disables the `ActiveRecord::ConnectionPool` patch and makes Rage use the original ActiveRecord implementation.
 # - _RAGE_DISABLE_AR_WEAK_CONNECTIONS_ - instructs Rage to not reuse Active Record connections between different fibers. Only applies to Active Record < 7.2.
-# - _RAGE_ENABLE_WORKER_POOL_ - enables a background thread pool for offloading native calls that can be executed outside the GVL, freeing the main server thread to continue processing other requests. This acts as a preemption mechanism: native calls won't stall requests, as the OS will context-switch between the server thread and the worker threads.
 #
 class Rage::Configuration
   # @private
@@ -279,6 +278,14 @@ class Rage::Configuration
   # @return [Rage::Configuration::Router]
   def router
     @router ||= Router.new
+  end
+  # @!endgroup
+
+  # @!group Blocking Operation Pool Configuration
+  # Allows configuring the thread pool for offloading native calls.
+  # @return [Rage::Configuration::BlockingOperationPool]
+  def blocking_operation_pool
+    @blocking_operation_pool ||= BlockingOperationPool.new
   end
   # @!endgroup
 
@@ -1083,6 +1090,31 @@ class Rage::Configuration
     attr_accessor :form_actions
   end
 
+  class BlockingOperationPool
+    # @!attribute enabled
+    #   Enable a background thread pool for offloading native calls that can be executed outside the GVL, freeing
+    #   the main server thread to continue processing other requests. This acts as a preemption mechanism: native calls
+    #   won't stall requests, as the OS will context-switch between the server thread and the worker threads.
+    #   Defaults to `false`.
+    #   @return [Boolean]
+    #   @example Enable the thread pool
+    #     Rage.configure do
+    #       config.blocking_operation_pool.enabled = true
+    #     end
+    #
+    # @!attribute size
+    #   Specify the number of threads in the pool. Defaults to `1`. A single thread is sufficient in most cases
+    #   because the pool's goal is context switching, not parallelization.
+    #   @return [Integer]
+    attr_accessor :enabled, :size
+
+    # @private
+    def initialize
+      @enabled = false
+      @size = 1
+    end
+  end
+
   # @private
   class PubSub
     attr_reader :adapter
@@ -1169,6 +1201,15 @@ class Rage::Configuration
     if @log_tags
       Rage.__log_processor.add_custom_tags(@log_tags.objects)
       @logger.dynamic_tags = Rage.__log_processor.dynamic_tags
+    end
+
+    if @blocking_operation_pool&.enabled
+      if defined?(Rage::FiberScheduler::BlockingOperationWait)
+        Iodine.on_state(:pre_start) { puts "INFO: Using blocking operation pool" }
+        Rage::FiberScheduler.include(Rage::FiberScheduler::BlockingOperationWait)
+      else
+        Iodine.on_state(:pre_start) { puts "WARNING: Blocking operation pool is not supported on Ruby #{RUBY_VERSION}" }
+      end
     end
 
     if defined?(::Rack::Events) && middleware.include?(::Rack::Events)
