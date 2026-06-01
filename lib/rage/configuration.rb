@@ -302,7 +302,7 @@ class Rage::Configuration
   # @private
   def run_after_initialize!
     run_hooks_for!(:after_initialize, self)
-    __finalize
+    __finalize(true)
   end
 
   class LogContext
@@ -1181,7 +1181,7 @@ class Rage::Configuration
   end
 
   # @private
-  def __finalize
+  def __finalize(before_boot = false)
     if @logger
       @logger.formatter = @log_formatter if @log_formatter
       @logger.level = @log_level if @log_level
@@ -1203,7 +1203,7 @@ class Rage::Configuration
       @logger.dynamic_tags = Rage.__log_processor.dynamic_tags
     end
 
-    if @blocking_operation_pool&.enabled
+    if before_boot && @blocking_operation_pool&.enabled
       if defined?(Rage::FiberScheduler::BlockingOperationWait)
         Iodine.on_state(:pre_start) { puts "INFO: Using blocking operation pool" }
         Rage::FiberScheduler.include(Rage::FiberScheduler::BlockingOperationWait)

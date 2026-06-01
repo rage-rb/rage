@@ -85,6 +85,7 @@ module Rage
   #   end
   def self.configure(&)
     config.instance_eval(&)
+    config.__finalize
   end
 
   # Access the current Rage environment.
