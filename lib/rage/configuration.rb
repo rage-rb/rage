@@ -1208,7 +1208,7 @@ class Rage::Configuration
         Iodine.on_state(:pre_start) { puts "INFO: Using blocking operation pool" }
         Rage::FiberScheduler.include(Rage::FiberScheduler::BlockingOperationWait)
       else
-        Iodine.on_state(:pre_start) { puts "WARNING: Blocking operation pool is not supported on Ruby #{RUBY_VERSION}" }
+        puts "WARNING: Blocking operation pool is not supported on Ruby #{RUBY_VERSION}"
       end
     end
 
