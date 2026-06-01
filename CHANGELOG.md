@@ -6,6 +6,10 @@
 - [OpenAPI] Add Blueprinter parser scaffold and class detection (#287)
 - [OpenAPI] Extend @response / @request tag syntax to accept serializer options (#299)
 
+### Fixed
+
+- [API] Reject malformed or empty HTTP token authorization headers.
+
 ## [1.24.0] - 2026-05-12
 
 ### Added
