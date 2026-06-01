@@ -558,13 +558,13 @@ class RageController::API
   def authenticate_with_http_token
     auth_header = @__env["HTTP_AUTHORIZATION"]
 
-    payload = if auth_header&.start_with?("Bearer")
+    payload = if auth_header&.start_with?("Bearer ")
       auth_header[7..]
-    elsif auth_header&.start_with?("Token")
+    elsif auth_header&.start_with?("Token ")
       auth_header[6..]
     end
 
-    return unless payload
+    return if payload.nil? || payload.empty?
 
     token = if payload.start_with?("token=")
       payload[6..]
@@ -574,6 +574,8 @@ class RageController::API
 
     token.delete_prefix!('"')
     token.delete_suffix!('"')
+
+    return if token.empty?
 
     yield token
   end

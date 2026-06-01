@@ -74,6 +74,80 @@ RSpec.describe RageController::API do
       end
     end
 
+    context "with a malformed Bearer token" do
+      let(:env) { { "HTTP_AUTHORIZATION" => auth_header } }
+
+      context "without a separator" do
+        let(:auth_header) { "Bearermy_token" }
+
+        it "returns nil" do
+          value = subject.authenticate_with_http_token { :request_authenticated }
+          expect(value).to be_nil
+        end
+
+        it "doesn't call the login procedure" do
+          expect {
+            subject.authenticate_with_http_token { raise }
+          }.not_to raise_error
+        end
+      end
+
+      context "with an empty token" do
+        let(:auth_header) { "Bearer " }
+
+        it "returns nil" do
+          value = subject.authenticate_with_http_token { :request_authenticated }
+          expect(value).to be_nil
+        end
+      end
+
+      context "with an empty token payload" do
+        let(:auth_header) { "Bearer token=" }
+
+        it "returns nil" do
+          value = subject.authenticate_with_http_token { :request_authenticated }
+          expect(value).to be_nil
+        end
+      end
+    end
+
+    context "with a malformed Token token" do
+      let(:env) { { "HTTP_AUTHORIZATION" => auth_header } }
+
+      context "without a separator" do
+        let(:auth_header) { "Tokenmy_token" }
+
+        it "returns nil" do
+          value = subject.authenticate_with_http_token { :request_authenticated }
+          expect(value).to be_nil
+        end
+
+        it "doesn't call the login procedure" do
+          expect {
+            subject.authenticate_with_http_token { raise }
+          }.not_to raise_error
+        end
+      end
+
+      context "with an empty token" do
+        let(:auth_header) { "Token " }
+
+        it "returns nil" do
+          value = subject.authenticate_with_http_token { :request_authenticated }
+          expect(value).to be_nil
+        end
+      end
+
+      context "with an empty token payload" do
+        let(:auth_header) { 'Token token=""' }
+
+        it "returns nil" do
+          value = subject.authenticate_with_http_token { :request_authenticated }
+          expect(value).to be_nil
+        end
+      end
+    end
+
     context "with a Digest token" do
       let(:env) { { "HTTP_AUTHORIZATION" => "Digest my_token" } }
 
