@@ -14,6 +14,13 @@ RSpec.describe Rage::Router::Backend do
     expect(result).to be_nil
   end
 
+  it "correctly processes a constrained url when host includes a port" do
+    router.on("GET", "/photos", ->(_) { "get photos" }, constraints: { host: "google.com" })
+
+    result, _ = perform_get_request("/photos", host: "google.com:3000")
+    expect(result).to eq("get photos")
+  end
+
   it "correctly processes urls with multiple constraints" do
     router.on("GET", "/photos", ->(_) { "US photos" }, constraints: { host: "google.com" })
     router.on("GET", "/photos", ->(_) { "CA photos" }, constraints: { host: "google.ca" })

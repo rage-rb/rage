@@ -9,6 +9,7 @@
 ### Fixed
 
 - [API] Reject malformed or empty HTTP token authorization headers.
+- [Router] Strip the port from `HTTP_HOST` before matching exact host constraints.
 
 ## [1.24.0] - 2026-05-12
 
