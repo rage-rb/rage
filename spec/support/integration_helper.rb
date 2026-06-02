@@ -14,7 +14,7 @@ module IntegrationHelper
       Process.kill(:SIGTERM, @pid)
       Process.wait
       system("rm -f spec/integration/test_app/Gemfile.lock")
-      system("rm -f spec/integration/test_app/log/development.log")
+      system("rm -f spec/integration/test_app/log/*.log")
       system("rm -f spec/integration/test_app/storage/deferred-*")
     end
   end

@@ -11,6 +11,7 @@ Rage.routes.draw do
   get "get_request_id", to: "application#get_request_id"
   get "get_action_name", to: "application#get_action_name_action"
   get "get_route_uri_pattern/:id", to: "application#get_route_uri_pattern"
+  get "busy", to: "application#busy"
 
   get "params/digest", to: "params#digest"
   post "params/digest", to: "params#digest"

@@ -37,6 +37,12 @@ RSpec.configure do |config|
   config.include_context "mocked_classes", include_shared: true
   config.include_context "mocked_rage_routes", include_shared: true
 
+  config.before(:all) do
+    if defined?(Rage::FiberScheduler::BlockingOperationWait)
+      Rage::FiberScheduler.include(Rage::FiberScheduler::BlockingOperationWait)
+    end
+  end
+
   config.after(:each) do
     Rage::OpenAPI.__reset_data_cache
   end

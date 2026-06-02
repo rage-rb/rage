@@ -281,6 +281,14 @@ class Rage::Configuration
   end
   # @!endgroup
 
+  # @!group Blocking Operation Pool Configuration
+  # Allows configuring the thread pool for offloading native calls.
+  # @return [Rage::Configuration::BlockingOperationPool]
+  def blocking_operation_pool
+    @blocking_operation_pool ||= BlockingOperationPool.new
+  end
+  # @!endgroup
+
   # @private
   def pubsub
     @pubsub ||= PubSub.new
@@ -294,7 +302,7 @@ class Rage::Configuration
   # @private
   def run_after_initialize!
     run_hooks_for!(:after_initialize, self)
-    __finalize
+    __finalize(true)
   end
 
   class LogContext
@@ -1082,6 +1090,31 @@ class Rage::Configuration
     attr_accessor :form_actions
   end
 
+  class BlockingOperationPool
+    # @!attribute enabled
+    #   Enable a background thread pool for offloading native calls that can be executed outside the GVL, freeing
+    #   the main server thread to continue processing other requests. This acts as a preemption mechanism: native calls
+    #   won't stall requests, as the OS will context-switch between the server thread and the worker threads.
+    #   Defaults to `false`.
+    #   @return [Boolean]
+    #   @example Enable the thread pool
+    #     Rage.configure do
+    #       config.blocking_operation_pool.enabled = true
+    #     end
+    #
+    # @!attribute size
+    #   Specify the number of threads in the pool. Defaults to `1`. A single thread is sufficient in most cases
+    #   because the pool's goal is context switching, not parallelization.
+    #   @return [Integer]
+    attr_accessor :enabled, :size
+
+    # @private
+    def initialize
+      @enabled = false
+      @size = 1
+    end
+  end
+
   # @private
   class PubSub
     attr_reader :adapter
@@ -1148,7 +1181,7 @@ class Rage::Configuration
   end
 
   # @private
-  def __finalize
+  def __finalize(before_boot = false)
     if @logger
       @logger.formatter = @log_formatter if @log_formatter
       @logger.level = @log_level if @log_level
@@ -1168,6 +1201,15 @@ class Rage::Configuration
     if @log_tags
       Rage.__log_processor.add_custom_tags(@log_tags.objects)
       @logger.dynamic_tags = Rage.__log_processor.dynamic_tags
+    end
+
+    if before_boot && @blocking_operation_pool&.enabled
+      if defined?(Rage::FiberScheduler::BlockingOperationWait)
+        Iodine.on_state(:pre_start) { puts "INFO: Using blocking operation pool" }
+        Rage::FiberScheduler.include(Rage::FiberScheduler::BlockingOperationWait)
+      else
+        puts "WARNING: Blocking operation pool is not supported on Ruby #{RUBY_VERSION}"
+      end
     end
 
     if defined?(::Rack::Events) && middleware.include?(::Rack::Events)

@@ -37,4 +37,9 @@ class ApplicationController < RageController::API
   def get_route_uri_pattern
     render plain: request.route_uri_pattern
   end
+
+  def busy
+    Iodine::WorkerPool.__busy(duration: 1)
+    head :ok
+  end
 end
