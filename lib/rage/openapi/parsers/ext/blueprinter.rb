@@ -32,10 +32,11 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   end
 
   class VisitorContext
-    attr_accessor :symbols, :keywords
+    attr_accessor :symbols, :keywords, :strings
 
     def initialize
       @symbols = []
+      @strings = []
       @keywords = {}
     end
   end
@@ -50,11 +51,17 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
       @context = nil
       @schema = {}
       @segment = @schema
+      @identifier = {}
     end
 
     def build_schema
       result = { "type" => "object" }
-      result["properties"] = @schema if @schema.any?
+
+      properties = {}
+      properties.merge!(@identifier)
+      properties.merge!(@schema.sort.to_h)
+
+      result["properties"] = properties if properties.any?
       result = { "type" => "array", "items" => result } if @is_collection
       result
     end
@@ -63,7 +70,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
       case node.name
       when :identifier
         context = with_context { visit(node.arguments) }
-        @segment[context.symbols.first] = { "type" => "string" }
+        @identifier[context.symbols.first] = { "type" => "string" }
 
       when :fields, :field
         context = with_context { visit(node.arguments) }
@@ -71,9 +78,11 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
         if context.keywords["name"]
           @segment[context.keywords["name"]] = { "type" => "string" }
         elsif node.block
-          @segment[context.symbols.first] = { "type" => "string" }
+          @segment[context.symbols.first] = { "type" => "string" } if context.symbols.first
+          @segment[context.strings.first] = { "type" => "string" } if context.strings.first
         else
           context.symbols.each { |symbol| @segment[symbol] = { "type" => "string" } }
+          context.strings.each { |string| @segment[string] = { "type" => "string" } }
         end
       end
     end
@@ -84,6 +93,10 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
 
     def visit_symbol_node(node)
       @context.symbols << node.value
+    end
+
+    def visit_string_node(node)
+      @context.strings << node.unescaped
     end
 
     private
