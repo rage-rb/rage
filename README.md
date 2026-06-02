@@ -6,7 +6,7 @@
 ![Tests](https://github.com/rage-rb/rage/actions/workflows/main.yml/badge.svg)
 ![Ruby Requirement](https://img.shields.io/badge/Ruby-3.3%2B-%23f40000)
 
-**Rage** is an API-first Ruby web framework that combines the developer experience of Rails with fiber-based concurrency. You write standard synchronous Ruby code - Rage handles the concurrency transparently, running APIs, background jobs, and WebSockets in a single process with fewer moving parts.
+**Rage** is an API-first Ruby web framework that combines the developer experience of Rails with fiber-based concurrency. You write standard synchronous Ruby code - Rage handles the concurrency, running APIs, background jobs, and WebSockets in a single process with fewer moving parts.
 
 Rage uses Rails compatibility as a foundation and provides backend primitives optimized for a single-runtime model: background jobs that run in-process, scalable WebSockets and SSE streams, object-oriented domain events, and automatic API documentation.
 
@@ -28,10 +28,10 @@ Rage takes a different approach: **collapse backend concerns into a single runti
 
 - **Rails Compatibility** - Familiar controller API, routing DSL, and conventions. Migrate gradually or start fresh.
 - **True Concurrency** - Fiber-based architecture handles I/O without threads, locks, or async/await syntax. Your code looks synchronous but runs concurrently.
-- **Zero-dependency WebSockets** - Action Cable-compatible real-time features that work out-of-the-box without Redis, even in multi-process mode.
+- **Zero-dependency WebSockets** - Action Cable-compatible real-time features that work out-of-the-box, with built-in IPC for multi-process deployments.
 - **Server-Sent Events** - Native SSE streaming with no external dependencies. Built for live feeds, progress updates, and LLM response streaming.
 - **Auto-generated OpenAPI** - Documentation generated from your controllers using simple comment tags.
-- **In-process Background Jobs** - A durable, persistent queue that runs inside your app process. No Redis or separate worker processes required.
+- **In-process Background Jobs** - A durable, persistent queue that runs inside your app process. No external dependencies or separate worker processes required.
 - **Built-in Observability** - Track and measure application behavior with `Rage::Telemetry`. Integrate with external monitoring platforms or build custom observability solutions.
 
 ## Installation
@@ -52,7 +52,7 @@ Switch to your new application and install dependencies:
 
 ```
 $ cd my_app
-$ bundle
+$ bundle install
 ```
 
 (Optional 🤖) Install agent skills:
@@ -73,7 +73,7 @@ Start coding!
 
 Rage runs each request in a separate fiber. When your code performs I/O operations - HTTP requests, database queries, file reads - the fiber automatically pauses, and Rage processes other requests. When the I/O completes, the fiber resumes exactly where it left off.
 
-This happens transparently. You write standard Ruby code, and Rage handles the concurrency.
+This happens automatically. You write standard Ruby code, and Rage handles the concurrency.
 
 ### Unified Runtime in Action
 
@@ -90,7 +90,7 @@ class OrdersController < RageController::API
     # Schedule background job - runs in-process, no Redis needed
     SendOrderConfirmation.enqueue(order.id)
 
-    # Broadcast to WebSocket subscribers - no Action Cable/Redis needed
+    # Broadcast to WebSocket subscribers - built in, no external services needed
     Rage::Cable.broadcast("orders", { status: "created", order_id: order.id })
 
     render json: order, status: :created
@@ -108,7 +108,7 @@ class SendOrderConfirmation
 end
 ```
 
-This all runs in a single process. No external queues, no separate worker dynos, no Redis for pub/sub.
+This all runs in a single process. No external queues, no separate worker dynos, no additional infrastructure.
 
 ## Two Ways to Use Rage
 
@@ -127,7 +127,7 @@ You write familiar synchronous Ruby code. Rage handles the concurrency.
 **What changes:**
 
 - One deployment unit instead of API servers + worker processes
-- No Redis required for jobs or broadcasts
+- No external dependencies for jobs or broadcasts
 - Domain events as objects, not string-based notifications
 - OpenAPI specs generated automatically from your code
 
