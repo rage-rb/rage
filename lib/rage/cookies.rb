@@ -201,7 +201,7 @@ class Rage::Cookies
     end
 
     if (domain = value[:domain])
-      host = @env["HTTP_HOST"]
+      host = @env["HTTP_HOST"]&.sub(/:\d+\z/, "")
 
       processed_domain = if domain.is_a?(String)
         domain
