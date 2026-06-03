@@ -66,6 +66,17 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
       result
     end
 
+    def visit_class_node(node)
+      @self_name ||= node.name.to_s
+
+      if node.superclass && node.superclass.name != :Base
+        visitor = @parser.__parse(node.superclass.name.to_s)
+        @schema.merge!(visitor.schema)
+      end
+
+      super
+    end
+
     def visit_call_node(node)
       case node.name
       when :identifier
