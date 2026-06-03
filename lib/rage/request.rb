@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "ipaddr"
 require "time"
 
 class Rage::Request
@@ -245,7 +246,14 @@ class Rage::Request
   end
 
   def named_host?(host)
-    !IP_HOST_REGEXP.match?(host)
+    host && !ip_host?(host)
+  end
+
+  def ip_host?(host)
+    IP_HOST_REGEXP.match?(host) || IPAddr.new(host.delete_prefix("[").delete_suffix("]"))
+    true
+  rescue IPAddr::InvalidAddressError
+    false
   end
 
   def if_none_match
