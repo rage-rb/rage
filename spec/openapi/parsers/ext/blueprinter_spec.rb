@@ -271,6 +271,20 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         })
       end
     end
+
+    context "ensures identifier appears first in properties regardless of definition order" do
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < Blueprinter::Base
+            fields :name, :email
+            identifier :uuid
+          end
+        RUBY
+      end
+      it do
+        expect(subject["properties"].keys.first).to eq("uuid")
+      end
+    end
   end
 
   describe "collection" do
