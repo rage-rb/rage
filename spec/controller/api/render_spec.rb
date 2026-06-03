@@ -14,6 +14,10 @@ module ControllerApiRenderSpec
       head 402
     end
 
+    def head_invalid_symbol
+      head :not_a_status
+    end
+
     def render_json_with_status
       render json: { message: "hello world" }, status: :created
     end
@@ -28,6 +32,10 @@ module ControllerApiRenderSpec
 
     def render_status
       render status: 202
+    end
+
+    def render_invalid_status_symbol
+      render plain: "ok", status: :not_a_status
     end
   end
 end
@@ -62,5 +70,13 @@ RSpec.describe RageController::API do
 
   it "correctly renders status" do
     expect(run_action(klass, :render_status)).to eq([202, json_header, []])
+  end
+
+  it "raises on invalid symbol status in head" do
+    expect { run_action(klass, :head_invalid_symbol) }.to raise_error(ArgumentError, "Unrecognized status code :not_a_status")
+  end
+
+  it "raises on invalid symbol status in render" do
+    expect { run_action(klass, :render_invalid_status_symbol) }.to raise_error(ArgumentError, "Unrecognized status code :not_a_status")
   end
 end

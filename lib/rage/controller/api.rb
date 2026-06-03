@@ -485,6 +485,7 @@ class RageController::API
   # @note `render` doesn't terminate execution of the action, so if you want to exit an action after rendering, you need to do something like `render(...) and return`.
   def render(json: nil, plain: nil, sse: nil, status: nil)
     raise "Render was called multiple times in this action." if @__rendered
+    status = normalize_status(status) if status
     @__rendered = true
 
     if json || plain
@@ -500,11 +501,7 @@ class RageController::API
     end
 
     if status
-      @__status = if status.is_a?(Symbol)
-        ::Rack::Utils::SYMBOL_TO_STATUS_CODE[status]
-      else
-        status
-      end
+      @__status = status
     end
 
     if sse
@@ -530,13 +527,9 @@ class RageController::API
   # @example
   #   head 429
   def head(status)
+    status = normalize_status(status)
     @__rendered = true
-
-    @__status = if status.is_a?(Symbol)
-      ::Rack::Utils::SYMBOL_TO_STATUS_CODE[status]
-    else
-      status
-    end
+    @__status = status
   end
 
   # Set response headers.
@@ -547,6 +540,11 @@ class RageController::API
   def headers
     @__headers
   end
+
+  def normalize_status(status)
+    status.is_a?(Symbol) ? ::Rack::Utils.status_code(status) : status
+  end
+  private :normalize_status
 
   # Authenticate using an HTTP Bearer token. Returns the value of the block if a token is found. Returns `nil` if no token is found.
   #
