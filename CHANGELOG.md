@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.25.0] - 2026-06-03
+
 ### Added
 
 - Implement `FiberScheduler#fiber_interrupt` (#283).
