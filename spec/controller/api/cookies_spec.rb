@@ -6,8 +6,10 @@ require "domain_name"
 RSpec.describe RageController::API do
   subject do
     cookie_header = cookies.map { |k, v| "#{k}=#{v}" }.join("; ")
-    described_class.new({ "HTTP_COOKIE" => cookie_header, "HTTP_HOST" => "cookie.test.com" }, nil)
+    described_class.new({ "HTTP_COOKIE" => cookie_header, "HTTP_HOST" => request_host }, nil)
   end
+
+  let(:request_host) { "cookie.test.com" }
 
   context "with no cookies" do
     let(:cookies) { {} }
@@ -292,6 +294,19 @@ RSpec.describe RageController::API do
         }
 
         expect(response_cookies[:user_id]).to eq("120; domain=cookie.test.com")
+      end
+
+      context "when request host includes a port" do
+        let(:request_host) { "cookie.test.com:3000" }
+
+        it "correctly sets domain value" do
+          subject.cookies[:user_id] = {
+            domain: %w(api.test.com cookie.test.com),
+            value: 120
+          }
+
+          expect(response_cookies[:user_id]).to eq("120; domain=cookie.test.com")
+        end
       end
     end
 
