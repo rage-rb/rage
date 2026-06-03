@@ -42,7 +42,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   end
 
   class Visitor < Prism::Visitor
-    attr_accessor :schema
+    attr_accessor :schema, :identifier
 
     def initialize(parser, is_collection)
       @parser = parser
@@ -67,8 +67,9 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
     end
 
     def visit_class_node(node)
-      if node.superclass && node.superclass.name != :Base
+      if node.superclass && node.superclass.full_name != "Blueprinter::Base"
         visitor = @parser.__parse(node.superclass.name.to_s)
+        @identifier.merge!(visitor.identifier)
         @schema.merge!(visitor.schema)
       end
 
