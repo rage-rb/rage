@@ -120,6 +120,11 @@ RSpec.describe Rage::Request do
         before { env["HTTP_HOST"] = "api.foo.bar.com:443" }
         it { is_expected.to eq("api.foo.bar.com") }
       end
+
+      context "when using an IPv6 address with port" do
+        before { env["HTTP_HOST"] = "[::1]:3000" }
+        it { is_expected.to eq("[::1]") }
+      end
     end
 
     context "without HTTP_HOST header" do
@@ -152,6 +157,26 @@ RSpec.describe Rage::Request do
         expect(request.domain(1)).to eq("tld1.tld2")
         expect(request.domain(2)).to eq("tld0.tld1.tld2")
         expect(request.domain(3)).to eq("tld0.tld1.tld2")
+      end
+    end
+
+    context "with HTTP_HOST set to an IPv6 address" do
+      before { env["HTTP_HOST"] = "[::1]:3000" }
+
+      it "returns nil" do
+        expect(request.domain).to be_nil
+        expect(request.domain(0)).to be_nil
+      end
+    end
+
+    context "without HTTP_HOST and with bare IPv6 SERVER_NAME" do
+      before do
+        env.delete("HTTP_HOST")
+        env["SERVER_NAME"] = "::1"
+      end
+
+      it "returns nil" do
+        expect(request.domain).to be_nil
       end
     end
   end
