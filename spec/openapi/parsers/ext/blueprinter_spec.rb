@@ -285,6 +285,157 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         expect(subject["properties"].keys.first).to eq("uuid")
       end
     end
+
+    context "with inheritance from another blueprint" do
+      let_class("BaseUserBlueprint") do
+        <<~'RUBY'
+          class BaseUserBlueprint < Blueprinter::Base
+            fields :id, :name
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < BaseUserBlueprint
+            fields :email, :age
+          end
+        RUBY
+      end
+
+      it "merges parent schema into child schema" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "age" => { "type" => "string" }
+          }
+        })
+      end
+    end
+
+    context "when superclass is Base (should not merge)" do
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < Blueprinter::Base
+            fields :id, :name
+          end
+        RUBY
+      end
+
+      it "does not attempt to parse superclass" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" }
+          }
+        })
+      end
+    end
+
+    context "when child blueprint overrides a parent field" do
+      let_class("BaseUserBlueprint") do
+        <<~'RUBY'
+          class BaseUserBlueprint < Blueprinter::Base
+            fields :id, :name
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < BaseUserBlueprint
+            fields :name, :email
+          end
+        RUBY
+      end
+
+      it "child fields take precedence" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" }
+          }
+        })
+      end
+    end
+
+    context "with multiple levels of inheritance" do
+      let_class("GrandparentBlueprint") do
+        <<~'RUBY'
+          class GrandparentBlueprint < Blueprinter::Base
+            fields :id, :name
+          end
+        RUBY
+      end
+
+      let_class("ParentBlueprint") do
+        <<~'RUBY'
+          class ParentBlueprint < GrandparentBlueprint
+            fields :email
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < ParentBlueprint
+            fields :age
+          end
+        RUBY
+      end
+
+      it do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "age" => { "type" => "string" }
+          }
+        })
+      end
+    end
+
+    context "with identifier in parent blueprint" do
+      let_class("BaseUserBlueprint") do
+        <<~'RUBY'
+          class BaseUserBlueprint < Blueprinter::Base
+            identifier :uuid
+            fields :name
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < BaseUserBlueprint
+            identifier :id
+            fields :email
+          end
+        RUBY
+      end
+
+      it "inherits identifier from parent" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "uuid" => { "type" => "string" },
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" }
+          }
+        })
+        expect(subject["properties"].keys.first).to eq("uuid")
+        expect(subject["properties"].keys[1]).to eq("id")
+      end
+    end
   end
 
   describe "collection" do
@@ -337,6 +488,111 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
             }
           }
         })
+      end
+    end
+
+    context "with inherited fields" do
+      let_class("BaseUserBlueprint") do
+        <<~'RUBY'
+          class BaseUserBlueprint < Blueprinter::Base
+            fields :id, :name
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < BaseUserBlueprint
+            fields :email
+          end
+        RUBY
+      end
+
+      it do
+        is_expected.to eq({
+          "type" => "array",
+          "items" => {
+            "type" => "object",
+            "properties" => {
+              "id" => { "type" => "string" },
+              "name" => { "type" => "string" },
+              "email" => { "type" => "string" }
+            }
+          }
+        })
+      end
+    end
+
+    context "with multiple levels of inheritance" do
+      let_class("GrandparentBlueprint") do
+        <<~'RUBY'
+          class GrandparentBlueprint < Blueprinter::Base
+            fields :id, :name
+          end
+        RUBY
+      end
+      let_class("ParentBlueprint") do
+        <<~'RUBY'
+          class ParentBlueprint < GrandparentBlueprint
+            fields :email
+          end
+        RUBY
+      end
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < ParentBlueprint
+            fields :age
+          end
+        RUBY
+      end
+      it do
+        is_expected.to eq({
+          "type" => "array",
+          "items" => {
+            "type" => "object",
+            "properties" => {
+              "id" => { "type" => "string" },
+              "name" => { "type" => "string" },
+              "email" => { "type" => "string" },
+              "age" => { "type" => "string" }
+            }
+          }
+        })
+      end
+    end
+
+    context "with identifier in parent blueprint" do
+      let_class("BaseUserBlueprint") do
+        <<~'RUBY'
+          class BaseUserBlueprint < Blueprinter::Base
+            identifier :uuid
+            fields :name
+          end
+        RUBY
+      end
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < BaseUserBlueprint
+            identifier :id
+            fields :email
+          end
+        RUBY
+      end
+      it "inherits identifier from parent" do
+        is_expected.to eq({
+          "type" => "array",
+          "items" => {
+            "type" => "object",
+            "properties" => {
+              "uuid" => { "type" => "string" },
+              "id" => { "type" => "string" },
+              "name" => { "type" => "string" },
+              "email" => { "type" => "string" }
+            }
+          }
+        })
+        expect(subject["items"]["properties"].keys.first).to eq("uuid")
+        expect(subject["items"]["properties"].keys[1]).to eq("id")
       end
     end
   end

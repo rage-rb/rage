@@ -9,6 +9,7 @@
 - [OpenAPI] Extend @response / @request tag syntax to accept serializer options (#299)
 - Add `FiberScheduler#blocking_operation_wait` (#303).
 - [OpenAPI] Added static parsing of basic Blueprinter fields (`identifier`, `field`, `fields`) for OpenAPI schema generation. (#289)
+- [OpenAPI] Add support for blueprint inheritance. Child blueprints now inherit fields from parent blueprints.
 
 ### Fixed
 

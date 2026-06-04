@@ -42,7 +42,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   end
 
   class Visitor < Prism::Visitor
-    attr_accessor :schema
+    attr_accessor :schema, :identifier
 
     def initialize(parser, is_collection)
       @parser = parser
@@ -64,6 +64,16 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
       result["properties"] = properties if properties.any?
       result = { "type" => "array", "items" => result } if @is_collection
       result
+    end
+
+    def visit_class_node(node)
+      if node.superclass && node.superclass.full_name != "Blueprinter::Base"
+        visitor = @parser.__parse(node.superclass.name.to_s)
+        @identifier.merge!(visitor.identifier)
+        @schema.merge!(visitor.schema)
+      end
+
+      super
     end
 
     def visit_call_node(node)
