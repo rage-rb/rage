@@ -4,6 +4,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   def initialize(namespace: Object, root: Rage::OpenAPI::Nodes::Root.new, **)
     @namespace = namespace
     @root = root
+    @parsing_stack = Set.new
   end
 
   def known_definition?(str)
@@ -14,21 +15,45 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   end
 
   def parse(klass_str)
+    _, raw_klass_str, _ = Rage::OpenAPI.__parse_serializer_args(klass_str)
     visitor = __parse(klass_str)
+
+    if @root.schema_registry.key?(raw_klass_str)
+      clean = { "type" => "object" }
+      clean["properties"] = visitor.identifier.merge(visitor.schema.sort.to_h) if visitor.schema.any?
+      @root.schema_registry[raw_klass_str] = clean
+    end
+
     visitor.build_schema
   end
 
   def __parse(klass_str)
     is_collection, klass_str, _ = Rage::OpenAPI.__parse_serializer_args(klass_str)
 
+    @parsing_stack.add(klass_str)
+
     klass = @namespace.const_get(klass_str)
     source_path, _ = Object.const_source_location(klass.name)
+
     ast = Prism.parse_file(source_path)
 
     visitor = Visitor.new(self, is_collection)
     ast.value.accept(visitor)
 
+    @parsing_stack.delete(klass_str)
+
     visitor
+  end
+
+  def __parse_nested(klass_str)
+    _, raw_klass_str = Rage::OpenAPI.__try_parse_collection(klass_str)
+
+    if @parsing_stack.include?(raw_klass_str)
+      @root.schema_registry[raw_klass_str] ||= nil
+      return { "$ref" => "#/components/schemas/#{raw_klass_str}" }
+    end
+
+    __parse(raw_klass_str).build_schema
   end
 
   class VisitorContext
@@ -94,11 +119,25 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
           context.symbols.each { |symbol| @segment[symbol] = { "type" => "string" } }
           context.strings.each { |string| @segment[string] = { "type" => "string" } }
         end
+
+      when :association
+        context = with_context { visit(node.arguments) }
+
+        if context.keywords["blueprint"]
+          has_name = context.keywords["name"]
+          key = has_name || context.symbols.first
+          nested = @parser.__parse_nested(context.keywords["blueprint"]) rescue { "type" => "object" }
+          @segment[key] = { "type" => "array", "items" => nested }
+        end
       end
     end
 
     def visit_assoc_node(node)
-      @context.keywords[node.key.value] = node.value.unescaped
+      @context.keywords[node.key.value] = if node.value.respond_to?(:unescaped)
+        node.value.unescaped
+      else
+        node.value.slice
+      end
     end
 
     def visit_symbol_node(node)
