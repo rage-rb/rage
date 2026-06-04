@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+### Added
+
+- [OpenAPI] Add support for blueprint inheritance. Child blueprints now inherit fields from parent blueprints.
+
+### Fixed
+
+- [Request] Treat IPv6 literals as non-domain hosts.
+
 ## [1.25.0] - 2026-06-03
 
 ### Added
@@ -9,14 +17,12 @@
 - [OpenAPI] Extend @response / @request tag syntax to accept serializer options (#299)
 - Add `FiberScheduler#blocking_operation_wait` (#303).
 - [OpenAPI] Added static parsing of basic Blueprinter fields (`identifier`, `field`, `fields`) for OpenAPI schema generation. (#289)
-- [OpenAPI] Add support for blueprint inheritance. Child blueprints now inherit fields from parent blueprints.
 
 ### Fixed
 
 - [API] Reject malformed or empty HTTP token authorization headers.
 - [Cookies] Strip the port from `HTTP_HOST` before matching configured cookie domains.
 - [Router] Strip the port from `HTTP_HOST` before matching exact host constraints.
-- [Request] Treat IPv6 literals as non-domain hosts.
 
 ## [1.24.0] - 2026-05-12
 
