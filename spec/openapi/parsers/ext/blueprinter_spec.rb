@@ -436,6 +436,260 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         expect(subject["properties"].keys[1]).to eq("id")
       end
     end
+
+    context "with a basic association" do
+      let_class("ProjectBlueprint") do
+        <<~'RUBY'
+          class ProjectBlueprint < Blueprinter::Base
+            fields :id, :name
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < Blueprinter::Base
+            fields :email
+            association :projects, blueprint: ProjectBlueprint
+          end
+        RUBY
+      end
+
+      it "defaults to array type with nested blueprint schema" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "email" => { "type" => "string" },
+            "projects" => {
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "properties" => {
+                  "id" => { "type" => "string" },
+                  "name" => { "type" => "string" }
+                }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with association name alias" do
+      let_class("ProjectBlueprint") do
+        <<~'RUBY'
+          class ProjectBlueprint < Blueprinter::Base
+            fields :id, :name
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < Blueprinter::Base
+            fields :email
+            association :projects, blueprint: ProjectBlueprint, name: :work_projects
+          end
+        RUBY
+      end
+
+      it "uses the name alias as the association key" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "email" => { "type" => "string" },
+            "work_projects" => {
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "properties" => {
+                  "id" => { "type" => "string" },
+                  "name" => { "type" => "string" }
+                }
+              }
+            }
+          }
+        })
+      end
+
+      context "when referenced blueprint cannot be resolved" do
+        let_class("UserBlueprint") do
+          <<~'RUBY'
+            class UserBlueprint < Blueprinter::Base
+              fields :email
+              association :projects, blueprint: UnknownBlueprint
+            end
+          RUBY
+        end
+
+        it "falls back to empty object schema" do
+          is_expected.to eq({
+            "type" => "object",
+            "properties" => {
+              "email" => { "type" => "string" },
+              "projects" => {
+                "type" => "array",
+                "items" => { "type" => "object" }
+              }
+            }
+          })
+        end
+      end
+
+      context "with circular association" do
+        let_class("ProjectBlueprint") do
+          <<~'RUBY'
+            class ProjectBlueprint < Blueprinter::Base
+              fields :name
+              association :user, blueprint: UserBlueprint
+            end
+          RUBY
+        end
+
+        let_class("UserBlueprint") do
+          <<~'RUBY'
+            class UserBlueprint < Blueprinter::Base
+              fields :email
+              association :projects, blueprint: ProjectBlueprint
+            end
+          RUBY
+        end
+
+        it "does not loop infinitely and falls back to $ref for circular reference" do
+          expect { subject }.not_to raise_error
+          is_expected.to eq({
+            "type" => "object",
+            "properties" => {
+              "email" => { "type" => "string" },
+              "projects" => {
+                "type" => "array",
+                "items" => {
+                  "type" => "object",
+                  "properties" => {
+                    "name" => { "type" => "string" },
+                    "user" => {
+                      "type" => "array",
+                      "items" => { "$ref" => "#/components/schemas/UserBlueprint" }
+                    }
+                  }
+                }
+              }
+            }
+          })
+        end
+      end
+    end
+
+    context "with association across multiple levels of inheritance" do
+      let_class("TagBlueprint") do
+        <<~'RUBY'
+          class TagBlueprint < Blueprinter::Base
+            fields :id, :label
+          end
+        RUBY
+      end
+
+      let_class("ProjectBlueprint") do
+        <<~'RUBY'
+          class ProjectBlueprint < Blueprinter::Base
+            fields :name
+            association :tags, blueprint: TagBlueprint
+          end
+        RUBY
+      end
+
+      let_class("BaseUserBlueprint") do
+        <<~'RUBY'
+          class BaseUserBlueprint < Blueprinter::Base
+            fields :email
+            association :projects, blueprint: ProjectBlueprint
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < BaseUserBlueprint
+            fields :first_name
+          end
+        RUBY
+      end
+
+      it do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "email" => { "type" => "string" },
+            "first_name" => { "type" => "string" },
+            "projects" => {
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "properties" => {
+                  "name" => { "type" => "string" },
+                  "tags" => {
+                    "type" => "array",
+                    "items" => {
+                      "type" => "object",
+                      "properties" => {
+                        "id" => { "type" => "string" },
+                        "label" => { "type" => "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with identifier in associated blueprint" do
+      let_class("ProjectBlueprint") do
+        <<~'RUBY'
+          class ProjectBlueprint < Blueprinter::Base
+            identifier :uuid
+            fields :name
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < Blueprinter::Base
+            identifier :id
+            fields :email
+            association :projects, blueprint: ProjectBlueprint
+          end
+        RUBY
+      end
+
+      it do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "projects" => {
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "properties" => {
+                  "uuid" => { "type" => "string" },
+                  "name" => { "type" => "string" }
+                }
+              }
+            }
+          }
+        })
+      end
+
+      it "ensures identifier appears first in properties" do
+        expect(subject["properties"].keys.first).to eq("id")
+        expect(subject.dig("properties", "projects", "items", "properties").keys.first).to eq("uuid")
+      end
+    end
   end
 
   describe "collection" do
@@ -593,6 +847,278 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         })
         expect(subject["items"]["properties"].keys.first).to eq("uuid")
         expect(subject["items"]["properties"].keys[1]).to eq("id")
+      end
+    end
+
+    context "with a basic association" do
+      let_class("ProjectBlueprint") do
+        <<~'RUBY'
+          class ProjectBlueprint < Blueprinter::Base
+            fields :id, :name
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < Blueprinter::Base
+            fields :email
+            association :projects, blueprint: ProjectBlueprint
+          end
+        RUBY
+      end
+
+      it "defaults to array type with nested blueprint schema" do
+        is_expected.to eq({
+          "type" => "array",
+          "items" => {
+            "type" => "object",
+            "properties" => {
+              "email" => { "type" => "string" },
+              "projects" => {
+                "type" => "array",
+                "items" => {
+                  "type" => "object",
+                  "properties" => {
+                    "id" => { "type" => "string" },
+                    "name" => { "type" => "string" }
+                  }
+                }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with association name alias" do
+      let_class("ProjectBlueprint") do
+        <<~'RUBY'
+          class ProjectBlueprint < Blueprinter::Base
+            fields :id, :name
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < Blueprinter::Base
+            fields :email
+            association :projects, blueprint: ProjectBlueprint, name: :work_projects
+          end
+        RUBY
+      end
+
+      it "uses the name alias as the association key" do
+        is_expected.to eq({
+          "type" => "array",
+          "items" => {
+            "type" => "object",
+            "properties" => {
+              "email" => { "type" => "string" },
+              "work_projects" => {
+                "type" => "array",
+                "items" => {
+                  "type" => "object",
+                  "properties" => {
+                    "id" => { "type" => "string" },
+                    "name" => { "type" => "string" }
+                  }
+                }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "when referenced blueprint cannot be resolved" do
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < Blueprinter::Base
+            fields :email
+            association :projects, blueprint: UnknownBlueprint
+          end
+        RUBY
+      end
+
+      it "falls back to empty object schema" do
+        is_expected.to eq({
+          "type" => "array",
+          "items" => {
+            "type" => "object",
+            "properties" => {
+              "email" => { "type" => "string" },
+              "projects" => {
+                "type" => "array",
+                "items" => { "type" => "object" }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with circular association" do
+      let_class("ProjectBlueprint") do
+        <<~'RUBY'
+          class ProjectBlueprint < Blueprinter::Base
+            fields :name
+            association :user, blueprint: UserBlueprint
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < Blueprinter::Base
+            fields :email
+            association :projects, blueprint: ProjectBlueprint
+          end
+        RUBY
+      end
+
+      it "does not loop infinitely and falls back to $ref for circular reference" do
+        expect { subject }.not_to raise_error
+        is_expected.to eq({
+          "type" => "array",
+          "items" => {
+            "type" => "object",
+            "properties" => {
+              "email" => { "type" => "string" },
+              "projects" => {
+                "type" => "array",
+                "items" => {
+                  "type" => "object",
+                  "properties" => {
+                    "name" => { "type" => "string" },
+                    "user" => {
+                      "type" => "array",
+                      "items" => { "$ref" => "#/components/schemas/UserBlueprint" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with association across multiple levels of inheritance" do
+      let_class("TagBlueprint") do
+        <<~'RUBY'
+          class TagBlueprint < Blueprinter::Base
+            fields :id, :label
+          end
+        RUBY
+      end
+
+      let_class("ProjectBlueprint") do
+        <<~'RUBY'
+          class ProjectBlueprint < Blueprinter::Base
+            fields :name
+            association :tags, blueprint: TagBlueprint
+          end
+        RUBY
+      end
+
+      let_class("BaseUserBlueprint") do
+        <<~'RUBY'
+          class BaseUserBlueprint < Blueprinter::Base
+            fields :email
+            association :projects, blueprint: ProjectBlueprint
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < BaseUserBlueprint
+            fields :first_name
+          end
+        RUBY
+      end
+
+      it do
+        is_expected.to eq({
+          "type" => "array",
+          "items" => {
+            "type" => "object",
+            "properties" => {
+              "email" => { "type" => "string" },
+              "first_name" => { "type" => "string" },
+              "projects" => {
+                "type" => "array",
+                "items" => {
+                  "type" => "object",
+                  "properties" => {
+                    "name" => { "type" => "string" },
+                    "tags" => {
+                      "type" => "array",
+                      "items" => {
+                        "type" => "object",
+                        "properties" => {
+                          "id" => { "type" => "string" },
+                          "label" => { "type" => "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with identifier in associated blueprint" do
+      let_class("ProjectBlueprint") do
+        <<~'RUBY'
+          class ProjectBlueprint < Blueprinter::Base
+            identifier :uuid
+            fields :name
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < Blueprinter::Base
+            identifier :id
+            fields :email
+            association :projects, blueprint: ProjectBlueprint
+          end
+        RUBY
+      end
+
+      it do
+        is_expected.to eq({
+          "type" => "array",
+          "items" => {
+            "type" => "object",
+            "properties" => {
+              "id" => { "type" => "string" },
+              "email" => { "type" => "string" },
+              "projects" => {
+                "type" => "array",
+                "items" => {
+                  "type" => "object",
+                  "properties" => {
+                    "uuid" => { "type" => "string" },
+                    "name" => { "type" => "string" }
+                  }
+                }
+              }
+            }
+          }
+        })
+      end
+
+      it "ensures identifier appears first in properties" do
+        expect(subject["items"]["properties"].keys.first).to eq("id")
+        expect(subject.dig("items", "properties", "projects", "items", "properties").keys.first).to eq("uuid")
       end
     end
   end

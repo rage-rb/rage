@@ -3,6 +3,7 @@
 ### Added
 
 - [OpenAPI] Add support for blueprint inheritance. Child blueprints now inherit fields from parent blueprints.
+- [OpenAPI] Add support for `association` declarations in Blueprinter serializers, including nested schemas, `name:` aliasing, and circular reference detection.
 
 ### Fixed
 
