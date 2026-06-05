@@ -615,7 +615,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it do
+      it "includes identifier in collection items" do
         is_expected.to eq({
           "type" => "object",
           "properties" => {
@@ -665,7 +665,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it do
+      it "includes identifier in nested blueprint schema" do
         is_expected.to eq({
           "type" => "object",
           "properties" => {
@@ -688,6 +688,58 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
       it "ensures identifier appears first in properties" do
         expect(subject["properties"].keys.first).to eq("id")
         expect(subject.dig("properties", "projects", "items", "properties").keys.first).to eq("uuid")
+      end
+    end
+
+    context "with circular association through inheritance" do
+      let_class("BaseProjectBlueprint") do
+        <<~'RUBY'
+          class BaseProjectBlueprint < Blueprinter::Base
+            fields :name
+          end
+        RUBY
+      end
+
+      let_class("ProjectBlueprint") do
+        <<~'RUBY'
+          class ProjectBlueprint < BaseProjectBlueprint
+            fields :description
+            association :user, blueprint: UserBlueprint
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < Blueprinter::Base
+            fields :email
+            association :projects, blueprint: ProjectBlueprint
+          end
+        RUBY
+      end
+
+      it "does not loop infinitely and falls back to $ref for circular reference" do
+        expect { subject }.not_to raise_error
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "email" => { "type" => "string" },
+            "projects" => {
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "properties" => {
+                  "description" => { "type" => "string" },
+                  "name" => { "type" => "string" },
+                  "user" => {
+                    "type" => "array",
+                    "items" => { "$ref" => "#/components/schemas/UserBlueprint" }
+                  }
+                }
+              }
+            }
+          }
+        })
       end
     end
   end
@@ -1040,7 +1092,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it do
+      it "inherits and resolves nested associations across multiple blueprint levels" do
         is_expected.to eq({
           "type" => "array",
           "items" => {
@@ -1093,7 +1145,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it do
+      it "includes identifier in nested blueprint schema" do
         is_expected.to eq({
           "type" => "array",
           "items" => {
@@ -1119,6 +1171,61 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
       it "ensures identifier appears first in properties" do
         expect(subject["items"]["properties"].keys.first).to eq("id")
         expect(subject.dig("items", "properties", "projects", "items", "properties").keys.first).to eq("uuid")
+      end
+    end
+
+    context "with circular association through inheritance" do
+      let_class("BaseProjectBlueprint") do
+        <<~'RUBY'
+          class BaseProjectBlueprint < Blueprinter::Base
+            fields :name
+          end
+        RUBY
+      end
+
+      let_class("ProjectBlueprint") do
+        <<~'RUBY'
+          class ProjectBlueprint < BaseProjectBlueprint
+            fields :description
+            association :user, blueprint: UserBlueprint
+          end
+        RUBY
+      end
+
+      let_class("UserBlueprint") do
+        <<~'RUBY'
+          class UserBlueprint < Blueprinter::Base
+            fields :email
+            association :projects, blueprint: ProjectBlueprint
+          end
+        RUBY
+      end
+
+      it "does not loop infinitely and falls back to $ref for circular reference" do
+        expect { subject }.not_to raise_error
+        is_expected.to eq({
+          "type" => "array",
+          "items" => {
+            "type" => "object",
+            "properties" => {
+              "email" => { "type" => "string" },
+              "projects" => {
+                "type" => "array",
+                "items" => {
+                  "type" => "object",
+                  "properties" => {
+                    "description" => { "type" => "string" },
+                    "name" => { "type" => "string" },
+                    "user" => {
+                      "type" => "array",
+                      "items" => { "$ref" => "#/components/schemas/UserBlueprint" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })
       end
     end
   end
