@@ -43,7 +43,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   end
 
   class Visitor < Prism::Visitor
-    attr_accessor :schema, :identifier
+    attr_accessor :schema, :identifier, :key_transformer
 
     def initialize(parser, is_collection)
       @parser = parser
@@ -121,6 +121,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
     end
 
     def visit_constant_read_node(node)
+      return unless @context
       @context.consts = node.name.to_s
     end
 
