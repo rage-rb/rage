@@ -19,13 +19,13 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   end
 
   def __parse(klass_str)
-    is_collection, klass_str, _ = Rage::OpenAPI.__parse_serializer_args(klass_str)
+    is_collection, klass_str, serializer_args = Rage::OpenAPI.__parse_serializer_args(klass_str)
 
     klass = @namespace.const_get(klass_str)
     source_path, _ = Object.const_source_location(klass.name)
     ast = Prism.parse_file(source_path)
 
-    visitor = Visitor.new(self, is_collection)
+    visitor = Visitor.new(self, is_collection, serializer_args)
     ast.value.accept(visitor)
 
     visitor
@@ -44,14 +44,19 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   class Visitor < Prism::Visitor
     attr_accessor :schema, :identifier
 
-    def initialize(parser, is_collection)
+    def initialize(parser, is_collection, serializer_args)
       @parser = parser
       @is_collection = is_collection
+      @serializer_args = serializer_args
 
       @context = nil
       @schema = {}
       @segment = @schema
       @identifier = {}
+
+      @fields_by_view = {}
+      @include_views = []
+      @exclude_views = []
     end
 
     def build_schema
@@ -62,6 +67,18 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
       properties.merge!(@schema.sort.to_h)
 
       result["properties"] = properties if properties.any?
+
+      if @serializer_args.key?(:view)
+        requested_view = @serializer_args[:view].to_s
+        allowed_views = @include_views.map(&:to_s) + [requested_view]
+
+        @fields_by_view.each do |field, view|
+          result["properties"].delete(field.to_s) unless allowed_views.include?(view)
+        end
+
+        @exclude_views.each { |field| result["properties"].delete(field.to_s) }
+      end
+
       result = { "type" => "array", "items" => result } if @is_collection
       result
     end
@@ -94,6 +111,22 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
           context.symbols.each { |symbol| @segment[symbol] = { "type" => "string" } }
           context.strings.each { |string| @segment[string] = { "type" => "string" } }
         end
+
+      when :view
+        return unless @serializer_args.any?
+
+        context = with_context { visit(node.block) }
+        context.symbols.each do |symbol|
+          @fields_by_view[symbol] = node.arguments.arguments.first.unescaped
+        end
+
+      when :include_view, :include_views
+        context = with_context { visit(node.arguments) }
+        @include_views.concat(context.symbols.flatten)
+
+      when :exclude, :excludes
+        context = with_context { visit(node.arguments) }
+        @exclude_views.concat(context.symbols.flatten)
       end
     end
 

@@ -3,6 +3,7 @@
 ### Added
 
 - [OpenAPI] Add support for blueprint inheritance. Child blueprints now inherit fields from parent blueprints.
+- [OpenAPI] Add support for Blueprinter `view` blocks, including `include_view`, `include_views`, `exclude`, and `excludes` options.
 
 ### Fixed
 
