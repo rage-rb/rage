@@ -32,12 +32,13 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   end
 
   class VisitorContext
-    attr_accessor :symbols, :keywords, :strings
+    attr_accessor :symbols, :keywords, :strings, :consts
 
     def initialize
       @symbols = []
       @strings = []
       @keywords = {}
+      @consts = nil
     end
   end
 
@@ -52,6 +53,8 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
       @schema = {}
       @segment = @schema
       @identifier = {}
+
+      @key_transformer = nil
     end
 
     def build_schema
@@ -63,6 +66,9 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
 
       result["properties"] = properties if properties.any?
       result = { "type" => "array", "items" => result } if @is_collection
+
+      result = deep_transform_keys(result) if @key_transformer
+
       result
     end
 
@@ -70,6 +76,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
       if node.superclass && node.superclass.full_name != "Blueprinter::Base"
         visitor = @parser.__parse(node.superclass.name.to_s)
         @identifier.merge!(visitor.identifier)
+        @key_transformer = visitor.key_transformer
         @schema.merge!(visitor.schema)
       end
 
@@ -94,6 +101,10 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
           context.symbols.each { |symbol| @segment[symbol] = { "type" => "string" } }
           context.strings.each { |string| @segment[string] = { "type" => "string" } }
         end
+
+      when :transform
+        context = with_context { visit(node.arguments) }
+        @key_transformer ||= get_key_transformer(context.consts)
       end
     end
 
@@ -109,12 +120,36 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
       @context.strings << node.unescaped
     end
 
+    def visit_constant_read_node(node)
+      @context.consts = node.name.to_s
+    end
+
     private
 
     def with_context
       @context = VisitorContext.new
       yield
       @context
+    end
+
+    def deep_transform_keys(schema)
+      schema.each_with_object({}) do |(key, value), memo|
+        transformed_key = %w(type properties items additionalProperties).include?(key) ? key : @key_transformer.call(key)
+        memo[transformed_key] = value.is_a?(Hash) ? deep_transform_keys(value) : value
+      end
+    end
+
+    def get_key_transformer(transformer_class)
+      return nil unless defined?(ActiveSupport)
+
+      case transformer_class
+      when "LowerCamelTransformer"
+        ->(key) { key.to_s.camelize(:lower) }
+      when "CamelTransformer"
+        ->(key) { key.to_s.camelize }
+      when "DashTransformer"
+        ->(key) { key.to_s.dasherize }
+      end
     end
   end
 end

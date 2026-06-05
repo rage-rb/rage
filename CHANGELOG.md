@@ -3,6 +3,7 @@
 ### Added
 
 - [OpenAPI] Add support for blueprint inheritance. Child blueprints now inherit fields from parent blueprints.
+- [OpenAPI] Blueprinter transformer classes are now supported. Property names in the generated schema are automatically transformed when `LowerCamelTransformer`, `CamelTransformer`, or `DashTransformer` is applied to a blueprint.
 
 ### Fixed
 
