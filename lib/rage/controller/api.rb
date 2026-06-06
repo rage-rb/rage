@@ -485,7 +485,7 @@ class RageController::API
   # @note `render` doesn't terminate execution of the action, so if you want to exit an action after rendering, you need to do something like `render(...) and return`.
   def render(json: nil, plain: nil, sse: nil, status: nil)
     raise "Render was called multiple times in this action." if @__rendered
-    status = ::Rack::Utils.status_code(status) if status
+    normalized_status = status.nil? ? nil : ::Rack::Utils.status_code(status)
     @__rendered = true
 
     if json || plain
@@ -500,14 +500,14 @@ class RageController::API
       @__status = 200
     end
 
-    if status
-      @__status = status
+    if normalized_status
+      @__status = normalized_status
     end
 
     if sse
       raise ArgumentError, "Cannot render both a standard body and an SSE stream." unless @__body.empty?
 
-      if status
+      if normalized_status
         return if @__status == 204
         raise ArgumentError, "SSE responses only support 200 and 204 statuses." if @__status != 200
       end
@@ -527,9 +527,8 @@ class RageController::API
   # @example
   #   head 429
   def head(status)
-    status = ::Rack::Utils.status_code(status)
     @__rendered = true
-    @__status = status
+    @__status = ::Rack::Utils.status_code(status)
   end
 
   # Set response headers.
