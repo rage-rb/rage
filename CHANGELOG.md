@@ -7,6 +7,7 @@
 ### Fixed
 
 - [Request] Treat IPv6 literals as non-domain hosts.
+- [Cookies] Use request host fallback when resolving cookie domains.
 
 ## [1.25.0] - 2026-06-03
 
