@@ -8,6 +8,13 @@
 
 - [Request] Treat IPv6 literals as non-domain hosts.
 - [Router] Fall back to `SERVER_NAME` when deriving exact host constraints.
+- [Cookies] Use request host fallback when resolving cookie domains.
+
+## [1.25.1] - 2026-06-08
+
+### Fixed
+
+- Wrap resume fiber closures in blocks (#322).
 
 ## [1.25.0] - 2026-06-03
 
