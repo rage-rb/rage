@@ -115,10 +115,8 @@ class Rage::FiberScheduler
       end
     end
 
-    ::Iodine.subscribe(channel, &resume_fiber_block)
-    if timeout
-      ::Iodine.run_after((timeout * 1000).to_i, &resume_fiber_block)
-    end
+    ::Iodine.subscribe(channel) { resume_fiber_block.call }
+    ::Iodine.run_after((timeout * 1000).to_i) { resume_fiber_block.call } if timeout
 
     Fiber.yield
   end
