@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.25.1] - 2026-06-08
+
+### Fixed
+
+- Wrap resume fiber closures in blocks (#322).
+
 ## [1.25.0] - 2026-06-03
 
 ### Added
