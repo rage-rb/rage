@@ -7,6 +7,7 @@
 ### Fixed
 
 - [Request] Treat IPv6 literals as non-domain hosts.
+- [Router] Fall back to `SERVER_NAME` when deriving exact host constraints.
 
 ## [1.25.0] - 2026-06-03
 

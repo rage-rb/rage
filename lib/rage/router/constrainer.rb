@@ -69,7 +69,7 @@ class Rage::Router::Constrainer
       # Optimization: inline the derivation for the common built in constraints
       if !strategy.custom?
         if key == :host
-          lines << "   host: env['HTTP_HOST'.freeze]&.sub(/:\\d+\\z/, ''.freeze),"
+          lines << "   host: (host = env['HTTP_HOST'.freeze]) ? host.sub(/:\\d+\\z/, ''.freeze) : env['SERVER_NAME'.freeze],"
         else
           raise ArgumentError, "unknown non-custom strategy for compiling constraint derivation function"
         end

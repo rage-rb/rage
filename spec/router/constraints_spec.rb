@@ -21,6 +21,23 @@ RSpec.describe Rage::Router::Backend do
     expect(result).to eq("get photos")
   end
 
+  it "correctly processes a constrained url when request host falls back to SERVER_NAME" do
+    router.on("GET", "/photos", ->(_) { "get photos" }, constraints: { host: "google.com" })
+
+    env = {
+      "REQUEST_METHOD" => "GET",
+      "PATH_INFO" => "/photos",
+      "SERVER_NAME" => "google.com",
+      "SERVER_PORT" => "3000",
+      "rack.input" => StringIO.new
+    }
+
+    handler = router.lookup(env)
+
+    expect(handler).not_to be_nil
+    expect(handler[:handler].call(env, handler[:params])).to eq("get photos")
+  end
+
   it "correctly processes urls with multiple constraints" do
     router.on("GET", "/photos", ->(_) { "US photos" }, constraints: { host: "google.com" })
     router.on("GET", "/photos", ->(_) { "CA photos" }, constraints: { host: "google.ca" })
