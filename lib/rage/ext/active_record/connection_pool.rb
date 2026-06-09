@@ -227,7 +227,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   # Disconnect connections exceeding `max_age`
   def retire_old_connections(max_age = @__max_age)
-    return if max_age.nil? || max_age.infinite?
+    return false if max_age.nil? || max_age.infinite?
 
     i, disconnected = 0, false
 
@@ -245,7 +245,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   # Ping idle connections to prevent firewall/server timeouts
   def keep_alive(threshold = @__keepalive)
-    return if threshold.nil?
+    return if threshold.nil? || @__connections.length == 0
 
     to_ping = nil
 
@@ -271,6 +271,8 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   # Proactively establish DB connections
   def preconnect
+    return if @__connections.length == 0
+
     active_connections_count = @__in_use.length + @__connections.count { |conn| conn.connected? && conn.verified? }
 
     while @__min_connections - active_connections_count > 0
