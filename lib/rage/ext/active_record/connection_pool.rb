@@ -75,7 +75,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     # connections older than this are automatically disconnected
     @__max_age = respond_to?(:max_age) ? max_age : Float::INFINITY
 
-    # seconds between keepalive pings on idle connections 
+    # seconds between keepalive pings on idle connections
     @__keepalive = respond_to?(:keepalive) ? keepalive : nil
 
     # how often should we check for fibers that wait for a connection for too long
@@ -118,7 +118,8 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     end
 
     @release_connection_channel = "ext:ar-connection-released:#{object_id}"
-    @__owner_thread = Thread.current 
+    @__owner_thread = Thread.current
+    @__background_maintenance_disabled = (ActiveRecord.version < Gem::Version.create("8.1"))
 
     # resume blocked fibers once connections become available
     Iodine.subscribe(@release_connection_channel) do
@@ -271,7 +272,7 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   # Proactively establish DB connections
   def preconnect
-    return if @__connections.length == 0
+    return if @__connections.length == 0 || @__background_maintenance_disabled
 
     active_connections_count = @__in_use.length + @__connections.count { |conn| conn.connected? && conn.verified? }
 
