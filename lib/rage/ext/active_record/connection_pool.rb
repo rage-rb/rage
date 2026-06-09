@@ -328,6 +328,8 @@ module Rage::Ext::ActiveRecord::ConnectionPool
   # Raises `ActiveRecord::ExclusiveConnectionTimeoutError` if unable to gain ownership of all
   # connections in the pool within a timeout interval (default duration is `checkout_timeout * 2` seconds).
   def disconnect(raise_on_acquisition_timeout = true, disconnect_attempts = 0)
+    return if @__connections.is_a?(BlackHoleList)
+
     # allow request fibers to release connections, but block from acquiring new ones
     if disconnect_attempts == 0
       @__connections = BlackHoleList.new(@__connections)
