@@ -3,6 +3,7 @@
 ### Added
 
 - [OpenAPI] Add support for blueprint inheritance. Child blueprints now inherit fields from parent blueprints.
+- Connection pool improvements (#301).
 
 ### Fixed
 
