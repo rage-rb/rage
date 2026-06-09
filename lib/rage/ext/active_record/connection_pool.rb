@@ -11,6 +11,10 @@ module Rage::Ext::ActiveRecord::ConnectionPool
       @arr << el
     end
 
+    def unshift(el)
+      @arr.unshift(el)
+    end
+
     def pop
       nil
     end
