@@ -37,8 +37,8 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   def extract_fields(reflections, view_name)
     return {} unless (view = reflections[view_name])
 
-    view.instance_variable_get(:@view_collection).instance_variable_get(:@views)[view_name].instance_variable_get(:@fields).each_with_object({}) do |(_, field), hash|
-      hash[field.name.to_s] = { "type" => "string" }
+    view.fields.each_with_object({}) do |(_, field), hash|
+      hash[field.display_name.to_s] = { "type" => "string" }
     end
   end
 end

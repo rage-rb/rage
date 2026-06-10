@@ -7,7 +7,6 @@ require_relative "support/controller_helper"
 require_relative "support/reactor_helper"
 require_relative "support/websocket_helper"
 require_relative "support/contexts/mocked_classes"
-require_relative "support/contexts/mocked_blueprinter_classes"
 require_relative "support/contexts/mocked_rage_routes"
 require_relative "support/custom_matchers"
 

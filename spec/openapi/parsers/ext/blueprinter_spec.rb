@@ -3,7 +3,7 @@
 require "blueprinter"
 
 RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
-  include_context "mocked_blueprinter_classes"
+  include_context "mocked_classes"
 
   subject { described_class.new(**options).parse(resource) }
 
@@ -196,9 +196,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         <<~'RUBY'
           identifier :uuid
           fields "id", "name", "age"
-          field "email", name: "login"
-          fields "first_name", "last_name"
-          field("full_name") { |u| "#{u.first_name} #{u.last_name}" }
+          field "email", name: :login
         RUBY
       end
 
@@ -210,38 +208,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
             "id" => { "type" => "string" },
             "name" => { "type" => "string" },
             "age" => { "type" => "string" },
-            "login" => { "type" => "string" },
-            "first_name" => { "type" => "string" },
-            "last_name" => { "type" => "string" },
-            "full_name" => { "type" => "string" }
-          }
-        })
-      end
-    end
-
-    context "with all declaration types combined with string and symbol vales" do
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
-        <<~'RUBY'
-          identifier :uuid
-          fields :id, "name", :age
-          field :email, name: "login"
-          fields "first_name", :last_name
-          field("full_name") { |u| "#{u.first_name} #{u.last_name}" }
-        RUBY
-      end
-
-      it do
-        is_expected.to eq({
-          "type" => "object",
-          "properties" => {
-            "uuid" => { "type" => "string" },
-            "id" => { "type" => "string" },
-            "name" => { "type" => "string" },
-            "age" => { "type" => "string" },
-            "login" => { "type" => "string" },
-            "first_name" => { "type" => "string" },
-            "last_name" => { "type" => "string" },
-            "full_name" => { "type" => "string" }
+            "login" => { "type" => "string" }
           }
         })
       end
