@@ -180,12 +180,12 @@ RSpec.describe RageController::API do
       let(:env) { { "HTTP_IF_NONE_MATCH" => "\"#{Digest::SHA1.hexdigest("123")}\"" } }
       let(:expected_etag) { %(W/"#{Digest::SHA1.hexdigest("123")}") }
 
-      it "renders the requested resource" do
+      it "returns NOT MODIFIED" do
         expect(run_action(klass, :stale_etag_test, env:)).to match(
-          [200, a_hash_including(
+          [304, a_hash_including(
             Rage::Response::ETAG_HEADER => expected_etag,
             Rage::Response::LAST_MODIFIED_HEADER => nil
-          ), ["test_etag"]]
+          ), []]
         )
       end
     end
