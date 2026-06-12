@@ -310,6 +310,32 @@ RSpec.describe RageController::API do
         end
       end
 
+      context "when request host uses different casing" do
+        let(:request_host) { "COOKIE.TEST.COM" }
+
+        it "correctly sets domain value" do
+          subject.cookies[:user_id] = {
+            domain: %w(api.test.com cookie.test.com),
+            value: 120
+          }
+
+          expect(response_cookies[:user_id]).to eq("120; domain=cookie.test.com")
+        end
+      end
+
+      context "when request host uses different casing and includes a port" do
+        let(:request_host) { "COOKIE.TEST.COM:3000" }
+
+        it "correctly sets domain value" do
+          subject.cookies[:user_id] = {
+            domain: %w(api.test.com cookie.test.com),
+            value: 120
+          }
+
+          expect(response_cookies[:user_id]).to eq("120; domain=cookie.test.com")
+        end
+      end
+
       context "when request uses SERVER_NAME fallback" do
         let(:request_env) do
           {
