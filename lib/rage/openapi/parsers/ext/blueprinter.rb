@@ -14,107 +14,31 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   end
 
   def parse(klass_str)
-    visitor = __parse(klass_str)
-    visitor.build_schema
+    is_collection, raw_klass_str, _ = Rage::OpenAPI.__parse_serializer_args(klass_str)
+    klass = @namespace.const_get(raw_klass_str)
+    build_schema(klass, is_collection)
   end
 
-  def __parse(klass_str)
-    is_collection, klass_str, _ = Rage::OpenAPI.__parse_serializer_args(klass_str)
+  private
 
-    klass = @namespace.const_get(klass_str)
-    source_path, _ = Object.const_source_location(klass.name)
-    ast = Prism.parse_file(source_path)
+  def build_schema(klass, is_collection)
+    reflections = klass.reflections
+    identifier_fields = extract_fields(reflections, :identifier)
+    default_fields = extract_fields(reflections, :default)
 
-    visitor = Visitor.new(self, is_collection)
-    ast.value.accept(visitor)
+    schema = identifier_fields.merge(default_fields.sort.to_h)
 
-    visitor
+    result = { "type" => "object" }
+    result["properties"] = schema if schema.any?
+    result = { "type" => "array", "items" => result } if is_collection
+    result
   end
 
-  class VisitorContext
-    attr_accessor :symbols, :keywords, :strings
+  def extract_fields(reflections, view_name)
+    return {} unless (view = reflections[view_name])
 
-    def initialize
-      @symbols = []
-      @strings = []
-      @keywords = {}
-    end
-  end
-
-  class Visitor < Prism::Visitor
-    attr_accessor :schema, :identifier
-
-    def initialize(parser, is_collection)
-      @parser = parser
-      @is_collection = is_collection
-
-      @context = nil
-      @schema = {}
-      @segment = @schema
-      @identifier = {}
-    end
-
-    def build_schema
-      result = { "type" => "object" }
-
-      properties = {}
-      properties.merge!(@identifier)
-      properties.merge!(@schema.sort.to_h)
-
-      result["properties"] = properties if properties.any?
-      result = { "type" => "array", "items" => result } if @is_collection
-      result
-    end
-
-    def visit_class_node(node)
-      if node.superclass && node.superclass.full_name != "Blueprinter::Base"
-        visitor = @parser.__parse(node.superclass.name.to_s)
-        @identifier.merge!(visitor.identifier)
-        @schema.merge!(visitor.schema)
-      end
-
-      super
-    end
-
-    def visit_call_node(node)
-      case node.name
-      when :identifier
-        context = with_context { visit(node.arguments) }
-        @identifier[context.symbols.first] = { "type" => "string" }
-
-      when :fields, :field
-        context = with_context { visit(node.arguments) }
-
-        if context.keywords["name"]
-          @segment[context.keywords["name"]] = { "type" => "string" }
-        elsif node.block
-          @segment[context.symbols.first] = { "type" => "string" } if context.symbols.first
-          @segment[context.strings.first] = { "type" => "string" } if context.strings.first
-        else
-          context.symbols.each { |symbol| @segment[symbol] = { "type" => "string" } }
-          context.strings.each { |string| @segment[string] = { "type" => "string" } }
-        end
-      end
-    end
-
-    def visit_assoc_node(node)
-      @context.keywords[node.key.value] = node.value.unescaped
-    end
-
-    def visit_symbol_node(node)
-      @context.symbols << node.value
-    end
-
-    def visit_string_node(node)
-      @context.strings << node.unescaped
-    end
-
-    private
-
-    def with_context
-      @context = VisitorContext.new
-      yield
-      @context
+    view.fields.each_with_object({}) do |(_, field), hash|
+      hash[field.display_name.to_s] = { "type" => "string" }
     end
   end
 end

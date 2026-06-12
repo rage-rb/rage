@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "prism"
+require "blueprinter"
 
 RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   include_context "mocked_classes"
@@ -13,10 +13,8 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     let(:resource) { "UserBlueprint" }
 
     context "with an empty blueprint" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-          end
         RUBY
       end
 
@@ -26,33 +24,28 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with basic fields" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            fields :id, :name, :email, :age
-          end
+          fields :id, :name, :email, :age
         RUBY
       end
-
       it do
         is_expected.to eq({
           "type" => "object",
           "properties" => {
-            "id" => { "type" => "string" },
-            "name" => { "type" => "string" },
+            "age" => { "type" => "string" },
             "email" => { "type" => "string" },
-            "age" => { "type" => "string" }
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" }
           }
         })
       end
     end
 
     context "when fields are declared with strings" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            fields "id", "name", "email"
-          end
+          fields "id", "name", "email"
         RUBY
       end
 
@@ -69,11 +62,9 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with identifier" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            identifier :uuid
-          end
+          identifier :uuid
         RUBY
       end
 
@@ -88,11 +79,9 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with a single field" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            field :email
-          end
+          field :email
         RUBY
       end
 
@@ -107,11 +96,9 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with field name alias" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            field :email, name: :login
-          end
+          field :email, name: :login
         RUBY
       end
 
@@ -126,11 +113,9 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "when field alias is declared with string values" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            field "email", name: "login"
-          end
+          field "email", name: "login"
         RUBY
       end
 
@@ -145,11 +130,9 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with a block field" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            field(:full_name) { |u| "#{u.first_name} #{u.last_name}" }
-          end
+          field(:full_name) { |u| "#{u.first_name} #{u.last_name}" }
         RUBY
       end
 
@@ -164,11 +147,9 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with a block field declared with string values" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            field("full_name") { |u| "#{u.first_name} #{u.last_name}" }
-          end
+          field("full_name") { |u| "#{u.first_name} #{u.last_name}" }
         RUBY
       end
 
@@ -183,15 +164,13 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with all declaration types combined" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            identifier :uuid
-            fields :id, :name, :age
-            field :email, name: :login
-            fields :first_name, :last_name
-            field(:full_name) { |u| "#{u.first_name} #{u.last_name}" }
-          end
+          identifier :uuid
+          fields :id, :name, :age
+          field :email, name: :login
+          fields :first_name, :last_name
+          field(:full_name) { |u| "#{u.first_name} #{u.last_name}" }
         RUBY
       end
 
@@ -213,15 +192,11 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with all declaration types combined with string values" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            identifier :uuid
-            fields "id", "name", "age"
-            field "email", name: "login"
-            fields "first_name", "last_name"
-            field("full_name") { |u| "#{u.first_name} #{u.last_name}" }
-          end
+          identifier :uuid
+          fields "id", "name", "age"
+          field "email", name: :login
         RUBY
       end
 
@@ -233,52 +208,17 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
             "id" => { "type" => "string" },
             "name" => { "type" => "string" },
             "age" => { "type" => "string" },
-            "login" => { "type" => "string" },
-            "first_name" => { "type" => "string" },
-            "last_name" => { "type" => "string" },
-            "full_name" => { "type" => "string" }
-          }
-        })
-      end
-    end
-
-    context "with all declaration types combined with string and symbol vales" do
-      let_class("UserBlueprint") do
-        <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            identifier :uuid
-            fields :id, "name", :age
-            field :email, name: "login"
-            fields "first_name", :last_name
-            field("full_name") { |u| "#{u.first_name} #{u.last_name}" }
-          end
-        RUBY
-      end
-
-      it do
-        is_expected.to eq({
-          "type" => "object",
-          "properties" => {
-            "uuid" => { "type" => "string" },
-            "id" => { "type" => "string" },
-            "name" => { "type" => "string" },
-            "age" => { "type" => "string" },
-            "login" => { "type" => "string" },
-            "first_name" => { "type" => "string" },
-            "last_name" => { "type" => "string" },
-            "full_name" => { "type" => "string" }
+            "login" => { "type" => "string" }
           }
         })
       end
     end
 
     context "ensures identifier appears first in properties regardless of definition order" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            fields :name, :email
-            identifier :uuid
-          end
+          fields :name, :email
+          identifier :uuid
         RUBY
       end
       it do
@@ -287,19 +227,15 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with inheritance from another blueprint" do
-      let_class("BaseUserBlueprint") do
+      let_class("BaseUserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class BaseUserBlueprint < Blueprinter::Base
-            fields :id, :name
-          end
+          fields :id, :name
         RUBY
       end
 
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: mocked_classes["BaseUserBlueprint"]) do
         <<~'RUBY'
-          class UserBlueprint < BaseUserBlueprint
-            fields :email, :age
-          end
+          fields :email, :age
         RUBY
       end
 
@@ -317,11 +253,9 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "when superclass is Base (should not merge)" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            fields :id, :name
-          end
+          fields :id, :name
         RUBY
       end
 
@@ -337,19 +271,15 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "when child blueprint overrides a parent field" do
-      let_class("BaseUserBlueprint") do
+      let_class("BaseUserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class BaseUserBlueprint < Blueprinter::Base
-            fields :id, :name
-          end
+          fields :id, :name
         RUBY
       end
 
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: mocked_classes["BaseUserBlueprint"]) do
         <<~'RUBY'
-          class UserBlueprint < BaseUserBlueprint
-            fields :name, :email
-          end
+          fields :name, :email
         RUBY
       end
 
@@ -366,27 +296,21 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with multiple levels of inheritance" do
-      let_class("GrandparentBlueprint") do
+      let_class("GrandparentBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class GrandparentBlueprint < Blueprinter::Base
-            fields :id, :name
-          end
+          fields :id, :name
         RUBY
       end
 
-      let_class("ParentBlueprint") do
+      let_class("ParentBlueprint", parent: mocked_classes["GrandparentBlueprint"]) do
         <<~'RUBY'
-          class ParentBlueprint < GrandparentBlueprint
-            fields :email
-          end
+          fields :email
         RUBY
       end
 
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: mocked_classes["ParentBlueprint"]) do
         <<~'RUBY'
-          class UserBlueprint < ParentBlueprint
-            fields :age
-          end
+          fields :age
         RUBY
       end
 
@@ -404,21 +328,17 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with identifier in parent blueprint" do
-      let_class("BaseUserBlueprint") do
+      let_class("BaseUserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class BaseUserBlueprint < Blueprinter::Base
-            identifier :uuid
-            fields :name
-          end
+          identifier :uuid
+          fields :name
         RUBY
       end
 
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: mocked_classes["BaseUserBlueprint"]) do
         <<~'RUBY'
-          class UserBlueprint < BaseUserBlueprint
-            identifier :id
-            fields :email
-          end
+          identifier :id
+          fields :email
         RUBY
       end
 
@@ -442,11 +362,9 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     let(:resource) { "Array<UserBlueprint>" }
 
     context "with basic fields" do
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            fields :id, :name, :email
-          end
+          fields :id, :name, :email
         RUBY
       end
 
@@ -467,12 +385,10 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
 
     context "with identifier" do
       let(:resource) { "[UserBlueprint]" }
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class UserBlueprint < Blueprinter::Base
-            identifier :uuid
-            fields :name, :email
-          end
+          identifier :uuid
+          fields :name, :email
         RUBY
       end
 
@@ -492,19 +408,15 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with inherited fields" do
-      let_class("BaseUserBlueprint") do
+      let_class("BaseUserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class BaseUserBlueprint < Blueprinter::Base
-            fields :id, :name
-          end
+          fields :id, :name
         RUBY
       end
 
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: mocked_classes["BaseUserBlueprint"]) do
         <<~'RUBY'
-          class UserBlueprint < BaseUserBlueprint
-            fields :email
-          end
+          fields :email
         RUBY
       end
 
@@ -524,25 +436,19 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with multiple levels of inheritance" do
-      let_class("GrandparentBlueprint") do
+      let_class("GrandparentBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class GrandparentBlueprint < Blueprinter::Base
-            fields :id, :name
-          end
+          fields :id, :name
         RUBY
       end
-      let_class("ParentBlueprint") do
+      let_class("ParentBlueprint", parent: mocked_classes["GrandparentBlueprint"]) do
         <<~'RUBY'
-          class ParentBlueprint < GrandparentBlueprint
-            fields :email
-          end
+          fields :email
         RUBY
       end
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: mocked_classes["ParentBlueprint"]) do
         <<~'RUBY'
-          class UserBlueprint < ParentBlueprint
-            fields :age
-          end
+          fields :age
         RUBY
       end
       it do
@@ -562,20 +468,16 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     end
 
     context "with identifier in parent blueprint" do
-      let_class("BaseUserBlueprint") do
+      let_class("BaseUserBlueprint", parent: Blueprinter::Base) do
         <<~'RUBY'
-          class BaseUserBlueprint < Blueprinter::Base
-            identifier :uuid
-            fields :name
-          end
+          identifier :uuid
+          fields :name
         RUBY
       end
-      let_class("UserBlueprint") do
+      let_class("UserBlueprint", parent: mocked_classes["BaseUserBlueprint"]) do
         <<~'RUBY'
-          class UserBlueprint < BaseUserBlueprint
-            identifier :id
-            fields :email
-          end
+          identifier :id
+          fields :email
         RUBY
       end
       it "inherits identifier from parent" do

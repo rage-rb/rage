@@ -25,6 +25,15 @@ RSpec.shared_context "mocked_classes" do
     end
 
     klass = Class.new(parent, &block)
+
+    if block
+      if defined?(Blueprinter::Base) && parent.ancestors.include?(Blueprinter::Base)
+        klass.class_eval(block.call)
+      else
+        klass.class_eval(&block)
+      end
+    end
+
     klass.define_singleton_method(:name) { class_name }
 
     mocked_classes[class_name] = klass
