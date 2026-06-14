@@ -284,7 +284,7 @@ class Rage::Request
     request_not_modified_since >= response_last_modified
   end
 
-  def weak_etag(etag)
+  private def weak_etag(etag)
     etag.delete_prefix("W/")
   end
 
