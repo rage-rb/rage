@@ -169,16 +169,18 @@ class Rage::Request
   #  request.fresh?(last_modified: Time.utc(2023, 12, 15))
   #  request.fresh?(etag: "123")
   def fresh?(etag:, last_modified:)
+    request_if_none_match = if_none_match
+    request_not_modified_since = if_not_modified_since
+
     # Always render response when no freshness information
     # is provided in the request.
-    return false unless if_none_match || if_not_modified_since
+    return false unless request_if_none_match || request_not_modified_since
 
-    etag_matches?(
-      requested_etags: if_none_match, response_etag: etag
-    ) && not_modified?(
-      request_not_modified_since: if_not_modified_since,
-      response_last_modified: last_modified
-    )
+    if request_if_none_match
+      etag_matches?(requested_etags: request_if_none_match, response_etag: etag)
+    else
+      not_modified?(request_not_modified_since: request_not_modified_since, response_last_modified: last_modified)
+    end
   end
 
   # Get the domain part of the request.

@@ -7,6 +7,7 @@
 
 ### Fixed
 
+- [API] Ignore `If-Modified-Since` when `If-None-Match` is present.
 - [Request] Treat IPv6 literals as non-domain hosts.
 - [Router] Fall back to `SERVER_NAME` when deriving exact host constraints.
 - [Cookies] Use request host fallback when resolving cookie domains.
