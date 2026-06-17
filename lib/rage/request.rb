@@ -273,8 +273,10 @@ class Rage::Request
 
     return true if requested_etags.empty?
     return false if response_etag.nil?
+    return true if requested_etags.include?("*")
 
-    requested_etags.include?(response_etag) || requested_etags.include?("*")
+    response_etag = weak_etag(response_etag)
+    requested_etags.any? { |requested_etag| weak_etag(requested_etag) == response_etag }
   end
 
   def not_modified?(request_not_modified_since:, response_last_modified:)
@@ -282,6 +284,10 @@ class Rage::Request
     return false if response_last_modified.nil?
 
     request_not_modified_since >= response_last_modified
+  end
+
+  private def weak_etag(etag)
+    etag.delete_prefix("W/")
   end
 
   # @private
