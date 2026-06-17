@@ -29,8 +29,8 @@ RSpec.shared_context "mocked_classes" do
     if block
       if defined?(Blueprinter::Base) && parent.ancestors.include?(Blueprinter::Base)
         klass.class_eval(block.call)
-      else
-        klass.class_eval(&block)
+        Object.send(:remove_const, class_name) if Object.const_defined?(class_name, false)
+        Object.const_set(class_name, klass)
       end
     end
 
