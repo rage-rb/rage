@@ -353,6 +353,24 @@ RSpec.describe RageController::API do
           expect(response_cookies[:user_id]).to eq("120; domain=cookie.test.com")
         end
       end
+
+      context "when request uses malformed SERVER_NAME fallback" do
+        let(:request_env) do
+          {
+            "SERVER_NAME" => "cookie.test.com:3000",
+            "SERVER_PORT" => "3000"
+          }
+        end
+
+        it "correctly sets domain value" do
+          subject.cookies[:user_id] = {
+            domain: %w(api.test.com cookie.test.com),
+            value: 120
+          }
+
+          expect(response_cookies[:user_id]).to eq("120; domain=cookie.test.com")
+        end
+      end
     end
 
     context "with :all domain" do
@@ -369,6 +387,24 @@ RSpec.describe RageController::API do
         let(:request_env) do
           {
             "SERVER_NAME" => "cookie.test.com",
+            "SERVER_PORT" => "3000"
+          }
+        end
+
+        it "correctly sets domain value" do
+          subject.cookies[:user_id] = {
+            domain: :all,
+            value: 120
+          }
+
+          expect(response_cookies[:user_id]).to eq("120; domain=test.com")
+        end
+      end
+
+      context "when request uses malformed SERVER_NAME fallback" do
+        let(:request_env) do
+          {
+            "SERVER_NAME" => "cookie.test.com:3000",
             "SERVER_PORT" => "3000"
           }
         end

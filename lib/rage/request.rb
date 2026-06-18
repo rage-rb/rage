@@ -226,7 +226,15 @@ class Rage::Request
   private
 
   def rack_request
-    @rack_request ||= Rack::Request.new(@env)
+    @rack_request ||= begin
+      request_env = @env
+
+      if !request_env["HTTP_HOST"] && (server_name = Rage::Internal.extract_host(request_env["SERVER_NAME"])) != request_env["SERVER_NAME"]
+        request_env = request_env.merge("SERVER_NAME" => server_name)
+      end
+
+      Rack::Request.new(request_env)
+    end
   end
 
   def check_method(name)

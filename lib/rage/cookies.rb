@@ -202,6 +202,7 @@ class Rage::Cookies
 
     if (domain = value[:domain])
       host = Rack::Request.new(@env).host
+      host ||= Rage::Internal.extract_host(@env["SERVER_NAME"]) unless @env["HTTP_HOST"]
 
       processed_domain = if domain.is_a?(String)
         domain

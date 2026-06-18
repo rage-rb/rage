@@ -44,6 +44,19 @@ class Rage::Internal
       }.join(", ")
     end
 
+    # Extract the host from a host:port authority while leaving bare IPv6 literals unchanged.
+    # @param authority [String, nil]
+    # @return [String, nil]
+    def extract_host(authority)
+      if authority&.start_with?("[")
+        authority.sub(/\]:\d+\z/, "]")
+      elsif authority&.count(":") == 1
+        authority.sub(/:\d+\z/, "")
+      else
+        authority
+      end
+    end
+
     # Generate a stream name based on the provided object.
     # @param streamables [#id, String, Symbol, Numeric, Array] an object that will be used to generate the stream name
     # @return [String] the generated stream name

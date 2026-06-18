@@ -35,6 +35,18 @@ RSpec.describe Rage::Request do
     expect(request.url).to eq("http://localhost:3000/users?show_archived=true")
   end
 
+  context "when HTTP_HOST is missing and SERVER_NAME contains a port" do
+    before do
+      env.delete("HTTP_HOST")
+      env["SERVER_NAME"] = "api.foo.bar.com:3000"
+      env["SERVER_PORT"] = "3000"
+    end
+
+    it "normalizes the URL" do
+      expect(request.url).to eq("http://api.foo.bar.com:3000/users?show_archived=true")
+    end
+  end
+
   it "returns the path" do
     expect(request.path).to eq("/users")
   end
@@ -137,6 +149,14 @@ RSpec.describe Rage::Request do
       it "falls back to SERVER_NAME" do
         expect(subject).to eq("fallback.example")
       end
+
+      context "when SERVER_NAME contains a port" do
+        before { env["SERVER_NAME"] = "api.foo.bar.com:3000" }
+
+        it "falls back to the normalized SERVER_NAME" do
+          expect(subject).to eq("api.foo.bar.com")
+        end
+      end
     end
   end
 
@@ -177,6 +197,18 @@ RSpec.describe Rage::Request do
 
       it "returns nil" do
         expect(request.domain).to be_nil
+      end
+    end
+
+    context "without HTTP_HOST and with SERVER_NAME containing a port" do
+      before do
+        env.delete("HTTP_HOST")
+        env["SERVER_NAME"] = "api.foo.bar.com:3000"
+        env["SERVER_PORT"] = "3000"
+      end
+
+      it "returns the correct domain" do
+        expect(request.domain).to eq("bar.com")
       end
     end
   end
