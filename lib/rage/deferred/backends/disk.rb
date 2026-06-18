@@ -241,8 +241,7 @@ class Rage::Deferred::Backends::Disk
 
     # delete the old storage ensuring the copied data has already been written to disk
     Iodine.run_after(@fsync_frequency) do
-      old_storage.close
-      File.unlink(old_storage.path)
+      cleanup_storage(old_storage)
     end
   end
 
@@ -267,8 +266,14 @@ class Rage::Deferred::Backends::Disk
     end
 
     Iodine.run_after(@fsync_frequency) do
-      storage.close
-      File.unlink(storage.path)
+      cleanup_storage(storage)
     end
+  end
+
+  def cleanup_storage(storage)
+    storage.close
+    File.unlink(storage.path)
+  rescue Errno::ENOENT
+    nil
   end
 end

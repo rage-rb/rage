@@ -72,16 +72,30 @@ RSpec.describe Rage::Deferred::Backends::Disk do
 
   describe "#rotate_storage" do
     let(:task) { double("Rage::Deferred::Task") }
+    let(:task_id) { backend.add(task) }
 
     before do
       allow(backend).to receive(:rotate_storage).and_call_original
-      backend.add(task)
+      task_id
       backend.instance_variable_set(:@should_rotate, true)
     end
 
     it "rotates the storage when conditions are met" do
-      backend.remove(task)
+      backend.remove(task_id)
       expect(storage_path.glob("#{prefix}*").size).to eq(2)
+    end
+
+    it "ignores missing old storage files during async cleanup" do
+      scheduled_cleanups = []
+      allow(Iodine).to receive(:run_after) { |_, &block| scheduled_cleanups << block }
+
+      old_storage = backend.instance_variable_get(:@storage)
+
+      backend.remove(task_id)
+      File.unlink(old_storage.path)
+
+      expect(scheduled_cleanups.size).to eq(1)
+      expect { scheduled_cleanups.first.call }.not_to raise_error
     end
   end
 
@@ -128,6 +142,37 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       task_id = backend.add(task)
 
       expect(task_id.split("-").first.to_i).to be > future_timestamps.max
+    end
+
+    it "With a recovered storage file already removed before async cleanup." do
+      main_file = storage_path.join("#{prefix}0-#{Time.now.strftime("%Y%m%d")}-#{Process.pid}-aaa")
+      recovered_file = storage_path.join("#{prefix}0-#{Time.now.strftime("%Y%m%d")}-#{Process.pid}-bbb")
+      main_storage = main_file.open("a+b")
+      recovered_storage = recovered_file.open("a+b")
+
+      {
+        main_storage => "main-task-id",
+        recovered_storage => "recovered-task-id"
+      }.each do |storage, task_id|
+        serialized = Marshal.dump("Rage::Deferred::Task").dump
+        entry = "add:#{task_id}:0:#{serialized}"
+        crc = Zlib.crc32(entry).to_s(16).rjust(8, "0")
+        storage.write("#{crc}:#{entry}\n")
+        storage.close
+      end
+
+      scheduled_cleanups = []
+      allow(Iodine).to receive(:run_after) { |_, &block| scheduled_cleanups << block }
+
+      backend = described_class.new(path: storage_path, prefix: prefix, fsync_frequency: fsync_frequency)
+      recovered_storage = backend.instance_variable_get(:@recovered_storages).first
+
+      expect(backend.pending_tasks.map(&:first)).to include("main-task-id", "recovered-task-id")
+
+      File.unlink(recovered_storage.path)
+
+      expect(scheduled_cleanups.size).to eq(1)
+      expect { scheduled_cleanups.first.call }.not_to raise_error
     end
 
     it "With empty storage file." do
