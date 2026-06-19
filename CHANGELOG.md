@@ -3,12 +3,17 @@
 ### Added
 
 - [OpenAPI] Add support for blueprint inheritance. Child blueprints now inherit fields from parent blueprints.
+- [OpenAPI] Refactor `Rage::OpenAPI::Parsers::Ext::Blueprinter` using live reflection instead of Prism AST traversal to simplify schema extraction
 - Connection pool improvements (#301).
 
 ### Fixed
 
+- [API] Ignore `If-Modified-Since` when `If-None-Match` is present.
+- [API] Use weak comparison for `If-None-Match` validation.
 - [Request] Treat IPv6 literals as non-domain hosts.
+- [Router] Fall back to `SERVER_NAME` when deriving exact host constraints.
 - [Cookies] Use request host fallback when resolving cookie domains.
+- [Cookies] Match array-based cookie domains case-insensitively.
 
 ## [1.25.1] - 2026-06-08
 

@@ -208,7 +208,7 @@ class Rage::Cookies
       elsif domain == :all
         DomainName(host).domain
       elsif domain.is_a?(Array)
-        host if domain.include?(host)
+        domain.find { |candidate| candidate.casecmp?(host) } if host
       end
     end
 

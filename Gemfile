@@ -26,4 +26,5 @@ group :test do
   gem "prism"
   gem "redis-client"
   gem "appraisal", "~> 2.5"
+  gem "blueprinter"
 end
