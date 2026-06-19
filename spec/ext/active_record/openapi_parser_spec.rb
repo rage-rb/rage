@@ -10,10 +10,6 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::ActiveRecord do
     setup_test_schema
   end
 
-  after :all do
-    ActiveRecord::Base.connection.disconnect!
-  end
-
   def setup_test_schema
     ActiveRecord::Base.connection.create_table :open_api_test_products, force: true do |t|
       t.string :name

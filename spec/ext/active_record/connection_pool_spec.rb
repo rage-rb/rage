@@ -9,19 +9,36 @@ RSpec.describe Rage::Ext::ActiveRecord::ConnectionPool do
     skip("skipping external tests") unless ENV["ENABLE_EXTERNAL_TESTS"] == "true"
 
     Fiber.set_scheduler(Rage::FiberScheduler.new)
-    ActiveRecord::Base.establish_connection(url: (ENV["TEST_PG_URL"]).to_s)
-    ActiveRecord::Base.connection_pool.extend(Rage::Ext::ActiveRecord::ConnectionPool)
-  end
 
-  after :all do
-    Fiber.set_scheduler(nil)
+    # await internal fibers scheduled by the pool
+    interceptor = Module.new do
+      private def __intercepted_fibers
+        @intercepted_fibers ||= []
+      end
+
+      def __await_internal_fibers
+        __intercepted_fibers.clear
+        yield
+        Fiber.await(__intercepted_fibers)
+      end
+
+      def schedule
+        super.tap { |f| __intercepted_fibers << f }
+      end
+    end
+
+    Fiber.singleton_class.prepend(interceptor)
   end
 
   around do |example|
+    ActiveRecord::Base.establish_connection(db_config)
+    ActiveRecord::Base.connection_pool.extend(Rage::Ext::ActiveRecord::ConnectionPool)
+
     # we need to init the extension before every test to refresh the subscriptions
     subject.__init_rage_extension
 
     within_reactor do
+      ensure_preconnected.call
       example.call
       -> {}
     end
@@ -30,6 +47,25 @@ RSpec.describe Rage::Ext::ActiveRecord::ConnectionPool do
     subject.connections.each do |conn|
       conn.disconnect!
       subject.__remove__(conn)
+    end
+  end
+
+  let(:pool_size) { 5 }
+  let(:pool_size_config) do
+    ActiveRecord.version < Gem::Version.create("8.1") ? { pool: pool_size } : { max_connections: pool_size }
+  end
+  let(:db_config) { { url: (ENV["TEST_PG_URL"]).to_s, **pool_size_config } }
+  let(:ensure_preconnected) do
+    -> do
+      20.downto(0) do |i|
+        if subject.connections.length != pool_size
+          sleep 0.1
+        elsif i == 0
+          raise "Could not connect to the DB"
+        else
+          break
+        end
+      end
     end
   end
 
@@ -211,12 +247,11 @@ RSpec.describe Rage::Ext::ActiveRecord::ConnectionPool do
 
   describe "#reap" do
     it "reaps connections from dead fibers" do
-      fiber = Fiber.schedule do
+      Fiber.schedule do
         subject.connection
         # Fiber exits without releasing
       end
 
-      Fiber.await(fiber)
       expect(subject.stat[:dead]).to eq(1)
 
       subject.reap
@@ -234,10 +269,46 @@ RSpec.describe Rage::Ext::ActiveRecord::ConnectionPool do
       end
 
       Fiber.await(fiber)
-      subject.reap
+
+      Fiber.__await_internal_fibers { subject.reap }
 
       # Connection should be reset and returned to pool
       expect(subject.stat[:idle]).to eq(subject.size)
+    end
+
+    it "ignores calls from non-owner threads" do
+      fiber = Fiber.schedule do
+        subject.connection
+        # Fiber exits without releasing
+      end
+
+      Thread.new { subject.reap }.join
+
+      expect(subject.stat[:dead]).to eq(1)
+    ensure
+      subject.release_connection(fiber)
+    end
+
+    context "with min_connections" do
+      before do
+        skip("skipping on Active Record < 8.1") if ActiveRecord.version < Gem::Version.create("8.1")
+      end
+
+      let(:db_config) { super().merge(min_connections: 1) }
+
+      it "preconnects connections" do
+        Fiber.schedule do
+          subject.connection
+        end
+
+        subject.reap
+        expect(subject.connections.count(&:active?)).to be(0)
+
+        Fiber.pause # wait for `preconnect` to kick in
+        ensure_preconnected.call # wait for `preconnect` to finish
+
+        expect(subject.connections.last).to be_active
+      end
     end
   end
 
@@ -295,6 +366,268 @@ RSpec.describe Rage::Ext::ActiveRecord::ConnectionPool do
       # Connections should still be usable
       subject.with_connection do |conn|
         expect(conn.execute("select 1")).to be_a(PG::Result)
+      end
+    end
+
+    it "flushes connections" do
+      skip("skipping on Active Record 7.1") if ActiveRecord.version < Gem::Version.create("7.2")
+
+      fiber = Fiber.schedule do
+        subject.with_connection do |conn|
+          conn.execute("select 1")
+          allow(conn).to receive(:__idle_since).and_return(0)
+        end
+      end
+
+      Fiber.await(fiber)
+      expect(subject.connections.count(&:active?)).to eq(1)
+
+      subject.flush
+
+      expect(subject.connections.count(&:active?)).to eq(0)
+    end
+
+    it "ignores calls from non-owner threads" do
+      connection = subject.with_connection do |conn|
+        conn.execute("select 1")
+        allow(conn).to receive(:__idle_since).and_return(0)
+        conn
+      end
+
+      expect(connection).to be_active
+
+      Thread.new { subject.flush }.join
+
+      # connection is still active - `flush` returned early
+      expect(connection).to be_active
+    end
+
+    context "with min_connections" do
+      before do
+        skip("skipping on Active Record < 8.1") if ActiveRecord.version < Gem::Version.create("8.1")
+      end
+
+      let(:db_config) { super().merge(min_connections: 1) }
+
+      it "preconnects connections" do
+        fiber_1 = Fiber.schedule do
+          subject.with_connection do |conn|
+            conn.execute("select 1")
+            allow(conn).to receive(:__idle_since).and_return(0)
+          end
+        end
+
+        fiber_2 = Fiber.schedule do
+          subject.with_connection do |conn|
+            conn.execute("select 1")
+            allow(conn).to receive(:__idle_since).and_return(0)
+          end
+        end
+
+        Fiber.await([fiber_1, fiber_2])
+        expect(subject.connections.count { |conn| !conn.active? }).to eq(pool_size - 2)
+
+        subject.flush
+
+        # one connection has been left active
+        expect(subject.connections.count { |conn| !conn.active? }).to eq(pool_size - 1)
+
+        # the active one is at the end of the list
+        expect(subject.connections.last).to be_active
+      end
+    end
+
+    context "during disconnect" do
+      it "doesn't raise error" do
+        subject.connection
+        subject.disconnect
+
+        expect { subject.flush }.not_to raise_error
+
+      ensure
+        subject.release_connection
+      end
+    end
+  end
+
+  describe "#retire_old_connections" do
+    before do
+      skip("skipping on Active Record < 8.1") if ActiveRecord.version < Gem::Version.create("8.1")
+    end
+
+    it "doesn't disconnect connections when no `max_age` is set" do
+      connection = subject.with_connection do |conn|
+        conn.execute("select 1")
+        conn
+      end
+
+      result = subject.retire_old_connections
+
+      expect(result).to be(false)
+      expect(connection).to be_active
+    end
+
+    context "with `max_age` set" do
+      let(:db_config) { super().merge(max_age: 10) }
+
+      it "disconnects old connections" do
+        connection = subject.with_connection do |conn|
+          conn.execute("select 1")
+          allow(conn).to receive(:connection_age).and_return(100)
+          conn
+        end
+
+        result = subject.retire_old_connections
+
+        expect(result).to be(true)
+        expect(connection).not_to be_active
+      end
+
+      it "returns false if no connections were disconnected" do
+        result = subject.retire_old_connections
+        expect(result).to be(false)
+      end
+    end
+
+    context "during disconnect" do
+      it "doesn't raise error" do
+        subject.connection
+        subject.disconnect
+
+        expect { subject.retire_old_connections }.not_to raise_error
+
+      ensure
+        subject.release_connection
+      end
+    end
+  end
+
+  describe "#keep_alive" do
+    before do
+      skip("skipping on Active Record < 8.1") if ActiveRecord.version < Gem::Version.create("8.1")
+    end
+
+    let(:db_config) { super().merge(keepalive: 10) }
+
+    it "ignores fresh connections" do
+      subject.connections.each do |conn|
+        expect(conn).not_to receive(:disconnect!)
+      end
+
+      subject.keep_alive
+      expect(subject.connections.length).to eq(pool_size)
+    end
+
+    it "pings stale connections" do
+      fiber_1 = Fiber.schedule do
+        subject.with_connection do |conn|
+          allow(conn).to receive(:seconds_since_last_activity).and_return(100)
+          conn.execute("select 1")
+        end
+      end
+
+      fiber_2 = Fiber.schedule do
+        subject.with_connection do |conn|
+          allow(conn).to receive(:seconds_since_last_activity).and_return(100)
+          conn.execute("select 1")
+        end
+      end
+
+      fiber_3 = Fiber.schedule do
+        subject.with_connection do |conn|
+          conn.execute("select 1")
+        end
+      end
+
+      Fiber.await([fiber_1, fiber_2, fiber_3])
+
+      # ensure the last connection on the list is inactive
+      subject.connections.last.disconnect!
+
+      # pings from `keep_alive`
+      allow(subject.connections[-2]).to receive(:active?).and_call_original
+      allow(subject.connections[-3]).to receive(:active?).and_call_original
+
+      Fiber.__await_internal_fibers { subject.keep_alive }
+
+      # ensure active connections are now at the end of the list
+      expect(subject.connections.length).to eq(pool_size)
+      expect(subject.connections.last(2).all?(&:active?)).to be(true)
+    end
+
+    it "disconnects broken connections" do
+      connection = subject.with_connection do |conn|
+        allow(conn).to receive(:seconds_since_last_activity).and_return(100)
+        conn
+      end
+
+      expect(subject.connections.last).to eq(connection)
+
+      expect(connection).to receive(:disconnect!)
+      Fiber.__await_internal_fibers { subject.keep_alive }
+
+      # broken connection is pushed to the bottom
+      expect(subject.connections.first).to eq(connection)
+    end
+
+    context "during disconnect" do
+      it "doesn't raise error" do
+        subject.connection
+        subject.disconnect
+
+        expect { subject.keep_alive }.not_to raise_error
+
+      ensure
+        subject.release_connection
+      end
+    end
+  end
+
+  describe "#preconnect" do
+    before do
+      skip("skipping on Active Record < 8.1") if ActiveRecord.version < Gem::Version.create("8.1")
+    end
+
+    context "with `min_connections`" do
+      let(:db_config) { super().merge(min_connections: 3) }
+
+      it "preconnects connections" do
+        subject.preconnect
+
+        expect(subject.connections.length).to eq(pool_size)
+        expect(subject.connections.last(3).all?(&:active?)).to be(true)
+      end
+    end
+
+    context "with `min_connection` bigger than number of connections" do
+      let(:db_config) { super().merge(min_connections: 1_000) }
+
+      it "preconnects connections" do
+        subject.preconnect
+
+        expect(subject.connections.length).to eq(pool_size)
+        expect(subject.connections.all?(&:active?)).to be(true)
+      end
+    end
+
+    context "with no `min_connections`" do
+      it "doesn't preconnect connections" do
+        subject.preconnect
+
+        expect(subject.connections.length).to eq(pool_size)
+        expect(subject.connections.none?(&:active?)).to be(true)
+      end
+    end
+
+    context "during disconnect" do
+      it "doesn't raise error" do
+        subject.connection
+        subject.disconnect
+
+        expect { subject.preconnect }.not_to raise_error
+
+      ensure
+        subject.release_connection
       end
     end
   end
@@ -375,6 +708,24 @@ RSpec.describe Rage::Ext::ActiveRecord::ConnectionPool do
       subject.with_connection do |conn|
         expect(conn.execute("select 1")).to be_a(PG::Result)
       end
+    end
+  end
+
+  describe "monitoring" do
+    before do
+      skip("skipping on Active Record >= 8.1") if ActiveRecord.version >= Gem::Version.create("8.1")
+    end
+
+    it "correctly monitors the pool" do
+      expect {
+        subject.flush
+        subject.reap
+        subject.keep_alive
+        subject.preconnect
+        subject.retire_old_connections
+      }.not_to raise_error
+
+      expect(subject.connections.length).to eq(pool_size)
     end
   end
 end
