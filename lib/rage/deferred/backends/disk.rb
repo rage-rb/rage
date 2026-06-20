@@ -271,9 +271,8 @@ class Rage::Deferred::Backends::Disk
   end
 
   def cleanup_storage(storage)
+    path = storage.path
     storage.close
-    File.unlink(storage.path)
-  rescue Errno::ENOENT
-    nil
+    File.unlink(path) if File.exist?(path)
   end
 end

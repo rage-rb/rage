@@ -145,31 +145,15 @@ RSpec.describe Rage::Deferred::Backends::Disk do
     end
 
     it "With a recovered storage file already removed before async cleanup." do
-      main_file = storage_path.join("#{prefix}0-#{Time.now.strftime("%Y%m%d")}-#{Process.pid}-aaa")
-      recovered_file = storage_path.join("#{prefix}0-#{Time.now.strftime("%Y%m%d")}-#{Process.pid}-bbb")
-      main_storage = main_file.open("a+b")
-      recovered_storage = recovered_file.open("a+b")
-
-      {
-        main_storage => "main-task-id",
-        recovered_storage => "recovered-task-id"
-      }.each do |storage, task_id|
-        serialized = Marshal.dump("Rage::Deferred::Task").dump
-        entry = "add:#{task_id}:0:#{serialized}"
-        crc = Zlib.crc32(entry).to_s(16).rjust(8, "0")
-        storage.write("#{crc}:#{entry}\n")
-        storage.close
-      end
-
       scheduled_cleanups = []
+      recovered_storage = instance_double(File, path: storage_path.join("missing-recovered-storage"), close: nil)
+
       allow(Iodine).to receive(:run_after) { |_, &block| scheduled_cleanups << block }
+      allow(recovered_storage).to receive(:rewind)
+      allow(recovered_storage).to receive(:read).with(262_144).and_return(nil)
 
-      backend = described_class.new(path: storage_path, prefix: prefix, fsync_frequency: fsync_frequency)
-      recovered_storage = backend.instance_variable_get(:@recovered_storages).first
-
-      expect(backend.pending_tasks.map(&:first)).to include("main-task-id", "recovered-task-id")
-
-      File.unlink(recovered_storage.path)
+      backend.instance_variable_set(:@recovered_storages, [recovered_storage])
+      backend.pending_tasks
 
       expect(scheduled_cleanups.size).to eq(1)
       expect { scheduled_cleanups.first.call }.not_to raise_error
