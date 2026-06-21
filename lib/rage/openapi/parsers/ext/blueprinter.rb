@@ -57,21 +57,39 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   def extract_associations(reflections, view_name)
     return {} unless (view = reflections[view_name])
 
-    view.associations.each_with_object({}) do |(_, assoc), hash|
-      blueprint = assoc.blueprint
+    view.associations.each_with_object({}) do |(_, association), hash|
+      blueprint = resolve_blueprint(association.blueprint)
+      name = association.display_name.to_s
+      is_collection = collection_association?(name)
 
-      if @parsing_stack.include?(blueprint&.name)
-        @root.schema_registry[blueprint&.name] ||= nil
-        hash[assoc.display_name.to_s] = {
-          "type" => "array",
-          "items" => { "$ref" => "#/components/schemas/#{blueprint&.name}" }
-        }
+      if blueprint.nil?
+        item_schema = { "type" => "string" }
+      elsif @parsing_stack.include?(blueprint.name)
+        @root.schema_registry[blueprint.name] ||= nil
+        item_schema = { "$ref" => "#/components/schemas/#{blueprint.name}" }
       else
-        hash[assoc.display_name.to_s] = {
-          "type" => "array",
-          "items" => build_schema(blueprint, false)
-        }
+        item_schema = build_schema(blueprint, false)
       end
+
+      hash[name] = is_collection ? { "type" => "array", "items" => item_schema } : item_schema
     end
+  end
+
+  private
+
+  def resolve_blueprint(blueprint)
+    return blueprint unless blueprint.respond_to?(:call)
+
+    begin
+      blueprint.call(nil)
+    rescue
+      nil
+    end
+  end
+
+  def collection_association?(name)
+    return true unless name.respond_to?(:singularize)
+
+    name.singularize != name
   end
 end
