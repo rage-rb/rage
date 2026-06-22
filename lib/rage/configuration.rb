@@ -289,6 +289,14 @@ class Rage::Configuration
   end
   # @!endgroup
 
+  # @!group Daemons
+  # Allows configuring daemon settings.
+  # @return [Rage::Configuration::Daemons]
+  def daemons
+    @daemons ||= Daemons.new
+  end
+  # @!endgroup
+
   # @private
   def pubsub
     @pubsub ||= PubSub.new
@@ -1112,6 +1120,48 @@ class Rage::Configuration
     def initialize
       @enabled = false
       @size = 1
+    end
+  end
+
+  class Daemons
+    # @private
+    def initialize
+      @klasses = []
+    end
+
+    # @private
+    attr_reader :klasses
+
+    # Register a new daemon.
+    # @param daemon [Class]
+    # @example
+    #   Rage.configure do
+    #     config.daemons << FileWatcher
+    #   end
+    def <<(daemon)
+      validate!(daemon)
+      @klasses << daemon
+    end
+
+    alias_method :push, :<<
+
+    # Remove a registered daemon.
+    # @param daemon [Class]
+    # @example
+    #   Rage.configure do
+    #     config.daemons.delete(FileWatcher)
+    #   end
+    def delete(daemon)
+      validate!(daemon)
+      @klasses.delete(daemon)
+    end
+
+    private
+
+    def validate!(klass)
+      if !klass.is_a?(Class) || !klass.ancestors.include?(Rage::Daemon)
+        raise ArgumentError, "Cannot add `#{klass}` as a daemon; should inherit `Rage::Daemon`"
+      end
     end
   end
 

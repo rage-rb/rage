@@ -1297,4 +1297,41 @@ RSpec.describe Rage::Configuration do
       end
     end
   end
+
+  describe "#daemons" do
+    subject { described_class.new.daemons }
+
+    let(:daemon) { Class.new(Rage::Daemon) }
+
+    it "returns empty list" do
+      expect(subject.klasses).to be_empty
+    end
+
+    it "allows to add a daemon" do
+      subject << daemon
+      expect(subject.klasses).to eq([daemon])
+    end
+
+    context "with a daemon instance" do
+      it "raises an error" do
+        expect {
+          subject << daemon.new
+        }.to raise_error(/should inherit `Rage::Daemon`/)
+
+        expect(subject.klasses).to be_empty
+      end
+    end
+
+    context "with an incorrect class" do
+      let(:daemon) { Class.new }
+
+      it "raises an error" do
+        expect {
+          subject << daemon
+        }.to raise_error(/should inherit `Rage::Daemon`/)
+
+        expect(subject.klasses).to be_empty
+      end
+    end
+  end
 end
