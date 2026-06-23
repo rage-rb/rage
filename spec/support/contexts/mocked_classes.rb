@@ -12,6 +12,7 @@ RSpec.shared_context "mocked_classes" do
     @mocked_classes ||= OpenStruct.new
   end
 
+  # Build a class backed by a source code file
   def self.let_class(class_name, parent: Object, &block)
     source = Tempfile.new.tap do |f|
       if block
@@ -25,15 +26,6 @@ RSpec.shared_context "mocked_classes" do
     end
 
     klass = Class.new(parent, &block)
-
-    if block
-      if defined?(Blueprinter::Base) && parent.ancestors.include?(Blueprinter::Base)
-        klass.class_eval(block.call)
-        Object.send(:remove_const, class_name) if Object.const_defined?(class_name, false)
-        Object.const_set(class_name, klass)
-      end
-    end
-
     klass.define_singleton_method(:name) { class_name }
 
     mocked_classes[class_name] = klass
@@ -42,5 +34,41 @@ RSpec.shared_context "mocked_classes" do
       allow(Object).to receive(:const_get).with(satisfy { |c| c.to_s == class_name.to_s }).and_return(klass)
       allow(Object).to receive(:const_source_location).with(class_name).and_return(source.path)
     end
+  end
+
+  # @private
+  # support circular associations - this holds classes
+  # that are not yet known and will be built later
+  def self.lazy_classes
+    @lazy_classes ||= {}
+  end
+
+  # Blueprinter mock - build an ephemeral class object with support for circular references
+  def self.let_blueprinter_class(class_name, parent: Blueprinter::Base, &block)
+    lazy = lazy_classes
+    mocks = mocked_classes
+
+    klass = lazy.delete(class_name) || Class.new(parent)
+
+    klass.define_singleton_method(:name) { class_name }
+    klass.define_singleton_method(:const_missing) do |name|
+      # defer building the constant in case of a circular reference
+      mocks[name.to_s] || (lazy[name.to_s] ||= Class.new(Blueprinter::Base))
+    end
+
+    klass.class_eval(block.call)
+
+    # support namespaced serializers
+    class_name.split("::").each { |name| mocks[name] = klass }
+
+    before do
+      if lazy.any?
+        raise NameError, "uninitialized constant #{lazy.keys.first}"
+      end
+
+      allow(Object).to receive(:const_get).with(satisfy { |c| c.to_s == class_name.to_s }).and_return(klass)
+    end
+
+    klass
   end
 end
