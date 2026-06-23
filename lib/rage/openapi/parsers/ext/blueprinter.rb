@@ -59,7 +59,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
 
     view.associations.each_with_object({}) do |(_, association), properties|
       blueprint = association.blueprint
-      name = association.name.to_s
+      name, display_name = association.name.to_s, association.display_name.to_s
       is_collection = collection_association?(name)
 
       item_schema = if blueprint.is_a?(Proc)
@@ -71,7 +71,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
         build_schema(blueprint, false)
       end
 
-      properties[name] = is_collection ? { "type" => "array", "items" => item_schema } : item_schema
+      properties[display_name] = is_collection ? { "type" => "array", "items" => item_schema } : item_schema
     end
   end
 

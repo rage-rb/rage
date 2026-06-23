@@ -408,12 +408,12 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "uses the original association name as the key, ignoring the name: alias" do
+      it "uses the name alias as the association key" do
         is_expected.to eq({
           "type" => "object",
           "properties" => {
             "email" => { "type" => "string" },
-            "projects" => {
+            "work_projects" => {
               "type" => "array",
               "items" => {
                 "type" => "object",
@@ -720,7 +720,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
           "type" => "object",
           "properties" => {
             "email" => { "type" => "string" },
-            "projects" => {
+            "classmates" => {
               "type" => "array",
               "items" => { "type" => "object" }
             }
@@ -927,12 +927,12 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "cardinality follows the original association name, not the alias" do
+      it "follows the alias, not the original association key" do
         is_expected.to eq({
           "type" => "object",
           "properties" => {
             "email" => { "type" => "string" },
-            "projects" => {
+            "classmate" => {
               "type" => "array",
               "items" => {
                 "type" => "object",
@@ -1243,14 +1243,14 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "uses the original association name as the key, ignoring the name: alias" do
+      it "uses the name alias as the association key" do
         is_expected.to eq({
           "type" => "array",
           "items" => {
             "type" => "object",
             "properties" => {
               "email" => { "type" => "string" },
-              "projects" => {
+              "work_projects" => {
                 "type" => "array",
                 "items" => {
                   "type" => "object",
@@ -1582,7 +1582,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
             "type" => "object",
             "properties" => {
               "email" => { "type" => "string" },
-              "projects" => {
+              "classmates" => {
                 "type" => "array",
                 "items" => { "type" => "object" }
               }
@@ -1806,14 +1806,14 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "cardinality follows the original association name, not the alias" do
+      it "follows the alias, not the original association key" do
         is_expected.to eq({
           "type" => "array",
           "items" => {
             "type" => "object",
             "properties" => {
               "email" => { "type" => "string" },
-              "projects" => {
+              "classmate" => {
                 "type" => "array",
                 "items" => {
                   "type" => "object",
