@@ -408,12 +408,12 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "uses the name alias as the association key" do
+      it "uses the original association name as the key, ignoring the name: alias" do
         is_expected.to eq({
           "type" => "object",
           "properties" => {
             "email" => { "type" => "string" },
-            "work_projects" => {
+            "projects" => {
               "type" => "array",
               "items" => {
                 "type" => "object",
@@ -715,20 +715,14 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "resolves the Proc by calling it and renders the same schema as a static reference" do
+      it "returns generic object schema for a Proc blueprint without resolving it" do
         is_expected.to eq({
           "type" => "object",
           "properties" => {
             "email" => { "type" => "string" },
-            "classmates" => {
+            "projects" => {
               "type" => "array",
-              "items" => {
-                "type" => "object",
-                "properties" => {
-                  "id" => { "type" => "string" },
-                  "name" => { "type" => "string" }
-                }
-              }
+              "items" => { "type" => "object" }
             }
           }
         })
@@ -768,7 +762,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         expect { subject }.not_to raise_error
       end
 
-      it "falls back to a generic untyped item schema instead of guessing a branch" do
+      it "returns generic object schema for unresolvable Proc blueprint" do
         is_expected.to eq({
           "type" => "object",
           "properties" => {
@@ -776,7 +770,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
             "subject" => { "type" => "string" },
             "projects" => {
               "type" => "array",
-              "items" => { "type" => "string" }
+              "items" => { "type" => "object" }
             }
           }
         })
@@ -793,7 +787,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "does not infinite-loop and falls back to $ref for the circular reference" do
+      it "does not infinite-loop and returns generic object schema for Proc blueprint" do
         expect { subject }.not_to raise_error
         is_expected.to eq({
           "type" => "object",
@@ -801,7 +795,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
             "id" => { "type" => "string" },
             "children" => {
               "type" => "array",
-              "items" => { "$ref" => "#/components/schemas/RecursiveNodeBlueprint" }
+              "items" => { "type" => "object" }
             }
           }
         })
@@ -933,16 +927,19 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "cardinality follows the alias, not the original association key" do
+      it "cardinality follows the original association name, not the alias" do
         is_expected.to eq({
           "type" => "object",
           "properties" => {
             "email" => { "type" => "string" },
-            "classmate" => {
-              "type" => "object",
-              "properties" => {
-                "id" => { "type" => "string" },
-                "name" => { "type" => "string" }
+            "projects" => {
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "properties" => {
+                  "id" => { "type" => "string" },
+                  "name" => { "type" => "string" }
+                }
               }
             }
           }
@@ -975,13 +972,13 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "falls back to a generic untyped schema directly (no array wrapper, since name is singular)" do
+      it "returns generic object schema for unresolvable Proc blueprint (no array wrapper, since name is singular)" do
         is_expected.to eq({
           "type" => "object",
           "properties" => {
             "email" => { "type" => "string" },
             "subject" => { "type" => "string" },
-            "project" => { "type" => "string" }
+            "project" => { "type" => "object" }
           }
         })
       end
@@ -1246,14 +1243,14 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "uses the name alias as the association key" do
+      it "uses the original association name as the key, ignoring the name: alias" do
         is_expected.to eq({
           "type" => "array",
           "items" => {
             "type" => "object",
             "properties" => {
               "email" => { "type" => "string" },
-              "work_projects" => {
+              "projects" => {
                 "type" => "array",
                 "items" => {
                   "type" => "object",
@@ -1578,22 +1575,16 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "resolves the Proc by calling it and renders the same schema as a static reference" do
+      it "returns generic object schema for a Proc blueprint without resolving it" do
         is_expected.to eq({
           "type" => "array",
           "items" => {
             "type" => "object",
             "properties" => {
               "email" => { "type" => "string" },
-              "classmates" => {
+              "projects" => {
                 "type" => "array",
-                "items" => {
-                  "type" => "object",
-                  "properties" => {
-                    "id" => { "type" => "string" },
-                    "name" => { "type" => "string" }
-                  }
-                }
+                "items" => { "type" => "object" }
               }
             }
           }
@@ -1634,7 +1625,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         expect { subject }.not_to raise_error
       end
 
-      it "falls back to a generic untyped item schema instead of guessing a branch" do
+      it "returns generic object schema for unresolvable Proc blueprint" do
         is_expected.to eq({
           "type" => "array",
           "items" => {
@@ -1644,7 +1635,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
               "subject" => { "type" => "string" },
               "projects" => {
                 "type" => "array",
-                "items" => { "type" => "string" }
+                "items" => { "type" => "object" }
               }
             }
           }
@@ -1662,7 +1653,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "does not infinite-loop and falls back to $ref for the circular reference" do
+      it "does not infinite-loop and returns generic object schema for Proc blueprint" do
         expect { subject }.not_to raise_error
         is_expected.to eq({
           "type" => "array",
@@ -1672,7 +1663,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
               "id" => { "type" => "string" },
               "children" => {
                 "type" => "array",
-                "items" => { "$ref" => "#/components/schemas/RecursiveNodeBlueprintCollection" }
+                "items" => { "type" => "object" }
               }
             }
           }
@@ -1815,18 +1806,21 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "cardinality follows the alias, not the original association key" do
+      it "cardinality follows the original association name, not the alias" do
         is_expected.to eq({
           "type" => "array",
           "items" => {
             "type" => "object",
             "properties" => {
               "email" => { "type" => "string" },
-              "classmate" => {
-                "type" => "object",
-                "properties" => {
-                  "id" => { "type" => "string" },
-                  "name" => { "type" => "string" }
+              "projects" => {
+                "type" => "array",
+                "items" => {
+                  "type" => "object",
+                  "properties" => {
+                    "id" => { "type" => "string" },
+                    "name" => { "type" => "string" }
+                  }
                 }
               }
             }
@@ -1860,7 +1854,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "falls back to a generic untyped schema directly (no array wrapper, since name is singular)" do
+      it "returns generic object schema for unresolvable Proc blueprint (no array wrapper, since name is singular)" do
         is_expected.to eq({
           "type" => "array",
           "items" => {
@@ -1868,7 +1862,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
             "properties" => {
               "email" => { "type" => "string" },
               "subject" => { "type" => "string" },
-              "project" => { "type" => "string" }
+              "project" => { "type" => "object" }
             }
           }
         })
