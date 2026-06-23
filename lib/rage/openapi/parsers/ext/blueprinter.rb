@@ -4,6 +4,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   def initialize(namespace: Object, root: Rage::OpenAPI::Nodes::Root.new, **)
     @namespace = namespace
     @root = root
+    @parsing_stack = Set.new
   end
 
   def known_definition?(str)
@@ -16,17 +17,28 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   def parse(klass_str)
     is_collection, raw_klass_str, _ = Rage::OpenAPI.__parse_serializer_args(klass_str)
     klass = @namespace.const_get(raw_klass_str)
-    build_schema(klass, is_collection)
+    schema = build_schema(klass, is_collection)
+
+    if @root.schema_registry.key?(raw_klass_str)
+      @root.schema_registry[raw_klass_str] = is_collection ? schema["items"] : schema
+    end
+
+    schema
   end
 
   private
 
   def build_schema(klass, is_collection)
+    @parsing_stack.add(klass.name)
+
     reflections = klass.reflections
     identifier_fields = extract_fields(reflections, :identifier)
     default_fields = extract_fields(reflections, :default)
+    association_fields = extract_associations(reflections, :default)
 
-    schema = identifier_fields.merge(default_fields.sort.to_h)
+    @parsing_stack.delete(klass.name)
+
+    schema = identifier_fields.merge(default_fields.merge(association_fields).sort.to_h)
 
     result = { "type" => "object" }
     result["properties"] = schema if schema.any?
@@ -40,5 +52,34 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
     view.fields.each_with_object({}) do |(_, field), hash|
       hash[field.display_name.to_s] = { "type" => "string" }
     end
+  end
+
+  def extract_associations(reflections, view_name)
+    return {} unless (view = reflections[view_name])
+
+    view.associations.each_with_object({}) do |(_, association), properties|
+      blueprint = association.blueprint
+      name, display_name = association.name.to_s, association.display_name.to_s
+      is_collection = collection_association?(name)
+
+      item_schema = if blueprint.is_a?(Proc)
+        { "type" => "object" }
+      elsif @parsing_stack.include?(blueprint.name)
+        @root.schema_registry[blueprint.name] ||= nil
+        { "$ref" => "#/components/schemas/#{blueprint.name}" }
+      else
+        build_schema(blueprint, false)
+      end
+
+      properties[display_name] = is_collection ? { "type" => "array", "items" => item_schema } : item_schema
+    end
+  end
+
+  private
+
+  def collection_association?(name)
+    return true unless name.respond_to?(:singularize)
+
+    name.singularize != name
   end
 end

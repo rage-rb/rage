@@ -5,6 +5,7 @@
 - [OpenAPI] Add support for blueprint inheritance. Child blueprints now inherit fields from parent blueprints.
 - [OpenAPI] Refactor `Rage::OpenAPI::Parsers::Ext::Blueprinter` using live reflection instead of Prism AST traversal to simplify schema extraction
 - Connection pool improvements (#301).
+- [OpenAPI] Add Blueprinter association parsing with cycle detection (#291)
 
 ### Fixed
 
