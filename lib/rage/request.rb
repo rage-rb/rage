@@ -36,6 +36,19 @@ class Rage::Request
   # Set data structure of all RFC defined HTTP headers
   KNOWN_HTTP_METHODS = (RFC2616 + RFC2518 + RFC3253 + RFC3648 + RFC3744 + RFC5323 + RFC4791 + RFC5789).to_set
 
+  # Extract the host from a host:port authority while leaving bare IPv6 literals unchanged.
+  # @param authority [String, nil]
+  # @return [String, nil]
+  def self.extract_host(authority)
+    if authority&.start_with?("[")
+      authority.sub(/\]:\d+\z/, "]")
+    elsif authority&.count(":") == 1
+      authority.sub(/:\d+\z/, "")
+    else
+      authority
+    end
+  end
+
   # @private
   # @param env [Hash] Rack env
   # @param controller [RageController::API]
@@ -226,7 +239,15 @@ class Rage::Request
   private
 
   def rack_request
-    @rack_request ||= Rack::Request.new(@env)
+    @rack_request ||= begin
+      request_env = @env
+
+      if !request_env["HTTP_HOST"] && (server_name = self.class.extract_host(request_env["SERVER_NAME"])) != request_env["SERVER_NAME"]
+        request_env = request_env.merge("SERVER_NAME" => server_name)
+      end
+
+      Rack::Request.new(request_env)
+    end
   end
 
   def check_method(name)

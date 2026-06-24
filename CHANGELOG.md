@@ -11,6 +11,7 @@
 
 - [API] Ignore `If-Modified-Since` when `If-None-Match` is present.
 - [API] Use weak comparison for `If-None-Match` validation.
+- [Request] Normalize malformed `SERVER_NAME` fallback hosts that already include a port.
 - [Deferred] Ignore missing temp files during async disk storage cleanup.
 - [Request] Treat IPv6 literals as non-domain hosts.
 - [Router] Fall back to `SERVER_NAME` when deriving exact host constraints.
