@@ -6,6 +6,7 @@
 - [OpenAPI] Refactor `Rage::OpenAPI::Parsers::Ext::Blueprinter` using live reflection instead of Prism AST traversal to simplify schema extraction
 - Connection pool improvements (#301).
 - [OpenAPI] Add Blueprinter association parsing with cycle detection (#291)
+- [OpenAPI] Add support for the `view:` option in Blueprinter parser.
 
 ### Fixed
 
