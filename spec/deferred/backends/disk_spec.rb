@@ -72,16 +72,30 @@ RSpec.describe Rage::Deferred::Backends::Disk do
 
   describe "#rotate_storage" do
     let(:task) { double("Rage::Deferred::Task") }
+    let(:task_id) { backend.add(task) }
 
     before do
       allow(backend).to receive(:rotate_storage).and_call_original
-      backend.add(task)
+      task_id
       backend.instance_variable_set(:@should_rotate, true)
     end
 
     it "rotates the storage when conditions are met" do
-      backend.remove(task)
+      backend.remove(task_id)
       expect(storage_path.glob("#{prefix}*").size).to eq(2)
+    end
+
+    it "ignores missing old storage files during async cleanup" do
+      scheduled_cleanups = []
+      allow(Iodine).to receive(:run_after) { |_, &block| scheduled_cleanups << block }
+
+      old_storage = backend.instance_variable_get(:@storage)
+
+      backend.remove(task_id)
+      File.unlink(old_storage.path)
+
+      expect(scheduled_cleanups.size).to eq(1)
+      expect { scheduled_cleanups.first.call }.not_to raise_error
     end
   end
 
@@ -128,6 +142,21 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       task_id = backend.add(task)
 
       expect(task_id.split("-").first.to_i).to be > future_timestamps.max
+    end
+
+    it "With a recovered storage file already removed before async cleanup." do
+      scheduled_cleanups = []
+      recovered_storage = instance_double(File, path: storage_path.join("missing-recovered-storage"), close: nil)
+
+      allow(Iodine).to receive(:run_after) { |_, &block| scheduled_cleanups << block }
+      allow(recovered_storage).to receive(:rewind)
+      allow(recovered_storage).to receive(:read).with(262_144).and_return(nil)
+
+      backend.instance_variable_set(:@recovered_storages, [recovered_storage])
+      backend.pending_tasks
+
+      expect(scheduled_cleanups.size).to eq(1)
+      expect { scheduled_cleanups.first.call }.not_to raise_error
     end
 
     it "With empty storage file." do

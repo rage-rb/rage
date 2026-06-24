@@ -11,7 +11,11 @@ module Rage::Ext::ActiveRecord::ConnectionPool
       @arr << el
     end
 
-    def shift
+    def unshift(el)
+      @arr.unshift(el)
+    end
+
+    def pop
       nil
     end
 
@@ -59,17 +63,26 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     # in the format of { Fiber => Connection }
     @__in_use = {}
 
-    # a list of all DB connections that are currently idle
-    @__connections = build_new_connections
-
     # how long a fiber can wait for a connection to become available
     @__checkout_timeout = checkout_timeout
 
     # how long a connection can be idle for before disconnecting
     @__idle_timeout = respond_to?(:db_config) ? db_config.idle_timeout : @idle_timeout
 
+    # pool will maintain at least this many connections
+    @__min_connections = respond_to?(:min_connections) ? min_connections : 0
+
+    # connections older than this are automatically disconnected
+    @__max_age = respond_to?(:max_age) ? max_age : Float::INFINITY
+
+    # seconds between keepalive pings on idle connections
+    @__keepalive = respond_to?(:keepalive) ? keepalive : nil
+
     # how often should we check for fibers that wait for a connection for too long
     @__timeout_worker_frequency = 0.5
+
+    # a list of all DB connections that are currently idle
+    @__connections = build_new_connections
 
     # reject fibers that wait for a connection for more than `@__checkout_timeout`
     Iodine.run_every((@__timeout_worker_frequency * 1_000).to_i) do
@@ -105,6 +118,8 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     end
 
     @release_connection_channel = "ext:ar-connection-released:#{object_id}"
+    @__owner_thread = Thread.current
+    @__background_maintenance_disabled = (ActiveRecord.version < Gem::Version.create("8.1"))
 
     # resume blocked fibers once connections become available
     Iodine.subscribe(@release_connection_channel) do
@@ -118,6 +133,14 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     Iodine.on_state(:on_finish) do
       Iodine.unsubscribe(@release_connection_channel)
     end
+
+    Iodine.run_every((db_config.reaping_frequency * 1_000).to_i) do
+      reap
+      flush
+      disconnected = retire_old_connections
+      keep_alive
+      preconnect if disconnected
+    end
   end
 
   # Returns true if there is an open connection being used for the current fiber.
@@ -127,12 +150,10 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   # Retrieve the connection associated with the current fiber, or obtain one if necessary.
   def connection
-    @__in_use[Fiber.current] ||= @__connections.shift || begin
-      fiber, blocked_since = Fiber.current, Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      @__blocked[fiber] = blocked_since
+    @__in_use[Fiber.current] ||= @__connections.pop || begin
+      @__blocked[Fiber.current] = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       Fiber.yield
-
-      @__connections.shift
+      @__connections.pop
     end
   end
 
@@ -149,26 +170,31 @@ module Rage::Ext::ActiveRecord::ConnectionPool
 
   # Recover lost connections for the pool.
   def reap
-    crashed_fibers = nil
+    return unless Thread.current == @__owner_thread
 
-    @__in_use.each do |fiber, conn|
+    dead = nil
+
+    @__in_use.delete_if do |fiber, conn|
       unless fiber.alive?
-        if conn.active?
-          conn.reset!
-          (crashed_fibers ||= []) << fiber
-        else
-          @__in_use.delete(fiber)
-          conn.disconnect!
-          __remove__(conn)
-          self.automatic_reconnect = true
-          @__connections += build_new_connections(1)
-          Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
-        end
+        (dead ||= []) << [fiber, conn]
+        true
       end
     end
 
-    if crashed_fibers
-      crashed_fibers.each { |fiber| release_connection(fiber) }
+    dead&.each do |fiber, conn|
+      Fiber.schedule do
+        if conn.active?
+          conn.reset!
+          @__in_use[fiber] = conn
+          release_connection(fiber)
+        else
+          conn.disconnect!
+          __remove__(conn)
+          self.automatic_reconnect = true
+          @__connections.unshift(*build_new_connections(1))
+          Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
+        end
+      end
     end
   end
 
@@ -176,17 +202,92 @@ module Rage::Ext::ActiveRecord::ConnectionPool
   # `minimum_idle` seconds. Connections currently checked out, or that were
   # checked in less than `minimum_idle` seconds ago, are unaffected.
   def flush(minimum_idle = @__idle_timeout)
-    return if minimum_idle.nil? || @__connections.length == 0
+    return if Thread.current != @__owner_thread || minimum_idle.nil? || @__connections.length == 0
 
-    current_time, i = Process.clock_gettime(Process::CLOCK_MONOTONIC), 0
-    while i < @__connections.length
+    current_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    i = @__connections.length - 1
+    connections_to_preserve = @__min_connections
+
+    while i >= 0
       conn = @__connections[i]
+
+      if connections_to_preserve > 0 && conn.connected? && conn.verified?
+        connections_to_preserve -= 1
+        i -= 1
+        next
+      end
+
       if conn.__idle_since && current_time - conn.__idle_since >= minimum_idle
         conn.__idle_since = nil
         conn.__needs_reconnect = true
         conn.disconnect!
       end
+      i -= 1
+    end
+  end
+
+  # Disconnect connections exceeding `max_age`
+  def retire_old_connections(max_age = @__max_age)
+    return false if max_age.nil? || max_age.infinite?
+
+    i, disconnected = 0, false
+
+    while i < @__connections.length
+      conn = @__connections[i]
+      if (conn.connection_age || 0) >= conn.pool_jitter(max_age)
+        conn.disconnect!
+        disconnected = true
+      end
       i += 1
+    end
+
+    disconnected
+  end
+
+  # Ping idle connections to prevent firewall/server timeouts
+  def keep_alive(threshold = @__keepalive)
+    return if threshold.nil? || @__connections.length == 0
+
+    to_ping = nil
+
+    @__connections.delete_if do |conn|
+      if (conn.seconds_since_last_activity || 0) >= conn.pool_jitter(threshold)
+        (to_ping ||= []) << conn
+        true
+      end
+    end
+
+    to_ping&.each do |conn|
+      Fiber.schedule do
+        if conn.active?
+          @__connections << conn
+        else
+          conn.disconnect!
+          @__connections.unshift(conn)
+        end
+        Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
+      end
+    end
+  end
+
+  # Proactively establish DB connections
+  def preconnect
+    return if @__connections.length == 0 || @__background_maintenance_disabled
+
+    active_connections_count = @__in_use.length + @__connections.count { |conn| conn.connected? && conn.verified? }
+
+    while @__min_connections - active_connections_count > 0
+      i = @__connections.rindex { |conn| !conn.connected? || !conn.verified? }
+      return unless i
+
+      Fiber.schedule do
+        conn = @__connections.delete_at(i)
+        conn.connect! rescue nil
+        @__connections << conn
+        Iodine.publish(@release_connection_channel, "", Iodine::PubSub::PROCESS) if @__blocked.length > 0
+      end
+
+      active_connections_count += 1
     end
   end
 
@@ -234,6 +335,8 @@ module Rage::Ext::ActiveRecord::ConnectionPool
   # Raises `ActiveRecord::ExclusiveConnectionTimeoutError` if unable to gain ownership of all
   # connections in the pool within a timeout interval (default duration is `checkout_timeout * 2` seconds).
   def disconnect(raise_on_acquisition_timeout = true, disconnect_attempts = 0)
+    return if @__connections.is_a?(BlackHoleList)
+
     # allow request fibers to release connections, but block from acquiring new ones
     if disconnect_attempts == 0
       @__connections = BlackHoleList.new(@__connections)
@@ -288,6 +391,10 @@ module Rage::Ext::ActiveRecord::ConnectionPool
     connection
   end
 
+  def maintainable?
+    false
+  end
+
   # Check in a database connection back into the pool, indicating that you no longer need this connection.
   def checkin(conn)
     fiber = @__in_use.key(conn)
@@ -328,8 +435,12 @@ module Rage::Ext::ActiveRecord::ConnectionPool
   private
 
   def build_new_connections(num_connections = size)
-    (1..num_connections).map do
+    connections = (1..num_connections).map do
       __checkout__.tap { |conn| conn.__idle_since = Process.clock_gettime(Process::CLOCK_MONOTONIC) }
     end
+
+    Iodine.defer { preconnect }
+
+    connections
   end
 end

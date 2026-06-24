@@ -17,6 +17,9 @@ task :appraise do |_, args|
     puts ">> Appraising #{ext_version}"
 
     gem_name = ext_version.sub(/_\d+(_\d+)*$/, "")
-    system "bundle exec appraisal #{ext_version} rspec spec/ext/#{gem_name}/"
+
+    Pathname.new("spec/ext").join(gem_name).glob("*_spec.rb").each do |spec|
+      system("bundle exec appraisal #{ext_version} rspec #{spec}", exception: true)
+    end
   end
 end
