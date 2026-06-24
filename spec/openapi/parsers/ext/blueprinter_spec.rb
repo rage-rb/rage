@@ -1050,7 +1050,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with a named view" do
       let(:resource) { "UserBlueprint(view: :normal)" }
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           fields :id, :name
           view :normal do
@@ -1075,7 +1075,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with no view option falls back to :default" do
       let(:resource) { "UserBlueprint" }
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           fields :id, :name
           view :normal do
@@ -1098,13 +1098,13 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with a named view that includes an association" do
       let(:resource) { "UserBlueprint(view: :normal)" }
 
-      let_class("ProjectBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("ProjectBlueprint") do
         <<~'RUBY'
           fields :id, :name
         RUBY
       end
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           fields :email
           view :normal do
@@ -1138,13 +1138,13 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with a named view that has a singular association" do
       let(:resource) { "UserBlueprint(view: :normal)" }
 
-      let_class("ProjectBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("ProjectBlueprint") do
         <<~'RUBY'
           fields :id, :name
         RUBY
       end
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           fields :email
           view :normal do
@@ -1173,7 +1173,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with a view that does not exist" do
       let(:resource) { "UserBlueprint(view: :nonexistent)" }
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           fields :id, :name
           view :normal do
@@ -1190,7 +1190,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with identifier in a named view" do
       let(:resource) { "UserBlueprint(view: :normal)" }
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           identifier :uuid
           fields :name
@@ -1215,7 +1215,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with include_view in a named view" do
       let(:resource) { "UserBlueprint(view: :normal)" }
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           fields :id, :name
           view :extended do
@@ -1245,7 +1245,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with exclude in a named view" do
       let(:resource) { "UserBlueprint(view: :normal)" }
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           fields :id, :name, :email
           view :normal do
@@ -1270,7 +1270,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with exclude on a base-level field in a named view" do
       let(:resource) { "UserBlueprint(view: :normal)" }
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           fields :id, :name, :email, :age
           view :normal do
@@ -1294,7 +1294,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with include_view and exclude combined" do
       let(:resource) { "UserBlueprint(view: :normal)" }
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           fields :id, :name
           view :extended do
@@ -1323,19 +1323,19 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with include_view, exclude, and associations combined" do
       let(:resource) { "UserBlueprint(view: :normal)" }
 
-      let_class("ProjectBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("ProjectBlueprint") do
         <<~'RUBY'
           fields :id, :name
         RUBY
       end
 
-      let_class("TeamBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("TeamBlueprint") do
         <<~'RUBY'
           fields :id, :name
         RUBY
       end
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           fields :id, :name, :email
           association :teams, blueprint: TeamBlueprint
@@ -1386,13 +1386,13 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with exclude on an association in a named view" do
       let(:resource) { "UserBlueprint(view: :normal)" }
 
-      let_class("ProjectBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("ProjectBlueprint") do
         <<~'RUBY'
           fields :id, :name
         RUBY
       end
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           fields :id, :name
           association :projects, blueprint: ProjectBlueprint
@@ -1418,7 +1418,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with multiple include_view chained" do
       let(:resource) { "UserBlueprint(view: :admin)" }
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           fields :id
           view :basic do
@@ -1453,7 +1453,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
     context "with include_view chained and exclude applied to an included field" do
       let(:resource) { "UserBlueprint(view: :admin)" }
 
-      let_class("UserBlueprint", parent: Blueprinter::Base) do
+      let_blueprinter_class("UserBlueprint") do
         <<~'RUBY'
           fields :id
           view :basic do
@@ -2378,7 +2378,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with a named view" do
     let(:resource) { "Array<UserBlueprint(view: :normal)>" }
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         fields :id, :name
         view :normal do
@@ -2406,7 +2406,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with no view option falls back to :default" do
     let(:resource) { "Array<UserBlueprint>" }
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         fields :id, :name
         view :normal do
@@ -2432,13 +2432,13 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with a named view that includes an association" do
     let(:resource) { "Array<UserBlueprint(view: :normal)>" }
 
-    let_class("ProjectBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("ProjectBlueprint") do
       <<~'RUBY'
         fields :id, :name
       RUBY
     end
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         fields :email
         view :normal do
@@ -2475,13 +2475,13 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with a named view that has a singular association" do
     let(:resource) { "Array<UserBlueprint(view: :normal)>" }
 
-    let_class("ProjectBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("ProjectBlueprint") do
       <<~'RUBY'
         fields :id, :name
       RUBY
     end
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         fields :email
         view :normal do
@@ -2513,7 +2513,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with a view that does not exist" do
     let(:resource) { "Array<UserBlueprint(view: :nonexistent)>" }
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         fields :id, :name
         view :normal do
@@ -2533,7 +2533,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with identifier in a named view" do
     let(:resource) { "Array<UserBlueprint(view: :normal)>" }
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         identifier :uuid
         fields :name
@@ -2561,7 +2561,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with include_view in a named view" do
     let(:resource) { "Array<UserBlueprint(view: :normal)>" }
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         fields :id, :name
         view :extended do
@@ -2594,7 +2594,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with exclude in a named view" do
     let(:resource) { "Array<UserBlueprint(view: :normal)>" }
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         fields :id, :name, :email
         view :normal do
@@ -2622,7 +2622,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with exclude on a base-level field in a named view" do
     let(:resource) { "Array<UserBlueprint(view: :normal)>" }
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         fields :id, :name, :email, :age
         view :normal do
@@ -2649,7 +2649,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with include_view and exclude combined" do
     let(:resource) { "Array<UserBlueprint(view: :normal)>" }
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         fields :id, :name
         view :extended do
@@ -2681,19 +2681,19 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with include_view, exclude, and associations combined" do
     let(:resource) { "Array<UserBlueprint(view: :normal)>" }
 
-    let_class("ProjectBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("ProjectBlueprint") do
       <<~'RUBY'
         fields :id, :name
       RUBY
     end
 
-    let_class("TeamBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("TeamBlueprint") do
       <<~'RUBY'
         fields :id, :name
       RUBY
     end
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         fields :id, :name, :email
         association :teams, blueprint: TeamBlueprint
@@ -2747,13 +2747,13 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with exclude on an association in a named view" do
     let(:resource) { "Array<UserBlueprint(view: :normal)>" }
 
-    let_class("ProjectBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("ProjectBlueprint") do
       <<~'RUBY'
         fields :id, :name
       RUBY
     end
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         fields :id, :name
         association :projects, blueprint: ProjectBlueprint
@@ -2782,7 +2782,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with multiple include_view chained" do
     let(:resource) { "Array<UserBlueprint(view: :admin)>" }
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         fields :id
         view :basic do
@@ -2820,7 +2820,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
   context "with include_view chained and exclude applied to an included field" do
     let(:resource) { "Array<UserBlueprint(view: :admin)>" }
 
-    let_class("UserBlueprint", parent: Blueprinter::Base) do
+    let_blueprinter_class("UserBlueprint") do
       <<~'RUBY'
         fields :id
         view :basic do
