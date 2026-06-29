@@ -24,10 +24,11 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const { data: files } = await github.rest.pulls.listFiles({
+            const files = await github.paginate(github.rest.pulls.listFiles, {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.issue.number
+              pull_number: context.issue.number,
+              per_page: 100
             });
             const hasChangelog = files.some(f => f.filename === 'CHANGELOG.md');
             core.setOutput('has_changelog', hasChangelog);
