@@ -116,6 +116,9 @@ class Rage::Daemon
   private_constant :BACKOFF_RESET_INTERVAL
 
   class << self
+    # @private
+    attr_accessor :__exclusive
+
     # Configures the daemon to run in only one worker process.
     #
     # In multi-process deployments, Rage runs daemons in every worker by default.
@@ -133,8 +136,13 @@ class Rage::Daemon
     #       # only runs in one worker process
     #     end
     #   end
-    def exclusive
-      @__exclusive = true
+    def exclusive(enabled = true)
+      @__exclusive = enabled
+    end
+
+    # @private
+    def inherited(klass)
+      klass.__exclusive = @__exclusive
     end
 
     # @private

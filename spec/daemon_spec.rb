@@ -254,4 +254,76 @@ RSpec.describe Rage::Daemon do
       end
     end
   end
+
+  context "with inheritance" do
+    context "with inherited exclusive status" do
+      let(:parent_daemon) do
+        Class.new(Rage::Daemon) do
+          exclusive
+
+          def perform
+          end
+        end
+      end
+
+      let(:daemon) do
+        Class.new(parent_daemon) do
+          def perform
+          end
+        end
+      end
+
+      it "inherits the exclusive status" do
+        expect(daemon.__exclusive).to be(true)
+      end
+    end
+
+    context "with overriden exclusive status" do
+      let(:parent_daemon) do
+        Class.new(Rage::Daemon) do
+          exclusive
+
+          def perform
+          end
+        end
+      end
+
+      let(:daemon) do
+        Class.new(parent_daemon) do
+          exclusive(false)
+
+          def perform
+          end
+        end
+      end
+
+      it "inherits the exclusive status" do
+        expect(daemon.__exclusive).to be(false)
+        expect(parent_daemon.__exclusive).to be(true)
+      end
+    end
+
+    context "with set exclusive status" do
+      let(:parent_daemon) do
+        Class.new(Rage::Daemon) do
+          def perform
+          end
+        end
+      end
+
+      let(:daemon) do
+        Class.new(parent_daemon) do
+          exclusive
+
+          def perform
+          end
+        end
+      end
+
+      it "sets the exclusive status independently" do
+        expect(daemon.__exclusive).to be(true)
+        expect(parent_daemon.__exclusive).to be_falsey
+      end
+    end
+  end
 end
