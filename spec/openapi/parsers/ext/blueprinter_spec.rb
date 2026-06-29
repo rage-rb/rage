@@ -1182,8 +1182,8 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         RUBY
       end
 
-      it "returns an empty object schema since the view has no fields" do
-        is_expected.to eq({ "type" => "object" })
+      it "returns nil so the upstream parser logs an unrecognized tag warning" do
+        is_expected.to be_nil
       end
     end
 
@@ -2522,11 +2522,8 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
       RUBY
     end
 
-    it "returns an empty items schema since the view has no fields" do
-      is_expected.to eq({
-        "type" => "array",
-        "items" => { "type" => "object" }
-      })
+    it "returns nil so the upstream parser logs an unrecognized tag warning" do
+      is_expected.to be_nil
     end
   end
 
