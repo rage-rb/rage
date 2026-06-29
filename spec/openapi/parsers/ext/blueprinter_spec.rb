@@ -1046,6 +1046,444 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         })
       end
     end
+
+    context "with a named view" do
+      let(:resource) { "UserBlueprint(view: :normal)" }
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :id, :name
+          view :normal do
+            fields :email, :age
+          end
+        RUBY
+      end
+
+      it "renders only fields declared in the specified view" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "age" => { "type" => "string" }
+          }
+        })
+      end
+    end
+
+    context "with no view option falls back to :default" do
+      let(:resource) { "UserBlueprint" }
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :id, :name
+          view :normal do
+            fields :email, :age
+          end
+        RUBY
+      end
+
+      it "renders only the default view fields" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" }
+          }
+        })
+      end
+    end
+
+    context "with a named view that includes an association" do
+      let(:resource) { "UserBlueprint(view: :normal)" }
+
+      let_blueprinter_class("ProjectBlueprint") do
+        <<~'RUBY'
+          fields :id, :name
+        RUBY
+      end
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :email
+          view :normal do
+            fields :age
+            association :projects, blueprint: ProjectBlueprint
+          end
+        RUBY
+      end
+
+      it "renders the view's fields and associations" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "age" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "projects" => {
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "properties" => {
+                  "id" => { "type" => "string" },
+                  "name" => { "type" => "string" }
+                }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with a named view that has a singular association" do
+      let(:resource) { "UserBlueprint(view: :normal)" }
+
+      let_blueprinter_class("ProjectBlueprint") do
+        <<~'RUBY'
+          fields :id, :name
+        RUBY
+      end
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :email
+          view :normal do
+            association :project, blueprint: ProjectBlueprint
+          end
+        RUBY
+      end
+
+      it "correctly detects singular association cardinality within the view" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "email" => { "type" => "string" },
+            "project" => {
+              "type" => "object",
+              "properties" => {
+                "id" => { "type" => "string" },
+                "name" => { "type" => "string" }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with a view that does not exist" do
+      let(:resource) { "UserBlueprint(view: :nonexistent)" }
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :id, :name
+          view :normal do
+            fields :email
+          end
+        RUBY
+      end
+
+      it "returns nil so the upstream parser logs an unrecognized tag warning" do
+        is_expected.to be_nil
+      end
+    end
+
+    context "with identifier in a named view" do
+      let(:resource) { "UserBlueprint(view: :normal)" }
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          identifier :uuid
+          fields :name
+          view :normal do
+            fields :email
+          end
+        RUBY
+      end
+
+      it "includes the identifier alongside view fields" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "uuid" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "name" => { "type" => "string" }
+          }
+        })
+      end
+    end
+
+    context "with include_view in a named view" do
+      let(:resource) { "UserBlueprint(view: :normal)" }
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :id, :name
+          view :extended do
+            fields :email, :age
+          end
+          view :normal do
+            include_view :extended
+            fields :address
+          end
+        RUBY
+      end
+
+      it "includes fields from the included view alongside the named view's own fields" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "age" => { "type" => "string" },
+            "address" => { "type" => "string" }
+          }
+        })
+      end
+    end
+
+    context "with exclude in a named view" do
+      let(:resource) { "UserBlueprint(view: :normal)" }
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :id, :name, :email
+          view :normal do
+            fields :age
+            exclude :email
+          end
+        RUBY
+      end
+
+      it "excludes the specified field from the view" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "age" => { "type" => "string" }
+          }
+        })
+      end
+    end
+
+    context "with exclude on a base-level field in a named view" do
+      let(:resource) { "UserBlueprint(view: :normal)" }
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :id, :name, :email, :age
+          view :normal do
+            exclude :id
+            exclude :age
+          end
+        RUBY
+      end
+
+      it "excludes multiple base-level fields from the view" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" }
+          }
+        })
+      end
+    end
+
+    context "with include_view and exclude combined" do
+      let(:resource) { "UserBlueprint(view: :normal)" }
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :id, :name
+          view :extended do
+            fields :email, :age, :address
+          end
+          view :normal do
+            include_view :extended
+            exclude :age
+          end
+        RUBY
+      end
+
+      it "includes the view's fields but excludes the specified one" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "address" => { "type" => "string" }
+          }
+        })
+      end
+    end
+
+    context "with include_view, exclude, and associations combined" do
+      let(:resource) { "UserBlueprint(view: :normal)" }
+
+      let_blueprinter_class("ProjectBlueprint") do
+        <<~'RUBY'
+          fields :id, :name
+        RUBY
+      end
+
+      let_blueprinter_class("TeamBlueprint") do
+        <<~'RUBY'
+          fields :id, :name
+        RUBY
+      end
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :id, :name, :email
+          association :teams, blueprint: TeamBlueprint
+          view :extended do
+            fields :age, :address
+            association :projects, blueprint: ProjectBlueprint
+          end
+          view :normal do
+            include_view :extended
+            exclude :email
+            exclude :address
+          end
+        RUBY
+      end
+
+      it "merges included view, excludes specified fields, and includes all associations" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "age" => { "type" => "string" },
+            "teams" => {
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "properties" => {
+                  "id" => { "type" => "string" },
+                  "name" => { "type" => "string" }
+                }
+              }
+            },
+            "projects" => {
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "properties" => {
+                  "id" => { "type" => "string" },
+                  "name" => { "type" => "string" }
+                }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with exclude on an association in a named view" do
+      let(:resource) { "UserBlueprint(view: :normal)" }
+
+      let_blueprinter_class("ProjectBlueprint") do
+        <<~'RUBY'
+          fields :id, :name
+        RUBY
+      end
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :id, :name
+          association :projects, blueprint: ProjectBlueprint
+          view :normal do
+            fields :email
+            exclude :projects
+          end
+        RUBY
+      end
+
+      it "excludes the association from the view" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" }
+          }
+        })
+      end
+    end
+
+    context "with multiple include_view chained" do
+      let(:resource) { "UserBlueprint(view: :admin)" }
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :id
+          view :basic do
+            fields :name, :email
+          end
+          view :extended do
+            fields :age, :address
+          end
+          view :admin do
+            include_view :basic
+            include_view :extended
+            fields :role
+          end
+        RUBY
+      end
+
+      it "includes fields from all included views plus the view's own fields" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "age" => { "type" => "string" },
+            "address" => { "type" => "string" },
+            "role" => { "type" => "string" }
+          }
+        })
+      end
+    end
+
+    context "with include_view chained and exclude applied to an included field" do
+      let(:resource) { "UserBlueprint(view: :admin)" }
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :id
+          view :basic do
+            fields :name, :email
+          end
+          view :extended do
+            fields :age, :address
+          end
+          view :admin do
+            include_view :basic
+            include_view :extended
+            fields :role
+            exclude :email
+            exclude :address
+          end
+        RUBY
+      end
+
+      it "includes fields from all included views, excluding the specified ones" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "age" => { "type" => "string" },
+            "role" => { "type" => "string" }
+          }
+        })
+      end
+    end
   end
 
   describe "collection" do
@@ -1934,6 +2372,483 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
           }
         })
       end
+    end
+  end
+
+  context "with a named view" do
+    let(:resource) { "Array<UserBlueprint(view: :normal)>" }
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        fields :id, :name
+        view :normal do
+          fields :email, :age
+        end
+      RUBY
+    end
+
+    it "renders only fields declared in the specified view" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "age" => { "type" => "string" }
+          }
+        }
+      })
+    end
+  end
+
+  context "with no view option falls back to :default" do
+    let(:resource) { "Array<UserBlueprint>" }
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        fields :id, :name
+        view :normal do
+          fields :email, :age
+        end
+      RUBY
+    end
+
+    it "renders only the default view fields" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" }
+          }
+        }
+      })
+    end
+  end
+
+  context "with a named view that includes an association" do
+    let(:resource) { "Array<UserBlueprint(view: :normal)>" }
+
+    let_blueprinter_class("ProjectBlueprint") do
+      <<~'RUBY'
+        fields :id, :name
+      RUBY
+    end
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        fields :email
+        view :normal do
+          fields :age
+          association :projects, blueprint: ProjectBlueprint
+        end
+      RUBY
+    end
+
+    it "renders the view's fields and associations" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "age" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "projects" => {
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "properties" => {
+                  "id" => { "type" => "string" },
+                  "name" => { "type" => "string" }
+                }
+              }
+            }
+          }
+        }
+      })
+    end
+  end
+
+  context "with a named view that has a singular association" do
+    let(:resource) { "Array<UserBlueprint(view: :normal)>" }
+
+    let_blueprinter_class("ProjectBlueprint") do
+      <<~'RUBY'
+        fields :id, :name
+      RUBY
+    end
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        fields :email
+        view :normal do
+          association :project, blueprint: ProjectBlueprint
+        end
+      RUBY
+    end
+
+    it "correctly detects singular association cardinality within the view" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "email" => { "type" => "string" },
+            "project" => {
+              "type" => "object",
+              "properties" => {
+                "id" => { "type" => "string" },
+                "name" => { "type" => "string" }
+              }
+            }
+          }
+        }
+      })
+    end
+  end
+
+  context "with a view that does not exist" do
+    let(:resource) { "Array<UserBlueprint(view: :nonexistent)>" }
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        fields :id, :name
+        view :normal do
+          fields :email
+        end
+      RUBY
+    end
+
+    it "returns nil so the upstream parser logs an unrecognized tag warning" do
+      is_expected.to be_nil
+    end
+  end
+
+  context "with identifier in a named view" do
+    let(:resource) { "Array<UserBlueprint(view: :normal)>" }
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        identifier :uuid
+        fields :name
+        view :normal do
+          fields :email
+        end
+      RUBY
+    end
+
+    it "includes the identifier alongside view fields" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "uuid" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "name" => { "type" => "string" }
+          }
+        }
+      })
+    end
+  end
+
+  context "with include_view in a named view" do
+    let(:resource) { "Array<UserBlueprint(view: :normal)>" }
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        fields :id, :name
+        view :extended do
+          fields :email, :age
+        end
+        view :normal do
+          include_view :extended
+          fields :address
+        end
+      RUBY
+    end
+
+    it "includes fields from the included view alongside the named view's own fields" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "age" => { "type" => "string" },
+            "address" => { "type" => "string" }
+          }
+        }
+      })
+    end
+  end
+
+  context "with exclude in a named view" do
+    let(:resource) { "Array<UserBlueprint(view: :normal)>" }
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        fields :id, :name, :email
+        view :normal do
+          fields :age
+          exclude :email
+        end
+      RUBY
+    end
+
+    it "excludes the specified field from the view" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "age" => { "type" => "string" }
+          }
+        }
+      })
+    end
+  end
+
+  context "with exclude on a base-level field in a named view" do
+    let(:resource) { "Array<UserBlueprint(view: :normal)>" }
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        fields :id, :name, :email, :age
+        view :normal do
+          exclude :id
+          exclude :age
+        end
+      RUBY
+    end
+
+    it "excludes multiple base-level fields from the view" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" }
+          }
+        }
+      })
+    end
+  end
+
+  context "with include_view and exclude combined" do
+    let(:resource) { "Array<UserBlueprint(view: :normal)>" }
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        fields :id, :name
+        view :extended do
+          fields :email, :age, :address
+        end
+        view :normal do
+          include_view :extended
+          exclude :age
+        end
+      RUBY
+    end
+
+    it "includes the view's fields but excludes the specified one" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "address" => { "type" => "string" }
+          }
+        }
+      })
+    end
+  end
+
+  context "with include_view, exclude, and associations combined" do
+    let(:resource) { "Array<UserBlueprint(view: :normal)>" }
+
+    let_blueprinter_class("ProjectBlueprint") do
+      <<~'RUBY'
+        fields :id, :name
+      RUBY
+    end
+
+    let_blueprinter_class("TeamBlueprint") do
+      <<~'RUBY'
+        fields :id, :name
+      RUBY
+    end
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        fields :id, :name, :email
+        association :teams, blueprint: TeamBlueprint
+        view :extended do
+          fields :age, :address
+          association :projects, blueprint: ProjectBlueprint
+        end
+        view :normal do
+          include_view :extended
+          exclude :email
+          exclude :address
+        end
+      RUBY
+    end
+
+    it "merges included view, excludes specified fields, and includes all associations" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "age" => { "type" => "string" },
+            "teams" => {
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "properties" => {
+                  "id" => { "type" => "string" },
+                  "name" => { "type" => "string" }
+                }
+              }
+            },
+            "projects" => {
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "properties" => {
+                  "id" => { "type" => "string" },
+                  "name" => { "type" => "string" }
+                }
+              }
+            }
+          }
+        }
+      })
+    end
+  end
+
+  context "with exclude on an association in a named view" do
+    let(:resource) { "Array<UserBlueprint(view: :normal)>" }
+
+    let_blueprinter_class("ProjectBlueprint") do
+      <<~'RUBY'
+        fields :id, :name
+      RUBY
+    end
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        fields :id, :name
+        association :projects, blueprint: ProjectBlueprint
+        view :normal do
+          fields :email
+          exclude :projects
+        end
+      RUBY
+    end
+
+    it "excludes the association from the view" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" }
+          }
+        }
+      })
+    end
+  end
+
+  context "with multiple include_view chained" do
+    let(:resource) { "Array<UserBlueprint(view: :admin)>" }
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        fields :id
+        view :basic do
+          fields :name, :email
+        end
+        view :extended do
+          fields :age, :address
+        end
+        view :admin do
+          include_view :basic
+          include_view :extended
+          fields :role
+        end
+      RUBY
+    end
+
+    it "includes fields from all included views plus the view's own fields" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "age" => { "type" => "string" },
+            "address" => { "type" => "string" },
+            "role" => { "type" => "string" }
+          }
+        }
+      })
+    end
+  end
+
+  context "with include_view chained and exclude applied to an included field" do
+    let(:resource) { "Array<UserBlueprint(view: :admin)>" }
+
+    let_blueprinter_class("UserBlueprint") do
+      <<~'RUBY'
+        fields :id
+        view :basic do
+          fields :name, :email
+        end
+        view :extended do
+          fields :age, :address
+        end
+        view :admin do
+          include_view :basic
+          include_view :extended
+          fields :role
+          exclude :email
+          exclude :address
+        end
+      RUBY
+    end
+
+    it "includes fields from all included views, excluding the specified ones" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "id" => { "type" => "string" },
+            "name" => { "type" => "string" },
+            "age" => { "type" => "string" },
+            "role" => { "type" => "string" }
+          }
+        }
+      })
     end
   end
 end
