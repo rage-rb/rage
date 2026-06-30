@@ -7,6 +7,7 @@
 - Connection pool improvements (#301).
 - [OpenAPI] Add Blueprinter association parsing with cycle detection (#291)
 - [OpenAPI] Add support for the `view:` option in Blueprinter parser.
+- Add `Rage::Daemon` (#339).
 
 ### Fixed
 

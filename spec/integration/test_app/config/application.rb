@@ -83,6 +83,12 @@ Rage.configure do
   end
 
   config.blocking_operation_pool.enabled = true
+
+  if ENV["ENABLE_DAEMONS"]
+    config.after_initialize do
+      config.daemons << RedisListener1 << RedisListener2
+    end
+  end
 end
 
 class TestSseObserver < Rage::Telemetry::Handler
