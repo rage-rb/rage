@@ -152,6 +152,11 @@ class Rage::FiberScheduler
     end
   end
 
+  # Wait for a specified process.
+  def process_wait(pid, flags)
+    Thread.new { Process::Status.wait(pid, flags) }.value
+  end
+
   # Create and schedule a new non-blocking fiber, handling request and user-spawned fibers differently.
   def fiber(&block)
     parent = Fiber.current
