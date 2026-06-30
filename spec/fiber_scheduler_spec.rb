@@ -643,4 +643,50 @@ RSpec.describe Rage::FiberScheduler do
       end
     end
   end
+
+  context "#process_wait" do
+    it "waits for processes in a non-blocking manner" do
+      within_reactor do
+        result = Benchmark.realtime do
+          Fiber.schedule { Process.wait(Process.spawn("sleep 1")) }
+        end
+
+        -> { expect(result).to be < 0.1 }
+      end
+    end
+
+    it "resumes the fiber when the process is finished" do
+      within_reactor do
+        result = Benchmark.realtime do
+          Fiber.await([
+            Fiber.schedule { Process.wait(Process.spawn("sleep 1")) }
+          ])
+        end
+
+        -> { expect(0.9..1.1).to cover(result) }
+      end
+    end
+
+    it "resumes the fiber when the process is killed" do
+      within_reactor do
+        pid = nil
+
+        f = Fiber.schedule do
+          pid = Process.spawn("sleep 5")
+          Process.wait(pid)
+        end
+
+        Fiber.schedule do
+          sleep 1
+          Process.kill("TERM", pid)
+        end
+
+        result = Benchmark.realtime do
+          Fiber.await([f])
+        end
+
+        -> { expect(0.9..1.1).to cover(result) }
+      end
+    end
+  end
 end
