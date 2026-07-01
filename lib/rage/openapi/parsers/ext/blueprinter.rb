@@ -49,7 +49,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
     properties = identifier_fields.merge(default_fields.merge(association_fields).sort.to_h)
 
     schema = if serializer_options&.key?(:root)
-      { serializer_options[:root] => { "type" => "object", "properties" => properties } }
+      { serializer_options[:root].to_s => { "type" => "object", "properties" => properties } }
     else
       properties
     end
