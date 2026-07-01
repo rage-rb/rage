@@ -40,20 +40,16 @@
 # end
 # ```
 #
-# ## Exclusive Daemons
+# ## Daemon Scope
 #
-# By default, daemons run in every worker process. Use {exclusive exclusive} when you need exactly one instance
-# across all workers, such as when consuming from a queue where duplicate processing would be problematic:
+# By default, daemons run in exactly one worker process per server. Use {scope scope} to change this behavior:
 #
 # ```ruby
-# class QueueConsumer < Rage::Daemon
-#   exclusive
+# class MetricsCollector < Rage::Daemon
+#   scope :worker
 #
 #   def perform
-#     loop do
-#       job = JobQueue.pop  # only one worker should pop from the queue
-#       process(job)
-#     end
+#     # runs in every worker process
 #   end
 # end
 # ```
@@ -117,37 +113,43 @@ class Rage::Daemon
 
   class << self
     # @private
-    attr_accessor :__exclusive
+    attr_accessor :__level
 
-    # Configures the daemon to run in only one worker process.
+    # Configures the scope at which the daemon runs.
     #
-    # In multi-process deployments, Rage runs daemons in every worker by default.
-    # Use `exclusive` when running multiple instances would cause problems,
-    # such as duplicate message processing or resource contention.
+    # By default, daemons run in one worker process per server (`:node` scope).
+    # Use this method to change the scope when a different behavior is needed.
     #
-    # Rage uses IPC to ensure exactly one worker runs the daemon. If that worker
-    # dies, the daemon will be automatically restarted in another worker.
+    # @param level [Symbol] the scope level
+    # @option level :node One instance per server (default). Rage uses IPC to coordinate
+    #   which worker runs the daemon. If that worker dies, the daemon restarts in another worker.
+    # @option level :worker One instance per worker process. Use this when the daemon performs
+    #   work that needs to run in parallel across workers.
     #
-    # @example
-    #   class QueueConsumer < Rage::Daemon
-    #     exclusive
+    # @example Running in every worker
+    #   class MetricsCollector < Rage::Daemon
+    #     scope :worker
     #
     #     def perform
-    #       # only runs in one worker process
+    #       # runs in every worker process
     #     end
     #   end
-    def exclusive(enabled = true)
-      @__exclusive = enabled
+    def scope(level)
+      unless level == :worker || level == :node
+        raise ArgumentError, "Invalid scope level: #{level.inspect}. Valid options are :node and :worker."
+      end
+
+      @__level = level
     end
 
     # @private
     def inherited(klass)
-      klass.__exclusive = @__exclusive
+      klass.__level = __level
     end
 
     # @private
     def __perform
-      if @__exclusive
+      if __level.nil? || __level == :node
         Rage::Internal.pick_a_worker(purpose: "daemon-#{name}") { __execute }
       else
         __execute

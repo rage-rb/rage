@@ -14,6 +14,9 @@ RSpec.describe Rage::Daemon do
   end
 
   before do
+    allow(daemon).to receive(:name).and_return(:TestDaemon)
+    allow(Rage::Internal).to receive(:pick_a_worker).with(purpose: /TestDaemon/).and_yield
+
     allow_any_instance_of(daemon).to receive(:validator).and_return(validator)
     allow(Rage).to receive(:logger).and_return(Rage::Logger.new(STDERR))
   end
@@ -25,6 +28,22 @@ RSpec.describe Rage::Daemon do
           validator.perform
           Rage::Daemon::Stop
         end
+      end
+    end
+
+    it "starts the daemon in one worker" do
+      within_reactor do
+        perform_block = nil
+        expect(Rage::Internal).to receive(:pick_a_worker).with(purpose: /TestDaemon/) do |&block|
+          perform_block = block
+        end
+
+        subject
+        expect(validator).not_to have_received(:perform)
+
+        perform_block.call
+
+        -> { expect(validator).to have_received(:perform).at_least(:once) }
       end
     end
 
@@ -223,10 +242,10 @@ RSpec.describe Rage::Daemon do
     end
   end
 
-  context "with exclusive daemon" do
+  context "with worker-level daemon" do
     let(:daemon) do
       Class.new(Rage::Daemon) do
-        exclusive
+        scope :worker
 
         def perform
           validator.perform
@@ -234,32 +253,34 @@ RSpec.describe Rage::Daemon do
       end
     end
 
-    before do
-      allow(daemon).to receive(:name).and_return(:ExclusiveTestDaemon)
-    end
-
-    it "starts the daemon in one worker" do
+    it "doesn't use Rage::Internal.pick_a_worker" do
       within_reactor do
-        perform_block = nil
-        expect(Rage::Internal).to receive(:pick_a_worker).with(purpose: /ExclusiveTestDaemon/) do |&block|
-          perform_block = block
-        end
-
+        expect(Rage::Internal).not_to receive(:pick_a_worker)
         subject
-        expect(validator).not_to have_received(:perform)
-
-        perform_block.call
 
         -> { expect(validator).to have_received(:perform).at_least(:once) }
       end
     end
   end
 
+  context "with incorrect scope level" do
+    let(:daemon) do
+      Class.new(Rage::Daemon) do
+        def perform
+        end
+      end
+    end
+
+    it "raises an error" do
+      expect { daemon.scope(:unknown) }.to raise_error(/Invalid scope level: :unknown/)
+    end
+  end
+
   context "with inheritance" do
-    context "with inherited exclusive status" do
+    context "with inherited scope level" do
       let(:parent_daemon) do
         Class.new(Rage::Daemon) do
-          exclusive
+          scope :worker
 
           def perform
           end
@@ -273,15 +294,15 @@ RSpec.describe Rage::Daemon do
         end
       end
 
-      it "inherits the exclusive status" do
-        expect(daemon.__exclusive).to be(true)
+      it "inherits the scope level" do
+        expect(daemon.__level).to eq(:worker)
       end
     end
 
-    context "with overriden exclusive status" do
+    context "with overriden scope level" do
       let(:parent_daemon) do
         Class.new(Rage::Daemon) do
-          exclusive
+          scope :worker
 
           def perform
           end
@@ -290,20 +311,20 @@ RSpec.describe Rage::Daemon do
 
       let(:daemon) do
         Class.new(parent_daemon) do
-          exclusive(false)
+          scope :node
 
           def perform
           end
         end
       end
 
-      it "inherits the exclusive status" do
-        expect(daemon.__exclusive).to be(false)
-        expect(parent_daemon.__exclusive).to be(true)
+      it "inherits the scope level" do
+        expect(daemon.__level).to eq(:node)
+        expect(parent_daemon.__level).to eq(:worker)
       end
     end
 
-    context "with set exclusive status" do
+    context "with set scope level" do
       let(:parent_daemon) do
         Class.new(Rage::Daemon) do
           def perform
@@ -313,16 +334,16 @@ RSpec.describe Rage::Daemon do
 
       let(:daemon) do
         Class.new(parent_daemon) do
-          exclusive
+          scope :worker
 
           def perform
           end
         end
       end
 
-      it "sets the exclusive status independently" do
-        expect(daemon.__exclusive).to be(true)
-        expect(parent_daemon.__exclusive).to be_falsey
+      it "sets the scope level independently" do
+        expect(daemon.__level).to eq(:worker)
+        expect(parent_daemon.__level).to be_nil
       end
     end
   end
