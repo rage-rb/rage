@@ -46,7 +46,13 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
 
     @parsing_stack.delete(klass.name)
 
-    schema = identifier_fields.merge(default_fields.merge(association_fields).sort.to_h)
+    properties = identifier_fields.merge(default_fields.merge(association_fields).sort.to_h)
+
+    schema = if serializer_options&.key?(:root)
+      { serializer_options[:root] => { "type" => "object", "properties" => properties } }
+    else
+      properties
+    end
 
     result = { "type" => "object" }
     result["properties"] = schema if schema.any?
