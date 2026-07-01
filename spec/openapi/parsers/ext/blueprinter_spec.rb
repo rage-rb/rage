@@ -1484,6 +1484,129 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         })
       end
     end
+
+    context "with a root key option" do
+      let(:resource) { "UserBlueprint(root: :user)" }
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :id, :name, :email
+        RUBY
+      end
+
+      it "wraps the schema under the specified root key" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "user" => {
+              "type" => "object",
+              "properties" => {
+                "id" => { "type" => "string" },
+                "name" => { "type" => "string" },
+                "email" => { "type" => "string" }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with a root key and a named view combined" do
+      let(:resource) { "UserBlueprint(view: :normal, root: :user)" }
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :id
+          view :normal do
+            fields :name, :email
+          end
+        RUBY
+      end
+
+      it "wraps the named view's schema under the root key" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "user" => {
+              "type" => "object",
+              "properties" => {
+                "id" => { "type" => "string" },
+                "name" => { "type" => "string" },
+                "email" => { "type" => "string" }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with a root key and an identifier" do
+      let(:resource) { "UserBlueprint(root: :user)" }
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          identifier :uuid
+          fields :name, :email
+        RUBY
+      end
+
+      it "includes the identifier inside the root key" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "user" => {
+              "type" => "object",
+              "properties" => {
+                "uuid" => { "type" => "string" },
+                "name" => { "type" => "string" },
+                "email" => { "type" => "string" }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with a root key and an association" do
+      let(:resource) { "UserBlueprint(root: :user)" }
+
+      let_blueprinter_class("ProjectBlueprint") do
+        <<~'RUBY'
+          fields :id, :name
+        RUBY
+      end
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :email
+          association :projects, blueprint: ProjectBlueprint
+        RUBY
+      end
+
+      it "includes associations inside the root key" do
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "user" => {
+              "type" => "object",
+              "properties" => {
+                "email" => { "type" => "string" },
+                "projects" => {
+                  "type" => "array",
+                  "items" => {
+                    "type" => "object",
+                    "properties" => {
+                      "id" => { "type" => "string" },
+                      "name" => { "type" => "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })
+      end
+    end
   end
 
   describe "collection" do
@@ -2846,6 +2969,141 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
             "name" => { "type" => "string" },
             "age" => { "type" => "string" },
             "role" => { "type" => "string" }
+          }
+        }
+      })
+    end
+  end
+
+  context "with a root key option" do
+    let(:resource) { "Array<UserBlueprintRootCollection(root: :users)>" }
+
+    let_blueprinter_class("UserBlueprintRootCollection") do
+      <<~'RUBY'
+        fields :id, :name, :email
+      RUBY
+    end
+
+    it "wraps the array items schema under the specified root key" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "users" => {
+              "type" => "object",
+              "properties" => {
+                "id" => { "type" => "string" },
+                "name" => { "type" => "string" },
+                "email" => { "type" => "string" }
+              }
+            }
+          }
+        }
+      })
+    end
+  end
+
+  context "with a root key and a named view combined" do
+    let(:resource) { "Array<UserBlueprintRootViewCollection(view: :normal, root: :users)>" }
+
+    let_blueprinter_class("UserBlueprintRootViewCollection") do
+      <<~'RUBY'
+        fields :id
+        view :normal do
+          fields :name, :email
+        end
+      RUBY
+    end
+
+    it "wraps the named view's items schema under the root key" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "users" => {
+              "type" => "object",
+              "properties" => {
+                "id" => { "type" => "string" },
+                "name" => { "type" => "string" },
+                "email" => { "type" => "string" }
+              }
+            }
+          }
+        }
+      })
+    end
+  end
+
+  context "with a root key and an identifier" do
+    let(:resource) { "Array<UserBlueprintRootIdentifierCollection(root: :users)>" }
+
+    let_blueprinter_class("UserBlueprintRootIdentifierCollection") do
+      <<~'RUBY'
+        identifier :uuid
+        fields :name, :email
+      RUBY
+    end
+
+    it "includes the identifier inside the root key's items" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "users" => {
+              "type" => "object",
+              "properties" => {
+                "uuid" => { "type" => "string" },
+                "name" => { "type" => "string" },
+                "email" => { "type" => "string" }
+              }
+            }
+          }
+        }
+      })
+    end
+  end
+
+  context "with a root key and an association" do
+    let(:resource) { "Array<UserBlueprintRootAssocCollection(root: :users)>" }
+
+    let_blueprinter_class("ProjectBlueprintRootAssoc") do
+      <<~'RUBY'
+        fields :id, :name
+      RUBY
+    end
+
+    let_blueprinter_class("UserBlueprintRootAssocCollection") do
+      <<~'RUBY'
+        fields :email
+        association :projects, blueprint: ProjectBlueprintRootAssoc
+      RUBY
+    end
+
+    it "includes associations inside the root key's items" do
+      is_expected.to eq({
+        "type" => "array",
+        "items" => {
+          "type" => "object",
+          "properties" => {
+            "users" => {
+              "type" => "object",
+              "properties" => {
+                "email" => { "type" => "string" },
+                "projects" => {
+                  "type" => "array",
+                  "items" => {
+                    "type" => "object",
+                    "properties" => {
+                      "id" => { "type" => "string" },
+                      "name" => { "type" => "string" }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       })
