@@ -84,6 +84,12 @@ module Rage
   #     config.log_level = :debug
   #   end
   def self.configure(&)
+    if Rage::Extension.subclasses.any? && !@__extension_config_applied
+      Rage::Extension.__configurations.each { |block| config.instance_eval(&block) }
+      config.__finalize
+      @__extension_config_applied = true
+    end
+
     config.instance_eval(&)
     config.__finalize
   end
@@ -207,3 +213,4 @@ end
 
 require_relative "rage/env"
 require_relative "rage/internal"
+require_relative "rage/extension"
