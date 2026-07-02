@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- [Specs][OpenAPI] Stabilize builder specs across checkout directory names.
 - [CI] Check all changed PR file pages when requiring changelog updates.
 - [API] Ignore `If-Modified-Since` when `If-None-Match` is present.
 - [API] Use weak comparison for `If-None-Match` validation.
