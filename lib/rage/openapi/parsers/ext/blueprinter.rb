@@ -20,9 +20,10 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
     is_collection, raw_klass_str, serializer_options = Rage::OpenAPI.__parse_serializer_args(klass_str)
     klass = @namespace.const_get(raw_klass_str)
     schema = build_schema(klass, is_collection, serializer_options)
+    registry_key = "#{raw_klass_str}_#{serializer_options[:view] || :default}"
 
-    if @root.schema_registry.key?(raw_klass_str)
-      @root.schema_registry[raw_klass_str] = is_collection ? schema["items"] : schema
+    if @root.schema_registry.key?(registry_key)
+      @root.schema_registry[registry_key] = is_collection ? schema["items"] : schema
     end
 
     schema
@@ -32,19 +33,19 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
 
   private
 
-  def build_schema(klass, is_collection, serializer_options = nil)
-    @parsing_stack.add(klass.name)
-
-    view_name = serializer_options&.key?(:view) ? serializer_options[:view] : :default
+  def build_schema(klass, is_collection, serializer_options)
+    view_name = serializer_options.key?(:view) ? serializer_options[:view] : :default
     reflections = klass.reflections
     view = reflections[view_name]
     raise InvalidViewError, "invalid view #{view_name}" unless view
+
+    @parsing_stack.add([klass.name, view_name])
 
     identifier_fields = extract_fields(reflections[:identifier])
     default_fields = extract_fields(view)
     association_fields = extract_associations(view)
 
-    @parsing_stack.delete(klass.name)
+    @parsing_stack.delete([klass.name, view_name])
 
     schema = identifier_fields.merge(default_fields.merge(association_fields).sort.to_h)
 
@@ -65,14 +66,16 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
       blueprint = association.blueprint
       name, display_name = association.name.to_s, association.display_name.to_s
       is_collection = collection_association?(name)
+      serializer_options = { view: association.view }
 
       item_schema = if blueprint.is_a?(Proc)
         { "type" => "object" }
-      elsif @parsing_stack.include?(blueprint.name)
-        @root.schema_registry[blueprint.name] ||= nil
-        { "$ref" => "#/components/schemas/#{blueprint.name}" }
+      elsif @parsing_stack.include?([blueprint.name, association.view])
+        schema_key = "#{blueprint.name}_#{association.view}"
+        @root.schema_registry[schema_key] ||= nil
+        { "$ref" => "#/components/schemas/#{schema_key}" }
       else
-        build_schema(blueprint, false)
+        build_schema(blueprint, false, serializer_options)
       end
 
       properties[display_name] = is_collection ? { "type" => "array", "items" => item_schema } : item_schema
