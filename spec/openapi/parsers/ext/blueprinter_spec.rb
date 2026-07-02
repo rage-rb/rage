@@ -455,7 +455,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
                   "name" => { "type" => "string" },
                   "users" => {
                     "type" => "array",
-                    "items" => { "$ref" => "#/components/schemas/UserBlueprint" }
+                    "items" => { "$ref" => "#/components/schemas/[\"UserBlueprint\", {view: :default}]" }
                   }
                 }
               }
@@ -600,7 +600,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
                   "name" => { "type" => "string" },
                   "users" => {
                     "type" => "array",
-                    "items" => { "$ref" => "#/components/schemas/UserBlueprint" }
+                    "items" => { "$ref" => "#/components/schemas/[\"UserBlueprint\", {view: :default}]" }
                   }
                 }
               }
@@ -1484,6 +1484,174 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
         })
       end
     end
+
+    context "with circular association through default views only (self-referencing pair)" do
+      let_blueprinter_class("DataMiningBase") do
+        <<~'RUBY'
+          field :first_name
+          association :data_mining, blueprint: DataMining
+        RUBY
+      end
+
+      let_blueprinter_class("DataMining") do
+        <<~'RUBY'
+          fields :first_name, :hello_world
+          association :project, blueprint: DataMiningBase
+          view :extended do
+            field :extended_author
+          end
+        RUBY
+      end
+
+      let(:resource) { "DataMiningBase" }
+
+      it "resolves one level then falls back to $ref for the repeated default-view class" do
+        expect { subject }.not_to raise_error
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "first_name" => { "type" => "string" },
+            "data_mining" => {
+              "type" => "object",
+              "properties" => {
+                "first_name" => { "type" => "string" },
+                "hello_world" => { "type" => "string" },
+                "project" => { "$ref" => "#/components/schemas/[\"DataMiningBase\", {view: :default}]" }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with circular association where only the outer association pins an explicit view" do
+      let_blueprinter_class("DataMiningBase") do
+        <<~'RUBY'
+          field :first_name
+          view :sample do
+            field :hello_world
+            association :data_mining, blueprint: DataMining
+          end
+        RUBY
+      end
+
+      let_blueprinter_class("DataMining") do
+        <<~'RUBY'
+          fields :first_name, :hello_world
+          association :project, blueprint: DataMiningBase, view: :sample
+        RUBY
+      end
+
+      let(:resource) { "DataMiningBase(view: :sample)" }
+
+      it "keys the circular $ref by the explicit view, not by :default" do
+        expect { subject }.not_to raise_error
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "first_name" => { "type" => "string" },
+            "hello_world" => { "type" => "string" },
+            "data_mining" => {
+              "type" => "object",
+              "properties" => {
+                "first_name" => { "type" => "string" },
+                "hello_world" => { "type" => "string" },
+                "project" => { "$ref" => "#/components/schemas/[\"DataMiningBase\", {view: :sample}]" }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with a genuine cycle where both sides pin distinct explicit views" do
+      let_blueprinter_class("ProjectBlueprint") do
+        <<~'RUBY'
+          fields :name
+          view :detailed do
+            association :owner, blueprint: UserBlueprint, view: :extended
+          end
+        RUBY
+      end
+
+      let_blueprinter_class("UserBlueprint") do
+        <<~'RUBY'
+          fields :email
+          view :extended do
+            fields :bio
+            association :projects, blueprint: ProjectBlueprint, view: :detailed
+          end
+        RUBY
+      end
+
+      let(:resource) { "ProjectBlueprint(view: :detailed)" }
+
+      it "detects the cycle via the (class, view) pair and does not confuse it with the default view" do
+        expect { subject }.not_to raise_error
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "name" => { "type" => "string" },
+            "owner" => {
+              "type" => "object",
+              "properties" => {
+                "bio" => { "type" => "string" },
+                "email" => { "type" => "string" },
+                "projects" => {
+                  "type" => "array",
+                  "items" => { "$ref" => "#/components/schemas/[\"ProjectBlueprint\", {view: :detailed}]" }
+                }
+              }
+            }
+          }
+        })
+      end
+    end
+
+    context "with an association chain that only cycles through one specific view (not a true cycle at the tuple level)" do
+      let_blueprinter_class("DataMiningBase") do
+        <<~'RUBY'
+          field :first_name
+          view :sample do
+            field :hello_world
+            association :data_mining, blueprint: DataMining
+          end
+        RUBY
+      end
+
+      let_blueprinter_class("DataMining") do
+        <<~'RUBY'
+          fields :first_name, :hello_world
+          association :project, blueprint: DataMiningBase
+        RUBY
+      end
+
+      let(:resource) { "DataMiningBase(view: :sample)" }
+
+      it "fully expands instead of using $ref, since the association loops back to the default view, not :sample" do
+        expect { subject }.not_to raise_error
+        is_expected.to eq({
+          "type" => "object",
+          "properties" => {
+            "first_name" => { "type" => "string" },
+            "hello_world" => { "type" => "string" },
+            "data_mining" => {
+              "type" => "object",
+              "properties" => {
+                "first_name" => { "type" => "string" },
+                "hello_world" => { "type" => "string" },
+                "project" => {
+                  "type" => "object",
+                  "properties" => {
+                    "first_name" => { "type" => "string" }
+                  }
+                }
+              }
+            }
+          }
+        })
+      end
+    end
   end
 
   describe "collection" do
@@ -1731,7 +1899,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
                     "name" => { "type" => "string" },
                     "users" => {
                       "type" => "array",
-                      "items" => { "$ref" => "#/components/schemas/UserBlueprint" }
+                      "items" => { "$ref" => "#/components/schemas/[\"UserBlueprint\", {view: :default}]" }
                     }
                   }
                 }
@@ -1885,7 +2053,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
                     "name" => { "type" => "string" },
                     "users" => {
                       "type" => "array",
-                      "items" => { "$ref" => "#/components/schemas/UserBlueprint" }
+                      "items" => { "$ref" => "#/components/schemas/[\"UserBlueprint\", {view: :default}]" }
                     }
                   }
                 }

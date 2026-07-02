@@ -20,6 +20,7 @@
 - [Router] Fall back to `SERVER_NAME` when deriving exact host constraints.
 - [Cookies] Use request host fallback when resolving cookie domains.
 - [Cookies] Match array-based cookie domains case-insensitively.
+- [OpenAPI] Fix schema registry key collisions for Blueprinter classes referenced under different views
 
 ## [1.25.1] - 2026-06-08
 
