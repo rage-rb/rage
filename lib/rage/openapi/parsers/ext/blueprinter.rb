@@ -20,7 +20,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
     is_collection, raw_klass_str, serializer_options = Rage::OpenAPI.__parse_serializer_args(klass_str)
     klass = @namespace.const_get(raw_klass_str)
     schema = build_schema(klass, is_collection, serializer_options)
-    registry_key = [raw_klass_str, { view: serializer_options[:view] || :default }]
+    registry_key = "#{raw_klass_str}_#{serializer_options[:view] || :default}"
 
     if @root.schema_registry.key?(registry_key)
       @root.schema_registry[registry_key] = is_collection ? schema["items"] : schema
@@ -71,8 +71,9 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
       item_schema = if blueprint.is_a?(Proc)
         { "type" => "object" }
       elsif @parsing_stack.include?([blueprint.name, association.view])
-        @root.schema_registry[[blueprint.name, serializer_options]] ||= nil
-        { "$ref" => "#/components/schemas/#{[blueprint.name, serializer_options]}" }
+        schema_key = "#{blueprint.name}_#{association.view}"
+        @root.schema_registry[schema_key] ||= nil
+        { "$ref" => "#/components/schemas/#{schema_key}" }
       else
         build_schema(blueprint, false, serializer_options)
       end

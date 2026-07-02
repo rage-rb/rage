@@ -455,7 +455,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
                   "name" => { "type" => "string" },
                   "users" => {
                     "type" => "array",
-                    "items" => { "$ref" => "#/components/schemas/[\"UserBlueprint\", {view: :default}]" }
+                    "items" => { "$ref" => "#/components/schemas/UserBlueprint_default" }
                   }
                 }
               }
@@ -600,7 +600,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
                   "name" => { "type" => "string" },
                   "users" => {
                     "type" => "array",
-                    "items" => { "$ref" => "#/components/schemas/[\"UserBlueprint\", {view: :default}]" }
+                    "items" => { "$ref" => "#/components/schemas/UserBlueprint_default" }
                   }
                 }
               }
@@ -1516,7 +1516,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
               "properties" => {
                 "first_name" => { "type" => "string" },
                 "hello_world" => { "type" => "string" },
-                "project" => { "$ref" => "#/components/schemas/[\"DataMiningBase\", {view: :default}]" }
+                "project" => { "$ref" => "#/components/schemas/DataMiningBase_default" }
               }
             }
           }
@@ -1556,7 +1556,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
               "properties" => {
                 "first_name" => { "type" => "string" },
                 "hello_world" => { "type" => "string" },
-                "project" => { "$ref" => "#/components/schemas/[\"DataMiningBase\", {view: :sample}]" }
+                "project" => { "$ref" => "#/components/schemas/DataMiningBase_sample" }
               }
             }
           }
@@ -1599,7 +1599,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
                 "email" => { "type" => "string" },
                 "projects" => {
                   "type" => "array",
-                  "items" => { "$ref" => "#/components/schemas/[\"ProjectBlueprint\", {view: :detailed}]" }
+                  "items" => { "$ref" => "#/components/schemas/ProjectBlueprint_detailed" }
                 }
               }
             }
@@ -1899,7 +1899,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
                     "name" => { "type" => "string" },
                     "users" => {
                       "type" => "array",
-                      "items" => { "$ref" => "#/components/schemas/[\"UserBlueprint\", {view: :default}]" }
+                      "items" => { "$ref" => "#/components/schemas/UserBlueprint_default" }
                     }
                   }
                 }
@@ -2053,7 +2053,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
                     "name" => { "type" => "string" },
                     "users" => {
                       "type" => "array",
-                      "items" => { "$ref" => "#/components/schemas/[\"UserBlueprint\", {view: :default}]" }
+                      "items" => { "$ref" => "#/components/schemas/UserBlueprint_default" }
                     }
                   }
                 }
