@@ -9,6 +9,7 @@
 - [OpenAPI] Add support for the `view:` option in Blueprinter parser.
 - Add `Rage::Daemon` (#339).
 - Enable non-blocking process monitoring (#341).
+- [OpenAPI] Add support for the `root:` option in Blueprinter response annotations.
 
 ### Fixed
 
