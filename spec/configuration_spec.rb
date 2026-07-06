@@ -831,6 +831,77 @@ RSpec.describe Rage::Configuration do
     end
   end
 
+  describe "Middleware#allow_outside_request_fiber!" do
+    subject { described_class.new.middleware }
+
+    it "suppresses warning when inserting middleware before FiberWrapper" do
+      expect {
+        subject.allow_outside_request_fiber! do
+          subject.insert_before(0, :static_middleware)
+        end
+      }.not_to output.to_stdout
+
+      expect(subject.middlewares).to match([[:static_middleware, anything, anything], [Rage::FiberWrapper]])
+    end
+
+    it "allows multiple middleware insertions within the block" do
+      expect {
+        subject.allow_outside_request_fiber! do
+          subject.insert_before(0, :first_middleware)
+          subject.insert_before(0, :second_middleware)
+        end
+      }.not_to output.to_stdout
+
+      expect(subject.middlewares).to match([
+        [:second_middleware, anything, anything],
+        [:first_middleware, anything, anything],
+        [Rage::FiberWrapper]
+      ])
+    end
+
+    it "restores warning suppression after block completes" do
+      subject.allow_outside_request_fiber! do
+        subject.insert_before(0, :first_middleware)
+      end
+
+      # Use a new middleware instance to verify warning triggers when FiberWrapper is at index 0
+      new_middleware = described_class.new.middleware
+      expect {
+        new_middleware.insert_before(0, :new_middleware)
+      }.to output(/WARNING/).to_stdout
+    end
+
+    it "restores warning even if block raises an exception" do
+      expect {
+        subject.allow_outside_request_fiber! do
+          raise "test error"
+        end
+      }.to raise_error("test error")
+
+      # Use a new middleware instance to verify warning triggers when FiberWrapper is at index 0
+      new_middleware = described_class.new.middleware
+      expect {
+        new_middleware.insert_before(0, :new_middleware)
+      }.to output(/WARNING/).to_stdout
+    end
+
+    it "works with insert_before using index 0" do
+      expect {
+        subject.allow_outside_request_fiber! do
+          subject.insert_before(0, :static_middleware)
+        end
+      }.not_to output.to_stdout
+    end
+
+    it "works with insert_before using Rage::FiberWrapper" do
+      expect {
+        subject.allow_outside_request_fiber! do
+          subject.insert_before(Rage::FiberWrapper, :static_middleware)
+        end
+      }.not_to output.to_stdout
+    end
+  end
+
   describe "Rack::Events" do
     subject { config.__finalize }
 

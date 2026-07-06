@@ -638,12 +638,36 @@ class Rage::Configuration
     def initialize
       super
       @objects = [[Rage::FiberWrapper]]
+      @suppress_fiber_wrapper_warning = false
+    end
+
+    # Suppress warnings when inserting middleware before {Rage::FiberWrapper}.
+    #
+    # By default, Rage warns when middleware is inserted before {Rage::FiberWrapper} because such middleware
+    # runs outside the fiber-based request context. This means the middleware won't benefit from Rage's
+    # non-blocking I/O scheduling and must handle the custom response format.
+    #
+    # Use this method when you intentionally want middleware to run outside the request fiber, for example,
+    # to serve static assets without the overhead of creating a fiber for each request.
+    #
+    # @yield The block within which middleware insertion warnings are suppressed
+    # @example Suppress warnings when inserting a static file server
+    #   Rage.configure do
+    #     config.middleware.allow_outside_request_fiber! do
+    #       config.middleware.insert_before 0, MyStaticFileServer
+    #     end
+    #   end
+    def allow_outside_request_fiber!
+      @suppress_fiber_wrapper_warning = true
+      yield
+    ensure
+      @suppress_fiber_wrapper_warning = false
     end
 
     private
 
     def validate!(index, middleware)
-      if index == 0 && @objects[0][0] == Rage::FiberWrapper
+      if index == 0 && @objects[0][0] == Rage::FiberWrapper && !@suppress_fiber_wrapper_warning
         puts "WARNING: inserting the `#{middleware}` middleware before `Rage::FiberWrapper` may cause undefined behavior."
       end
     end
