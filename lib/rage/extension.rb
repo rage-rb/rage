@@ -12,6 +12,10 @@ class Rage::Extension
       __configurations << block
     end
 
+    def before_server_start(&block)
+      Iodine.on_state(:pre_start, &block)
+    end
+
     def __initializers
       @@initializers ||= Hash.new { |h, k| h[k] = [] }
     end
