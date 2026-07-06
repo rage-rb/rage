@@ -10,6 +10,7 @@
 - Add `Rage::Daemon` (#339).
 - Enable non-blocking process monitoring (#341).
 - Allow to suppress FiberWrapper warnings (#347).
+- Add the Extension API (#344).
 
 ### Fixed
 
