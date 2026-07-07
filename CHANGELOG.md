@@ -22,6 +22,7 @@
 - [Router] Fall back to `SERVER_NAME` when deriving exact host constraints.
 - [Cookies] Use request host fallback when resolving cookie domains.
 - [Cookies] Match array-based cookie domains case-insensitively.
+- [API] Reject invalid status symbols in `head` and `render`.
 
 ## [1.25.1] - 2026-06-08
 
@@ -44,7 +45,6 @@
 - [API] Reject malformed or empty HTTP token authorization headers.
 - [Cookies] Strip the port from `HTTP_HOST` before matching configured cookie domains.
 - [Router] Strip the port from `HTTP_HOST` before matching exact host constraints.
-- [API] Reject invalid status symbols in `head` and `render`.
 
 ## [1.24.0] - 2026-05-12
 
