@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.26.0] - 2026-07-07
+
 ### Added
 
 - [OpenAPI] Add support for blueprint inheritance. Child blueprints now inherit fields from parent blueprints.
