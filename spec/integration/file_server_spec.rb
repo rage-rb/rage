@@ -146,5 +146,61 @@ RSpec.describe "File server" do
         expect(subject.to_s).to eq("static stream file")
       end
     end
+
+    context "with x-sendfile" do
+      it "renders file" do
+        response = HTTP.get("http://localhost:3000/static", params: { file: "/index.html.erb" })
+
+        expect(response.code).to eq(200)
+        expect(response.to_s).to eq("<p>index page</p>\n")
+      end
+
+      it "strips service headers" do
+        response = HTTP.get("http://localhost:3000/static", params: { file: "/index.html.erb" })
+
+        expect(response.headers).not_to include("x-sendfile")
+        expect(response.headers).not_to include("x-sendfile-root")
+      end
+
+      it "allows to customize response headers" do
+        response = HTTP.get("http://localhost:3000/static", params: { file: "/index.html.erb" })
+
+        expect(response.headers["cache-control"]).to eq("max-age=604800")
+        expect(response.headers["rage-custom-header"]).to eq("qwerty")
+      end
+
+      it "renders file from nested folder" do
+        response = HTTP.get("http://localhost:3000/static", params: { file: "/pages/create.html.erb" })
+
+        expect(response.code).to eq(200)
+        expect(response.to_s).to eq("<p>create page</p>\n")
+      end
+
+      it "renders 404 for unknown files" do
+        response = HTTP.get("http://localhost:3000/static", params: { file: "/unknown.html.erb" })
+
+        expect(response.code).to eq(404)
+      end
+
+      it "strips custom headers for 404 responses" do
+        response = HTTP.get("http://localhost:3000/static", params: { file: "/unknown.html.erb" })
+
+        expect(response.headers["cache-control"]).to eq("no-cache, max-age=0")
+        expect(response.headers).not_to include("rage-custom-header")
+      end
+
+      it "renders 404 for directories" do
+        response = HTTP.get("http://localhost:3000/static", params: { file: "/pages" })
+
+        expect(response.code).to eq(404)
+      end
+
+      it "doesn't allow to access files outside x-sendfile-root" do
+        response = HTTP.get("http://localhost:3000/static", params: { file: "../controllers/application_controller.rb" })
+
+        expect(response.code).to eq(404)
+        expect(response.to_s).to eq("404 Not Found")
+      end
+    end
   end
 end

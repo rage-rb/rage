@@ -45,6 +45,8 @@ Rage.routes.draw do
   get "renderers/erb_over_sse", to: "renderers#erb_over_sse"
   get "renderers/json", to: "renderers#json"
 
+  get "static", to: "static#index"
+
   mount ->(_) { [200, {}, ""] }, at: "/admin"
 
   namespace :api do
