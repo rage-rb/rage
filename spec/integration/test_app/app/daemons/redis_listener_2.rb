@@ -1,4 +1,6 @@
 class RedisListener2 < Rage::Daemon
+  scope :worker
+
   def initialize
     Rage.logger << "[#{Process.pid}] starting #{self.class.name}\n"
     @redis = Redis.new(url: ENV["TEST_REDIS_URL"])

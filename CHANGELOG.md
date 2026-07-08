@@ -2,6 +2,12 @@
 
 ### Added
 
+- [OpenAPI] Add support for the `root:` option in Blueprinter response annotations (#343).
+
+## [1.26.0] - 2026-07-07
+
+### Added
+
 - [OpenAPI] Add support for blueprint inheritance. Child blueprints now inherit fields from parent blueprints.
 - [OpenAPI] Refactor `Rage::OpenAPI::Parsers::Ext::Blueprinter` using live reflection instead of Prism AST traversal to simplify schema extraction
 - Connection pool improvements (#301).
@@ -9,11 +15,11 @@
 - [OpenAPI] Add support for the `view:` option in Blueprinter parser.
 - Add `Rage::Daemon` (#339).
 - Enable non-blocking process monitoring (#341).
-- [OpenAPI] Add support for the `root:` option in Blueprinter response annotations.
+- Allow to suppress FiberWrapper warnings (#347).
+- Add the Extension API (#344).
 
 ### Fixed
 
-- [CI] Check all changed PR file pages when requiring changelog updates.
 - [API] Ignore `If-Modified-Since` when `If-None-Match` is present.
 - [API] Use weak comparison for `If-None-Match` validation.
 - [Deferred] Ignore missing temp files during async disk storage cleanup.
@@ -21,6 +27,7 @@
 - [Router] Fall back to `SERVER_NAME` when deriving exact host constraints.
 - [Cookies] Use request host fallback when resolving cookie domains.
 - [Cookies] Match array-based cookie domains case-insensitively.
+- [API] Reject invalid status symbols in `head` and `render`.
 
 ## [1.25.1] - 2026-06-08
 
@@ -43,7 +50,6 @@
 - [API] Reject malformed or empty HTTP token authorization headers.
 - [Cookies] Strip the port from `HTTP_HOST` before matching configured cookie domains.
 - [Router] Strip the port from `HTTP_HOST` before matching exact host constraints.
-- [API] Reject invalid status symbols in `head` and `render`.
 
 ## [1.24.0] - 2026-05-12
 
