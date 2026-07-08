@@ -35,7 +35,7 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
   def build_schema(klass, is_collection, serializer_options = nil)
     @parsing_stack.add(klass.name)
 
-    view_name = serializer_options&.key?(:view) ? serializer_options[:view] : :default
+    view_name = serializer_options&.key?(:view) ? serializer_options[:view].to_sym : :default
     reflections = klass.reflections
     view = reflections[view_name]
     raise InvalidViewError, "invalid view #{view_name}" unless view
@@ -51,7 +51,12 @@ class Rage::OpenAPI::Parsers::Ext::Blueprinter
     result = { "type" => "object" }
     result["properties"] = schema if schema.any?
     result = { "type" => "array", "items" => result } if is_collection
-    result
+
+    if serializer_options&.key?(:root)
+      { "type" => "object", "properties" => { serializer_options[:root].to_s => result } }
+    else
+      result
+    end
   end
 
   def extract_fields(view)
