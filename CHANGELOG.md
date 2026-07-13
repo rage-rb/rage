@@ -4,6 +4,10 @@
 
 - [OpenAPI] Add support for the `root:` option in Blueprinter response annotations (#343).
 
+### Fixed
+
+- [OpenAPI] Fix schema registry key collisions for Blueprinter classes referenced under different views.
+
 ## [1.26.0] - 2026-07-07
 
 ### Added
