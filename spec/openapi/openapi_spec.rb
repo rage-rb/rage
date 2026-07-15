@@ -3,6 +3,42 @@
 require "prism"
 
 RSpec.describe Rage::OpenAPI do
+  describe ".application" do
+    subject(:app) { described_class.application }
+
+    let(:first_env) do
+      {
+        "PATH_INFO" => "/",
+        "SCRIPT_NAME" => "/docs-a",
+        "HTTP_HOST" => "first.test:3000",
+        "rack.url_scheme" => "http"
+      }
+    end
+
+    let(:second_env) do
+      {
+        "PATH_INFO" => "/",
+        "SCRIPT_NAME" => "/docs-b",
+        "HTTP_HOST" => "second.test:4000",
+        "rack.url_scheme" => "https"
+      }
+    end
+
+    before do
+      allow(Rage.config).to receive(:middleware).and_return([])
+    end
+
+    it "renders a request-independent html page" do
+      _, _, first_body = app.call(first_env)
+      _, _, second_body = app.call(second_env)
+
+      expect(first_body.join).to eq(second_body.join)
+      expect(first_body.join).to include('url: window.location.pathname.replace(/\/?$/, "/json"),')
+      expect(first_body.join).not_to include("first.test:3000")
+      expect(first_body.join).not_to include("/docs-a/json")
+    end
+  end
+
   describe ".__try_parse_collection" do
     subject { described_class.__try_parse_collection(input) }
 

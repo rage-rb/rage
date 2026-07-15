@@ -42,11 +42,9 @@ module Rage::OpenAPI
   #     run Rage.openapi.application(namespace: "Api::V2")
   #   end
   def self.application(namespace: nil)
-    html_app = ->(env) do
+    html_app = ->(_) do
       __data_cache[[:page, namespace]] ||= begin
-        scheme, host, path = env["rack.url_scheme"], env["HTTP_HOST"], env["SCRIPT_NAME"]
-        spec_url = "#{scheme}://#{host}#{path}/json"
-        page = ERB.new(File.read("#{__dir__}/index.html.erb")).result(binding)
+        page = ERB.new(File.read("#{__dir__}/index.html.erb")).result
 
         [200, { "content-type" => "text/html; charset=UTF-8" }, [page]]
       end
