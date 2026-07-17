@@ -200,7 +200,7 @@ RSpec.describe Rage::Configuration do
       end
 
       expect(run_action(controller, :index)).to match(
-        [200, { "content-type" =>  "application/json; charset=utf-8" }, [include("Alice")]]
+        [200, { "content-type" => "application/json; charset=utf-8" }, [include("Alice")]]
       )
     end
   end
