@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.26.1] - 2026-07-17
+
+### Fixed
+
+- Correctly check content type for custom renderers (#357).
+
 ## [1.26.0] - 2026-07-07
 
 ### Added
