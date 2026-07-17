@@ -184,5 +184,24 @@ RSpec.describe Rage::Configuration do
         [202, { "content-type" => "application/json; charset=utf-8" }, ["{\"message\":\"test\"}"]]
       )
     end
+
+    it "doesn't overwrite default content type for renderers with implicit render" do
+      config.renderer(:jsonld) do |data|
+        headers["content-type"] = "application/json; charset=utf-8"
+        data.merge(:@context => "https://schema.org").to_json
+      end
+
+      config.__finalize
+
+      controller = build_controller do
+        define_method(:index) do
+          render jsonld: { name: "Alice" }
+        end
+      end
+
+      expect(run_action(controller, :index)).to match(
+        [200, { "content-type" =>  "application/json; charset=utf-8" }, [include("Alice")]]
+      )
+    end
   end
 end
