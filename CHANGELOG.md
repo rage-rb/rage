@@ -6,6 +6,7 @@
 
 ### Fixed
 
+- [OpenAPI] Avoid caching a request-specific spec URL in the HTML docs page.
 - [Router] Compose and restore `SCRIPT_NAME` correctly for mounted Rack apps.
 - [OpenAPI] Fix schema registry key collisions for Blueprinter classes referenced under different views.
 

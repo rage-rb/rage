@@ -13,7 +13,7 @@
     <script>
       window.onload = () => {
         window.ui = SwaggerUIBundle({
-          url: '<%= spec_url %>',
+          url: window.location.pathname.replace(/\/?$/, "/json"),
           dom_id: '#swagger-ui',
         });
       };
