@@ -3,6 +3,9 @@ name: Ext Tests
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   appraise:
     runs-on: ubuntu-latest
