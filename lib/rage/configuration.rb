@@ -1049,6 +1049,14 @@ class Rage::Configuration
   # @see Rage::Configuration::MiddlewareRegistry
   # @see Rage::Telemetry
   class Telemetry < MiddlewareRegistry
+    attr_accessor :gc_pressure_monitoring_enabled
+
+    # @private
+    def initialize
+      @gc_pressure_monitoring_enabled = false
+      super
+    end
+
     # @private
     # @return [Hash{String => Array<Rage::Telemetry::HandlerRef>}] a map of span IDs to handler references
     def handlers_map

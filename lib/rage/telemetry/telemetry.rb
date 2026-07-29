@@ -121,4 +121,5 @@ end
 
 require_relative "tracer"
 require_relative "handler"
+require_relative "health_checks/health_checks"
 Dir["#{__dir__}/spans/*.rb"].each { |span| require_relative span }
