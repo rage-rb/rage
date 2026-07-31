@@ -12,6 +12,22 @@ RSpec.describe RageController::API do
   let(:request_host) { "cookie.test.com" }
   let(:request_env) { { "HTTP_HOST" => request_host } }
 
+  context "with RbNaCl not loaded" do
+    let(:cookies) { {} }
+
+    it "fails with the correct error message" do
+      hide_const("RbNaCl")
+
+      expect {
+        subject.cookies.encrypted[:session] = "encrypted"
+      }.to raise_error(/Ensure the following line is added to your Gemfile/)
+
+      expect {
+        subject.cookies.signed[:session] = "signed"
+      }.to raise_error(/Ensure the following line is added to your Gemfile/)
+    end
+  end
+
   context "with no cookies" do
     let(:cookies) { {} }
 

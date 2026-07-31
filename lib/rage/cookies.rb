@@ -278,24 +278,22 @@ class Rage::Cookies
 
     private
 
-    def ensure_rbnacl!(purpose:)
+    def ensure_rbnacl!
       return if defined?(RbNaCl) &&
                 Gem::Version.create(RbNaCl::VERSION) >= RBNACL_MIN_VERSION &&
                 Gem::Version.create(RbNaCl::VERSION) < RBNACL_MAX_VERSION
 
       fail <<~ERR
 
-        Rage depends on `rbnacl` [>= #{RBNACL_MIN_VERSION}, < #{RBNACL_MAX_VERSION}] to support #{purpose}. Ensure the following line is added to your Gemfile:
+        Rage depends on `rbnacl` [>= #{RBNACL_MIN_VERSION}, < #{RBNACL_MAX_VERSION}] to support encrypted and signed cookies. Ensure the following line is added to your Gemfile:
         gem "rbnacl"
 
       ERR
     end
 
     def build_key(secret, purpose:)
-      ensure_rbnacl!(purpose: purpose)
-
       if !secret
-        raise "Rage.config.secret_key_base should be set to use #{purpose}"
+        raise "Rage.config.secret_key_base should be set to use encrypted or signed cookies"
       end
 
       RbNaCl::Hash.blake2b("", key: [secret].pack("H*"), digest_size: 32, personal: purpose)
@@ -337,7 +335,10 @@ class Rage::Cookies
       private
 
       def primary_box
-        @primary_box ||= RbNaCl::SimpleBox.from_secret_key(build_key(Rage.config.secret_key_base, purpose: PURPOSE))
+        @primary_box ||= begin
+          ensure_rbnacl!
+          RbNaCl::SimpleBox.from_secret_key(build_key(Rage.config.secret_key_base, purpose: PURPOSE))
+        end
       end
 
       def fallback_boxes
@@ -401,9 +402,10 @@ class Rage::Cookies
       end
 
       def primary_signer
-        @primary_signer ||= RbNaCl::HMAC::SHA512256.new(
-          build_key(Rage.config.secret_key_base, purpose: PURPOSE)
-        )
+        @primary_signer ||= begin
+          ensure_rbnacl!
+          RbNaCl::HMAC::SHA512256.new(build_key(Rage.config.secret_key_base, purpose: PURPOSE))
+        end
       end
 
       def fallback_signers
