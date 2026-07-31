@@ -75,19 +75,23 @@ class Rage::FiberScheduler
     Fiber.pause if duration.nil? || duration < 1
   end
 
-  # TODO: GC works a little strange with this closure;
-  #
-  # def timeout_after(duration, exception_class = Timeout::Error, *exception_arguments, &block)
-  #   fiber, block_status = Fiber.current, :running
-  #   ::Iodine.run_after((duration * 1000).to_i) do
-  #     fiber.raise(exception_class, exception_arguments) if block_status == :running
-  #   end
+  if ENV["RAGE_ENABLE_NON_BLOCKING_TIMEOUT"]
+    def timeout_after(duration, exception_class = Timeout::Error, *exception_arguments, &block)
+      f, fulfilled = Fiber.current, false
 
-  #   result = block.call
-  #   block_status = :finished
+      ::Iodine.run_after((duration * 1000).to_i) do
+        if !fulfilled && f.alive?
+          fulfilled = true
+          f.__wait_generation += 1
+          f.raise(exception_class, *exception_arguments)
+        end
+      end
 
-  #   result
-  # end
+      block.call
+    ensure
+      fulfilled = true
+    end
+  end
 
   # Resolve a hostname to IP addresses, caching results for 60 seconds.
   def address_resolve(hostname)

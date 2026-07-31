@@ -644,6 +644,212 @@ RSpec.describe Rage::FiberScheduler do
     end
   end
 
+  context "#timeout_after" do
+    it "does not raise when block completes before timeout" do
+      within_reactor do
+        result = Fiber.scheduler.timeout_after(1) do
+          sleep 0.1
+          "completed"
+        end
+
+        -> { expect(result).to eq("completed") }
+      end
+    end
+
+    it "raises Timeout::Error when block exceeds timeout" do
+      within_reactor do
+        error = begin
+          Fiber.scheduler.timeout_after(0.1) do
+            sleep 1
+          end
+        rescue => e
+          e
+        end
+
+        -> { expect(error).to be_a(Timeout::Error) }
+      end
+    end
+
+    it "raises custom exception class" do
+      within_reactor do
+        error = begin
+          Fiber.scheduler.timeout_after(0.1, RuntimeError) do
+            sleep 1
+          end
+        rescue => e
+          e
+        end
+
+        -> { expect(error).to be_a(RuntimeError) }
+      end
+    end
+
+    it "raises custom exception with arguments" do
+      within_reactor do
+        error = begin
+          Fiber.scheduler.timeout_after(0.1, RuntimeError, "custom message") do
+            sleep 1
+          end
+        rescue => e
+          e
+        end
+
+        -> do
+          expect(error).to be_a(RuntimeError)
+          expect(error.message).to eq("custom message")
+        end
+      end
+    end
+
+    it "times out during IO operations" do
+      within_reactor do
+        error = begin
+          Timeout.timeout(0.5) do
+            Net::HTTP.get(URI("#{TEST_HTTP_URL}/timeout"))
+          end
+        rescue => e
+          e
+        end
+
+        -> { expect(error).to be_a(Timeout::Error) }
+      end
+    end
+
+    context "with inner timeouts" do
+      it "inner timeout fires before outer timeout" do
+        within_reactor do
+          error = begin
+            Fiber.scheduler.timeout_after(1) do
+              Fiber.scheduler.timeout_after(0.1) do
+                sleep 2
+              end
+            end
+          rescue => e
+            e
+          end
+
+          -> { expect(error).to be_a(Timeout::Error) }
+        end
+      end
+
+      it "outer timeout fires when inner block is slow" do
+        within_reactor do
+          error = begin
+            Fiber.scheduler.timeout_after(0.1) do
+              Fiber.scheduler.timeout_after(1) do
+                sleep 2
+              end
+            end
+          rescue => e
+            e
+          end
+
+          -> { expect(error).to be_a(Timeout::Error) }
+        end
+      end
+
+      it "inner timeout with custom exception does not affect outer" do
+        within_reactor do
+          error = begin
+            Fiber.scheduler.timeout_after(1, RuntimeError, "outer") do
+              Fiber.scheduler.timeout_after(0.1, ArgumentError, "inner") do
+                sleep 2
+              end
+            end
+          rescue => e
+            e
+          end
+
+          -> do
+            expect(error).to be_a(ArgumentError)
+            expect(error.message).to eq("inner")
+          end
+        end
+      end
+
+      it "completes successfully when inner timeout does not fire" do
+        within_reactor do
+          result = Fiber.scheduler.timeout_after(1) do
+            inner_result = Fiber.scheduler.timeout_after(0.5) do
+              sleep 0.1
+              "inner done"
+            end
+            "outer done with #{inner_result}"
+          end
+
+          -> { expect(result).to eq("outer done with inner done") }
+        end
+      end
+
+      it "rescues inner timeout and continues outer block" do
+        within_reactor do
+          result = Fiber.scheduler.timeout_after(1) do
+            inner_result = begin
+              Fiber.scheduler.timeout_after(0.1, ArgumentError) do
+                sleep 2
+              end
+            rescue ArgumentError
+              "inner timed out"
+            end
+            "outer done: #{inner_result}"
+          end
+
+          -> { expect(result).to eq("outer done: inner timed out") }
+        end
+      end
+
+      it "does not fire stale inner timeout after rescue" do
+        within_reactor do
+          results = []
+
+          result = Fiber.scheduler.timeout_after(2) do
+            begin
+              Fiber.scheduler.timeout_after(0.1) do
+                sleep 1
+              end
+            rescue Timeout::Error
+              results << "inner timeout caught"
+            end
+
+            # Sleep long enough that the inner timeout would have fired again if stale
+            sleep 0.3
+            results << "continued after rescue"
+            results
+          end
+
+          -> { expect(result).to eq(["inner timeout caught", "continued after rescue"]) }
+        end
+      end
+    end
+
+    it "does not reset outer timeout after inner fires" do
+      within_reactor do
+        results = []
+
+        result = Fiber.scheduler.timeout_after(0.3) do
+          begin
+            Fiber.scheduler.timeout_after(0.1) do
+              sleep 1
+            end
+          rescue Timeout::Error
+            results << "inner timeout caught"
+          end
+
+          begin
+            # Sleep long enough that the outer timeout fires
+            sleep 1
+          rescue Timeout::Error
+            results << "outer timeout caught"
+          end
+
+          results
+        end
+
+        -> { expect(result).to eq(["inner timeout caught", "outer timeout caught"]) }
+      end
+    end
+  end
+
   context "#process_wait" do
     it "waits for processes in a non-blocking manner" do
       within_reactor do
