@@ -201,7 +201,7 @@ class Rage::Cookies
     end
 
     if (domain = value[:domain])
-      host = Rack::Request.new(@env).host
+      host = Rage::Request.new(@env).host
 
       processed_domain = if domain.is_a?(String)
         domain
