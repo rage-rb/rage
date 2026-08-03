@@ -6,8 +6,11 @@ require "domain_name"
 RSpec.describe RageController::API do
   subject do
     cookie_header = cookies.map { |k, v| "#{k}=#{v}" }.join("; ")
-    described_class.new({ "HTTP_COOKIE" => cookie_header, "HTTP_HOST" => "cookie.test.com" }, nil)
+    described_class.new({ "HTTP_COOKIE" => cookie_header, **request_env }, nil)
   end
+
+  let(:request_host) { "cookie.test.com" }
+  let(:request_env) { { "HTTP_HOST" => request_host } }
 
   context "with no cookies" do
     let(:cookies) { {} }
@@ -16,6 +19,7 @@ RSpec.describe RageController::API do
       expect(subject.cookies.size).to eq(0)
       expect(subject.cookies[:test_key]).to be_nil
       expect(subject.cookies.encrypted[:encrypted_test_key]).to be_nil
+      expect(subject.cookies.signed[:signed_test_key]).to be_nil
     end
   end
 
@@ -29,29 +33,37 @@ RSpec.describe RageController::API do
       {
         user_id: 112,
         callback_url: "https://test-host.com",
-        session: "MDAAeSoXJxjazIR1ER55uE2KYYT5Bwabdws3Mu_SSgt563O6VE9dGGoSYjTQ_ShcJKWmymNAQpFG-Mg5"
+        session: "MDAAeSoXJxjazIR1ER55uE2KYYT5Bwabdws3Mu_SSgt563O6VE9dGGoSYjTQ_ShcJKWmymNAQpFG-Mg5",
+        signed_session: "00.cHJpbWFyeS10ZXN0LXZhbHVl.ZZ-sxOrS0hyHXX4pcO5JkklmYuOwqU1C8EST4SW2_pM="
       }
     end
 
     it "correctly deserializes cookies" do
-      expect(subject.cookies.size).to eq(3)
+      expect(subject.cookies.size).to eq(4)
       expect(subject.cookies[:user_id]).to eq("112")
       expect(subject.cookies[:callback_url]).to eq("https://test-host.com")
       expect(subject.cookies.encrypted[:session]).to eq("primary-test-value")
+      expect(subject.cookies.signed[:signed_session]).to eq("primary-test-value")
     end
 
     it "correctly updates local state" do
       subject.cookies[:user_id] = 555
-      expect(subject.cookies.size).to eq(3)
+      expect(subject.cookies.size).to eq(4)
 
       subject.cookies.delete(:callback_url)
-      expect(subject.cookies.size).to eq(2)
-
-      subject.cookies[:account_id] = 77
       expect(subject.cookies.size).to eq(3)
 
-      subject.cookies.encrypted[:auth] = "test"
+      subject.cookies[:account_id] = 77
       expect(subject.cookies.size).to eq(4)
+
+      subject.cookies.encrypted[:auth] = "test"
+      expect(subject.cookies.size).to eq(5)
+
+      subject.cookies.signed[:signed_auth] = "test"
+      expect(subject.cookies.size).to eq(6)
+
+      subject.cookies.signed[:empty] = ""
+      expect(subject.cookies.signed[:empty]).to eq("")
 
       expect(subject.cookies[:user_id]).to eq("555")
       expect(subject.cookies[:callback_url]).to be_nil
@@ -60,12 +72,17 @@ RSpec.describe RageController::API do
       expect(subject.cookies[:auth]).not_to be_empty
       expect(subject.cookies[:auth]).not_to eq("test")
       expect(subject.cookies.encrypted[:auth]).to eq("test")
+
+      expect(subject.cookies[:signed_auth]).to match(/\S+\.[A-Za-z0-9\-_]+=*/)
+      expect(subject.cookies[:signed_auth]).not_to eq("test")
+      expect(subject.cookies[:signed_auth]).to start_with("00.")
+      expect(subject.cookies.signed[:signed_auth]).to eq("test")
     end
 
     it "correctly updates local state" do
       subject.cookies.delete(:user_id)
 
-      expect(subject.cookies.size).to eq(2)
+      expect(subject.cookies.size).to eq(3)
       expect(subject.cookies[:user_id]).to be_nil
     end
 
@@ -80,6 +97,20 @@ RSpec.describe RageController::API do
 
       it "correctly decrypts data" do
         expect(subject.cookies.encrypted[:session]).to eq("fallback-test-value")
+      end
+    end
+
+    context "with data signed with rotated key" do
+      let(:cookies) do
+        { signed_session: "00.ZmFsbGJhY2stdGVzdC12YWx1ZQ==.gwkZRj1U44ZJF1DTp8hD5g6mVuV__VlhO-_hQmFFh2o=" }
+      end
+
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
+      end
+
+      it "correctly verifies data" do
+        expect(subject.cookies.signed[:signed_session]).to eq("fallback-test-value")
       end
     end
 
@@ -106,6 +137,54 @@ RSpec.describe RageController::API do
 
       it "return nil" do
         expect(subject.cookies.encrypted[:session]).to be_nil
+      end
+    end
+
+    context "with incorrectly signed data" do
+      let(:cookies) { { signed_session: "00.cHJpbWFyeS10ZXN0LXZhbHVl.AZ-sxOrS0hyHXX4pcO5JkklmYuOwqU1C8EST4SW2_pM=" } }
+
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
+      end
+
+      it "return nil" do
+        expect(subject.cookies.signed[:signed_session]).to be_nil
+      end
+    end
+
+    context "with malformed signed data" do
+      let(:cookies) { { signed_session: "invalid-format" } }
+
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
+      end
+
+      it "return nil" do
+        expect(subject.cookies.signed[:signed_session]).to be_nil
+      end
+    end
+
+    context "with signed data without version" do
+      let(:cookies) { { signed_session: "cHJpbWFyeS10ZXN0LXZhbHVl.QvfwLAsdvVmqksjeNFaQVWmKIloxKUFqN-tHWdrxY4E=" } }
+
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
+      end
+
+      it "return nil" do
+        expect(subject.cookies.signed[:signed_session]).to be_nil
+      end
+    end
+
+    context "with unsupported signed version" do
+      let(:cookies) { { signed_session: "01.cHJpbWFyeS10ZXN0LXZhbHVl.QvfwLAsdvVmqksjeNFaQVWmKIloxKUFqN-tHWdrxY4E=" } }
+
+      before do
+        allow(Rage).to receive(:logger).and_return(double(debug: nil))
+      end
+
+      it "return nil" do
+        expect(subject.cookies.signed[:signed_session]).to be_nil
       end
     end
 
@@ -217,6 +296,63 @@ RSpec.describe RageController::API do
 
         expect(response_cookies[:user_id]).to eq("120; domain=cookie.test.com")
       end
+
+      context "when request host includes a port" do
+        let(:request_host) { "cookie.test.com:3000" }
+
+        it "correctly sets domain value" do
+          subject.cookies[:user_id] = {
+            domain: %w(api.test.com cookie.test.com),
+            value: 120
+          }
+
+          expect(response_cookies[:user_id]).to eq("120; domain=cookie.test.com")
+        end
+      end
+
+      context "when request host uses different casing" do
+        let(:request_host) { "COOKIE.TEST.COM" }
+
+        it "correctly sets domain value" do
+          subject.cookies[:user_id] = {
+            domain: %w(api.test.com cookie.test.com),
+            value: 120
+          }
+
+          expect(response_cookies[:user_id]).to eq("120; domain=cookie.test.com")
+        end
+      end
+
+      context "when request host uses different casing and includes a port" do
+        let(:request_host) { "COOKIE.TEST.COM:3000" }
+
+        it "correctly sets domain value" do
+          subject.cookies[:user_id] = {
+            domain: %w(api.test.com cookie.test.com),
+            value: 120
+          }
+
+          expect(response_cookies[:user_id]).to eq("120; domain=cookie.test.com")
+        end
+      end
+
+      context "when request uses SERVER_NAME fallback" do
+        let(:request_env) do
+          {
+            "SERVER_NAME" => "cookie.test.com",
+            "SERVER_PORT" => "3000"
+          }
+        end
+
+        it "correctly sets domain value" do
+          subject.cookies[:user_id] = {
+            domain: %w(api.test.com cookie.test.com),
+            value: 120
+          }
+
+          expect(response_cookies[:user_id]).to eq("120; domain=cookie.test.com")
+        end
+      end
     end
 
     context "with :all domain" do
@@ -227,6 +363,24 @@ RSpec.describe RageController::API do
         }
 
         expect(response_cookies[:user_id]).to eq("120; domain=test.com")
+      end
+
+      context "when request uses SERVER_NAME fallback" do
+        let(:request_env) do
+          {
+            "SERVER_NAME" => "cookie.test.com",
+            "SERVER_PORT" => "3000"
+          }
+        end
+
+        it "correctly sets domain value" do
+          subject.cookies[:user_id] = {
+            domain: :all,
+            value: 120
+          }
+
+          expect(response_cookies[:user_id]).to eq("120; domain=test.com")
+        end
       end
     end
 
@@ -246,6 +400,13 @@ RSpec.describe RageController::API do
 
         subject.cookies.encrypted.permanent[:user_id] = "secret"
         expect(response_cookies[:user_id]).to match(/\S+; expires=\w{3}, \d{2} \w{3} #{Time.now.year + 20} \d{2}:\d{2}:\d{2} GMT/)
+      end
+
+      it "correctly sets permanent cookies with signed values" do
+        allow(Rage.config).to receive(:secret_key_base).and_return("b7ef8f0824ffbddb85818fb6898546a1")
+
+        subject.cookies.signed.permanent[:user_id] = "secret"
+        expect(response_cookies[:user_id]).to match(/00\.\S+\.\S+; expires=\w{3}, \d{2} \w{3} #{Time.now.year + 20} \d{2}:\d{2}:\d{2} GMT/)
       end
 
       it "doesn't override expiration date" do

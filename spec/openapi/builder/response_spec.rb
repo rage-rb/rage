@@ -23,7 +23,7 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
 
       it "returns correct schema" do
-        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } } } } } } } } } } })
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } }, "required" => ["id", "full_name"] } } } } } } } } })
       end
     end
 
@@ -59,7 +59,7 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
 
       it "returns correct schema" do
-        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "202" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } } } } } } } } } } })
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "202" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } }, "required" => ["id", "full_name"] } } } } } } } } })
       end
     end
 
@@ -79,7 +79,7 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
 
       it "returns correct schema" do
-        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } } } } } }, "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "session_id" => { "type" => "string" } } } } } }, "404" => { "description" => "" } } } } } })
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } }, "required" => ["id", "full_name"] } } } }, "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "session_id" => { "type" => "string" } }, "required" => ["session_id"] } } } }, "404" => { "description" => "" } } } } } })
       end
     end
 
@@ -99,7 +99,7 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
 
       it "returns correct schema" do
-        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } } } } } } }, "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "session_id" => { "type" => "string" } } } } } }, "404" => { "description" => "" } } } } } })
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } }, "required" => ["id", "full_name"] } } } } }, "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "session_id" => { "type" => "string" } }, "required" => ["session_id"] } } } }, "404" => { "description" => "" } } } } } })
       end
     end
 
@@ -131,7 +131,7 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
 
       it "returns correct schema" do
-        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "id" => { "type" => "string" }, "full_name" => { "type" => "string" }, "email" => { "type" => "string" } } } } } }, "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "session_id" => { "type" => "string" } } } } } }, "404" => { "description" => "" } } } } } })
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "id" => { "type" => "string" }, "full_name" => { "type" => "string" }, "email" => { "type" => "string" } } } } } }, "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "session_id" => { "type" => "string" } }, "required" => ["session_id"] } } } }, "404" => { "description" => "" } } } } } })
       end
     end
 
@@ -242,7 +242,7 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
 
       it "returns correct schema" do
-        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } } } } } }, "404" => { "description" => "" } } } } } })
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } }, "required" => ["id", "full_name"] } } } }, "404" => { "description" => "" } } } } } })
       end
 
       it "logs error" do
@@ -278,7 +278,7 @@ RSpec.describe Rage::OpenAPI::Builder do
       end
 
       it "returns correct schema" do
-        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "error" => { "type" => "string", "enum" => ["INTERNAL_SERVER_ERROR"] }, "session_id" => { "type" => "string" } } } } } }, "404" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "error" => { "type" => "string", "enum" => ["NOT_FOUND"] }, "session_id" => { "type" => "string" } } } } } }, "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } } } } } } } } } } } })
+        expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "error" => { "type" => "string", "enum" => ["INTERNAL_SERVER_ERROR"] }, "session_id" => { "type" => "string" } }, "required" => ["error", "session_id"] } } } }, "404" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "error" => { "type" => "string", "enum" => ["NOT_FOUND"] }, "session_id" => { "type" => "string" } }, "required" => ["error", "session_id"] } } } }, "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } }, "required" => ["id", "full_name"] } } } } } } } } } })
       end
 
       context "with empty parent nodes" do
@@ -303,7 +303,7 @@ RSpec.describe Rage::OpenAPI::Builder do
         end
 
         it "returns correct schema" do
-          expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "status" => { "type" => "string" } } } } } }, "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } } } } } } } } } } } })
+          expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "status" => { "type" => "string" } }, "required" => ["status"] } } } }, "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } }, "required" => ["id", "full_name"] } } } } } } } } } })
         end
       end
 
@@ -328,7 +328,7 @@ RSpec.describe Rage::OpenAPI::Builder do
         end
 
         it "returns correct schema" do
-          expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "error" => { "type" => "string", "enum" => ["INTERNAL_SERVER_ERROR"] }, "session_id" => { "type" => "string" } } } } } }, "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } } } } } } } } } } } })
+          expect(subject).to eq({ "openapi" => "3.0.0", "info" => { "version" => "1.0.0", "title" => "Rage" }, "components" => {}, "tags" => [{ "name" => "Users" }], "paths" => { "/users" => { "get" => { "summary" => "", "description" => "", "deprecated" => false, "security" => [], "tags" => ["Users"], "responses" => { "500" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "object", "properties" => { "error" => { "type" => "string", "enum" => ["INTERNAL_SERVER_ERROR"] }, "session_id" => { "type" => "string" } }, "required" => ["error", "session_id"] } } } }, "200" => { "description" => "", "content" => { "application/json" => { "schema" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "full_name" => { "type" => "string" } }, "required" => ["id", "full_name"] } } } } } } } } } })
         end
       end
     end

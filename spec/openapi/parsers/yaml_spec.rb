@@ -66,7 +66,7 @@ RSpec.describe Rage::OpenAPI::Parsers::YAML do
       end
 
       it do
-        is_expected.to eq({ "type" => "object", "properties" => { "is_error" => { "type" => "string", "enum" => [true] }, "status" => { "type" => "string", "enum" => ["not_found"] }, "code" => { "type" => "string", "enum" => [404] }, "message" => { "type" => "string", "enum" => ["Resource Not Found"] } } })
+        is_expected.to eq({ "type" => "object", "required" => ["is_error", "status", "code", "message"], "properties" => { "is_error" => { "type" => "string", "enum" => [true] }, "status" => { "type" => "string", "enum" => ["not_found"] }, "code" => { "type" => "string", "enum" => [404] }, "message" => { "type" => "string", "enum" => ["Resource Not Found"] } } })
       end
     end
 
@@ -76,7 +76,7 @@ RSpec.describe Rage::OpenAPI::Parsers::YAML do
       end
 
       it do
-        is_expected.to eq({ "type" => "object", "properties" => { "is_error" => { "type" => "boolean" }, "status" => { "type" => "string" }, "code" => { "type" => "integer" }, "message" => { "type" => "string" } } })
+        is_expected.to eq({ "type" => "object", "required" => ["is_error", "status", "code", "message"], "properties" => { "is_error" => { "type" => "boolean" }, "status" => { "type" => "string" }, "code" => { "type" => "integer" }, "message" => { "type" => "string" } } })
       end
     end
 
@@ -87,7 +87,7 @@ RSpec.describe Rage::OpenAPI::Parsers::YAML do
         end
 
         it do
-          is_expected.to eq({ "type" => "object", "properties" => { "roles" => { "type" => "array", "items" => { "type" => "string" } } } })
+          is_expected.to eq({ "type" => "object", "required" => ["roles"], "properties" => { "roles" => { "type" => "array", "items" => { "type" => "string" } } } })
         end
       end
 
@@ -97,7 +97,7 @@ RSpec.describe Rage::OpenAPI::Parsers::YAML do
         end
 
         it do
-          is_expected.to eq({ "type" => "object", "properties" => { "ids" => { "type" => "array", "items" => { "type" => "integer" } } } })
+          is_expected.to eq({ "type" => "object", "required" => ["ids"], "properties" => { "ids" => { "type" => "array", "items" => { "type" => "integer" } } } })
         end
       end
 
@@ -107,7 +107,7 @@ RSpec.describe Rage::OpenAPI::Parsers::YAML do
         end
 
         it do
-          is_expected.to eq({ "type" => "object", "properties" => { "users" => { "type" => "array", "items" => { "type" => "object" } } } })
+          is_expected.to eq({ "type" => "object", "required" => ["users"], "properties" => { "users" => { "type" => "array", "items" => { "type" => "object" } } } })
         end
       end
     end
@@ -118,7 +118,7 @@ RSpec.describe Rage::OpenAPI::Parsers::YAML do
       end
 
       it do
-        is_expected.to eq({ "type" => "object", "properties" => { "colors" => { "type" => "string", "enum" => ["red", "green", "blue"] } } })
+        is_expected.to eq({ "type" => "object", "required" => ["colors"], "properties" => { "colors" => { "type" => "string", "enum" => ["red", "green", "blue"] } } })
       end
     end
 
@@ -128,7 +128,7 @@ RSpec.describe Rage::OpenAPI::Parsers::YAML do
       end
 
       it do
-        is_expected.to eq({ "type" => "object", "properties" => { "users" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "name" => { "type" => "string" }, "is_active" => { "type" => "boolean" }, "comments" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "content" => { "type" => "string" } } } } } } } } })
+        is_expected.to eq({ "type" => "object", "required" => ["users"], "properties" => { "users" => { "type" => "array", "items" => { "type" => "object", "required" => ["id", "name", "is_active", "comments"], "properties" => { "id" => { "type" => "integer" }, "name" => { "type" => "string" }, "is_active" => { "type" => "boolean" }, "comments" => { "type" => "array", "items" => { "type" => "object", "required" => ["id", "content"], "properties" => { "id" => { "type" => "integer" }, "content" => { "type" => "string" } } } } } } } } })
       end
     end
 
@@ -138,7 +138,7 @@ RSpec.describe Rage::OpenAPI::Parsers::YAML do
       end
 
       it do
-        is_expected.to eq({ "type" => "object", "properties" => { "users" => { "type" => "array", "items" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "data" => { "type" => "object", "properties" => { "comments" => { "type" => "array", "items" => { "type" => "object", "properties" => { "status" => { "type" => "string", "enum" => ["is_active", "is_edited", "is_deleted"] } } } }, "friend_names" => { "type" => "array", "items" => { "type" => "string" } } } } } } } } })
+        is_expected.to eq({ "type" => "object", "required" => ["users"], "properties" => { "users" => { "type" => "array", "items" => { "type" => "object", "required" => ["id", "data"], "properties" => { "id" => { "type" => "integer" }, "data" => { "type" => "object", "required" => ["comments", "friend_names"], "properties" => { "comments" => { "type" => "array", "items" => { "type" => "object", "required" => ["status"], "properties" => { "status" => { "type" => "string", "enum" => ["is_active", "is_edited", "is_deleted"] } } } }, "friend_names" => { "type" => "array", "items" => { "type" => "string" } } } } } } } } })
       end
     end
 
@@ -148,7 +148,145 @@ RSpec.describe Rage::OpenAPI::Parsers::YAML do
       end
 
       it do
-        is_expected.to eq({ "type" => "object", "properties" => { "user" => { "type" => "object", "properties" => { "id" => { "type" => "integer" }, "avatar" => { "type" => "object", "properties" => { "url" => { "type" => "string" }, "width" => { "type" => "integer" }, "height" => { "type" => "integer" } } }, "geo" => { "type" => "object", "properties" => { "lat" => { "type" => "number", "format" => "float" }, "lng" => { "type" => "number", "format" => "float" } } } } } } })
+        is_expected.to eq({ "type" => "object", "required" => ["user"], "properties" => { "user" => { "type" => "object", "required" => ["id", "avatar", "geo"], "properties" => { "id" => { "type" => "integer" }, "avatar" => { "type" => "object", "required" => ["url", "width", "height"], "properties" => { "url" => { "type" => "string" }, "width" => { "type" => "integer" }, "height" => { "type" => "integer" } } }, "geo" => { "type" => "object", "required" => ["lat", "lng"], "properties" => { "lat" => { "type" => "number", "format" => "float" }, "lng" => { "type" => "number", "format" => "float" } } } } } } })
+      end
+    end
+
+    context "with optional attributes" do
+      context "with mixed required and optional" do
+        let(:yaml) do
+          "{ 'name?': String, email: String, password: String }"
+        end
+
+        it do
+          is_expected.to eq({
+            "type" => "object",
+            "required" => ["email", "password"],
+            "properties" => {
+              "name" => { "type" => "string" },
+              "email" => { "type" => "string" },
+              "password" => { "type" => "string" }
+            }
+          })
+        end
+      end
+
+      context "with all attributes optional" do
+        let(:yaml) do
+          "{ 'name?': String, 'email?': String }"
+        end
+
+        it do
+          is_expected.to eq({
+            "type" => "object",
+            "properties" => {
+              "name" => { "type" => "string" },
+              "email" => { "type" => "string" }
+            },
+            "required" => []
+          })
+        end
+      end
+
+      context "with all attributes required" do
+        let(:yaml) do
+          "{ name: String, email: String }"
+        end
+
+        it do
+          is_expected.to eq({
+            "type" => "object",
+            "required" => ["name", "email"],
+            "properties" => {
+              "name" => { "type" => "string" },
+              "email" => { "type" => "string" }
+            }
+          })
+        end
+      end
+    end
+
+    context "with Array<> syntax" do
+      context "with Array<String>" do
+        let(:yaml) do
+          "{ errors: Array<String> }"
+        end
+
+        it do
+          is_expected.to eq({
+            "type" => "object",
+            "required" => ["errors"],
+            "properties" => {
+              "errors" => { "type" => "array", "items" => { "type" => "string" } }
+            }
+          })
+        end
+      end
+
+      context "with Array<Integer>" do
+        let(:yaml) do
+          "{ ids: Array<Integer> }"
+        end
+
+        it do
+          is_expected.to eq({
+            "type" => "object",
+            "required" => ["ids"],
+            "properties" => {
+              "ids" => { "type" => "array", "items" => { "type" => "integer" } }
+            }
+          })
+        end
+      end
+
+      context "with Array<Hash>" do
+        let(:yaml) do
+          "{ users: Array<Hash> }"
+        end
+
+        it do
+          is_expected.to eq({
+            "type" => "object",
+            "required" => ["users"],
+            "properties" => {
+              "users" => { "type" => "array", "items" => { "type" => "object" } }
+            }
+          })
+        end
+      end
+
+      context "with Array<IN_PROGRESS, COMPLETED>" do
+        let(:yaml) do
+          "{ statuses: Array<IN_PROGRESS, COMPLETED> }"
+        end
+
+        it do
+          is_expected.to eq({
+            "type" => "object",
+            "required" => ["statuses"],
+            "properties" => {
+              "statuses" => { "type" => "string", "enum" => ["IN_PROGRESS", "COMPLETED"] }
+            }
+          })
+        end
+      end
+    end
+
+    context "with optional attributes and Array<> syntax combined" do
+      let(:yaml) do
+        "{ 'name?': String, email: String, 'tags?': Array<String> }"
+      end
+
+      it do
+        is_expected.to eq({
+          "type" => "object",
+          "required" => ["email"],
+          "properties" => {
+            "name" => { "type" => "string" },
+            "email" => { "type" => "string" },
+            "tags" => { "type" => "array", "items" => { "type" => "string" } }
+          }
+        })
       end
     end
   end

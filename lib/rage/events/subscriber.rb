@@ -90,7 +90,12 @@ module Rage::Events::Subscriber
     Rage.logger.with_context(self.class.__log_context) do
       Rage.logger.error("Subscriber failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
     end
-    raise e if self.class.__is_deferred
+
+    if self.class.__is_deferred
+      raise e
+    else
+      Rage::Errors.report(e)
+    end
   end
 
   private

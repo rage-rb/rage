@@ -4,7 +4,7 @@
 default: &default
   adapter: mysql2
   encoding: utf8mb4
-  pool: <%%= ENV.fetch("DB_MAX_CONNECTIONS") { 5 } %>
+  max_connections: <%%= ENV.fetch("DB_MAX_CONNECTIONS") { 5 } %>
   username: root
   password:
   socket: /tmp/mysql.sock

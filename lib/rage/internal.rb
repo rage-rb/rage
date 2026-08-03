@@ -44,7 +44,52 @@ class Rage::Internal
       }.join(", ")
     end
 
+    # Generate a stream name based on the provided object.
+    # @param streamables [#id, String, Symbol, Numeric, Array] an object that will be used to generate the stream name
+    # @return [String] the generated stream name
+    # @raise [ArgumentError] if the provided object cannot be used to generate a stream name
+    def stream_name_for(streamables)
+      return streamables if streamables.is_a?(String)
+
+      name_segments = Array(streamables).map do |streamable|
+        if streamable.respond_to?(:id)
+          "#{streamable.class.name}:#{streamable.id}"
+        elsif streamable.is_a?(String) || streamable.is_a?(Symbol) || streamable.is_a?(Numeric)
+          streamable
+        else
+          raise ArgumentError, "Unable to generate stream name. Expected an object that responds to `id`, got: #{streamable.class}"
+        end
+      end
+
+      name_segments.join(":")
+    end
+
+    LOCK_FILE_SUFFIX = rand(0x100000000).to_s(36)
+
+    # Pick a worker process to execute a block of code.
+    # This is useful for ensuring that certain code is only executed by a single worker in a multi-worker setup, e.g. for broadcasting messages to known streams or for running periodic tasks.
+    # @yield The block of code to be executed by the picked worker
+    def pick_a_worker(purpose:, &block)
+      attempt = proc do
+        lock_path = Pathname.new(Dir.tmpdir).join("rage-#{purpose}-lock-#{LOCK_FILE_SUFFIX}")
+
+        lock_file = File.open(lock_path, File::CREAT | File::WRONLY)
+
+        if lock_file.flock(File::LOCK_EX | File::LOCK_NB)
+          Iodine.on_state(:on_finish) { File.unlink(lock_file) if File.exist?(lock_file) }
+          worker_locks << lock_file
+          block.call
+        end
+      end
+
+      Iodine.running? ? attempt.call : Iodine.on_state(:on_start) { attempt.call }
+    end
+
     private
+
+    def worker_locks
+      @worker_locks ||= []
+    end
 
     def dynamic_name_seed
       @dynamic_name_seed ||= ("a".."j").to_a.permutation

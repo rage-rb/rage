@@ -28,6 +28,30 @@ RSpec.describe Rage::Router::Backend do
     expect(result).to eq("/rack_app")
   end
 
+  it "composes and restores script name for mounted apps" do
+    seen = nil
+
+    router.mount("/rack_app", ->(env) {
+      seen = { script_name: env["SCRIPT_NAME"], path_info: env["PATH_INFO"] }
+      :rack_app_response
+    }, %w(GET))
+
+    env = {
+      "REQUEST_METHOD" => "GET",
+      "PATH_INFO" => "/rack_app/index",
+      "SCRIPT_NAME" => "/outer",
+      "rack.input" => StringIO.new
+    }
+
+    handler = router.lookup(env)
+    result = handler[:handler].call(env, handler[:params])
+
+    expect(result).to eq(:rack_app_response)
+    expect(seen).to eq({ script_name: "/outer/rack_app", path_info: "/index" })
+    expect(env["SCRIPT_NAME"]).to eq("/outer")
+    expect(env["PATH_INFO"]).to eq("/rack_app/index")
+  end
+
   it "updates path info" do
     router.mount("/rack_app", ->(env) { env["PATH_INFO"] }, %w(GET))
 

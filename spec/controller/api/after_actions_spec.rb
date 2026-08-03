@@ -294,7 +294,7 @@ RSpec.describe RageController::API do
     let(:klass) { ControllerApiAfterActionsSpec::TestController9 }
 
     it "correctly runs after actions" do
-      expect { run_action(klass, :index) }.to raise_error("Render was called multiple times in this action")
+      expect { run_action(klass, :index) }.to raise_error(/Render was called multiple times in this action/)
     end
   end
 

@@ -5,15 +5,17 @@ require "securerandom"
 if !defined?(RedisClient)
   fail <<~ERR
 
-    Redis adapter depends on the `redis-client` gem. Add the following line to your Gemfile:
+    Redis adapter depends on the `redis-client` gem. Ensure the following line is added to your Gemfile:
     gem "redis-client"
 
   ERR
 end
 
-class Rage::Cable::Adapters::Redis < Rage::Cable::Adapters::Base
-  REDIS_STREAM_NAME = "rage:cable:messages"
+class Rage::PubSub::Adapters::Redis
+  REDIS_STREAM_NAME = "rage:pubsub:messages"
   DEFAULT_REDIS_OPTIONS = { reconnect_attempts: [0.05, 0.1, 0.5] }
+  DEFAULT_POOL_SIZE = 10
+  DEFAULT_POOL_TIMEOUT = 1
   REDIS_MIN_VERSION_SUPPORTED = Gem::Version.create(6)
 
   def initialize(config)
@@ -23,38 +25,53 @@ class Rage::Cable::Adapters::Redis < Rage::Cable::Adapters::Base
       REDIS_STREAM_NAME
     end
 
+    @pool_size = (config.delete(:pool_size) || DEFAULT_POOL_SIZE).to_i
+    @pool_timeout = (config.delete(:pool_timeout) || DEFAULT_POOL_TIMEOUT).to_f
     @redis_config = RedisClient.config(**DEFAULT_REDIS_OPTIONS.merge(config))
     @server_uuid = SecureRandom.uuid
+    @broadcasters = {}
 
     redis_version = get_redis_version
-    if redis_version < REDIS_MIN_VERSION_SUPPORTED
+    if redis_version.nil?
+      return
+    elsif redis_version < REDIS_MIN_VERSION_SUPPORTED
       raise "Redis adapter only supports Redis 6+. Detected Redis version: #{redis_version}."
     end
 
     @trimming_strategy = redis_version < Gem::Version.create("6.2.0") ? :maxlen : :minid
 
-    pick_a_worker { poll }
+    Rage::Internal.pick_a_worker(purpose: "redis-pubsub") do
+      puts("INFO: #{Process.pid} is managing Redis subscriptions.") if Rage.logger.info?
+      poll
+    end
   end
 
-  def publish(stream_name, data)
+  def add_broadcaster(broadcaster_id, broadcaster)
+    @broadcasters[broadcaster_id] = broadcaster
+  end
+
+  def publish(broadcaster_id, stream_name, data)
     message_uuid = SecureRandom.uuid
 
-    publish_redis.call(
-      "XADD",
-      @redis_stream,
-      trimming_method, "~", trimming_value,
-      "*",
-      "1", stream_name,
-      "2", data.to_json,
-      "3", @server_uuid,
-      "4", message_uuid
-    )
+    redis_pool.with do |redis|
+      redis.call(
+        "XADD",
+        @redis_stream,
+        trimming_method, "~", trimming_value,
+        "*",
+        "1", stream_name,
+        "2", data.to_json,
+        "3", @server_uuid,
+        "4", message_uuid,
+        "5", broadcaster_id
+      )
+    end
   end
 
   private
 
-  def publish_redis
-    @publish_redis ||= @redis_config.new_client
+  def redis_pool
+    @redis_pool ||= @redis_config.new_pool(size: @pool_size, timeout: @pool_timeout)
   end
 
   def trimming_method
@@ -74,7 +91,7 @@ class Rage::Cable::Adapters::Redis < Rage::Cable::Adapters::Base
   rescue RedisClient::Error => e
     puts "FATAL: Couldn't connect to Redis - all broadcasts will be limited to the current server."
     puts e.backtrace.join("\n")
-    REDIS_MIN_VERSION_SUPPORTED
+    nil
 
   ensure
     service_redis.close
@@ -105,9 +122,9 @@ class Rage::Cable::Adapters::Redis < Rage::Cable::Adapters::Base
         data = read_redis.blocking_call(5, "XREAD", "COUNT", "100", "BLOCK", "5000", "STREAMS", @redis_stream, last_id)
 
         if data
-          data[@redis_stream].each do |id, (_, stream_name, _, serialized_data, _, broadcaster_uuid, _, message_uuid)|
-            if broadcaster_uuid != @server_uuid && message_uuid != last_message_uuid
-              Rage.cable.__protocol.broadcast(stream_name, JSON.parse(serialized_data))
+          data[@redis_stream].each do |id, (_, stream_name, _, serialized_data, _, server_uuid, _, message_uuid, _, broadcaster_id)|
+            if server_uuid != @server_uuid && message_uuid != last_message_uuid
+              @broadcasters[broadcaster_id]&.broadcast(stream_name, JSON.parse(serialized_data))
             end
 
             last_id = id
@@ -115,10 +132,13 @@ class Rage::Cable::Adapters::Redis < Rage::Cable::Adapters::Base
           end
         end
 
+        break if @stopping
+
       rescue RedisClient::Error => e
         Rage.logger.error("Subscriber error: #{e.message} (#{e.class})")
+        Rage::Errors.report(e)
         sleep error_backoff_intervals.next
-      rescue => e
+      rescue SystemCallError => e
         @stopping ? break : raise(e)
       else
         error_backoff_intervals.rewind

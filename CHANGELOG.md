@@ -1,5 +1,145 @@
 ## [Unreleased]
 
+### Added
+
+- [OpenAPI] Add support for the `root:` option in Blueprinter response annotations (#343).
+
+### Fixed
+
+- [OpenAPI] Avoid caching a request-specific spec URL in the HTML docs page.
+- [Router] Compose and restore `SCRIPT_NAME` correctly for mounted Rack apps.
+- [OpenAPI] Fix schema registry key collisions for Blueprinter classes referenced under different views.
+
+## [1.26.0] - 2026-07-07
+
+### Added
+
+- [OpenAPI] Add support for blueprint inheritance. Child blueprints now inherit fields from parent blueprints.
+- [OpenAPI] Refactor `Rage::OpenAPI::Parsers::Ext::Blueprinter` using live reflection instead of Prism AST traversal to simplify schema extraction
+- Connection pool improvements (#301).
+- [OpenAPI] Add Blueprinter association parsing with cycle detection (#291)
+- [OpenAPI] Add support for the `view:` option in Blueprinter parser.
+- Add `Rage::Daemon` (#339).
+- Enable non-blocking process monitoring (#341).
+- Allow to suppress FiberWrapper warnings (#347).
+- Add the Extension API (#344).
+
+### Fixed
+
+- [API] Ignore `If-Modified-Since` when `If-None-Match` is present.
+- [API] Use weak comparison for `If-None-Match` validation.
+- [Deferred] Ignore missing temp files during async disk storage cleanup.
+- [Request] Treat IPv6 literals as non-domain hosts.
+- [Router] Fall back to `SERVER_NAME` when deriving exact host constraints.
+- [Cookies] Use request host fallback when resolving cookie domains.
+- [Cookies] Match array-based cookie domains case-insensitively.
+- [API] Reject invalid status symbols in `head` and `render`.
+
+## [1.25.1] - 2026-06-08
+
+### Fixed
+
+- Wrap resume fiber closures in blocks (#322).
+
+## [1.25.0] - 2026-06-03
+
+### Added
+
+- Implement `FiberScheduler#fiber_interrupt` (#283).
+- [OpenAPI] Add Blueprinter parser scaffold and class detection (#287)
+- [OpenAPI] Extend @response / @request tag syntax to accept serializer options (#299)
+- Add `FiberScheduler#blocking_operation_wait` (#303).
+- [OpenAPI] Added static parsing of basic Blueprinter fields (`identifier`, `field`, `fields`) for OpenAPI schema generation. (#289)
+
+### Fixed
+
+- [API] Reject malformed or empty HTTP token authorization headers.
+- [Cookies] Strip the port from `HTTP_HOST` before matching configured cookie domains.
+- [Router] Strip the port from `HTTP_HOST` before matching exact host constraints.
+
+## [1.24.0] - 2026-05-12
+
+### Added
+
+- [Deferred] Add tests for log context capture and backward-compatible restore by [@jsxs0](https://github.com/jsxs0) (#274).
+- [OpenAPI] Add support for per-endpoint OAuth2/OpenID scopes via `@auth_scope` tag by [@Piyush-Goenka](https://github.com/Piyush-Goenka) (#272).
+- Reuse `define_dynamic_method` and `define_maybe_yield` methods in `RageController::API` from `Rage::Internal` by [@numice](https://github.com/numice) (#273).
+- Add the `form_actions` router configuration (#278).
+- [Deferred] Add native periodic task scheduling with multi-process leader election via `File#flock` by [@Abishekcs](https://github.com/Abishekcs) (#233).
+- [OpenAPI] Support optional attributes and `Array<>` syntax by [@ayushman1210](https://github.com/ayushman1210) (#228).
+- [Errors] Add centralized error reporting interface via `Rage.errors` and `config.error_handlers` by [@Digvijay-x1](https://github.com/Digvijay-x1) (#275).
+
+### Fixed
+
+- [OpenAPI] Fix SystemStackError in Alba parser with circular associations (#268).
+- Rewind `rack.input` when parsing request body (#279).
+
+### Changed
+
+- [Deferred] Increase default retry limit to 20 and update default retry backoff to `(attempt**4) + 10 + (rand(15) * attempt)` by  [@anuj-pal27](https://github.com/anuj-pal27) (#271).
+- Update `Rage::Cable` to use the new `PubSub` module (#281).
+
+## [1.23.0] - 2026-04-15
+
+### Fixed
+- [SSE] Ensure connection is closed for single-value SSE streams by [@jsxs0](https://github.com/jsxs0) (#264).
+- Ensure task ID seed is always greater than timestamps in existing WAL files by [@Abishekcs](https://github.com/Abishekcs) (#255)
+- Correctly load routes in Rails apps (#249).
+- [SSE] Ensure connection is closed when raw SSE stream raises by [@jsxs0](https://github.com/jsxs0) (#248).
+- [OpenAPI] Alba parser: silent fallback for unresolvable association resources by [@pratyush07-hub](https://github.com/pratyush07-hub) (#258).
+- Fix `Rage::UploadedFile#close` (#262).
+
+### Added
+- [SSE] Add tests for log context propagation across fiber boundaries by [@jsxs0](https://github.com/jsxs0) (#267).
+- Add singular `resource` routing with plural controller mapping and document the helper by [@anuj-pal27](https://github.com/anuj-pal27) (#247).
+- [SSE] Add support for unbounded streams (#266).
+- [OpenAPI] Support OpenAPI generation for file parameters by [@Digvijay-x1](https://github.com/Digvijay-x1) (#229).
+- [Deferred] Add configurable retry options by [@Digvijay-x1](https://github.com/Digvijay-x1) (#225).
+- [SSE] Add unit tests for `SSE::ConnectionProxy` by [@jsxs0](https://github.com/jsxs0) (#245).
+- Custom renderer support by [@anuj-pal27](https://github.com/anuj-pal27) (#244).
+- [SSE] Add graceful shutdown support for SSE streams by [@tmchow](https://github.com/tmchow) (#261).
+
+## [1.22.1] - 2026-04-01
+
+### Fixed
+
+- Only parse request body as multipart if the request is multipart by [p8](https://github.com/p8) (#256).
+
+## [1.22.0] - 2026-03-12
+
+### Added
+
+- [Cable] Add support for `stop_stream_from` and `stop_stream_for`  by [@Digvijay](https://github.com/Digvijay-x1) (#217).
+- Add support for signed cookies by [@rfronczyk](https://github.com/rfronczyk) (#226).
+- [OpenAPI] Add support for shared components in `@auth` tags by [@Piyush-Goenka](https://github.com/Piyush-Goenka) (#221).
+- Add support for server-sent events (#220).
+
+## [1.21.2] - 2026-03-11
+
+- Fix duplicate Rake tasks (#238).
+
+## [1.21.1] - 2026-02-27
+
+- Improve styling for the `skills` CLI (#223).
+
+## [1.21.0] - 2026-02-25
+
+### Added
+
+- [Cable] Add RSpec test helpers (#210).
+- [Cable] Add support for `stream_for`/`broadcast_to` (#207).
+- Add `skills` CLI (#218).
+- Support inline context for `Rage::Logger` (#206).
+
+### Fixed
+
+- Ensure correct log context isolation for intersecting fibers (#205).
+- Ensure Cable middleware don't duplicate when mounted in routes (#202).
+- Documentation updates by [@cuneyter](https://github.com/cuneyter) (#200).
+- Rely on `Rack::Session` for mounted apps (#201).
+
+### Fixed
+
 ## [1.20.1] - 2026-02-10
 
 ### Fixed
@@ -392,4 +532,3 @@
     - support the `root`, `get`, `post`, `patch`, `put`, `delete` methods;
     - support the `scope` method with the `path` and `module` options;
     - support `host` constraint;
-

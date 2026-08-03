@@ -62,6 +62,8 @@ class Rage::Router::DSL
       @router = router
 
       @default_actions = %i(index create show update destroy)
+      @default_actions += %i(new edit) if Rage.config.router.form_actions
+
       @default_match_methods = %i(get post put patch delete head)
       @scope_opts = %i(module path controller)
 
@@ -348,28 +350,62 @@ class Rage::Router::DSL
       _module, _path, _only, _except, _param = opts.values_at(:module, :path, :only, :except, :param)
       raise ArgumentError, ":param option can't contain colons" if _param.to_s.include?(":")
 
-      _only = Array(_only) if _only
-      _except = Array(_except) if _except
-      actions = @default_actions.select do |action|
-        (_only.nil? || _only.include?(action)) && (_except.nil? || !_except.include?(action))
-      end
+      actions = __filter_actions(@default_actions, _only, _except)
 
       resource = _resources[0].to_s
-      _path ||= resource
       _param ||= "id"
 
-      scope_opts = { path: _path }
-      scope_opts[:module] = _module if _module
-
-      scope(scope_opts) do
+      __resource_scope(resource, _path, _module) do
         get("/", to: "#{resource}#index") if actions.include?(:index)
         post("/", to: "#{resource}#create") if actions.include?(:create)
         get("/:#{_param}", to: "#{resource}#show") if actions.include?(:show)
         patch("/:#{_param}", to: "#{resource}#update") if actions.include?(:update)
         put("/:#{_param}", to: "#{resource}#update") if actions.include?(:update)
+        get("/new", to: "#{resource}#new") if actions.include?(:new)
+        get("/:#{_param}/edit", to: "#{resource}#edit") if actions.include?(:edit)
         delete("/:#{_param}", to: "#{resource}#destroy") if actions.include?(:destroy)
 
         scope(path: ":#{to_singular(resource)}_#{_param}", controller: resource, &block) if block
+      end
+    end
+
+    # Automatically create REST routes for a singular resource.
+    #
+    # @param [Hash] opts resource options
+    # @option opts [String] :module the namespace for the controller
+    # @option opts [String] :path the path prefix for the routes
+    # @option opts [Symbol, Array<Symbol>] :only only generate routes for the given actions
+    # @option opts [Symbol, Array<Symbol>] :except generate all routes except for the given actions
+    # @example Create singular routes mapped to a plural controller:
+    #   resource :photo
+    #   # POST   /photo => photos#create
+    #   # GET    /photo => photos#show
+    #   # PATCH  /photo => photos#update
+    #   # PUT    /photo => photos#update
+    #   # DELETE /photo => photos#destroy
+    # @note :param is not supported for singular resources.
+    def resource(*_resources, **opts, &block)
+      if _resources.length > 1
+        _resources.each { |_resource| resource(_resource, **opts, &block) }
+        return
+      end
+
+      _module, _path, _only, _except = opts.values_at(:module, :path, :only, :except)
+
+      actions = __filter_actions(@default_actions - [:index], _only, _except)
+
+      resource_name = _resources[0].to_s
+      controller_name = to_plural(resource_name)
+      __resource_scope(resource_name, _path, _module) do
+        post("/", to: "#{controller_name}#create") if actions.include?(:create)
+        get("/", to: "#{controller_name}#show") if actions.include?(:show)
+        patch("/", to: "#{controller_name}#update") if actions.include?(:update)
+        put("/", to: "#{controller_name}#update") if actions.include?(:update)
+        get("/new", to: "#{controller_name}#new") if actions.include?(:new)
+        get("/edit", to: "#{controller_name}#edit") if actions.include?(:edit)
+        delete("/", to: "#{controller_name}#destroy") if actions.include?(:destroy)
+
+        scope(controller: controller_name, &block) if block
       end
     end
 
@@ -445,6 +481,25 @@ class Rage::Router::DSL
       end
     end
 
+    # Filters a list of actions based on :only and :except options
+    def __filter_actions(default_actions, only, except)
+      only = Array(only) if only
+      except = Array(except) if except
+
+      default_actions.select do |action|
+        (only.nil? || only.include?(action)) &&
+          (except.nil? || !except.include?(action))
+      end
+    end
+
+    # Wraps route definitions in the correct path/module scope
+    def __resource_scope(resource, path, mod, &block)
+      path ||= resource
+      scope_opts = { path: path }
+      scope_opts[:module] = mod if mod
+      scope(scope_opts, &block)
+    end
+
     def to_singular(str)
       @active_support_loaded ||= str.respond_to?(:singularize) || :false
       return str.singularize if @active_support_loaded != :false
@@ -461,6 +516,13 @@ class Rage::Router::DSL
       @regexp ||= Regexp.new("(#{@endings.keys.join("|")})$")
 
       str.sub(@regexp, @endings)
+    end
+
+    def to_plural(str)
+      @active_support_loaded ||= str.respond_to?(:pluralize) || :false
+      return str.pluralize if @active_support_loaded != :false
+
+      str.end_with?("s") ? str : "#{str}s"
     end
   end
 end

@@ -42,11 +42,9 @@ module Rage::OpenAPI
   #     run Rage.openapi.application(namespace: "Api::V2")
   #   end
   def self.application(namespace: nil)
-    html_app = ->(env) do
+    html_app = ->(_) do
       __data_cache[[:page, namespace]] ||= begin
-        scheme, host, path = env["rack.url_scheme"], env["HTTP_HOST"], env["SCRIPT_NAME"]
-        spec_url = "#{scheme}://#{host}#{path}/json"
-        page = ERB.new(File.read("#{__dir__}/index.html.erb")).result(binding)
+        page = ERB.new(File.read("#{__dir__}/index.html.erb")).result
 
         [200, { "content-type" => "text/html; charset=UTF-8" }, [page]]
       end
@@ -120,10 +118,41 @@ module Rage::OpenAPI
 
   # @private
   def self.__try_parse_collection(str)
-    if str =~ /^Array<([\w\s:\(\)]+)>$/ || str =~ /^\[([\w\s:\(\)]+)\]$/
+    if str =~ /^Array<([\w\s:\(\),'\"]+)>$/ || str =~ /^\[([\w\s:\(\),'\"]+)\]$/
       [true, $1]
     else
       [false, str]
+    end
+  end
+
+  # @private
+  # @return [Array<Boolean, String, Hash>] a tuple of (is_collection, serializer, args)
+  def self.__parse_serializer_args(str)
+    is_collection, inner = __try_parse_collection(str)
+
+    if is_collection
+      # discard is_collection since we already know this is a collection from the outer call
+      _, clean_inner, args = __parse_serializer_args(inner)
+      if args.any?
+        [is_collection, clean_inner, args]
+      else
+        [is_collection, clean_inner, {}]
+      end
+    elsif str =~ /^([\w:]+)\(([^)]+)\)$/
+      [is_collection, $1, __parse_keywords($2)]
+    else
+      [is_collection, str, {}]
+    end
+  end
+
+  # @private
+  def self.__parse_keywords(str)
+    return {} if str.nil? || str.empty?
+
+    str.split(",").each_with_object({}) do |part, hash|
+      option = YAML.load(part)
+      return nil unless option.is_a?(Hash)
+      hash.merge!(option.transform_keys!(&:to_sym))
     end
   end
 
@@ -153,9 +182,20 @@ module Rage::OpenAPI
       { "type" => "string", "format" => "date-time" }
     when "String"
       { "type" => "string" }
+    when "File"
+      { "type" => "string", "format" => "binary" }
     else
       { "type" => "string" } if default
     end
+  end
+
+  # @private
+  def self.__resolve_resource(klass_str, namespace)
+    return nil if klass_str.nil?
+    namespace.const_get(klass_str)
+  rescue NameError
+    __log_warn("could not resolve resource: #{klass_str}")
+    nil
   end
 
   # @private
@@ -186,6 +226,7 @@ require_relative "nodes/root"
 require_relative "nodes/parent"
 require_relative "nodes/method"
 require_relative "parsers/ext/alba"
+require_relative "parsers/ext/blueprinter"
 require_relative "parsers/ext/active_record"
 require_relative "parsers/yaml"
 require_relative "parsers/shared_reference"

@@ -356,4 +356,337 @@ RSpec.describe Rage::FiberScheduler do
       -> { raise e }
     end
   end
+
+  context "fiber interruption" do
+    before do
+      skip("skipping on Ruby < 4") if Gem::Version.create(RUBY_VERSION) < Gem::Version.create(4)
+    end
+
+    it "correctly interrupts a fiber" do
+      within_reactor do
+        error = begin
+          r, _ = IO.pipe
+
+          child = Fiber.schedule do
+            r.gets
+          end
+
+          Fiber.schedule do
+            r.close # This will interrupt the child fiber.
+          end
+
+          Fiber.await(child)
+        rescue => e
+          e
+        end
+
+        -> { expect(error).to be_a(IOError) }
+      end
+    end
+  end
+
+  context "with wait generation tracking" do
+    it "initializes __wait_generation to 0 for scheduled fibers" do
+      within_reactor do
+        fiber = Fiber.schedule { Fiber.current.__wait_generation }
+        result = Fiber.await(fiber)
+
+        -> { expect(result).to eq([0]) }
+      end
+    end
+
+    it "increments __wait_generation on each block call" do
+      queue1 = Queue.new
+      queue2 = Queue.new
+
+      Thread.new do
+        sleep 0.2
+        queue1 << "first"
+        sleep 0.2
+        queue2 << "second"
+      end
+
+      within_reactor do
+        gen_before = Fiber.current.__wait_generation
+        queue1.pop
+        gen_after_first = Fiber.current.__wait_generation
+        queue2.pop
+        gen_after_second = Fiber.current.__wait_generation
+
+        -> do
+          expect(gen_after_first).to eq(gen_before + 1)
+          expect(gen_after_second).to eq(gen_before + 2)
+        end
+      end
+    end
+
+    it "increments __wait_generation on Fiber.await" do
+      within_reactor do
+        gen_before = Fiber.current.__wait_generation
+
+        Fiber.await(Fiber.schedule { sleep 0.1 })
+        gen_after_first = Fiber.current.__wait_generation
+
+        Fiber.await(Fiber.schedule { sleep 0.1 })
+        gen_after_second = Fiber.current.__wait_generation
+
+        -> do
+          expect(gen_after_first).to eq(gen_before + 1)
+          expect(gen_after_second).to eq(gen_before + 2)
+        end
+      end
+    end
+
+    it "prevents stale resume when fiber moves to new wait state" do
+      queue1 = Queue.new
+      queue2 = Queue.new
+      old_channel = nil
+      results = []
+
+      within_reactor do
+        fiber = Fiber.schedule do
+          f = Fiber.current
+
+          # Start a thread that will:
+          # 1. Unblock the first wait
+          # 2. Capture the old channel
+          # 3. Try to publish to the old channel while fiber is in second wait
+          Thread.new do
+            sleep 0.1
+            old_channel = f.__block_channel
+            queue1 << "first"
+
+            sleep 0.2
+            # Try to publish to the old channel (simulating a stale unblock)
+            # This shouldn't resume the fiber because generation has changed
+            Iodine.publish(old_channel, "", Iodine::PubSub::PROCESS)
+          end
+
+          results << queue1.pop
+          results << "starting second wait"
+
+          # Start second unblock thread
+          Thread.new { sleep 0.5; queue2 << "second" }
+
+          # Now block on second queue - stale resume from old_channel should be ignored
+          results << queue2.pop
+          results
+        end
+
+        result = Fiber.await(fiber)
+        -> { expect(result.first).to eq(["first", "starting second wait", "second"]) }
+      end
+    end
+
+    it "fiber_interrupt increments generation before raising" do
+      test_fiber = nil
+      generation_before = nil
+      generation_in_rescue = nil
+
+      within_reactor do
+        test_fiber = Fiber.schedule do
+          generation_before = Fiber.current.__wait_generation
+
+          begin
+            sleep 10 # Block for a long time
+          rescue => e
+            generation_in_rescue = Fiber.current.__wait_generation
+            raise e
+          end
+        end
+
+        # Give the fiber time to start sleeping
+        sleep 0.1
+
+        # Interrupt the fiber
+        Fiber.scheduler.fiber_interrupt(test_fiber, RuntimeError.new("interrupted"))
+
+        # Wait for fiber to process the exception
+        sleep 0.1
+
+        -> do
+          # generation_before is 0 (after init)
+          # sleep increments to 1
+          # fiber_interrupt increments to 2
+          expect(generation_in_rescue).to eq(generation_before + 2)
+          expect(test_fiber.__get_err).to be_a(RuntimeError)
+          expect(test_fiber.__get_err.message).to eq("interrupted")
+        end
+      end
+    end
+  end
+
+  context "with worker pool" do
+    subject { Fiber.scheduler.send(:worker_pool) }
+
+    before :all do
+      skip("skipping on Ruby < 4") if Gem::Version.create(RUBY_VERSION) < Gem::Version.create(4)
+    end
+
+    around do |example|
+      result = 20.times do
+        break :completed if subject.stats[:in_progress] == 0
+        sleep 0.1
+      end
+
+      unless result == :completed
+        raise "couldn't drain worker pool before running new test"
+      end
+
+      example.call
+    end
+
+    it "delegates nogvl operations to the worker pool" do
+      within_reactor do
+        io_fiber = Fiber.schedule do
+          sleep 0.1
+        end
+
+        Fiber.schedule do
+          Fiber.pause
+          Iodine::WorkerPool.__busy(duration: 1)
+        end
+
+        time = Benchmark.realtime { Fiber.await(io_fiber) }
+
+        -> { expect(time).to be < 0.2 }
+      end
+    end
+
+    it "performs nogvl operations sequentially" do
+      within_reactor do
+        results = []
+
+        fibers = 3.times.map do |i|
+          Fiber.schedule do
+            Fiber.pause
+            Iodine::WorkerPool.__busy(duration: 0.1)
+            results << "fiber-#{i}"
+          end
+        end
+
+        time = Benchmark.realtime { Fiber.await(fibers) }
+
+        -> do
+          expect(time).to be_between(0.25, 0.35)
+          expect(results).to eq(%w(fiber-0 fiber-1 fiber-2))
+        end
+      end
+    end
+
+    it "allows to interrupt a nogvl operation" do
+      within_reactor do
+        result = nil
+
+        fiber = Fiber.schedule do
+          Fiber.pause
+          Iodine::WorkerPool.__busy(duration: 0.2)
+        ensure
+          Fiber.yield
+          result = "not expected"
+        end
+
+        sleep 0.1
+        Fiber.scheduler.fiber_interrupt(fiber, RuntimeError.new)
+        sleep 0.5
+
+        -> { expect(result).to be_nil }
+      end
+    end
+
+    context "#stats" do
+      it "returns correct stats" do
+        within_reactor do
+          -> do
+            expect(subject.stats).to match({
+              workers: 1,
+              queued: 0,
+              in_progress: 0,
+              completed: instance_of(Integer),
+              submitted: instance_of(Integer),
+              closed: false
+            })
+          end
+        end
+      end
+
+      it "calculates queued work items" do
+        within_reactor do
+          3.times do
+            Fiber.schedule do
+              Iodine::WorkerPool.__busy(duration: 0.1)
+            end
+          end
+
+          sleep 0.01
+          stats = subject.stats
+
+          -> { expect(stats).to include({ in_progress: 1, queued: 2 }) }
+        end
+      end
+
+      it "calculates completed work items" do
+        within_reactor do
+          completed_before = subject.stats[:completed]
+
+          3.times do
+            Fiber.schedule do
+              Iodine::WorkerPool.__busy(duration: 0.01)
+            end
+          end
+
+          sleep 0.1
+          completed_after = subject.stats[:completed]
+
+          -> { expect(completed_after - completed_before).to eq(3) }
+        end
+      end
+    end
+  end
+
+  context "#process_wait" do
+    it "waits for processes in a non-blocking manner" do
+      within_reactor do
+        result = Benchmark.realtime do
+          Fiber.schedule { Process.wait(Process.spawn("sleep 1")) }
+        end
+
+        -> { expect(result).to be < 0.1 }
+      end
+    end
+
+    it "resumes the fiber when the process is finished" do
+      within_reactor do
+        result = Benchmark.realtime do
+          Fiber.await([
+            Fiber.schedule { Process.wait(Process.spawn("sleep 1")) }
+          ])
+        end
+
+        -> { expect(0.9..1.1).to cover(result) }
+      end
+    end
+
+    it "resumes the fiber when the process is killed" do
+      within_reactor do
+        pid = nil
+
+        f = Fiber.schedule do
+          pid = Process.spawn("sleep 5")
+          Process.wait(pid)
+        end
+
+        Fiber.schedule do
+          sleep 1
+          Process.kill("TERM", pid)
+        end
+
+        result = Benchmark.realtime do
+          Fiber.await([f])
+        end
+
+        -> { expect(0.9..1.1).to cover(result) }
+      end
+    end
+  end
 end

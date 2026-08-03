@@ -6,6 +6,7 @@ RSpec.describe Rage::Deferred::Context do
 
     after do
       Fiber[:__rage_logger_tags] = nil
+      Fiber[:__rage_logger_context] = nil
     end
 
     context "when rage_logger is not set" do
@@ -28,11 +29,17 @@ RSpec.describe Rage::Deferred::Context do
     context "when rage_logger is set" do
       before do
         Fiber[:__rage_logger_tags] = ["req-123", "test"]
+        Fiber[:__rage_logger_context] = { user_id: 42 }
       end
 
       it "builds context including log tags" do
         context = described_class.build(task, args, kwargs)
         expect(context[4]).to eq(["req-123", "test"])
+      end
+
+      it "builds context including log context" do
+        context = described_class.build(task, args, kwargs)
+        expect(context[5]).to eq({ user_id: 42 })
       end
     end
   end

@@ -20,12 +20,13 @@
 #            Nodes::Method<index>   Nodes::Method<show>                  Nodes::Method<show>
 #
 class Rage::OpenAPI::Nodes::Root
-  attr_reader :leaves
+  attr_reader :leaves, :schema_registry
   attr_accessor :version, :title
 
   def initialize
     @parent_nodes_cache = {}
     @leaves = []
+    @schema_registry = {}
   end
 
   # @return [Array<Rage::OpenAPI::Nodes::Parent>]

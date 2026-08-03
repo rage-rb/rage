@@ -139,6 +139,52 @@ class Rage::Configuration
   def after_initialize(&block)
     push_hook(block, :after_initialize)
   end
+
+  # Register a custom renderer that generates overloads `render` on all controllers.
+  # The block receives the object passed to `render` together with any additional keyword arguments.
+  # The code inside the block is executed in the context of the controller instance, so you can access all usual controller methods in it.
+  # The return value of the block is used as the response body.
+  #
+  # @param name [Symbol, String] the name of the renderer
+  # @param block [Proc] the rendering logic. The block is executed in the controller's context and its return value becomes the response body
+  # @raise [ArgumentError] if no block is given or if a renderer with the same name is already registered
+  #
+  # @example Register an ERB renderer
+  #   Rage.configure do
+  #     config.renderer(:erb) do |path, trim_mode: nil|
+  #       headers["content-type"] = "text/html"
+  #       template = File.read("app/views/#{path}.html.erb")
+  #
+  #       ERB.new(template, trim_mode:).result(binding)
+  #     end
+  #   end
+  # @example Use in a controller
+  #   class ReportsController < RageController::API
+  #     def index
+  #       render erb: "reports/index"
+  #     end
+  #   end
+  # @example Pass arguments
+  #   class ReportsController < RageController::API
+  #     def index
+  #       render erb: "reports/index", trim_mode: "%<>"
+  #     end
+  #   end
+  # @example Set response status
+  #   class ReportsController < RageController::API
+  #     def index
+  #       render erb: "reports/index", status: 202
+  #     end
+  #   end
+  def renderer(name, &block)
+    @renderers ||= {}
+    raise ArgumentError, "renderer requires a block" unless block_given?
+    name = name.to_sym
+    if @renderers.key?(name)
+      raise ArgumentError, "a renderer named :#{name} is already registered"
+    end
+    @renderers[name] = RendererEntry.new(block)
+  end
   # @!endgroup
 
   # @!group Middleware Configuration
@@ -170,6 +216,14 @@ class Rage::Configuration
   # @return [Rage::Configuration::Cable]
   def cable
     @cable ||= Cable.new
+  end
+  # @!endgroup
+
+  # @!group Error Reporter Configuration
+  # Allows configuring error reporters.
+  # @return [Rage::Configuration::ErrorReporters]
+  def error_reporters
+    @error_reporters ||= ErrorReporters.new
   end
   # @!endgroup
 
@@ -219,6 +273,35 @@ class Rage::Configuration
   end
   # @!endgroup
 
+  # @!group Router Configuration
+  # Allows configuring router settings.
+  # @return [Rage::Configuration::Router]
+  def router
+    @router ||= Router.new
+  end
+  # @!endgroup
+
+  # @!group Blocking Operation Pool Configuration
+  # Allows configuring the thread pool for offloading native calls.
+  # @return [Rage::Configuration::BlockingOperationPool]
+  def blocking_operation_pool
+    @blocking_operation_pool ||= BlockingOperationPool.new
+  end
+  # @!endgroup
+
+  # @!group Daemons
+  # Allows configuring daemon settings.
+  # @return [Rage::Configuration::Daemons]
+  def daemons
+    @daemons ||= Daemons.new
+  end
+  # @!endgroup
+
+  # @private
+  def pubsub
+    @pubsub ||= PubSub.new
+  end
+
   # @private
   def internal
     @internal ||= Internal.new
@@ -227,7 +310,7 @@ class Rage::Configuration
   # @private
   def run_after_initialize!
     run_hooks_for!(:after_initialize, self)
-    __finalize
+    __finalize(true)
   end
 
   class LogContext
@@ -324,6 +407,60 @@ class Rage::Configuration
       elsif !obj.respond_to?(:to_str) && !obj.respond_to?(:call)
         raise ArgumentError, "custom log tag has to be a string, an array of strings, or respond to `#call`"
       end
+    end
+  end
+
+  class ErrorReporters
+    # @private
+    def initialize
+      @objects = []
+    end
+
+    # @private
+    def objects
+      @objects.dup
+    end
+
+    # Add a new error reporter.
+    # Error reporters should respond to `#call` and accept one of:
+    # - `call(exception)`
+    # - `call(exception, context: {})`
+    #
+    # @param reporter [#call]
+    # @return [self]
+    # @example
+    #   Rage.configure do
+    #     config.error_reporters << SentryReporter.new
+    #   end
+    def <<(reporter)
+      validate_input!(reporter)
+      return self if @objects.include?(reporter)
+
+      @objects << reporter
+      Rage::Errors.__send__(:__register_reporter, reporter)
+
+      self
+    end
+
+    alias_method :push, :<<
+
+    # Remove an error reporter.
+    # @param reporter [#call] the reporter to remove
+    # @example
+    #   reporter = SentryReporter.new
+    #   Rage.configure do
+    #     config.error_reporters.delete(reporter)
+    #   end
+    def delete(reporter)
+      deleted = @objects.delete(reporter)
+      Rage::Errors.__send__(:__unregister_reporter, reporter) if deleted
+      deleted
+    end
+
+    private
+
+    def validate_input!(reporter)
+      raise ArgumentError, "error reporter must respond to #call" unless reporter.respond_to?(:call)
     end
   end
 
@@ -501,12 +638,36 @@ class Rage::Configuration
     def initialize
       super
       @objects = [[Rage::FiberWrapper]]
+      @suppress_fiber_wrapper_warning = false
+    end
+
+    # Suppress warnings when inserting middleware before {Rage::FiberWrapper}.
+    #
+    # By default, Rage warns when middleware is inserted before {Rage::FiberWrapper} because such middleware
+    # runs outside the fiber-based request context. This means the middleware won't benefit from Rage's
+    # non-blocking I/O scheduling and must handle the custom response format.
+    #
+    # Use this method when you intentionally want middleware to run outside the request fiber, for example,
+    # to serve static assets without the overhead of creating a fiber for each request.
+    #
+    # @yield The block within which middleware insertion warnings are suppressed
+    # @example Suppress warnings when inserting a static file server
+    #   Rage.configure do
+    #     config.middleware.allow_outside_request_fiber! do
+    #       config.middleware.insert_before 0, MyStaticFileServer
+    #     end
+    #   end
+    def allow_outside_request_fiber!
+      @suppress_fiber_wrapper_warning = true
+      yield
+    ensure
+      @suppress_fiber_wrapper_warning = false
     end
 
     private
 
     def validate!(index, middleware)
-      if index == 0 && @objects[0][0] == Rage::FiberWrapper
+      if index == 0 && @objects[0][0] == Rage::FiberWrapper && !@suppress_fiber_wrapper_warning
         puts "WARNING: inserting the `#{middleware}` middleware before `Rage::FiberWrapper` may cause undefined behavior."
       end
     end
@@ -581,33 +742,6 @@ class Rage::Configuration
         end
       end
     end
-
-    # @private
-    def config
-      @config ||= begin
-        config_file = Rage.root.join("config/cable.yml")
-
-        if config_file.exist?
-          yaml = ERB.new(config_file.read).result
-          YAML.safe_load(yaml, aliases: true, symbolize_names: true)[Rage.env.to_sym] || {}
-        else
-          {}
-        end
-      end
-    end
-
-    # @private
-    def adapter_config
-      config.except(:adapter)
-    end
-
-    # @private
-    def adapter
-      case config[:adapter]
-      when "redis"
-        Rage::Cable::Adapters::Redis.new(adapter_config)
-      end
-    end
   end
 
   class PublicFileServer
@@ -656,6 +790,46 @@ class Rage::Configuration
     # @private
     def initialize
       @configured = false
+      @schedule_blocks = []
+    end
+
+    # Schedule a periodic task to run at a fixed interval.
+    # @example
+    #   Rage.configure do
+    #     config.deferred.schedule do
+    #       every 5.minutes, task: ClearCache
+    #     end
+    #   end
+    def schedule(&block)
+      @schedule_blocks << block
+    end
+
+    # @private
+    # Evaluates all stored schedule blocks and returns the collected tasks.
+    # Called at boot time after all app constants are loaded.
+    def scheduled_tasks
+      @schedule_blocks.flat_map do |block|
+        dsl = ScheduleDSL.new
+        dsl.instance_eval(&block)
+        dsl.tasks
+      end
+    end
+
+    # @private
+    class ScheduleDSL
+      attr_reader :tasks
+
+      def initialize
+        @tasks = []
+      end
+
+      # Registers a task to run on a fixed interval (in seconds)
+      def every(interval, task:)
+        unless task.is_a?(Class) && task.include?(Rage::Deferred::Task)
+          raise ArgumentError, "#{task} must be a class that includes Rage::Deferred::Task"
+        end
+        @tasks << { interval:, task: }
+      end
     end
 
     # Returns the backend instance used by `Rage::Deferred`.
@@ -937,6 +1111,116 @@ class Rage::Configuration
     attr_accessor :key
   end
 
+  class Router
+    # @!attribute form_actions
+    #   Enable the automatic generation of `new` and `edit` routes via resource helpers.
+    #   @return [Boolean]
+    #   @example Enable form actions
+    #     Rage.configure do
+    #       config.router.form_actions = true
+    #     end
+    attr_accessor :form_actions
+  end
+
+  class BlockingOperationPool
+    # @!attribute enabled
+    #   Enable a background thread pool for offloading native calls that can be executed outside the GVL, freeing
+    #   the main server thread to continue processing other requests. This acts as a preemption mechanism: native calls
+    #   won't stall requests, as the OS will context-switch between the server thread and the worker threads.
+    #   Defaults to `false`.
+    #   @return [Boolean]
+    #   @example Enable the thread pool
+    #     Rage.configure do
+    #       config.blocking_operation_pool.enabled = true
+    #     end
+    #
+    # @!attribute size
+    #   Specify the number of threads in the pool. Defaults to `1`. A single thread is sufficient in most cases
+    #   because the pool's goal is context switching, not parallelization.
+    #   @return [Integer]
+    attr_accessor :enabled, :size
+
+    # @private
+    def initialize
+      @enabled = false
+      @size = 1
+    end
+  end
+
+  class Daemons
+    # @private
+    def initialize
+      @klasses = []
+    end
+
+    # @private
+    attr_reader :klasses
+
+    # Register a new daemon.
+    # @param daemon [Class]
+    # @example
+    #   Rage.configure do
+    #     config.daemons << FileWatcher
+    #   end
+    def <<(daemon)
+      validate!(daemon)
+      @klasses << daemon
+    end
+
+    alias_method :push, :<<
+
+    # Remove a registered daemon.
+    # @param daemon [Class]
+    # @example
+    #   Rage.configure do
+    #     config.daemons.delete(FileWatcher)
+    #   end
+    def delete(daemon)
+      validate!(daemon)
+      @klasses.delete(daemon)
+    end
+
+    private
+
+    def validate!(klass)
+      if !klass.is_a?(Class) || !klass.ancestors.include?(Rage::Daemon)
+        raise ArgumentError, "Cannot add `#{klass}` as a daemon; should inherit `Rage::Daemon`"
+      end
+    end
+  end
+
+  # @private
+  class PubSub
+    attr_reader :adapter
+
+    def initialize
+      @adapter = if config.any?
+        case config[:adapter]
+        when "redis"
+          Rage::PubSub::Adapters::Redis.new(adapter_config)
+        end
+      end
+    end
+
+    def config
+      @config ||= begin
+        config_file = Rage.root.join("config/pubsub.yml")
+        config_file = Rage.root.join("config/cable.yml") unless config_file.exist?
+
+        config = if config_file.exist?
+          yaml = ERB.new(config_file.read).result
+          YAML.safe_load(yaml, aliases: true, symbolize_names: true)&.dig(Rage.env.to_sym)
+        end
+
+        config || {}
+      end
+    end
+
+    def adapter_config
+      config.except(:adapter)
+    end
+  end
+
   # @private
   class Internal
     attr_accessor :rails_mode
@@ -971,7 +1255,7 @@ class Rage::Configuration
   end
 
   # @private
-  def __finalize
+  def __finalize(before_boot = false)
     if @logger
       @logger.formatter = @log_formatter if @log_formatter
       @logger.level = @log_level if @log_level
@@ -993,13 +1277,47 @@ class Rage::Configuration
       @logger.dynamic_tags = Rage.__log_processor.dynamic_tags
     end
 
+    if before_boot && @blocking_operation_pool&.enabled
+      if defined?(Rage::FiberScheduler::BlockingOperationWait)
+        Iodine.on_state(:pre_start) { puts "INFO: Using blocking operation pool" }
+        Rage::FiberScheduler.include(Rage::FiberScheduler::BlockingOperationWait)
+      else
+        puts "WARNING: Blocking operation pool is not supported on Ruby #{RUBY_VERSION}"
+      end
+    end
+
     if defined?(::Rack::Events) && middleware.include?(::Rack::Events)
       middleware.delete(Rage::BodyFinalizer)
       middleware.insert_before(::Rack::Events, Rage::BodyFinalizer)
     end
 
-    Rage::Telemetry.__setup if @telemetry
+    Rage::Telemetry.__setup(@telemetry.handlers_map) if @telemetry
+
+    __define_custom_renderers if @renderers
   end
+
+  # @private
+  class RendererEntry
+    attr_reader :block
+
+    def initialize(block)
+      @block = block
+      @applied = false
+    end
+
+    def applied? = @applied
+    def applied! = (@applied = true)
+  end
+  private_constant :RendererEntry
+
+  def __define_custom_renderers
+    @renderers.each do |name, entry|
+      next if entry.applied?
+      RageController::API.__register_renderer(name, entry.block)
+      entry.applied!
+    end
+  end
+  private :__define_custom_renderers
 end
 
 # @!parse [ruby]

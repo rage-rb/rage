@@ -4,6 +4,8 @@ require "thor"
 require "rack"
 require "rage/version"
 
+require "rage/cli/skills"
+
 module Rage
   class CLICodeGenerator < Thor
     include Thor::Actions
@@ -103,6 +105,8 @@ module Rage
 
       ::Iodine.start
     end
+
+    map "s" => :server
 
     desc "routes", "List all routes"
     option :grep, aliases: "-g", desc: "Filter routes by pattern"
@@ -226,6 +230,9 @@ module Rage
     def version
       puts Rage::VERSION
     end
+
+    desc "skills", "Manage coding agent skills"
+    subcommand "skills", CLISkills
 
     map "generate" => :g
     desc "g TYPE", "Generate new code"

@@ -12,7 +12,7 @@ RSpec.describe Rage::Deferred::MiddlewareChain do
   let(:context) { Rage::Deferred::Context.build(task_class, args, kwargs) }
 
   after do
-    subject
+    described_class.new(enqueue_middleware: [], perform_middleware: [])
   end
 
   context "Enqueue Chain" do

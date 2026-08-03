@@ -1,4 +1,9 @@
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
   schemas:
     V3_User:
       type: object

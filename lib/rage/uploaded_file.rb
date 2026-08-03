@@ -7,6 +7,7 @@
 # of its interface is available directly for convenience.
 #
 # Rage will automatically unlink the files, so there is no need to clean them with a separate maintenance task.
+#
 class Rage::UploadedFile
   # The basename of the file in the client.
   attr_reader :original_filename
@@ -29,14 +30,9 @@ class Rage::UploadedFile
     @file.read(length, buffer)
   end
 
-  # Shortcut for `file.open`.
-  def open
-    @file.open
-  end
-
   # Shortcut for `file.close`.
-  def close(unlink_now = false)
-    @file.close(unlink_now)
+  def close
+    @file.close
   end
 
   # Shortcut for `file.path`.

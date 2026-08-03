@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
 class Rage::OpenAPI::Parser
+  # @param root [Rage::OpenAPI::Nodes::Root]
+  def initialize(root)
+    @root = root
+  end
+
   # @param node [Rage::OpenAPI::Nodes::Parent]
   # @param comments [Array<Prism::InlineComment>]
   def parse_dangling_comments(node, comments)
@@ -44,25 +49,28 @@ class Rage::OpenAPI::Parser
         parse_response_tag(expression, node, comments[i])
 
       elsif expression =~ /@auth\s/
-        method, name, tail_name = expression[6..].split(" ", 3)
+        method, name_or_ref, tail_name = expression[6..].split(" ", 3)
         children = find_children(comments[i + 1..], node)
 
         if tail_name
           Rage::OpenAPI.__log_warn "incorrect `@auth` name detected at #{location_msg(comments[i])}; security scheme name cannot contain spaces"
         end
 
-        auth_entry = {
+        auth_entry = parse_auth_tag(
           method:,
-          name: name || method,
-          definition: children.any? ? YAML.safe_load(children.join("\n")) : { "type" => "http", "scheme" => "bearer" }
-        }
+          name_or_ref:,
+          children:,
+          comment: comments[i]
+        )
 
-        if !node.controller.__before_action_exists?(method.to_sym)
-          Rage::OpenAPI.__log_warn "referenced before action `#{method}` is not defined in #{node.controller} at #{location_msg(comments[i])}; ensure a corresponding `before_action` call exists"
-        elsif node.auth.include?(auth_entry) || node.root.parent_nodes.any? { |parent_node| parent_node.auth.include?(auth_entry) }
-          Rage::OpenAPI.__log_warn "duplicate @auth tag detected at #{location_msg(comments[i])}"
-        else
-          node.auth << auth_entry
+        if auth_entry
+          if !node.controller.__before_action_exists?(method.to_sym)
+            Rage::OpenAPI.__log_warn "referenced before action `#{method}` is not defined in #{node.controller} at #{location_msg(comments[i])}; ensure a corresponding `before_action` call exists"
+          elsif node.auth.include?(auth_entry) || node.root.parent_nodes.any? { |parent_node| parent_node.auth.include?(auth_entry) }
+            Rage::OpenAPI.__log_warn "duplicate @auth tag detected at #{location_msg(comments[i])}"
+          else
+            node.auth << auth_entry
+          end
         end
       end
 
@@ -122,7 +130,8 @@ class Rage::OpenAPI::Parser
         else
           parsed = Rage::OpenAPI::Parsers::Request.parse(
             request,
-            namespace: Rage::OpenAPI.__module_parent(node.controller)
+            namespace: Rage::OpenAPI.__module_parent(node.controller),
+            root: @root
           )
 
           if parsed
@@ -134,6 +143,9 @@ class Rage::OpenAPI::Parser
 
       elsif expression =~ /@param\s/
         parse_param_tag(expression, node, comments[i])
+
+      elsif expression =~ /@auth_scope\s/
+        parse_auth_scope_tag(expression, node, comments[i])
 
       elsif expression =~ /@internal\b/
         # no-op
@@ -200,7 +212,8 @@ class Rage::OpenAPI::Parser
     else
       parsed = Rage::OpenAPI::Parsers::Response.parse(
         response_data,
-        namespace: Rage::OpenAPI.__module_parent(node.controller)
+        namespace: Rage::OpenAPI.__module_parent(node.controller),
+        root: @root
       )
 
       if parsed
@@ -209,6 +222,109 @@ class Rage::OpenAPI::Parser
         Rage::OpenAPI.__log_warn "unrecognized `@response` tag detected at #{location_msg(comment)}"
       end
     end
+  end
+
+  def parse_auth_tag(method:, name_or_ref:, children:, comment:)
+    if method&.start_with?("#/components/securitySchemes/")
+      Rage::OpenAPI.__log_warn "invalid `@auth` shared reference syntax detected at #{location_msg(comment)}; use `@auth <before_action> #{method}` and remove child definitions"
+      return
+    end
+
+    if name_or_ref&.start_with?("#/components")
+      ref = parse_auth_shared_reference(name_or_ref, comment)
+      return if ref.nil?
+
+      if children.any?
+        Rage::OpenAPI.__log_warn "ignored child `@auth` definition detected at #{location_msg(comment)}; shared security scheme references do not support child definitions"
+      end
+
+      return {
+        method:,
+        name: ref.delete_prefix("#/components/securitySchemes/"),
+        ref: { "$ref" => ref }
+      }
+    end
+
+    {
+      method:,
+      name: name_or_ref || method,
+      definition: children.any? ? YAML.safe_load(children.join("\n")) : { "type" => "http", "scheme" => "bearer" }
+    }
+  end
+
+  def parse_auth_shared_reference(name_or_ref, comment)
+    shared_reference_parser = Rage::OpenAPI::Parsers::SharedReference.new
+    is_valid_ref = shared_reference_parser.parse(name_or_ref)
+    has_valid_prefix = name_or_ref.start_with?("#/components/securitySchemes/")
+    scheme_name = name_or_ref.delete_prefix("#/components/securitySchemes/")
+
+    if is_valid_ref && has_valid_prefix && !scheme_name.empty? && !scheme_name.include?("/")
+      name_or_ref
+    else
+      Rage::OpenAPI.__log_warn "invalid shared reference detected at #{location_msg(comment)}"
+      nil
+    end
+  end
+
+  def parse_auth_scope_tag(expression, node, comment)
+    content = expression.split(" ", 2)[1]
+
+    unless content
+      Rage::OpenAPI.__log_warn "invalid `@auth_scope` tag detected at #{location_msg(comment)}; expected [scope1, scope2] syntax"
+      return
+    end
+
+    parsed = YAML.safe_load(content)
+
+    if parsed.is_a?(Array)
+      scheme_name = nil
+      scopes = parsed.map(&:to_s)
+    elsif parsed.is_a?(String)
+      scheme_name = parsed.split(" ", 2)[0]
+      scopes_str = content.split(" ", 2)[1]
+
+      unless scopes_str
+        Rage::OpenAPI.__log_warn "invalid `@auth_scope` tag detected at #{location_msg(comment)}; expected [scope1, scope2] syntax"
+        return
+      end
+
+      scopes = YAML.safe_load(scopes_str)
+
+      unless scopes.is_a?(Array)
+        Rage::OpenAPI.__log_warn "invalid `@auth_scope` tag detected at #{location_msg(comment)}; expected [scope1, scope2] syntax"
+        return
+      end
+
+      scopes = scopes.map(&:to_s)
+    else
+      Rage::OpenAPI.__log_warn "invalid `@auth_scope` tag detected at #{location_msg(comment)}; expected [scope1, scope2] syntax"
+      return
+    end
+
+    if scheme_name.nil?
+      auth_entries = node.auth
+      if auth_entries.empty?
+        Rage::OpenAPI.__log_warn "no auth schemes found for `@auth_scope` shorthand at #{location_msg(comment)}; define an @auth tag on the controller first"
+        return
+      elsif auth_entries.length > 1
+        Rage::OpenAPI.__log_warn "ambiguous `@auth_scope` shorthand at #{location_msg(comment)}; multiple auth schemes found, specify the scheme name explicitly"
+        return
+      end
+      scheme_name = auth_entries[0][:name]
+    else
+      auth_names = node.auth.map { |e| e[:name] }
+      unless auth_names.include?(scheme_name)
+        Rage::OpenAPI.__log_warn "unknown scheme `#{scheme_name}` in `@auth_scope` tag at #{location_msg(comment)}; available schemes: #{auth_names.join(", ")}"
+        return
+      end
+    end
+
+    if node.auth_scopes.key?(scheme_name)
+      Rage::OpenAPI.__log_warn "duplicate `@auth_scope` tag for `#{scheme_name}` detected at #{location_msg(comment)}"
+      return
+    end
+
+    node.auth_scopes[scheme_name] = scopes
   end
 
   def parse_param_tag(expression, node, comment)

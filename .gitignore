@@ -13,3 +13,4 @@ Gemfile.lock
 *.gemfile.lock
 # rspec failure tracking
 .rspec_status
+.claude

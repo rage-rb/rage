@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe Rage::Telemetry::Tracer do
-  subject { described_class.new(spans_registry, handlers_map) }
+  subject { described_class.new(spans_registry) }
 
   let(:handler_arguments) { {} }
   let(:spans_registry) do
@@ -66,7 +66,7 @@ RSpec.describe Rage::Telemetry::Tracer do
 
     before do
       allow(handler).to receive(:verifier).and_return(verifier)
-      subject.setup
+      subject.setup(handlers_map)
     end
 
     it "correctly builds tracer" do
@@ -271,6 +271,7 @@ RSpec.describe Rage::Telemetry::Tracer do
         end
 
         it "logs the error" do
+          expect(Rage::Errors).to receive(:report).with(instance_of(RuntimeError))
           expect(Rage.logger).to receive(:error) do |msg|
             expect(msg).to match(/Telemetry handler failed with error/)
             expect(msg).to include("test error")
@@ -304,6 +305,7 @@ RSpec.describe Rage::Telemetry::Tracer do
         end
 
         it "logs the error" do
+          expect(Rage::Errors).to receive(:report).with(instance_of(RuntimeError))
           expect(Rage.logger).to receive(:error) do |msg|
             expect(msg).to match(/Telemetry handler failed with error/)
             expect(msg).to include("test error")
@@ -368,7 +370,7 @@ RSpec.describe Rage::Telemetry::Tracer do
     before do
       allow(handler_1).to receive(:verifier).and_return(verifier)
       allow(handler_2).to receive(:verifier).and_return(verifier)
-      subject.setup
+      subject.setup(handlers_map)
     end
 
     it "calls handlers in the correct order" do

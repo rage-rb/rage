@@ -11,6 +11,7 @@ Rage.routes.draw do
   get "get_request_id", to: "application#get_request_id"
   get "get_action_name", to: "application#get_action_name_action"
   get "get_route_uri_pattern/:id", to: "application#get_route_uri_pattern"
+  get "busy", to: "application#busy"
 
   get "params/digest", to: "params#digest"
   post "params/digest", to: "params#digest"
@@ -32,6 +33,20 @@ Rage.routes.draw do
 
   post "deferred/create_file", to: "deferred#create"
 
+  get "sse/object", to: "sse#object"
+  post "sse/object", to: "sse#object"
+  get "sse/proc", to: "sse#proc"
+  get "sse/stream", to: "sse#stream"
+  get "sse/broadcast", to: "sse#broadcast"
+  get "sse/subscribe", to: "sse#subscribe"
+
+  get "renderers/html", to: "renderers#html"
+  get "renderers/erb", to: "renderers#erb"
+  get "renderers/erb_over_sse", to: "renderers#erb_over_sse"
+  get "renderers/json", to: "renderers#json"
+
+  get "static", to: "static#index"
+
   mount ->(_) { [200, {}, ""] }, at: "/admin"
 
   namespace :api do
@@ -45,6 +60,7 @@ Rage.routes.draw do
 
     namespace :v3 do
       resources :users, only: :show
+      get "session", to: "sessions#show"
     end
   end
 end

@@ -36,3 +36,4 @@ require_relative "middleware/request_id"
 require_relative "middleware/body_finalizer"
 
 require_relative "telemetry/telemetry"
+require_relative "sse/sse"

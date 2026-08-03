@@ -7,6 +7,7 @@ rescue LoadError
 end
 
 # Run application initializers
+Rage::Extension.__initializers.values.flatten.each(&:call) if Rage::Extension.subclasses.any?
 Dir["#{Rage.root}/config/initializers/**/*.rb"].each { |initializer| load(initializer) }
 
 require "rage/ext/setup"

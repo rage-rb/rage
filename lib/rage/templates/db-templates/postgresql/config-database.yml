@@ -4,7 +4,7 @@
 default: &default
   adapter: postgresql
   encoding: unicode
-  pool: <%%= ENV.fetch("DB_MAX_CONNECTIONS") { 5 } %>
+  max_connections: <%%= ENV.fetch("DB_MAX_CONNECTIONS") { 5 } %>
 
 development:
   <<: *default

@@ -3,15 +3,16 @@
 require "prism"
 
 RSpec.describe Rage::OpenAPI::Parsers::Response do
-  subject { described_class.parse(tag, namespace:) }
+  subject { described_class.parse(tag, namespace:, root:) }
 
   let(:tag) { "test_tag" }
   let(:namespace) { double }
+  let(:root) { Rage::OpenAPI::Nodes::Root.new }
 
   before do
     described_class::AVAILABLE_PARSERS.each do |parser_class|
       parser = double
-      allow(parser_class).to receive(:new).with(namespace:).and_return(parser)
+      allow(parser_class).to receive(:new).with(namespace:, root:).and_return(parser)
       allow(parser).to receive(:known_definition?).and_return(false)
     end
   end
@@ -24,7 +25,7 @@ RSpec.describe Rage::OpenAPI::Parsers::Response do
     let(:parser) { double }
 
     before do
-      allow(Rage::OpenAPI::Parsers::Ext::ActiveRecord).to receive(:new).with(namespace:).and_return(parser)
+      allow(Rage::OpenAPI::Parsers::Ext::ActiveRecord).to receive(:new).with(namespace:, root:).and_return(parser)
       allow(parser).to receive(:known_definition?).and_return(true)
     end
 

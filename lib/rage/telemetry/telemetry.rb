@@ -46,12 +46,13 @@ module Rage::Telemetry
 
   # @private
   def self.tracer
-    @tracer ||= Tracer.new(__registry, Rage.config.telemetry.handlers_map)
+    @tracer ||= Tracer.new(__registry)
   end
 
   # @private
-  def self.__setup
-    tracer.setup
+  # @param handlers_map [Hash{String => Array<Rage::Telemetry::HandlerRef>}]
+  def self.__setup(handlers_map)
+    tracer.setup(handlers_map)
   end
 
   ##
@@ -69,7 +70,7 @@ module Rage::Telemetry
   #
   # | ID | Reference | Description |
   # | --- | --- |
-  # | `core.fiber.dispatch` | {DispatchFiber} | Wraps the scheduling and processing of system-level fibers created by the framework to process requests and deferred tasks |
+  # | `core.fiber.dispatch` | {DispatchFiber} | Wraps the scheduling and processing of system-level fibers created by the framework to process requests, deferred tasks, or SSE streams |
   # | `core.fiber.spawn` | {SpawnFiber} | Wraps the scheduling and processing of application-level fibers created via {Fiber.schedule} |
   # | `core.fiber.await` | {AwaitFiber} | Wraps the processing of the {Fiber.await} calls |
   # | `controller.action.process` | {ProcessControllerAction} | Wraps the processing of controller actions |
@@ -81,6 +82,8 @@ module Rage::Telemetry
   # | `deferred.task.process` | {ProcessDeferredTask} | Wraps the processing of deferred tasks |
   # | `events.event.publish` | {PublishEvent} | Wraps the publishing of events via {Rage::Events Rage::Events} |
   # | `events.subscriber.process` | {ProcessEventSubscriber} | Wraps the processing of events by subscribers |
+  # | `sse.stream.process` | {ProcessSSEStream} | Wraps the processing of an SSE stream |
+  # | `sse.stream.broadcast` | {BroadcastSSEStream} | Wraps the process of broadcasting a message to an unbounded SSE stream |
   #
   module Spans
   end

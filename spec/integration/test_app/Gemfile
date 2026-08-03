@@ -4,6 +4,7 @@ gem "rage-rb"
 gem "alba", "~> 3.0"
 gem "prism"
 gem "redis-client"
+gem "redis"
 
 # Get 50% to 150% boost when parsing JSON.
 # Rage will automatically use FastJsonparser if it is available.

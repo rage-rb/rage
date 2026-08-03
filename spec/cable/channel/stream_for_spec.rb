@@ -44,7 +44,7 @@ RSpec.describe Rage::Cable::Channel do
       it "subscribes to a stream with the channel name and object id" do
         expect(protocol).to receive(:subscribe).with(
           connection,
-          "CableChannelStreamForSpec::TestChannel:123",
+          "CableChannelStreamForSpec::TestChannel:CableChannelStreamForSpec::User:123",
           params
         )
         subject.__run_action(:subscribed)
@@ -100,7 +100,7 @@ RSpec.describe Rage::Cable::Channel do
       it "subscribes to a stream with the channel name and joined stream parts" do
         expect(protocol).to receive(:subscribe).with(
           connection,
-          "CableChannelStreamForSpec::TestChannel:123:room:456",
+          "CableChannelStreamForSpec::TestChannel:CableChannelStreamForSpec::User:123:room:456",
           params
         )
         subject.__run_action(:subscribed)
@@ -127,7 +127,7 @@ RSpec.describe Rage::Cable::Channel do
 
       it "broadcasts to the correct stream" do
         expect(Rage.cable).to receive(:broadcast).with(
-          "CableChannelStreamForSpec::TestChannel:123",
+          "CableChannelStreamForSpec::TestChannel:CableChannelStreamForSpec::User:123",
           { message: "Hello!" }
         )
         CableChannelStreamForSpec::TestChannel.broadcast_to(user, { message: "Hello!" })
@@ -169,7 +169,7 @@ RSpec.describe Rage::Cable::Channel do
 
       it "broadcasts to the correct stream" do
         expect(Rage.cable).to receive(:broadcast).with(
-          "CableChannelStreamForSpec::TestChannel:123:room:456",
+          "CableChannelStreamForSpec::TestChannel:CableChannelStreamForSpec::User:123:room:456",
           { message: "Hello!" }
         )
         CableChannelStreamForSpec::TestChannel.broadcast_to([user, "room", 456], { message: "Hello!" })

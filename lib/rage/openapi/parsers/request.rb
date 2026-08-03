@@ -7,9 +7,9 @@ class Rage::OpenAPI::Parsers::Request
     Rage::OpenAPI::Parsers::Ext::ActiveRecord
   ]
 
-  def self.parse(request_tag, namespace:)
+  def self.parse(request_tag, namespace:, root:)
     parser = AVAILABLE_PARSERS.find do |parser_class|
-      parser = parser_class.new(namespace:)
+      parser = parser_class.new(namespace:, root:)
       break parser if parser.known_definition?(request_tag)
     end
 

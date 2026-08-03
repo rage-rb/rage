@@ -180,12 +180,12 @@ RSpec.describe RageController::API do
       let(:env) { { "HTTP_IF_NONE_MATCH" => "\"#{Digest::SHA1.hexdigest("123")}\"" } }
       let(:expected_etag) { %(W/"#{Digest::SHA1.hexdigest("123")}") }
 
-      it "renders the requested resource" do
+      it "returns NOT MODIFIED" do
         expect(run_action(klass, :stale_etag_test, env:)).to match(
-          [200, a_hash_including(
+          [304, a_hash_including(
             Rage::Response::ETAG_HEADER => expected_etag,
             Rage::Response::LAST_MODIFIED_HEADER => nil
-          ), ["test_etag"]]
+          ), []]
         )
       end
     end
@@ -248,6 +248,21 @@ RSpec.describe RageController::API do
       end
     end
 
+    context "and If-None-Match matches but If-Modified-Since is stale" do
+      let(:env) do
+        {
+          "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 11, 15).httpdate,
+          "HTTP_IF_NONE_MATCH" => %(W/"#{Digest::SHA1.hexdigest("123")}")
+        }
+      end
+
+      it "returns NOT MODIFIED" do
+        expect(run_action(klass, :stale_last_modified_and_etag_test, env:)).to match(
+          [304, a_hash_including(Rage::Response::ETAG_HEADER => expected_etag, Rage::Response::LAST_MODIFIED_HEADER => expected_last_modified), []]
+        )
+      end
+    end
+
     context "and request is stale" do
       let(:env) do
         {
@@ -299,17 +314,17 @@ RSpec.describe RageController::API do
     context "and last_modified is not set in the action" do
       let(:env) do
         {
-          "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 12, 15).httpdate,
-          "HTTP_IF_NONE_MATCH" => "123"
+          "HTTP_IF_MODIFIED_SINCE" => Time.utc(2023, 11, 15).httpdate,
+          "HTTP_IF_NONE_MATCH" => %(W/"#{Digest::SHA1.hexdigest("123")}")
         }
       end
 
-      it "renders the requested resource" do
+      it "returns NOT MODIFIED" do
         expect(run_action(klass, :stale_etag_test, env:)).to match(
-          [200, a_hash_including(
+          [304, a_hash_including(
             Rage::Response::ETAG_HEADER => expected_etag,
             Rage::Response::LAST_MODIFIED_HEADER => nil
-          ), ["test_etag"]]
+          ), []]
         )
       end
     end

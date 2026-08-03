@@ -3,22 +3,24 @@ name: Ext Tests
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   appraise:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         ruby:
-          - '3.2'
           - '3.3'
           - '3.4'
           - '4.0'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@d45b1a4e94b71acab930e56e79c6aa188764e7f9 # v1
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true

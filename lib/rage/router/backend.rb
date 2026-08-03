@@ -35,13 +35,17 @@ class Rage::Router::Backend
       # by the time the app is called, `rack.input` is already consumed in `Rage::ParamsParser`
       env["rack.input"].rewind
 
-      env["SCRIPT_NAME"] = path
-      sub_path = env["PATH_INFO"].delete_prefix!(path)
-      env["PATH_INFO"] = "/" if sub_path == ""
+      script_name = env["SCRIPT_NAME"]
+      path_info = env["PATH_INFO"]
+
+      env["SCRIPT_NAME"] = "#{script_name}#{path}"
+      sub_path = path_info.delete_prefix(path)
+      env["PATH_INFO"] = sub_path == "" ? "/" : sub_path
 
       handler.call(env)
     ensure
-      env["PATH_INFO"] = "#{env["SCRIPT_NAME"]}#{sub_path}"
+      env["SCRIPT_NAME"] = script_name
+      env["PATH_INFO"] = path_info
     end
 
     methods.each do |method|

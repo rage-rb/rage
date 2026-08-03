@@ -3,7 +3,7 @@
 class Rage::OpenAPI::Nodes::Method
   attr_reader :controller, :action, :parents
   attr_accessor :http_method, :http_path, :summary, :tag, :deprecated, :private, :description,
-    :request, :responses, :parameters
+    :request, :responses, :parameters, :auth_scopes
 
   # @param controller [RageController::API]
   # @param action [String]
@@ -15,6 +15,7 @@ class Rage::OpenAPI::Nodes::Method
 
     @responses = {}
     @parameters = {}
+    @auth_scopes = {}
   end
 
   def root

@@ -5,14 +5,20 @@ require "resolv"
 class Rage::FiberScheduler
   MAX_READ = 65536
 
+  # Initialize the scheduler, storing the root fiber and an empty DNS cache.
   def initialize
     @root_fiber = Fiber.current
     @dns_cache = {}
   end
 
+  # Wait for I/O events on a file descriptor, yielding the fiber until ready or timeout.
   def io_wait(io, events, timeout = nil)
     f = Fiber.current
-    ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil) { |err| f.resume(err) }
+    gen = (f.__wait_generation += 1)
+
+    ::Iodine::Scheduler.attach(io.fileno, events, timeout&.ceil) do |err|
+      f.resume(err) if f.alive? && gen == f.__wait_generation
+    end
 
     err = Fiber.defer(io.fileno)
     if err == false || (err && err < 0)
@@ -22,6 +28,7 @@ class Rage::FiberScheduler
     end
   end
 
+  # Read data from an I/O object into a buffer, pausing the fiber between reads.
   def io_read(io, buffer, length, offset = 0)
     length_to_read = if length == 0
       buffer.size > MAX_READ ? MAX_READ : buffer.size
@@ -51,6 +58,7 @@ class Rage::FiberScheduler
   end
 
   unless ENV["RAGE_DISABLE_IO_WRITE"]
+    # Write data from a buffer to an I/O object.
     def io_write(io, buffer, length, offset = 0)
       bytes_to_write = length
       bytes_to_write = buffer.size if length == 0
@@ -61,6 +69,7 @@ class Rage::FiberScheduler
     end
   end
 
+  # Pause the current fiber for the specified duration.
   def kernel_sleep(duration = nil)
     block(nil, duration || 0)
     Fiber.pause if duration.nil? || duration < 1
@@ -80,6 +89,7 @@ class Rage::FiberScheduler
   #   result
   # end
 
+  # Resolve a hostname to IP addresses, caching results for 60 seconds.
   def address_resolve(hostname)
     @dns_cache[hostname] ||= begin
       ::Iodine.run_after(60_000) do
@@ -90,29 +100,64 @@ class Rage::FiberScheduler
     end
   end
 
+  # Block the current fiber until unblocked or timeout.
   def block(_blocker, timeout = nil)
-    f, fulfilled, channel = Fiber.current, false, Fiber.current.__block_channel(true)
+    f, fulfilled = Fiber.current, false
+
+    gen = (f.__wait_generation += 1)
+    channel = f.__block_channel = "block:#{f.object_id}:#{gen}"
 
     resume_fiber_block = proc do
       unless fulfilled
         fulfilled = true
         ::Iodine.defer { ::Iodine.unsubscribe(channel) }
-        f.resume
+        f.resume if f.alive? && gen == f.__wait_generation
       end
     end
 
-    ::Iodine.subscribe(channel, &resume_fiber_block)
-    if timeout
-      ::Iodine.run_after((timeout * 1000).to_i, &resume_fiber_block)
-    end
+    ::Iodine.subscribe(channel) { resume_fiber_block.call }
+    ::Iodine.run_after((timeout * 1000).to_i) { resume_fiber_block.call } if timeout
 
     Fiber.yield
   end
 
+  # Unblock a fiber by publishing to its block channel.
   def unblock(_blocker, fiber)
-    ::Iodine.publish(fiber.__block_channel, "", Iodine::PubSub::PROCESS)
+    ::Iodine.publish(fiber.__block_channel, "", Iodine::PubSub::PROCESS) if fiber.__block_channel
   end
 
+  # Interrupt a fiber by incrementing its generation and raising an exception.
+  def fiber_interrupt(fiber, exception)
+    fiber.__wait_generation += 1
+    fiber.raise(exception)
+  end
+
+  if defined?(Iodine::WorkerPool)
+    module BlockingOperationWait
+      # Offload a native call to the worker pool, yielding until complete.
+      def blocking_operation_wait(work)
+        f = Fiber.current
+        gen = (f.__wait_generation += 1)
+
+        worker_pool.enqueue(work) do
+          f.resume if f.alive? && gen == f.__wait_generation
+        end
+
+        Fiber.yield
+      end
+
+      private def worker_pool
+        @worker_pool ||= Iodine::WorkerPool.new(Rage.config.blocking_operation_pool.size)
+      end
+    end
+  end
+
+  # Wait for a specified process.
+  def process_wait(pid, flags)
+    Thread.new { Process::Status.wait(pid, flags) }.value
+  end
+
+  # Create and schedule a new non-blocking fiber, handling request and user-spawned fibers differently.
   def fiber(&block)
     parent = Fiber.current
 
@@ -131,19 +176,22 @@ class Rage::FiberScheduler
           Fiber.current.__set_result(block.call)
         end
         # send a message for `Fiber.await` to work
-        Iodine.publish(parent.__await_channel, "", Iodine::PubSub::PROCESS) if parent.alive?
+        Iodine.publish(parent.__await_channel, "", Iodine::PubSub::PROCESS) if parent.__await_channel
       rescue Exception => e
         Fiber.current.__set_err(e)
-        Iodine.publish(parent.__await_channel, Fiber::AWAIT_ERROR_MESSAGE, Iodine::PubSub::PROCESS) if parent.alive?
+        Iodine.publish(parent.__await_channel, Fiber::AWAIT_ERROR_MESSAGE, Iodine::PubSub::PROCESS) if parent.__await_channel
       end
     end
 
+    fiber.__wait_generation = 0
     fiber.resume
 
     fiber
   end
 
+  # Clean up by closing the worker pool and Iodine scheduler.
   def close
+    @worker_pool&.close
     ::Iodine::Scheduler.close
   end
 end

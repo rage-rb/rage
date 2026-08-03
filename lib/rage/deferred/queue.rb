@@ -38,14 +38,15 @@ class Rage::Deferred::Queue
         Fiber.schedule do
           Iodine.task_inc!
 
-          is_completed = task.new.__perform(context)
+          result = task.new.__perform(context)
 
-          if is_completed
+          if result == true
             @backend.remove(task_id)
           else
             attempts = Rage::Deferred::Context.inc_attempts(context)
-            if task.__should_retry?(attempts)
-              enqueue(context, delay: task.__next_retry_in(attempts), task_id:)
+            retry_in = task.__next_retry_in(attempts, result)
+            if retry_in
+              enqueue(context, delay: retry_in, task_id:)
             else
               @backend.remove(task_id)
             end

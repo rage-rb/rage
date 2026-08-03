@@ -2,8 +2,9 @@
 
 RSpec.describe Rage::Deferred::Queue do
   let(:backend) { double("backend", add: "task-id", remove: nil) }
-  let(:task_class) { double("task_class", __should_retry?: false) }
+  let(:task_class) { double("task_class") }
   let(:task_instance) { double("task_instance", __perform: true) }
+
   let(:task_context) { "TestTask" }
   let(:backpressure_config) { nil }
 
@@ -99,15 +100,16 @@ RSpec.describe Rage::Deferred::Queue do
     end
 
     context "when task fails" do
+      let(:error) { StandardError.new("Something went wrong") }
+
       before do
-        allow(task_instance).to receive(:__perform).and_return(false)
+        allow(task_instance).to receive(:__perform).and_return(error)
         allow(Rage::Deferred::Context).to receive(:inc_attempts).with(task_context).and_return(1)
       end
 
       context "and should be retried" do
         it "re-enqueues the task with a delay" do
-          allow(task_class).to receive(:__should_retry?).with(1).and_return(true)
-          allow(task_class).to receive(:__next_retry_in).with(1).and_return(30)
+          allow(task_class).to receive(:__next_retry_in).with(1, error).and_return(30)
           expect(subject).to receive(:enqueue).with(task_context, delay: 30, task_id: "task-id")
           subject.schedule("task-id", task_context)
         end
@@ -115,7 +117,7 @@ RSpec.describe Rage::Deferred::Queue do
 
       context "and should not be retried" do
         it "removes the task from the backend" do
-          allow(task_class).to receive(:__should_retry?).with(1).and_return(false)
+          allow(task_class).to receive(:__next_retry_in).with(1, error).and_return(nil)
           expect(backend).to receive(:remove).with("task-id")
           subject.schedule("task-id", task_context)
         end

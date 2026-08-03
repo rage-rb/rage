@@ -21,7 +21,7 @@ class Rage::OpenAPI::Builder
   end
 
   def run
-    parser = Rage::OpenAPI::Parser.new
+    parser = Rage::OpenAPI::Parser.new(@nodes)
 
     @routes.each do |controller, routes|
       next if skip_controller?(controller)

@@ -152,5 +152,22 @@ RSpec.describe Rage::Response do
       controller.head 403
       expect(subject.status).to eq(403)
     end
+
+    it "does not update status via invalid symbol in head" do
+      expect { controller.head :not_a_status }.to raise_error(ArgumentError, "Unrecognized status code :not_a_status")
+      expect(subject.status).to eq(204)
+    end
+
+    context "with invalid status symbol in render" do
+      it "updates status if render has a body" do
+        expect { controller.render plain: "test_body", status: :not_a_status }.to raise_error(ArgumentError, "Unrecognized status code :not_a_status")
+        expect(subject.status).to eq(200)
+      end
+
+      it "doesn't update status if render has no body" do
+        expect { controller.render status: :not_a_status }.to raise_error(ArgumentError, "Unrecognized status code :not_a_status")
+        expect(subject.status).to eq(204)
+      end
+    end
   end
 end

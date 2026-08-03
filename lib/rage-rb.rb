@@ -40,6 +40,18 @@ module Rage
     Rage::Events
   end
 
+  # Shorthand to access {Rage::Errors Rage::Errors}.
+  # @return [Rage::Errors]
+  def self.errors
+    Rage::Errors
+  end
+
+  # Shorthand to access {Rage::SSE Rage::SSE}.
+  # @return [Rage::SSE]
+  def self.sse
+    Rage::SSE
+  end
+
   # Configure routes for the Rage application.
   # @return [Rage::Router::DSL::Handler]
   # @example
@@ -72,6 +84,12 @@ module Rage
   #     config.log_level = :debug
   #   end
   def self.configure(&)
+    if Rage::Extension.subclasses.any? && !@__extension_config_applied
+      Rage::Extension.__configurations.each { |block| config.instance_eval(&block) }
+      config.__finalize
+      @__extension_config_applied = true
+    end
+
     config.instance_eval(&)
     config.__finalize
   end
@@ -185,10 +203,14 @@ module Rage
   autoload :OpenAPI, "rage/openapi/openapi"
   autoload :Deferred, "rage/deferred/deferred"
   autoload :Events, "rage/events/events"
+  autoload :PubSub, "rage/pubsub/pubsub"
+  autoload :Daemon, "rage/daemon"
 end
 
 module RageController
+  autoload :Renderers, "rage/controller/renderers"
 end
 
 require_relative "rage/env"
 require_relative "rage/internal"
+require_relative "rage/extension"
