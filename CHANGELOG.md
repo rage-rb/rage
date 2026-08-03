@@ -3,6 +3,7 @@
 ### Added
 
 - [OpenAPI] Add support for the `root:` option in Blueprinter response annotations (#343).
+- Add `FiberScheduler#timeout_after` (#374).
 
 ### Fixed
 
