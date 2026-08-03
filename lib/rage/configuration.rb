@@ -23,6 +23,7 @@ require "erb"
 # - _RAGE_DISABLE_IO_WRITE_ - disables the `io_write` hook to fix the ["zero-length iov"](https://bugs.ruby-lang.org/issues/19640) error on Ruby < 3.3.
 # - _RAGE_DISABLE_AR_POOL_PATCH_ - disables the `ActiveRecord::ConnectionPool` patch and makes Rage use the original ActiveRecord implementation.
 # - _RAGE_DISABLE_AR_WEAK_CONNECTIONS_ - instructs Rage to not reuse Active Record connections between different fibers. Only applies to Active Record < 7.2.
+# - _RAGE_ENABLE_NON_BLOCKING_TIMEOUT_ - enables the non-blocking `timeout_after` method on the fiber scheduler, which allows timeouts to work cooperatively with fiber-based concurrency.
 #
 class Rage::Configuration
   # @private
