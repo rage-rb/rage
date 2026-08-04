@@ -36,6 +36,35 @@ module Rage::Telemetry
     __registry.keys
   end
 
+  # The block is executed on the reactor thread and is yielded the scheduling lag in milliseconds -
+  # the difference between the expected and actual execution times. Keep the block fast and non-blocking.
+  #
+  # @param ms [Integer] the execution interval in milliseconds
+  # @yield [Integer] the scheduling lag in milliseconds
+  # @example Periodically record the event loop lag
+  #   Rage::Telemetry.every(100) do |lag|
+  #     MyMetrics.record_loop_lag(lag)
+  #   end
+  def self.every(interval_ms, &block)
+    schedule_block = -> do
+      last_run_time = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
+
+      Iodine.run_every(interval_ms) do
+        current_run_time = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
+        lag_ms = [current_run_time - last_run_time - interval_ms, 0].max
+
+        block.call(lag_ms)
+        last_run_time = current_run_time
+      end
+    end
+
+    if Iodine.running?
+      schedule_block.call
+    else
+      Iodine.on_state(:on_start, &schedule_block)
+    end
+  end
+
   # @private
   def self.__registry
     @__registry ||= Spans.constants.each_with_object({}) do |const, memo|

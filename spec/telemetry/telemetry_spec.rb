@@ -56,6 +56,103 @@ RSpec.describe Rage::Telemetry do
     end
   end
 
+  describe ".every" do
+    context "when the reactor is not running" do
+      it "defers registration until the server starts" do
+        allow(Iodine).to receive(:running?).and_return(false)
+        expect(Iodine).to receive(:on_state).with(:on_start)
+
+        described_class.every(100) {}
+      end
+    end
+
+    context "when the reactor is running" do
+      it "registers the timer immediately" do
+        allow(Iodine).to receive(:running?).and_return(true)
+        expect(Iodine).to receive(:run_every).with(100)
+
+        described_class.every(100) {}
+      end
+    end
+
+    context "lag calculation" do
+      let(:timer_block) { @timer_block }
+
+      before do
+        allow(Iodine).to receive(:running?).and_return(true)
+        allow(Iodine).to receive(:run_every) { |&block| @timer_block = block }
+      end
+
+      it "yields the delay past the expected interval" do
+        allow(Process).to receive(:clock_gettime).and_return(1000, 1130, 1230)
+
+        received = []
+        described_class.every(100) { |lag| received << lag }
+
+        2.times { timer_block.call }
+
+        expect(received).to eq([30, 0])
+      end
+
+      it "clamps negative lag to zero" do
+        allow(Process).to receive(:clock_gettime).and_return(1000, 1099)
+
+        received = []
+        described_class.every(100) { |lag| received << lag }
+
+        timer_block.call
+
+        expect(received).to eq([0])
+      end
+    end
+
+    context "within the reactor" do
+      before do
+        Fiber.set_scheduler(Rage::FiberScheduler.new)
+      end
+
+      after do
+        Fiber.set_scheduler(nil)
+      end
+
+      it "periodically executes the block" do
+        counter = 0
+
+        within_reactor do
+          described_class.every(50) { counter += 1 }
+          sleep 0.28
+
+          -> { expect(counter).to be >= 3 }
+        end
+      end
+
+      it "yields a non-negative scheduling lag" do
+        lags = []
+
+        within_reactor do
+          described_class.every(50) { |lag| lags << lag }
+          sleep 0.28
+
+          -> {
+            expect(lags).not_to be_empty
+            expect(lags).to all(be >= 0)
+          }
+        end
+      end
+
+      it "executes blocks registered before the server start" do
+        counter = 0
+        described_class.every(50) { counter += 1 }
+
+        within_reactor do
+          sleep 0.28
+
+          -> { expect(counter).to be >= 3 }
+        end
+      end
+    end
+  end
+
   describe "SpanResult" do
     subject { described_class::SpanResult }
 
