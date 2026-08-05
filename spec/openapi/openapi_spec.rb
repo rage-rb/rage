@@ -249,6 +249,35 @@ RSpec.describe Rage::OpenAPI do
     end
   end
 
+  describe ".__log_warn" do
+    before do
+      described_class.instance_variable_set(:@__warnings, nil)
+    end
+
+    it "prints a warning and records it in __warnings" do
+      expect { described_class.__log_warn("something went wrong") }
+        .to output("[OpenAPI] WARNING: something went wrong\n").to_stdout
+
+      expect(described_class.__warnings).to eq(["something went wrong"])
+    end
+
+    it "accumulates multiple warnings" do
+      allow(described_class).to receive(:puts)
+
+      described_class.__log_warn("first")
+      described_class.__log_warn("second")
+
+      expect(described_class.__warnings).to eq(["first", "second"])
+    end
+  end
+
+  describe ".__warnings" do
+    it "returns an empty array by default" do
+      described_class.instance_variable_set(:@__warnings, nil)
+      expect(described_class.__warnings).to eq([])
+    end
+  end
+
   describe ".__type_to_spec" do
     subject { described_class.__type_to_spec(type) }
 
