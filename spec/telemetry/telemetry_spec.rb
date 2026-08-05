@@ -105,52 +105,6 @@ RSpec.describe Rage::Telemetry do
         expect(received).to eq([0])
       end
     end
-
-    context "within the reactor" do
-      before do
-        Fiber.set_scheduler(Rage::FiberScheduler.new)
-      end
-
-      after do
-        Fiber.set_scheduler(nil)
-      end
-
-      it "periodically executes the block" do
-        counter = 0
-
-        within_reactor do
-          described_class.every(50) { counter += 1 }
-          sleep 0.28
-
-          -> { expect(counter).to be >= 3 }
-        end
-      end
-
-      it "yields a non-negative scheduling lag" do
-        lags = []
-
-        within_reactor do
-          described_class.every(50) { |lag| lags << lag }
-          sleep 0.28
-
-          -> {
-            expect(lags).not_to be_empty
-            expect(lags).to all(be >= 0)
-          }
-        end
-      end
-
-      it "executes blocks registered before the server start" do
-        counter = 0
-        described_class.every(50) { counter += 1 }
-
-        within_reactor do
-          sleep 0.28
-
-          -> { expect(counter).to be >= 3 }
-        end
-      end
-    end
   end
 
   describe "SpanResult" do

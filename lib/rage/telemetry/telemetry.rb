@@ -39,7 +39,7 @@ module Rage::Telemetry
   # The block is executed on the reactor thread and is yielded the scheduling lag in milliseconds -
   # the difference between the expected and actual execution times. Keep the block fast and non-blocking.
   #
-  # @param ms [Integer] the execution interval in milliseconds
+  # @param interval_ms [Integer] the execution interval in milliseconds
   # @yield [Integer] the scheduling lag in milliseconds
   # @example Periodically record the event loop lag
   #   Rage::Telemetry.every(100) do |lag|
