@@ -4,7 +4,7 @@
 
 - [OpenAPI] Add support for the `root:` option in Blueprinter response annotations (#343).
 - Add `FiberScheduler#timeout_after` (#374).
-- [Telemetry] Add Rage::Telemetry.every(ms, &block), allowing external gems (e.g. opentelemetry-instrumentation) to run custom code on the same interval and measure event loop lag
+- [Telemetry] Add `Rage::Telemetry.every(interval_ms, &block)`, a generic scheduling primitive for running recurring work on the reactor — e.g. sampling metrics or measuring event loop lag. (#379)
 
 ### Fixed
 
