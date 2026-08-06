@@ -36,6 +36,31 @@ module Rage::Telemetry
     __registry.keys
   end
 
+  # Registers a block to be executed repeatedly at a fixed interval while the server is running.
+  # The block runs on the reactor thread, alongside every fiber. Keep it fast and non-blocking.
+  # If the server is not running yet, execution is deferred and starts once the server starts.
+  #
+  # @param interval_ms [Integer] the execution interval in milliseconds
+  # @example Periodically sample GC stats
+  #   Rage::Telemetry.every(1000) { MyMetrics.record_gc_stats(GC.stat) }
+  #
+  # @example Measure event loop lag
+  #   last_run_at = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
+  #   Rage::Telemetry.every(100) do
+  #     now = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
+  #     MyMetrics.record_loop_lag([now - last_run_at - 100, 0].max)
+  #     last_run_at = now
+  #   end
+  def self.every(interval_ms, &block)
+    schedule_block = -> { Iodine.run_every(interval_ms, &block) }
+
+    if Iodine.running?
+      schedule_block.call
+    else
+      Iodine.on_state(:on_start, &schedule_block)
+    end
+  end
+
   # @private
   def self.__registry
     @__registry ||= Spans.constants.each_with_object({}) do |const, memo|
