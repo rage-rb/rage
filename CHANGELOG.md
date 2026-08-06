@@ -12,6 +12,12 @@
 - [OpenAPI] Fix schema registry key collisions for Blueprinter classes referenced under different views.
 - Fixed RbNaCl dependency check to produce correct error message (#361).
 
+## [1.26.1] - 2026-07-17
+
+### Fixed
+
+- Correctly check content type for custom renderers (#357).
+
 ## [1.26.0] - 2026-07-07
 
 ### Added

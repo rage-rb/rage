@@ -425,7 +425,7 @@ class RageController::API
     end
   end # class << self
 
-  DEFAULT_CONTENT_TYPE = "application/json; charset=utf-8"
+  DEFAULT_CONTENT_TYPE = "application/json; charset=utf-8".dup
   private_constant :DEFAULT_CONTENT_TYPE
 
   # @private
@@ -492,7 +492,7 @@ class RageController::API
         json.is_a?(String) ? json : json.to_json
       else
         ct = @__headers["content-type"]
-        @__headers["content-type"] = "text/plain; charset=utf-8" if ct.nil? || ct == DEFAULT_CONTENT_TYPE
+        @__headers["content-type"] = "text/plain; charset=utf-8" if ct.nil? || ct.equal?(DEFAULT_CONTENT_TYPE)
         plain.to_s
       end
 
