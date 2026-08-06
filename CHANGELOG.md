@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.27.0] - 2026-08-06
+
 ### Added
 
 - [OpenAPI] Add support for the `root:` option in Blueprinter response annotations (#343).
