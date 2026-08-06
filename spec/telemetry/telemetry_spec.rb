@@ -73,36 +73,17 @@ RSpec.describe Rage::Telemetry do
 
         described_class.every(100) {}
       end
-    end
 
-    context "lag calculation" do
-      let(:timer_block) { @timer_block }
-
-      before do
+      it "forwards the block to Iodine.run_every unchanged" do
         allow(Iodine).to receive(:running?).and_return(true)
-        allow(Iodine).to receive(:run_every) { |&block| @timer_block = block }
-      end
 
-      it "yields the delay past the expected interval" do
-        allow(Process).to receive(:clock_gettime).and_return(1000, 1130, 1230)
+        received_block = nil
+        allow(Iodine).to receive(:run_every) { |_ms, &block| received_block = block }
 
-        received = []
-        described_class.every(100) { |lag| received << lag }
+        my_block = -> { :did_run }
+        described_class.every(100, &my_block)
 
-        2.times { timer_block.call }
-
-        expect(received).to eq([30, 0])
-      end
-
-      it "clamps negative lag to zero" do
-        allow(Process).to receive(:clock_gettime).and_return(1000, 1099)
-
-        received = []
-        described_class.every(100) { |lag| received << lag }
-
-        timer_block.call
-
-        expect(received).to eq([0])
+        expect(received_block.call).to eq(:did_run)
       end
     end
   end

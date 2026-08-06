@@ -36,27 +36,23 @@ module Rage::Telemetry
     __registry.keys
   end
 
-  # The block is executed on the reactor thread and is yielded the scheduling lag in milliseconds -
-  # the difference between the expected and actual execution times. Keep the block fast and non-blocking.
+  # Registers a block to be executed repeatedly at a fixed interval while the server is running.
+  # The block runs on the reactor thread, alongside every fiber. Keep it fast and non-blocking.
+  # If the server is not running yet, execution is deferred and starts once the server starts.
   #
   # @param interval_ms [Integer] the execution interval in milliseconds
-  # @yield [Integer] the scheduling lag in milliseconds
-  # @example Periodically record the event loop lag
-  #   Rage::Telemetry.every(100) do |lag|
-  #     MyMetrics.record_loop_lag(lag)
+  # @example Periodically sample GC stats
+  #   Rage::Telemetry.every(1000) { MyMetrics.record_gc_stats(GC.stat) }
+  #
+  # @example Measure event loop lag
+  #   last_run_at = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
+  #   Rage::Telemetry.every(100) do
+  #     now = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
+  #     MyMetrics.record_loop_lag([now - last_run_at - 100, 0].max)
+  #     last_run_at = now
   #   end
   def self.every(interval_ms, &block)
-    schedule_block = -> do
-      last_run_time = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
-
-      Iodine.run_every(interval_ms) do
-        current_run_time = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
-        lag_ms = [current_run_time - last_run_time - interval_ms, 0].max
-
-        block.call(lag_ms)
-        last_run_time = current_run_time
-      end
-    end
+    schedule_block = -> { Iodine.run_every(interval_ms, &block) }
 
     if Iodine.running?
       schedule_block.call
