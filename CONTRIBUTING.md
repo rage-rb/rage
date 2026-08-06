@@ -223,7 +223,7 @@ end
 1. Wraps every request in a Fiber
 2. Implements the defer protocol for pausing/resuming async requests
 
-When a request encounters blocking I/O (database query, HTTP request, etc.), the fiber yields. `FiberWrapper` detects this (`fiber.alive?`) and returns a special `:__http_defer__` signal to Iodine, which pauses the connection.
+When a request encounters blocking I/O (database query, HTTP request, etc.), the fiber yields. `FiberWrapper` detects this (`fiber.alive?`) and returns the special `[:__http_defer__, fiber]` tuple to Iodine, which pauses the connection.
 
 When the I/O completes, the fiber resumes and publishes a message to notify Iodine that the response is ready. This is the mechanism that enables transparent, non-blocking concurrency.
 
