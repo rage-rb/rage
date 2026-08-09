@@ -36,6 +36,19 @@ module Rage::Telemetry
     __registry.keys
   end
 
+  # Registers a block to be executed repeatedly at a fixed interval while the server is running.
+  # The block is run inside a fiber, so blocking I/O inside it (e.g. flushing metrics to a
+  # collector) will not block the server.
+  #
+  # @param interval_ms [Integer] the execution interval in milliseconds
+  # @example Periodically sample GC stats
+  #   Rage::Telemetry.every(1000) { MyMetrics.record_gc_stats(GC.stat) }
+  def self.every(interval_ms, &block)
+    Iodine.run_every(interval_ms) do
+      Fiber.schedule { block.call }
+    end
+  end
+
   # @private
   def self.__registry
     @__registry ||= Spans.constants.each_with_object({}) do |const, memo|

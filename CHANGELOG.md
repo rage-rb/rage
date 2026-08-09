@@ -6,6 +6,7 @@
 
 - [OpenAPI] Add support for the `root:` option in Blueprinter response annotations (#343).
 - Add `FiberScheduler#timeout_after` (#374).
+- [Telemetry] Add `Rage::Telemetry.every(interval_ms, &block)`, a generic scheduling primitive for running recurring work on the reactor — e.g. sampling metrics or measuring event loop lag. (#379)
 
 ### Fixed
 
