@@ -20,6 +20,8 @@ RSpec.describe Rage::Tasks do
 end
 
 RSpec.describe "openapi:validate" do
+  subject { Rake::Task["openapi:validate"].invoke }
+
   before do
     Rake.application = Rake::Application.new
     Rage::Tasks.send(:load_rage_tasks)
@@ -30,8 +32,6 @@ RSpec.describe "openapi:validate" do
   after do
     Rage::OpenAPI.instance_variable_set(:@__warnings, nil)
   end
-
-  subject { Rake::Task["openapi:validate"].invoke }
 
   it "builds the OpenAPI spec" do
     allow($stdout).to receive(:puts)
@@ -58,13 +58,13 @@ RSpec.describe "openapi:validate" do
       Rage::OpenAPI.__warnings << "unrecognized tag"
     end
 
-    it "prints a failure message including the warnings" do
+    it "prints a failure message" do
       expect {
         begin
           subject
         rescue SystemExit
         end
-      }.to output(/OpenAPI validation failed\. Warnings:.*unrecognized tag/).to_stdout
+      }.to output(/OpenAPI validation failed\./).to_stdout
     end
 
     it "exits with status 1" do

@@ -255,8 +255,8 @@ RSpec.describe Rage::OpenAPI do
     end
 
     it "prints a warning and records it in __warnings" do
-      expect { described_class.__log_warn("something went wrong") }
-        .to output("[OpenAPI] WARNING: something went wrong\n").to_stdout
+      expect { described_class.__log_warn("something went wrong") }.
+        to output("[OpenAPI] WARNING: something went wrong\n").to_stdout
 
       expect(described_class.__warnings).to eq(["something went wrong"])
     end

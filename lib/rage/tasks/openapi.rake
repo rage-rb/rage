@@ -3,7 +3,7 @@ namespace :openapi do
     Rage::OpenAPI.build
 
     if Rage::OpenAPI.__warnings.any?
-      puts "OpenAPI validation failed. Warnings: #{Rage::OpenAPI.__warnings}"
+      puts "OpenAPI validation failed."
       exit 1
     else
       puts "OpenAPI validation passed without warnings."
