@@ -1,14 +1,25 @@
 ## [Unreleased]
 
+## [1.27.0] - 2026-08-06
+
 ### Added
 
 - [OpenAPI] Add support for the `root:` option in Blueprinter response annotations (#343).
+- Add `FiberScheduler#timeout_after` (#374).
+- [Telemetry] Add `Rage::Telemetry.every(interval_ms, &block)`, a generic scheduling primitive for running recurring work on the reactor — e.g. sampling metrics or measuring event loop lag. (#379)
 
 ### Fixed
 
 - [OpenAPI] Avoid caching a request-specific spec URL in the HTML docs page.
 - [Router] Compose and restore `SCRIPT_NAME` correctly for mounted Rack apps.
 - [OpenAPI] Fix schema registry key collisions for Blueprinter classes referenced under different views.
+- Fixed RbNaCl dependency check to produce correct error message (#361).
+
+## [1.26.1] - 2026-07-17
+
+### Fixed
+
+- Correctly check content type for custom renderers (#357).
 
 ## [1.26.0] - 2026-07-07
 

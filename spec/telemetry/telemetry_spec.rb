@@ -56,6 +56,42 @@ RSpec.describe Rage::Telemetry do
     end
   end
 
+  describe ".every" do
+    context "when the reactor is not running" do
+      it "registers the timer, which Iodine defers until the server starts" do
+        allow(Iodine).to receive(:running?).and_return(false)
+        expect(Iodine).to receive(:run_every).with(100)
+
+        described_class.every(100) {}
+      end
+    end
+
+    context "when the reactor is running" do
+      it "registers the timer immediately" do
+        allow(Iodine).to receive(:running?).and_return(true)
+        expect(Iodine).to receive(:run_every).with(100)
+
+        described_class.every(100) {}
+      end
+
+      it "executes the block in a fiber via Iodine.run_every" do
+        allow(Iodine).to receive(:running?).and_return(true)
+
+        received_block = nil
+        allow(Iodine).to receive(:run_every) { |_ms, &block| received_block = block }
+
+        Fiber.set_scheduler(Rage::FiberScheduler.new)
+        my_block = -> { :did_run }
+        described_class.every(100, &my_block)
+
+        fiber = received_block.call
+        expect(fiber.__get_result).to eq(:did_run)
+      ensure
+        Fiber.set_scheduler(nil)
+      end
+    end
+  end
+
   describe "SpanResult" do
     subject { described_class::SpanResult }
 
