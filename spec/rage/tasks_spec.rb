@@ -47,7 +47,7 @@ RSpec.describe "openapi:validate" do
   end
 
   # returns the `SystemExit` error the task exited with, or `nil` if it didn't exit
-  def invoke_task
+  subject(:invoke_task) do
     Rake::Task["openapi:validate"].invoke
     nil
   rescue SystemExit => e
