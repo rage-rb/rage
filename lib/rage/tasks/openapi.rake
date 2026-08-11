@@ -1,10 +1,12 @@
 namespace :openapi do
+  desc "Validate OpenAPI tags and fail if any warnings were produced"
   task :validate do
-    Rage::OpenAPI.build
+    abort "OpenAPI validation requires a booted application." unless Rage.config.internal.initialized?
 
-    if Rage::OpenAPI.__warnings.any?
-      puts "OpenAPI validation failed."
-      exit 1
+    warnings = Rage::OpenAPI.__collect_warnings { Rage::OpenAPI.build }
+
+    if warnings.any?
+      abort "OpenAPI validation failed with #{warnings.size} warning(s)."
     else
       puts "OpenAPI validation passed without warnings."
     end
