@@ -200,7 +200,18 @@ module Rage::OpenAPI
 
   # @private
   def self.__log_warn(log)
+    @__warnings << log if @__warnings
     puts "[OpenAPI] WARNING: #{log}"
+  end
+
+  # @private
+  # @return [Array<String>] the warnings logged inside the block
+  def self.__collect_warnings
+    @__warnings = []
+    yield
+    @__warnings
+  ensure
+    @__warnings = nil
   end
 
   module Nodes

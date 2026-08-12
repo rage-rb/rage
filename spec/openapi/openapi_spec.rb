@@ -249,6 +249,55 @@ RSpec.describe Rage::OpenAPI do
     end
   end
 
+  describe ".__log_warn" do
+    it "prints a warning" do
+      expect { described_class.__log_warn("something went wrong") }.
+        to output("[OpenAPI] WARNING: something went wrong\n").to_stdout
+    end
+
+    it "does not retain the warning when not collecting" do
+      allow(described_class).to receive(:puts)
+
+      described_class.__log_warn("something went wrong")
+
+      expect(described_class.instance_variable_get(:@__warnings)).to be_nil
+    end
+  end
+
+  describe ".__collect_warnings" do
+    before do
+      allow(described_class).to receive(:puts)
+    end
+
+    it "returns the warnings logged inside the block" do
+      warnings = described_class.__collect_warnings do
+        described_class.__log_warn("first")
+        described_class.__log_warn("second")
+      end
+
+      expect(warnings).to eq(["first", "second"])
+    end
+
+    it "returns an empty array when nothing was logged" do
+      expect(described_class.__collect_warnings {}).to eq([])
+    end
+
+    it "stops collecting once the block returns" do
+      described_class.__collect_warnings { described_class.__log_warn("first") }
+      described_class.__log_warn("second")
+
+      expect(described_class.__collect_warnings {}).to eq([])
+    end
+
+    it "stops collecting if the block raises" do
+      expect {
+        described_class.__collect_warnings { raise "boom" }
+      }.to raise_error("boom")
+
+      expect(described_class.instance_variable_get(:@__warnings)).to be_nil
+    end
+  end
+
   describe ".__type_to_spec" do
     subject { described_class.__type_to_spec(type) }
 
