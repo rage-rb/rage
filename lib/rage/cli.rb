@@ -6,6 +6,7 @@ require "rage/version"
 
 require "rage/cli/base"
 require "rage/cli/skills"
+require "rage/cli/openapi"
 require "rage/cli/code_generator"
 require "rage/cli/new_app_generator"
 
@@ -181,6 +182,9 @@ module Rage::CLI
 
     desc "skills", "Manage coding agent skills"
     subcommand "skills", Skills
+
+    desc "openapi", "OpenAPI validation tools"
+    subcommand "openapi", OpenAPI
 
     map "generate" => :g
     desc "g TYPE", "Generate new code"
