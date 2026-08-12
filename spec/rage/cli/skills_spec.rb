@@ -3,7 +3,7 @@
 require "rage/cli"
 require "tmpdir"
 
-RSpec.describe CLISkills do
+RSpec.describe Rage::CLI::Skills do
   subject(:skills_cli) { described_class.new }
 
   let(:manifest) do

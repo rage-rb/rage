@@ -1,4 +1,4 @@
 #!/usr/bin/env ruby
 
 require_relative "../lib/rage/cli"
-Rage::CLI.start
+Rage::CLI::App.start
