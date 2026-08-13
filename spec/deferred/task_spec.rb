@@ -319,6 +319,17 @@ RSpec.describe Rage::Deferred::Task do
         expect(task).to have_received(:perform).with("arg1", kwarg: "kwarg1")
       end
 
+      context "without keyword arugments" do
+        before do
+          allow(Rage::Deferred::Context).to receive(:get_kwargs).with(context).and_return(nil)
+        end
+
+        it "calls perform with correct arguments" do
+          task.__perform(context)
+          expect(task).to have_received(:perform).with("arg1")
+        end
+      end
+
       it "logs with context and tag" do
         task.__perform(context)
         expect(logger).to have_received(:with_context).with({ task: "MyTask", attempt: 2 })

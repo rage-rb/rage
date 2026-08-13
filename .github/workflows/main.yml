@@ -18,6 +18,7 @@ jobs:
       max-parallel: 1
       matrix:
         ruby:
+          - '3.3.0'
           - '3.3'
           - '3.4'
           - '4.0'
