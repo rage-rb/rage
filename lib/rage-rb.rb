@@ -182,6 +182,9 @@ module Rage
     alias_method :configuration, :config
   end
 
+  module CLI
+  end
+
   module Router
     module Strategies
     end

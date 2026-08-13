@@ -3,7 +3,7 @@ require "tmpdir"
 require "rake"
 require "active_support/inflector"
 
-RSpec.describe Rage::CLICodeGenerator do
+RSpec.describe Rage::CLI::CodeGenerator do
   subject(:rage_cli_code_generator) { described_class.new }
 
   around(:example, :with_temp_directory) do |example|
@@ -191,7 +191,7 @@ RSpec.describe Rage::CLICodeGenerator do
   end
 end
 
-RSpec.describe Rage::CLI do
+RSpec.describe Rage::CLI::App do
   subject(:rage_cli) { described_class.new }
 
   describe "#middleware" do
