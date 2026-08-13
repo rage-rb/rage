@@ -73,6 +73,7 @@ module Rage::Deferred::Task
         Rage.logger.with_context(task_log_context) do
           args = Rage::Deferred::Context.get_args(context)
           kwargs = Rage::Deferred::Context.get_kwargs(context)
+          kwargs ||= {} if RUBY_VERSION.start_with?("3.3.")
 
           perform(*args, **kwargs)
         end

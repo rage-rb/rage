@@ -4,6 +4,10 @@
 
 - [OpenAPI] Add `openapi:validate` Rake task for OpenAPI tags validation (#163).
 
+### Fixed
+
+- Correctly enqueue deferred tasks with only positional arguments on Ruby < 3.3.4 (#385).
+
 ## [1.27.0] - 2026-08-06
 
 ### Added
