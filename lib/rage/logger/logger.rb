@@ -60,7 +60,7 @@ class Rage::Logger
     fatal: Logger::FATAL,
     unknown: Logger::UNKNOWN
   }
-  FILTERED = "[FILTERED]".freeze
+  FILTERED = "[FILTERED]"
   private_constant :FILTERED
 
   attr_reader :level, :formatter
