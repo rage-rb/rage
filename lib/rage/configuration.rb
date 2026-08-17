@@ -256,6 +256,25 @@ class Rage::Configuration
   def log_tags
     @log_tags ||= LogTags.new
   end
+
+  # Allows configuring case-insensitive partial matches for filtering structured log context keys.
+  # Matching keys will have their values replaced with `"[FILTERED]"` before the log entry is written.
+  # @return [Rage::Configuration::FilterParameters]
+  #
+  # @example Filter common secrets from structured logs
+  #   Rage.configure do
+  #     config.filter_parameters = [:password, :token, :secret]
+  #   end
+  def filter_parameters
+    @filter_parameters ||= FilterParameters.new
+  end
+
+  # Replace the current list of filtered log parameter keys.
+  # @param parameters [String, Symbol, Array<String, Symbol>, nil] one or more parameter filters
+  def filter_parameters=(parameters)
+    @filter_parameters = FilterParameters.new
+    @filter_parameters << parameters if parameters
+  end
   # @!endgroup
 
   # @!group Telemetry Configuration
@@ -407,6 +426,18 @@ class Rage::Configuration
         obj.each { |item| validate_input!(item) }
       elsif !obj.respond_to?(:to_str) && !obj.respond_to?(:call)
         raise ArgumentError, "custom log tag has to be a string, an array of strings, or respond to `#call`"
+      end
+    end
+  end
+
+  class FilterParameters < LogContext
+    private
+
+    def validate_input!(obj)
+      if obj.is_a?(Array)
+        obj.each { |item| validate_input!(item) }
+      elsif !obj.is_a?(String) && !obj.is_a?(Symbol)
+        raise ArgumentError, "filter parameters have to be strings, symbols, or arrays of strings and symbols"
       end
     end
   end
@@ -1276,6 +1307,10 @@ class Rage::Configuration
     if @log_tags
       Rage.__log_processor.add_custom_tags(@log_tags.objects)
       @logger.dynamic_tags = Rage.__log_processor.dynamic_tags
+    end
+
+    if @filter_parameters
+      @logger.filter_parameters = @filter_parameters.objects
     end
 
     if before_boot && @blocking_operation_pool&.enabled

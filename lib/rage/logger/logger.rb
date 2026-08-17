@@ -60,11 +60,13 @@ class Rage::Logger
     fatal: Logger::FATAL,
     unknown: Logger::UNKNOWN
   }
+  FILTERED = "[FILTERED]".freeze
+  private_constant :FILTERED
 
   attr_reader :level, :formatter
 
   # @private
-  attr_reader :dynamic_tags, :dynamic_context
+  attr_reader :dynamic_tags, :dynamic_context, :filter_parameters
 
   # @private
   attr_reader :external_logger
@@ -132,6 +134,29 @@ class Rage::Logger
     rebuild!
   end
 
+  # @private
+  def filter_parameters=(filter_parameters)
+    if filter_parameters&.any?
+      normalized_filters = filter_parameters.filter_map do |filter|
+        filter = filter.to_s.downcase
+        filter unless filter.empty?
+      end.uniq
+
+      if normalized_filters.any?
+        @filter_parameters = normalized_filters.freeze
+        @filter_parameters_matcher = Regexp.union(@filter_parameters)
+      else
+        @filter_parameters = nil
+        @filter_parameters_matcher = nil
+      end
+    else
+      @filter_parameters = nil
+      @filter_parameters_matcher = nil
+    end
+
+    rebuild!
+  end
+
   # Add custom keys to an entry.
   #
   # @param context [Hash] a hash of custom keys
@@ -196,7 +221,7 @@ class Rage::Logger
         RUBY
       elsif @external_logger.is_a?(External::Static)
         # an object that implements Ruby's Logger interface is used as a logger
-        write_call = <<~RUBY
+        write_call = build_filtered_context_call(<<~RUBY)
           @external_logger.wrapped.#{level_name}(
             #{build_formatter_call(level_name, level_val)}
           )
@@ -233,7 +258,7 @@ class Rage::Logger
           request_info: "Fiber[:__rage_logger_final].freeze"
         })
 
-        write_call = <<~RUBY
+        write_call = build_filtered_context_call(<<~RUBY)
           @external_logger.wrapped.call(#{parameters})
         RUBY
 
@@ -253,7 +278,7 @@ class Rage::Logger
           end
         RUBY
       else
-        write_call = <<~RUBY
+        write_call = build_filtered_context_call(<<~RUBY)
           @logdev.write(
             #{build_formatter_call(level_name, level_val)}
           )
@@ -293,6 +318,42 @@ class Rage::Logger
       <<~RUBY
         @formatter.call(#{level_val}, Time.now, nil, block_given? ? yield : msg)
       RUBY
+    end
+  end
+
+  def build_filtered_context_call(write_call)
+    return write_call unless @filter_parameters
+
+    <<~RUBY
+      with_filtered_context do
+        #{write_call}
+      end
+    RUBY
+  end
+
+  def with_filtered_context
+    context = Fiber[:__rage_logger_context]
+    return yield if context.nil? || context.empty?
+
+    Fiber[:__rage_logger_context] = filter_value(context)
+    yield
+  ensure
+    Fiber[:__rage_logger_context] = context
+  end
+
+  def filter_value(value)
+    if value.is_a?(Hash)
+      value.each_with_object({}) do |(key, nested_value), filtered|
+        filtered[key] = if @filter_parameters_matcher.match?(key.to_s.downcase)
+          FILTERED
+        else
+          filter_value(nested_value)
+        end
+      end
+    elsif value.is_a?(Array)
+      value.map { |item| filter_value(item) }
+    else
+      value
     end
   end
 

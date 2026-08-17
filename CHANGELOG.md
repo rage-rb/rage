@@ -3,6 +3,7 @@
 ### Added
 
 - [OpenAPI] Add `openapi:validate` Rake task for OpenAPI tags validation (#163).
+- [Logger] Add `config.filter_parameters` for filtering structured log context.
 
 ### Fixed
 

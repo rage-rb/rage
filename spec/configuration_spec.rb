@@ -341,6 +341,70 @@ RSpec.describe Rage::Configuration do
     end
   end
 
+  describe "#filter_parameters" do
+    subject { described_class.new.filter_parameters }
+
+    describe "#push" do
+      it "returns empty array" do
+        expect(subject.objects).to eq([])
+      end
+
+      it "allows to add strings and symbols" do
+        subject << :password << "token"
+        expect(subject.objects).to eq([:password, "token"])
+      end
+
+      it "allows to add arrays" do
+        subject << [:password, "token"]
+        expect(subject.objects).to eq([:password, "token"])
+      end
+
+      it "removes duplicates" do
+        subject << :password << [:password, "token"]
+        expect(subject.objects).to eq([:password, "token"])
+      end
+
+      it "raises an error for invalid objects" do
+        expect {
+          subject << proc {}
+        }.to raise_error(ArgumentError)
+      end
+    end
+
+    describe "#filter_parameters=" do
+      let(:config) { described_class.new }
+
+      it "replaces current filters" do
+        config.filter_parameters << :password
+        config.filter_parameters = [:token]
+
+        expect(config.filter_parameters.objects).to eq([:token])
+      end
+
+      it "accepts nil" do
+        config.filter_parameters = nil
+        expect(config.filter_parameters.objects).to eq([])
+      end
+    end
+
+    describe "#__finalize" do
+      let(:config) { described_class.new }
+      let(:logger) { Rage::Logger.new(nil) }
+
+      before do
+        config.logger = logger
+      end
+
+      it "passes filters to logger" do
+        config.filter_parameters = [:password, "token"]
+
+        config.__finalize
+
+        expect(logger.filter_parameters).to eq(["password", "token"])
+      end
+    end
+  end
+
   describe "#logger" do
     subject { described_class.new }
 
