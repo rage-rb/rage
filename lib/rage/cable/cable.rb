@@ -118,13 +118,26 @@ module Rage::Cable
 
       private
 
-      def schedule_fiber(connection)
-        Fiber.schedule do
-          @log_processor.init_request_logger(connection.env)
-          yield
-        rescue => e
-          log_error(e)
+      def schedule_fiber(connection, &block)
+        connection.env["rage.worker"] ||= begin
+          worker = Fiber.schedule do
+            env = Fiber.yield
+            Rage.__log_processor.init_request_logger(env)
+
+            loop do
+              work = Fiber.yield
+              work.call
+            rescue => e
+              log_error(e)
+            end
+          end
+
+          worker.resume(connection.env)
+
+          worker
         end
+
+        connection.env["rage.worker"].resume(block)
       end
 
       def log_error(e)
