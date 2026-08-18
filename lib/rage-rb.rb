@@ -208,6 +208,7 @@ module Rage
   autoload :Events, "rage/events/events"
   autoload :PubSub, "rage/pubsub/pubsub"
   autoload :Daemon, "rage/daemon"
+  autoload :Signal, "rage/signal"
 end
 
 module RageController
