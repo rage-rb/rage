@@ -2,6 +2,7 @@
 
 ### Added
 
+- Add HTTP streaming support: `render stream:` sends any `#each` body with chunked transfer encoding and transparent backpressure.
 - [OpenAPI] Add `openapi:validate` Rake task for OpenAPI tags validation (#163).
 
 ### Fixed

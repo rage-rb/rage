@@ -46,48 +46,53 @@ class Rage::Streaming
   # Writes each chunk to the stream. On `:would_block` the producer parks until a wake
   # message ("drain" or "close") and retries; a terminal write status ends the iteration.
   def stream_body(stream)
-    producer, parked = Fiber.current, false
+    @producer, @parked = Fiber.current, false
     channel = stream.wake_channel
 
     if channel
       Iodine.subscribe(channel) do
-        if parked
-          parked = false
-          producer.resume if producer.alive?
+        if @parked
+          @parked = false
+          @producer.resume if @producer.alive?
         end
       end
     end
 
     @source.each do |chunk|
       next if chunk.nil?
-      data = chunk.to_s
-      offset = 0
-
-      loop do
-        slice = data.bytesize > MAX_WRITE_BYTES ? data.byteslice(offset, MAX_WRITE_BYTES) : data
-
-        loop do
-          case stream.write(slice)
-          when :ok
-            break
-          when :would_block
-            # no wake channel means the producer can never be resumed: bail out
-            return if channel.nil?
-            parked = true
-            Fiber.defer(-1)
-          when :error
-            Rage.logger.error("Streaming response terminated: stream.write returned :error")
-            return
-          else # :closed, :disconnected
-            return
-          end
-        end
-
-        offset += MAX_WRITE_BYTES
-        break if offset >= data.bytesize
-      end
+      break unless write_chunk(stream, chunk.to_s, channel)
     end
   ensure
     Iodine.defer { Iodine.unsubscribe(channel) } if channel
+  end
+
+  # Writes one chunk, slicing it below the write size limit. Returns false when a
+  # terminal write status ends the stream.
+  def write_chunk(stream, data, channel)
+    offset = 0
+
+    loop do
+      slice = data.bytesize > MAX_WRITE_BYTES ? data.byteslice(offset, MAX_WRITE_BYTES) : data
+
+      loop do
+        case stream.write(slice)
+        when :ok
+          break
+        when :would_block
+          # no wake channel means the producer can never be resumed: bail out
+          return false if channel.nil?
+          @parked = true
+          Fiber.defer(-1)
+        when :error
+          Rage.logger.error("Streaming response terminated: stream.write returned :error")
+          return false
+        else # :closed, :disconnected
+          return false
+        end
+      end
+
+      offset += MAX_WRITE_BYTES
+      return true if offset >= data.bytesize
+    end
   end
 end
