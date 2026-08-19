@@ -19,9 +19,11 @@ class Rage::Response
   end
 
   # Returns the content of the response as a string. This contains the contents of any calls to `render`.
+  # Streaming responses have no buffered body, so this returns an empty string for them.
   # @return [String]
   def body
-    @controller.__body[0] || ""
+    body = @controller.__body
+    body.is_a?(Array) ? body[0] || "" : ""
   end
 
   # Returns the headers for the response.

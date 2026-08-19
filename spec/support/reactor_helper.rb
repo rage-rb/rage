@@ -6,6 +6,9 @@ module ReactorHelper
   # the block is expected to return a proc to enable the code inside the reactor to communicate the test result to rspec.
   #
   def within_reactor(&block)
+    allow(Fiber).to receive(:schedule).and_call_original
+    allow(Fiber).to receive(:await).and_call_original
+
     fiber = nil
 
     Iodine.defer { fiber = Fiber.schedule { block.call } }

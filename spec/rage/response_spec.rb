@@ -130,6 +130,16 @@ RSpec.describe Rage::Response do
         expect(subject.body).to eq("test_body")
       end
     end
+
+    context "with a streaming body" do
+      before do
+        controller.render stream: %w(chunk)
+      end
+
+      it "returns empty string" do
+        expect(subject.body).to eq("")
+      end
+    end
   end
 
   context "#status" do
