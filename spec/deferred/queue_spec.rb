@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe Rage::Deferred::Queue do
-  let(:backend) { double("backend", add: "task-id", remove: nil) }
+  let(:backend) { double("backend", add_task: "task-id", remove_task: nil, add_dead_task: nil) }
   let(:task_class) { double("task_class") }
   let(:task_instance) { double("task_instance", __perform: true) }
 
@@ -23,7 +23,7 @@ RSpec.describe Rage::Deferred::Queue do
 
   describe "#enqueue" do
     it "adds the task to the backend" do
-      expect(backend).to receive(:add).with(task_context, publish_at: nil, task_id: nil).and_return("new-id")
+      expect(backend).to receive(:add_task).with(task_context, publish_at: nil, task_id: nil).and_return("new-id")
       subject.enqueue(task_context)
     end
 
@@ -35,7 +35,7 @@ RSpec.describe Rage::Deferred::Queue do
     context "with a delay" do
       it "correctly calculates publish_at and publish_in" do
         delay = 60
-        expect(backend).to receive(:add).with(task_context, publish_at: Time.now.to_i + delay, task_id: nil)
+        expect(backend).to receive(:add_task).with(task_context, publish_at: Time.now.to_i + delay, task_id: nil)
         expect(subject).to receive(:schedule).with("task-id", task_context, publish_in: delay)
         subject.enqueue(task_context, delay:)
       end
@@ -44,7 +44,7 @@ RSpec.describe Rage::Deferred::Queue do
     context "with a delay_until" do
       it "correctly calculates publish_at and publish_in" do
         delay_until = Time.now + 120
-        expect(backend).to receive(:add).with(task_context, publish_at: delay_until.to_i, task_id: nil)
+        expect(backend).to receive(:add_task).with(task_context, publish_at: delay_until.to_i, task_id: nil)
         expect(subject).to receive(:schedule).with("task-id", task_context, publish_in: 120)
         subject.enqueue(task_context, delay_until:)
       end
@@ -94,7 +94,7 @@ RSpec.describe Rage::Deferred::Queue do
     context "when task completes successfully" do
       it "removes the task from the backend" do
         allow(task_instance).to receive(:__perform).and_return(true)
-        expect(backend).to receive(:remove).with("task-id")
+        expect(backend).to receive(:remove_task).with("task-id")
         subject.schedule("task-id", task_context)
       end
     end
@@ -116,9 +116,12 @@ RSpec.describe Rage::Deferred::Queue do
       end
 
       context "and should not be retried" do
-        it "removes the task from the backend" do
+        it "writes the task to the dead-tasks store before removing it from the WAL" do
           allow(task_class).to receive(:__next_retry_in).with(1, error).and_return(nil)
-          expect(backend).to receive(:remove).with("task-id")
+          expect(backend).to receive(:add_dead_task).with(
+            "task-id", task_context, error, task_class: task_class, attempts: 1
+          ).ordered
+          expect(backend).to receive(:remove_task).with("task-id").ordered
           subject.schedule("task-id", task_context)
         end
       end

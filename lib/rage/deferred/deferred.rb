@@ -70,7 +70,7 @@ module Rage::Deferred
       __queue.schedule(task_id, task_wrapper, publish_in:)
     rescue => e
       puts "ERROR: Failed to load deferred task #{task_id}: #{e.class} (#{e.message}). Removing task from the queue."
-      __backend.remove(task_id)
+      __backend.remove_task(task_id)
     end
   end
 
@@ -98,6 +98,10 @@ module Rage::Deferred
   end
 
   class PushTimeout < StandardError
+  end
+
+  # Raised when a dead-tasks store operation cannot acquire the lock within the retry budget.
+  class DeadTasksLockTimeout < StandardError
   end
 end
 

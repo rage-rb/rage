@@ -5,6 +5,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
   let(:prefix) { "test_prefix" }
   let(:fsync_frequency) { 100 }
   let(:backend) { described_class.new(path: storage_path, prefix: prefix, fsync_frequency: fsync_frequency) }
+  let(:tasks_storage) { backend.instance_variable_get(:@tasks_storage) }
 
   after do
     FileUtils.remove_entry(storage_path)
@@ -20,32 +21,32 @@ RSpec.describe Rage::Deferred::Backends::Disk do
     end
 
     it "creates a storage file if none exist" do
-      expect(storage_path.glob("#{prefix}*").size).to eq(1)
+      expect(storage_path.glob("#{prefix}0-*").size).to eq(1)
     end
   end
 
-  describe "#add" do
+  describe "#add_task" do
     let(:task) { double("Rage::Deferred::Task") }
     let(:publish_at) { Time.now.to_i }
     let(:task_id) { "custom_task_id" }
 
     it "adds a task with a custom task ID" do
-      backend.add(task, publish_at: publish_at, task_id: task_id)
+      backend.add_task(task, publish_at: publish_at, task_id: task_id)
       expect(backend.pending_tasks.map(&:first)).to include(task_id)
     end
 
     it "adds a task with an auto-generated task ID" do
-      task_id = backend.add(task, publish_at: publish_at)
+      task_id = backend.add_task(task, publish_at: publish_at)
       expect(backend.pending_tasks.map(&:first)).to include(task_id)
     end
   end
 
-  describe "#remove" do
+  describe "#remove_task" do
     let(:task) { double("Rage::Deferred::Task") }
-    let(:task_id) { backend.add(task) }
+    let(:task_id) { backend.add_task(task) }
 
     it "removes a task by its ID" do
-      backend.remove(task_id)
+      backend.remove_task(task_id)
       expect(backend.pending_tasks.map(&:first)).not_to include(task_id)
     end
   end
@@ -55,7 +56,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
     let(:publish_at) { Time.now.to_i }
 
     before do
-      backend.add(task, publish_at: publish_at)
+      backend.add_task(task, publish_at: publish_at)
     end
 
     it "returns a list of pending tasks" do
@@ -65,33 +66,32 @@ RSpec.describe Rage::Deferred::Backends::Disk do
     end
 
     it "handles corrupted entries gracefully" do
-      backend.instance_variable_get(:@storage).write("corrupted_entry\n")
+      tasks_storage.instance_variable_get(:@storage).write("corrupted_entry\n")
       expect { backend.pending_tasks }.not_to raise_error
     end
   end
 
   describe "#rotate_storage" do
     let(:task) { double("Rage::Deferred::Task") }
-    let(:task_id) { backend.add(task) }
+    let(:task_id) { backend.add_task(task) }
 
     before do
-      allow(backend).to receive(:rotate_storage).and_call_original
       task_id
-      backend.instance_variable_set(:@should_rotate, true)
+      tasks_storage.instance_variable_set(:@should_rotate, true)
     end
 
     it "rotates the storage when conditions are met" do
-      backend.remove(task_id)
-      expect(storage_path.glob("#{prefix}*").size).to eq(2)
+      backend.remove_task(task_id)
+      expect(storage_path.glob("#{prefix}0-*").size).to eq(2)
     end
 
     it "ignores missing old storage files during async cleanup" do
       scheduled_cleanups = []
       allow(Iodine).to receive(:run_after) { |_, &block| scheduled_cleanups << block }
 
-      old_storage = backend.instance_variable_get(:@storage)
+      old_storage = tasks_storage.instance_variable_get(:@storage)
 
-      backend.remove(task_id)
+      backend.remove_task(task_id)
       File.unlink(old_storage.path)
 
       expect(scheduled_cleanups.size).to eq(1)
@@ -118,7 +118,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       storage.flock(File::LOCK_UN)
 
       backend = described_class.new(path: storage_path, prefix: prefix, fsync_frequency: fsync_frequency)
-      task_id = backend.add(task)
+      task_id = backend.add_task(task)
 
       expect(task_id.split("-").first.to_i).to be > future_timestamps.max
     end
@@ -139,7 +139,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       end
 
       backend = described_class.new(path: storage_path, prefix: prefix, fsync_frequency: fsync_frequency)
-      task_id = backend.add(task)
+      task_id = backend.add_task(task)
 
       expect(task_id.split("-").first.to_i).to be > future_timestamps.max
     end
@@ -152,7 +152,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       allow(recovered_storage).to receive(:rewind)
       allow(recovered_storage).to receive(:read).with(262_144).and_return(nil)
 
-      backend.instance_variable_set(:@recovered_storages, [recovered_storage])
+      tasks_storage.instance_variable_set(:@recovered_storages, [recovered_storage])
       backend.pending_tasks
 
       expect(scheduled_cleanups.size).to eq(1)
@@ -161,7 +161,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
 
     it "With empty storage file." do
       before_init = Time.now.to_i
-      task_id = backend.add(task)
+      task_id = backend.add_task(task)
       expect(task_id.split("-").first.to_i).to be >= before_init + 1
     end
 
@@ -181,9 +181,42 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       before_init = Time.now.to_i
 
       backend = described_class.new(path: storage_path, prefix: prefix, fsync_frequency: fsync_frequency)
-      task_id = backend.add(task)
+      task_id = backend.add_task(task)
 
       expect(task_id.split("-").first.to_i).to be >= before_init + 1
+    end
+  end
+
+  describe "#remove_dead_tasks" do
+    let(:exception) { RuntimeError.new("boom") }
+    let(:context) { ["SendWelcomeEmail", [], {}, 0] }
+
+    def add_dead_task(task_id)
+      backend.add_dead_task(task_id, context, exception, task_class: "SendWelcomeEmail", attempts: 3)
+    end
+
+    it "removes the given dead tasks and keeps the others" do
+      add_dead_task("1-1-1")
+      add_dead_task("2-2-2")
+
+      expect(backend.remove_dead_tasks("1-1-1")).to eq(1)
+      expect(backend.list_dead_tasks.map { |record| record[:id] }).to eq(["2-2-2"])
+      expect(storage_path.join("#{prefix}dead_tasks-0.tmp")).not_to exist
+    end
+
+    it "leaves the queue untouched when no ids match" do
+      add_dead_task("1-1-1")
+
+      expect(backend.remove_dead_tasks("nope")).to eq(0)
+      expect(backend.list_dead_tasks.map { |record| record[:id] }).to eq(["1-1-1"])
+      expect(storage_path.join("#{prefix}dead_tasks-0.tmp")).not_to exist
+    end
+
+    it "raises instead of reporting zero when the store is already locked" do
+      stub_const("#{described_class}::DeadTasksStorage::LOCK_MAX_ATTEMPTS", 1)
+      backend.instance_variable_get(:@dead_tasks_storage).instance_variable_set(:@locked, true)
+
+      expect { backend.remove_dead_tasks("1-1-1") }.to raise_error(Rage::Deferred::DeadTasksLockTimeout)
     end
   end
 end
