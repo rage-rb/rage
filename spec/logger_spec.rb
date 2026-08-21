@@ -228,15 +228,15 @@ RSpec.describe Rage::Logger do
     end
   end
 
-  context "with filtered parameters" do
+  context "with log redact keys" do
     before do
-      subject.filter_parameters = [:password, :token]
+      subject.log_redact_keys = [:password, :token]
     end
 
     it "filters partial key matches case-insensitively" do
       subject.info "passed", password_confirmation: "secret", "AUTH_TOKEN" => "abc", user_id: 12345
 
-      expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info password_confirmation=[FILTERED] AUTH_TOKEN=[FILTERED] user_id=12345 message=passed\n")
+      expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info password_confirmation=[REDACTED] AUTH_TOKEN=[REDACTED] user_id=12345 message=passed\n")
     end
 
     it "filters request log context" do
@@ -253,7 +253,7 @@ RSpec.describe Rage::Logger do
         subject.info nil
       end
 
-      expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info method=GET path=/test_path controller=RspecController action=index password=[FILTERED] status=200 duration=1.45\n")
+      expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info method=GET path=/test_path controller=RspecController action=index password=[REDACTED] status=200 duration=1.45\n")
     end
   end
 
@@ -675,9 +675,9 @@ RSpec.describe Rage::Logger do
         end
       end
 
-      context "with filter parameters" do
+      context "with log redact keys" do
         before do
-          subject.filter_parameters = [:password, :token]
+          subject.log_redact_keys = [:password, :token]
         end
 
         it "filters nested context recursively without mutating original values" do
@@ -692,9 +692,9 @@ RSpec.describe Rage::Logger do
             severity: :info,
             tags: ["my_test_tag"],
             context: {
-              api_token: "[FILTERED]",
-              user: { email: "user@example.com", password_confirmation: "[FILTERED]" },
-              sessions: [{ "AUTH_TOKEN" => "[FILTERED]" }, { name: "browser" }]
+              api_token: "[REDACTED]",
+              user: { email: "user@example.com", password_confirmation: "[REDACTED]" },
+              sessions: [{ "AUTH_TOKEN" => "[REDACTED]" }, { name: "browser" }]
             },
             message: "test",
             request_info: nil
@@ -719,7 +719,7 @@ RSpec.describe Rage::Logger do
           expect(external_logger).to receive(:call).with(
             severity: :info,
             tags: ["my_test_tag"],
-            context: { api_token: "[FILTERED]" },
+            context: { api_token: "[REDACTED]" },
             message: nil,
             request_info: {
               env: { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/test_path" },

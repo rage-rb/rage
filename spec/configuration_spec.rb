@@ -341,67 +341,49 @@ RSpec.describe Rage::Configuration do
     end
   end
 
-  describe "#filter_parameters" do
-    subject { described_class.new.filter_parameters }
+  describe "#log_redact_keys=" do
+    let(:config) { described_class.new }
 
-    describe "#push" do
-      it "returns empty array" do
-        expect(subject.objects).to eq([])
-      end
+    it "passes normalized keys to existing logger" do
+      logger = Rage::Logger.new(nil)
+      config.logger = logger
 
-      it "allows to add strings and symbols" do
-        subject << :password << "token"
-        expect(subject.objects).to eq([:password, "token"])
-      end
+      config.log_redact_keys = [:password, ["token"], :password, ""]
 
-      it "allows to add arrays" do
-        subject << [:password, "token"]
-        expect(subject.objects).to eq([:password, "token"])
-      end
-
-      it "removes duplicates" do
-        subject << :password << [:password, "token"]
-        expect(subject.objects).to eq([:password, "token"])
-      end
-
-      it "raises an error for invalid objects" do
-        expect {
-          subject << proc {}
-        }.to raise_error(ArgumentError)
-      end
+      expect(logger.log_redact_keys).to eq(["password", "token"])
     end
 
-    describe "#filter_parameters=" do
-      let(:config) { described_class.new }
+    it "applies current keys when logger is assigned later" do
+      logger = Rage::Logger.new(nil)
+      config.log_redact_keys = [:password, "token"]
 
-      it "replaces current filters" do
-        config.filter_parameters << :password
-        config.filter_parameters = [:token]
+      config.logger = logger
 
-        expect(config.filter_parameters.objects).to eq([:token])
-      end
-
-      it "accepts nil" do
-        config.filter_parameters = nil
-        expect(config.filter_parameters.objects).to eq([])
-      end
+      expect(logger.log_redact_keys).to eq(["password", "token"])
     end
 
-    describe "#__finalize" do
-      let(:config) { described_class.new }
-      let(:logger) { Rage::Logger.new(nil) }
+    it "passes keys during finalize" do
+      config.log_redact_keys = [:password, "token"]
 
-      before do
-        config.logger = logger
-      end
+      config.__finalize
 
-      it "passes filters to logger" do
-        config.filter_parameters = [:password, "token"]
+      expect(config.logger.log_redact_keys).to eq(["password", "token"])
+    end
 
-        config.__finalize
+    it "clears current keys with nil" do
+      logger = Rage::Logger.new(nil)
+      config.logger = logger
+      config.log_redact_keys = [:password]
 
-        expect(logger.filter_parameters).to eq(["password", "token"])
-      end
+      config.log_redact_keys = nil
+
+      expect(logger.log_redact_keys).to be_nil
+    end
+
+    it "raises an error for invalid objects" do
+      expect {
+        config.log_redact_keys = [proc {}]
+      }.to raise_error(ArgumentError, "log redact keys have to be strings, symbols, or arrays of strings and symbols")
     end
   end
 

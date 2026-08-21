@@ -60,13 +60,13 @@ class Rage::Logger
     fatal: Logger::FATAL,
     unknown: Logger::UNKNOWN
   }
-  FILTERED = "[FILTERED]"
-  private_constant :FILTERED
+  REDACTED = "[REDACTED]"
+  private_constant :REDACTED
 
   attr_reader :level, :formatter
 
   # @private
-  attr_reader :dynamic_tags, :dynamic_context, :filter_parameters
+  attr_reader :dynamic_tags, :dynamic_context, :log_redact_keys
 
   # @private
   attr_reader :external_logger
@@ -135,23 +135,13 @@ class Rage::Logger
   end
 
   # @private
-  def filter_parameters=(filter_parameters)
-    if filter_parameters&.any?
-      normalized_filters = filter_parameters.filter_map do |filter|
-        filter = filter.to_s.downcase
-        filter unless filter.empty?
-      end.uniq
-
-      if normalized_filters.any?
-        @filter_parameters = normalized_filters.freeze
-        @filter_parameters_matcher = Regexp.union(@filter_parameters)
-      else
-        @filter_parameters = nil
-        @filter_parameters_matcher = nil
-      end
+  def log_redact_keys=(log_redact_keys)
+    if log_redact_keys&.any?
+      @log_redact_keys = log_redact_keys
+      @log_redact_keys_matcher = Regexp.union(log_redact_keys.map { |key| Regexp.new(Regexp.escape(key), Regexp::IGNORECASE) })
     else
-      @filter_parameters = nil
-      @filter_parameters_matcher = nil
+      @log_redact_keys = nil
+      @log_redact_keys_matcher = nil
     end
 
     rebuild!
@@ -221,7 +211,7 @@ class Rage::Logger
         RUBY
       elsif @external_logger.is_a?(External::Static)
         # an object that implements Ruby's Logger interface is used as a logger
-        write_call = build_filtered_context_call(<<~RUBY)
+        write_call = build_redacted_context_call(<<~RUBY)
           @external_logger.wrapped.#{level_name}(
             #{build_formatter_call(level_name, level_val)}
           )
@@ -258,7 +248,7 @@ class Rage::Logger
           request_info: "Fiber[:__rage_logger_final].freeze"
         })
 
-        write_call = build_filtered_context_call(<<~RUBY)
+        write_call = build_redacted_context_call(<<~RUBY)
           @external_logger.wrapped.call(#{parameters})
         RUBY
 
@@ -278,7 +268,7 @@ class Rage::Logger
           end
         RUBY
       else
-        write_call = build_filtered_context_call(<<~RUBY)
+        write_call = build_redacted_context_call(<<~RUBY)
           @logdev.write(
             #{build_formatter_call(level_name, level_val)}
           )
@@ -321,37 +311,37 @@ class Rage::Logger
     end
   end
 
-  def build_filtered_context_call(write_call)
-    return write_call unless @filter_parameters
+  def build_redacted_context_call(write_call)
+    return write_call unless @log_redact_keys
 
     <<~RUBY
-      with_filtered_context do
+      with_redacted_context do
         #{write_call}
       end
     RUBY
   end
 
-  def with_filtered_context
+  def with_redacted_context
     context = Fiber[:__rage_logger_context]
     return yield if context.nil? || context.empty?
 
-    Fiber[:__rage_logger_context] = filter_value(context)
+    Fiber[:__rage_logger_context] = redact_value(context)
     yield
   ensure
     Fiber[:__rage_logger_context] = context
   end
 
-  def filter_value(value)
+  def redact_value(value)
     if value.is_a?(Hash)
-      value.each_with_object({}) do |(key, nested_value), filtered|
-        filtered[key] = if @filter_parameters_matcher.match?(key.to_s.downcase)
-          FILTERED
+      value.each_with_object({}) do |(key, nested_value), redacted|
+        redacted[key] = if @log_redact_keys_matcher.match?(key.to_s)
+          REDACTED
         else
-          filter_value(nested_value)
+          redact_value(nested_value)
         end
       end
     elsif value.is_a?(Array)
-      value.map { |item| filter_value(item) }
+      value.map { |item| redact_value(item) }
     else
       value
     end
