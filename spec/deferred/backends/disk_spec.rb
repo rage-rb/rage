@@ -187,6 +187,34 @@ RSpec.describe Rage::Deferred::Backends::Disk do
     end
   end
 
+  describe "#add_dead_task" do
+    let(:exception) { RuntimeError.new("boom") }
+    let(:context) { ["SendWelcomeEmail", [], {}, 0] }
+    let(:dead_tasks_path) { storage_path.join("#{prefix}dead_tasks-0") }
+
+    def add_dead_task(task_id)
+      backend.add_dead_task(task_id, context, exception, task_class: "SendWelcomeEmail", attempts: 3)
+    end
+
+    it "repairs an incomplete final entry before appending" do
+      add_dead_task("1-1-1")
+      dead_tasks_path.open("ab") { |storage| storage.write("deadbeef:dead_task:partial") }
+
+      add_dead_task("2-2-2")
+
+      expect(backend.list_dead_tasks.map { |record| record[:id] }).to eq(["2-2-2", "1-1-1"])
+    end
+
+    it "repairs a file containing only an incomplete entry before appending" do
+      backend
+      dead_tasks_path.open("wb") { |storage| storage.write("deadbeef:dead_task:partial") }
+
+      add_dead_task("1-1-1")
+
+      expect(backend.list_dead_tasks.map { |record| record[:id] }).to eq(["1-1-1"])
+    end
+  end
+
   describe "#remove_dead_tasks" do
     let(:exception) { RuntimeError.new("boom") }
     let(:context) { ["SendWelcomeEmail", [], {}, 0] }

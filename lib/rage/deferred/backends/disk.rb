@@ -375,6 +375,7 @@ class Rage::Deferred::Backends::Disk
 
     ENTRY_OP = "dead_task"
     ENTRY_CRC_HEX_WIDTH = 8
+    TAIL_SCAN_CHUNK_SIZE = 8_192
 
     def initialize(path:, prefix:)
       path.mkpath
@@ -407,7 +408,8 @@ class Rage::Deferred::Backends::Disk
       entry = build_entry(task_id, record)
 
       with_lock("add a task to") do
-        File.open(@storage_path, File::WRONLY | File::APPEND | File::BINARY) do |storage|
+        File.open(@storage_path, File::RDWR | File::APPEND | File::BINARY) do |storage|
+          repair_torn_tail(storage)
           storage.write(entry)
           storage.fsync
         end
@@ -472,6 +474,36 @@ class Rage::Deferred::Backends::Disk
     end
 
     private
+
+    # A crash during append can leave the final entry without its newline. Appending directly to
+    # that fragment would join it with the next entry and make both fail their CRC checks. Remove
+    # only the incomplete suffix; the following write and fsync persist the repair and new entry.
+    def repair_torn_tail(storage)
+      storage.seek(0, IO::SEEK_END)
+      end_position = storage.pos
+      return if end_position == 0
+
+      storage.seek(-1, IO::SEEK_END)
+      return if storage.read(1) == "\n"
+
+      position = end_position
+      truncate_at = 0
+
+      while position > 0
+        chunk_start = [position - TAIL_SCAN_CHUNK_SIZE, 0].max
+        storage.seek(chunk_start, IO::SEEK_SET)
+        chunk = storage.read(position - chunk_start)
+
+        if (newline_index = chunk.rindex("\n"))
+          truncate_at = chunk_start + newline_index + 1
+          break
+        end
+
+        position = chunk_start
+      end
+
+      storage.truncate(truncate_at)
+    end
 
     def read_records
       entries = with_lock("read tasks from") do
