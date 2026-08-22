@@ -12,16 +12,23 @@ RSpec.describe Rage::Deferred::Backends::Disk do
   end
 
   describe "#initialize" do
-    before do
-      backend
-    end
-
     it "creates the storage path if it doesn't exist" do
+      backend
       expect(storage_path).to exist
     end
 
     it "creates a storage file if none exist" do
+      backend
       expect(storage_path.glob("#{prefix}0-*").size).to eq(1)
+    end
+
+    it "fsyncs the storage directory after ensuring the dead-tasks file exists" do
+      directory = instance_double(File)
+      allow(File).to receive(:open).and_call_original
+      expect(File).to receive(:open).with(storage_path, File::RDONLY).and_yield(directory)
+      expect(directory).to receive(:fsync)
+
+      backend
     end
   end
 
@@ -230,6 +237,18 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       expect(backend.remove_dead_tasks("1-1-1")).to eq(1)
       expect(backend.list_dead_tasks.map { |record| record[:id] }).to eq(["2-2-2"])
       expect(storage_path.join("#{prefix}dead_tasks-0.tmp")).not_to exist
+    end
+
+    it "fsyncs the storage directory after replacing the live file" do
+      add_dead_task("1-1-1")
+      dead_tasks_storage = backend.instance_variable_get(:@dead_tasks_storage)
+      dead_tasks_path = storage_path.join("#{prefix}dead_tasks-0")
+      tmp_storage_path = Pathname("#{dead_tasks_path}.tmp")
+
+      expect(File).to receive(:rename).with(tmp_storage_path, dead_tasks_path).ordered.and_call_original
+      expect(dead_tasks_storage).to receive(:sync_storage_directory).ordered.and_call_original
+
+      backend.remove_dead_tasks("1-1-1")
     end
 
     it "leaves the queue untouched when no ids match" do

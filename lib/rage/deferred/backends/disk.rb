@@ -9,14 +9,10 @@ require "zlib"
 # * `add_task` - called when a task has to be added to the storage;
 # * `remove_task` - called when a task has to be removed from the storage;
 # * `pending_tasks` - the method should iterate over the underlying storage and return a list of tasks to replay;
-#
-# Additionally, a storage may implement the dead-tasks interface. The store holds tasks that will
-# never be retried again, so they can be inspected and replayed later:
-#
 # * `add_dead_task` - called when a task has exhausted its retries or aborted them;
-# * `list_dead_tasks` - return a list of dead-lettered tasks, newest first;
-# * `find_dead_task` - return a single dead-lettered task;
-# * `remove_dead_tasks` - permanently delete dead-lettered tasks;
+# * `list_dead_tasks` - return a list of dead tasks, newest first;
+# * `find_dead_task` - return a single dead task;
+# * `remove_dead_tasks` - permanently delete dead tasks;
 #
 class Rage::Deferred::Backends::Disk
   def initialize(path:, prefix:, fsync_frequency:)
@@ -165,6 +161,10 @@ class Rage::Deferred::Backends::Disk
     end
 
     # Add a record to the log representing a new task.
+    # @param task [Rage::Deferred::Task]
+    # @param publish_at [Integer, nil]
+    # @param task_id [String, nil]
+    # @return [String]
     def add(task, publish_at: nil, task_id: nil)
       serialized_task = Marshal.dump(task).dump
 
@@ -183,6 +183,7 @@ class Rage::Deferred::Backends::Disk
     end
 
     # Add a record to the log representing a task removal.
+    # @param task_id [String]
     def remove(task_id)
       write_to_storage(build_remove_entry(task_id))
 
@@ -197,6 +198,7 @@ class Rage::Deferred::Backends::Disk
     end
 
     # Return a list of pending tasks in the storage.
+    # @return [Array<(String, Rage::Deferred::Task, Integer, Integer)>
     def pending_tasks
       if @recovered_storages
         # `@recovered_storages` will only be present if the server has previously crashed and left
@@ -347,21 +349,11 @@ class Rage::Deferred::Backends::Disk
   end
 
   ##
-  # The dead-tasks store holding tasks that will never be retried again.
+  # Stores tasks that exhausted or aborted their retries so they can be inspected or replayed.
   #
-  # Unlike the write-ahead log, the store is shared by every worker and every process, so all
-  # operations are guarded by an exclusive lock. The lock is always taken in the non-blocking
-  # mode - a blocking `flock` would freeze the whole worker - and is retried a bounded number
-  # of times before the operation raises.
-  #
-  # Three instance variables make that sharing crash-safe:
-  #
-  # * `@lock_file` — a file that is never renamed. `flock` is tied to an inode, so locking the
-  #   data file would split workers after `rename` (they would hold the old, unlinked inode).
-  # * `@locked` — `flock` on a shared fd re-acquires in the same process, so a second fiber
-  #   would overlap compaction. This flag is the process-local exclusion that `flock` does not give.
-  # * `@tmp_storage_path` — survivors are written here, fsynced, then renamed over the live
-  #   path. Truncating the live file in place can empty it if the process dies mid-write.
+  # All workers and processes share one append-only file. An exclusive, non-blocking file lock
+  # serializes access; lock acquisition is retried briefly before an operation fails. Deletions
+  # replace the file atomically, so a crash cannot leave a partially rewritten store.
   #
   # @private
   class DeadTasksStorage
@@ -377,6 +369,9 @@ class Rage::Deferred::Backends::Disk
     ENTRY_CRC_HEX_WIDTH = 8
     TAIL_SCAN_CHUNK_SIZE = 8_192
 
+    # Open or create the shared dead-tasks store and its stable lock file.
+    # @param path [Pathname] directory in which storage files are kept
+    # @param prefix [String] prefix used for storage file names
     def initialize(path:, prefix:)
       path.mkpath
 
@@ -386,9 +381,17 @@ class Rage::Deferred::Backends::Disk
       @locked = false
 
       File.open(@storage_path, File::WRONLY | File::CREAT | File::BINARY, 0o644) {}
+      sync_storage_directory
     end
 
-    # Add a task to the dead-tasks store.
+    # Persist a failed task and its final error details.
+    # @param task_id [String] id assigned when the task was enqueued
+    # @param context [Object] serializable context needed to replay the task
+    # @param exception [Exception] error raised by the final attempt
+    # @param task_class [Class, String] task class or its name
+    # @param attempts [Integer] number of processing attempts made
+    # @return [String] the persisted task id
+    # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
     def add(task_id, context, exception, task_class:, attempts:)
       record = {
         id: task_id,
@@ -418,7 +421,11 @@ class Rage::Deferred::Backends::Disk
       end
     end
 
-    # Return a list of dead-lettered tasks, newest first.
+    # Return dead task records, newest first.
+    # @param limit [Integer, nil] maximum number of records to return, or all records if nil
+    # @param offset [Integer] number of newest records to skip
+    # @return [Array<Hash>] task records that could be read successfully
+    # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
     def list(limit: nil, offset: 0)
       records = read_records.reverse
       records = records.drop(offset) if offset > 0
@@ -427,12 +434,18 @@ class Rage::Deferred::Backends::Disk
       records
     end
 
-    # Return a single dead-lettered task.
+    # Find a dead task by its id.
+    # @param id [String] persisted task id
+    # @return [Hash, nil] the task record, or nil when no record matches
+    # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
     def find(id)
       read_records.find { |record| record[:id] == id }
     end
 
-    # Permanently delete dead-lettered tasks.
+    # Permanently delete the records with the given ids.
+    # @param ids [String, Array<String>] one or more persisted task ids
+    # @return [Integer] number of distinct records deleted
+    # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
     def remove(ids)
       ids = Array(ids)
       return 0 if ids.empty?
@@ -465,6 +478,7 @@ class Rage::Deferred::Backends::Disk
 
         if removed_count > 0
           File.rename(@tmp_storage_path, @storage_path)
+          sync_storage_directory
         else
           File.unlink(@tmp_storage_path)
         end
@@ -475,9 +489,15 @@ class Rage::Deferred::Backends::Disk
 
     private
 
-    # A crash during append can leave the final entry without its newline. Appending directly to
-    # that fragment would join it with the next entry and make both fail their CRC checks. Remove
-    # only the incomplete suffix; the following write and fsync persist the repair and new entry.
+    # Persist changes to the live file's directory entry, including file creation and replacement.
+    # @return [void]
+    def sync_storage_directory
+      File.open(@storage_path.dirname, File::RDONLY, &:fsync)
+    end
+
+    # Remove an incomplete final entry left by an interrupted append.
+    # @param storage [File] store opened for reading and writing
+    # @return [void]
     def repair_torn_tail(storage)
       storage.seek(0, IO::SEEK_END)
       end_position = storage.pos
@@ -505,6 +525,10 @@ class Rage::Deferred::Backends::Disk
       storage.truncate(truncate_at)
     end
 
+    # Read valid records, keeping only the latest entry for each task id.
+    # Corrupted or unreadable records are reported and skipped.
+    # @return [Array<Hash>]
+    # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
     def read_records
       entries = with_lock("read tasks from") do
         result, corrupted_count = {}, 0
@@ -541,7 +565,9 @@ class Rage::Deferred::Backends::Disk
       end
     end
 
-    # Return the id of the record the entry holds, or `nil` if the entry is malformed or corrupted.
+    # Validate a stored entry and extract its task id.
+    # @param entry [String] serialized entry, optionally ending with a newline
+    # @return [String, nil] task id, or nil if the entry is malformed or corrupted
     def entry_id(entry)
       entry = entry.chomp
 
@@ -554,6 +580,10 @@ class Rage::Deferred::Backends::Disk
       entry[id_start...separator_index] if separator_index
     end
 
+    # Serialize a task record as a checksummed, newline-delimited entry.
+    # @param id [String] persisted task id
+    # @param record [Hash] task data to serialize
+    # @return [String] encoded storage entry
     def build_entry(id, record)
       entry = "#{ENTRY_OP}:#{id}:#{Marshal.dump(record).dump}"
       crc = Zlib.crc32(entry).to_s(16).rjust(ENTRY_CRC_HEX_WIDTH, "0")
@@ -561,6 +591,11 @@ class Rage::Deferred::Backends::Disk
       "#{crc}:#{entry}\n"
     end
 
+    # Run an operation while holding the process-wide and file-system locks.
+    # @param operation [String] action used to describe a lock timeout
+    # @yieldreturn [Object] result returned by the protected operation
+    # @return [Object] the block result
+    # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
     def with_lock(operation)
       attempts = 0
 
