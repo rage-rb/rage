@@ -73,6 +73,8 @@ class Rage::Configuration
     else
       raise ArgumentError, "Invalid logger: must be an instance of `Rage::Logger`, respond to `#call`, or implement all standard Ruby Logger methods (`#debug`, `#info`, `#warn`, `#error`, `#fatal`, `#unknown`)"
     end
+
+    @logger.log_redact_keys = @log_redact_keys if @logger && defined?(@log_redact_keys)
   end
 
   # Returns the log formatter used by Rage.
@@ -256,7 +258,41 @@ class Rage::Configuration
   def log_tags
     @log_tags ||= LogTags.new
   end
+
+  # Allows configuring case-insensitive partial matches for redacting structured log context keys.
+  # Matching keys will have their values replaced with `"[REDACTED]"` before the log entry is written.
+  #
+  # @param keys [String, Symbol, Array<String, Symbol>, nil] one or more keys to redact
+  # @example Redact common secrets from structured logs
+  #   Rage.configure do
+  #     config.log_redact_keys = [:password, :token, :secret]
+  #   end
+  def log_redact_keys=(keys)
+    @log_redact_keys = normalize_log_redact_keys(keys)
+    @logger.log_redact_keys = @log_redact_keys if @logger
+  end
   # @!endgroup
+
+  private def normalize_log_redact_keys(keys)
+    return nil if keys.nil?
+
+    validate_log_redact_keys!(keys)
+
+    normalized_keys = Array(keys).flatten.filter_map do |key|
+      key = key.to_s
+      key unless key.empty?
+    end.uniq
+
+    normalized_keys.any? ? normalized_keys.freeze : nil
+  end
+
+  private def validate_log_redact_keys!(keys)
+    if keys.is_a?(Array)
+      keys.each { |key| validate_log_redact_keys!(key) }
+    elsif !keys.is_a?(String) && !keys.is_a?(Symbol)
+      raise ArgumentError, "log redact keys have to be strings, symbols, or arrays of strings and symbols"
+    end
+  end
 
   # @!group Telemetry Configuration
   # Allows configuring telemetry settings.
@@ -1276,6 +1312,10 @@ class Rage::Configuration
     if @log_tags
       Rage.__log_processor.add_custom_tags(@log_tags.objects)
       @logger.dynamic_tags = Rage.__log_processor.dynamic_tags
+    end
+
+    if defined?(@log_redact_keys)
+      @logger.log_redact_keys = @log_redact_keys
     end
 
     if before_boot && @blocking_operation_pool&.enabled

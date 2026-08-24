@@ -228,6 +228,35 @@ RSpec.describe Rage::Logger do
     end
   end
 
+  context "with log redact keys" do
+    before do
+      subject.log_redact_keys = [:password, :token]
+    end
+
+    it "filters partial key matches case-insensitively" do
+      subject.info "passed", password_confirmation: "secret", "AUTH_TOKEN" => "abc", user_id: 12345
+
+      expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info password_confirmation=[REDACTED] AUTH_TOKEN=[REDACTED] user_id=12345 message=passed\n")
+    end
+
+    it "filters request log context" do
+      Fiber[:__rage_logger_final] = {
+        env: { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/test_path" },
+        params: { controller: "rspec", action: "index" },
+        response: [200, {}, []],
+        duration: 1.45
+      }
+
+      stub_const("RspecController", double(name: "RspecController"))
+
+      subject.with_context(password: "secret") do
+        subject.info nil
+      end
+
+      expect(io.tap(&:rewind).read).to eq("[my_test_tag] timestamp=very_accurate_timestamp pid=777 level=info method=GET path=/test_path controller=RspecController action=index password=[REDACTED] status=200 duration=1.45\n")
+    end
+  end
+
   context "outside the request/response cycle" do
     before do
       Fiber[:__rage_logger_tags] = nil
@@ -643,6 +672,64 @@ RSpec.describe Rage::Logger do
               end
             end
           end
+        end
+      end
+
+      context "with log redact keys" do
+        before do
+          subject.log_redact_keys = [:password, :token]
+        end
+
+        it "filters nested context recursively without mutating original values" do
+          inline_context = {
+            user: { email: "user@example.com", password_confirmation: "secret" },
+            sessions: [{ "AUTH_TOKEN" => "abc123" }, { name: "browser" }]
+          }
+
+          subject.dynamic_context = proc { { api_token: "global-secret" } }
+
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag"],
+            context: {
+              api_token: "[REDACTED]",
+              user: { email: "user@example.com", password_confirmation: "[REDACTED]" },
+              sessions: [{ "AUTH_TOKEN" => "[REDACTED]" }, { name: "browser" }]
+            },
+            message: "test",
+            request_info: nil
+          )
+
+          subject.info "test", inline_context
+
+          expect(inline_context).to eq({
+            user: { email: "user@example.com", password_confirmation: "secret" },
+            sessions: [{ "AUTH_TOKEN" => "abc123" }, { name: "browser" }]
+          })
+        end
+
+        it "leaves request_info untouched" do
+          Fiber[:__rage_logger_final] = {
+            env: { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/test_path" },
+            params: { password: "secret" },
+            response: [200, {}, []],
+            duration: 1.45
+          }
+
+          expect(external_logger).to receive(:call).with(
+            severity: :info,
+            tags: ["my_test_tag"],
+            context: { api_token: "[REDACTED]" },
+            message: nil,
+            request_info: {
+              env: { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/test_path" },
+              params: { password: "secret" },
+              response: [200, {}, []],
+              duration: 1.45
+            }
+          )
+
+          subject.info nil, api_token: "secret"
         end
       end
 

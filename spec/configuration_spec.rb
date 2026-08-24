@@ -341,6 +341,52 @@ RSpec.describe Rage::Configuration do
     end
   end
 
+  describe "#log_redact_keys=" do
+    let(:config) { described_class.new }
+
+    it "passes normalized keys to existing logger" do
+      logger = Rage::Logger.new(nil)
+      config.logger = logger
+
+      config.log_redact_keys = [:password, ["token"], :password, ""]
+
+      expect(logger.log_redact_keys).to eq(["password", "token"])
+    end
+
+    it "applies current keys when logger is assigned later" do
+      logger = Rage::Logger.new(nil)
+      config.log_redact_keys = [:password, "token"]
+
+      config.logger = logger
+
+      expect(logger.log_redact_keys).to eq(["password", "token"])
+    end
+
+    it "passes keys during finalize" do
+      config.log_redact_keys = [:password, "token"]
+
+      config.__finalize
+
+      expect(config.logger.log_redact_keys).to eq(["password", "token"])
+    end
+
+    it "clears current keys with nil" do
+      logger = Rage::Logger.new(nil)
+      config.logger = logger
+      config.log_redact_keys = [:password]
+
+      config.log_redact_keys = nil
+
+      expect(logger.log_redact_keys).to be_nil
+    end
+
+    it "raises an error for invalid objects" do
+      expect {
+        config.log_redact_keys = [proc {}]
+      }.to raise_error(ArgumentError, "log redact keys have to be strings, symbols, or arrays of strings and symbols")
+    end
+  end
+
   describe "#logger" do
     subject { described_class.new }
 
