@@ -18,7 +18,9 @@ RSpec.describe Rage::Daemon do
     allow(Rage::Internal).to receive(:pick_a_worker).with(purpose: /TestDaemon/).and_yield
 
     allow_any_instance_of(daemon).to receive(:validator).and_return(validator)
-    allow(Rage).to receive(:logger).and_return(Rage::Logger.new(STDERR))
+    # writing to a real file descriptor from inside the reactor hands it over to Iodine,
+    # which closes it once the reactor stops
+    allow(Rage).to receive(:logger).and_return(Rage::Logger.new(StringIO.new))
   end
 
   context "with a single-action perform" do
