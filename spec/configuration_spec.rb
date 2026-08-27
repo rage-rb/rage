@@ -1450,5 +1450,17 @@ RSpec.describe Rage::Configuration do
         expect(subject.klasses).to be_empty
       end
     end
+
+    context "with a duplicate daemon" do
+      it "raises an error" do
+        subject << daemon
+
+        expect {
+          subject << daemon
+        }.to raise_error(ArgumentError, /is already registered/)
+
+        expect(subject.klasses).to eq([daemon])
+      end
+    end
   end
 end
