@@ -4,7 +4,6 @@
 
 - [OpenAPI] Add `openapi:validate` Rake task for OpenAPI tags validation (#163).
 - [Logger] Add `config.log_redact_keys=` for redacting structured log context.
-- [Deferred] Add durable dead-letter storage for disk-backed tasks that exhaust or abort their retries. Failed tasks retain their execution context and error metadata and can be listed, found, or removed through the backend API; the shared store uses cross-process locking, checksums, torn-write recovery, and crash-durable compaction. Backend task persistence hooks are now named `add_task` and `remove_task`.
 
 ### Fixed
 
