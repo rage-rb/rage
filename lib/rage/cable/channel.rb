@@ -169,6 +169,12 @@ class Rage::Cable::Channel
               ActiveRecord::Base.connection_handler.clear_active_connections!(:all)
             RUBY
           end}
+
+          #{if is_subscribing
+            <<~RUBY
+              @__is_subscribing = false
+            RUBY
+          end}
         end
       RUBY
 
