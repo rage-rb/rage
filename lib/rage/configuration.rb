@@ -914,6 +914,7 @@ class Rage::Configuration
         @backend_options = parse_disk_backend_options(opts)
         Rage::Deferred::Backends::Disk
       when nil
+        @backend_options = {} if RUBY_VERSION.start_with?("3.3.")
         Rage::Deferred::Backends::Nil
       else
         raise ArgumentError, "unsupported backend value; supported keys are `:disk` and `nil`"

@@ -21,7 +21,7 @@ class Rage::Deferred::Queue
       [delay_until_i - current_time_i, delay_until_i] if delay_until_i > current_time_i
     end
 
-    persisted_task_id = @backend.add(context, publish_at:, task_id:)
+    persisted_task_id = @backend.add_task(context, publish_at:, task_id:)
     schedule(persisted_task_id, context, publish_in:)
   end
 
@@ -41,14 +41,14 @@ class Rage::Deferred::Queue
           result = task.new.__perform(context)
 
           if result == true
-            @backend.remove(task_id)
+            @backend.remove_task(task_id)
           else
             attempts = Rage::Deferred::Context.inc_attempts(context)
             retry_in = task.__next_retry_in(attempts, result)
             if retry_in
               enqueue(context, delay: retry_in, task_id:)
             else
-              @backend.remove(task_id)
+              abandon_task(task_id, context, result, task_class: task, attempts:)
             end
           end
 
@@ -73,5 +73,10 @@ class Rage::Deferred::Queue
         raise Rage::Deferred::PushTimeout, "could not enqueue deferred task within #{@backpressure.timeout} seconds"
       end
     end
+  end
+
+  def abandon_task(task_id, context, result, task_class:, attempts:)
+    @backend.add_dead_task(task_id, context, result, task_class:, attempts:)
+    @backend.remove_task(task_id)
   end
 end
