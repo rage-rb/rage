@@ -6,6 +6,7 @@ This guide is designed to help contributors understand the project's internals, 
 
 - [Design Principles](#design-principles)
 - [Documentation Standards](#documentation-standards)
+- [Changelog](#changelog)
 - [Dynamic Code Generation](#dynamic-code-generation)
 - [Iodine Integration](#iodine-integration)
 - [The Fiber Runtime](#the-fiber-runtime)
@@ -80,6 +81,14 @@ The `@private` tag signals to contributors:
 - This method is not part of the user-facing API
 - It can be modified or removed without deprecation
 - It can be used freely within the framework codebase
+
+## Changelog
+
+Pull requests that introduce new features or change existing behavior must include an entry in `CHANGELOG.md`. This helps users understand what changed between versions.
+
+Not all changes require a changelog entry. For changes that don't affect users, a maintainer will add the `skip-changelog` label to your PR instead. This includes:
+- Internal refactoring, CI updates, and documentation fixes
+- Intermediary changes for larger features that aren't used yet - the changelog entry should be added when the feature is complete
 
 ## Dynamic Code Generation
 
