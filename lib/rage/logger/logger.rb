@@ -60,11 +60,13 @@ class Rage::Logger
     fatal: Logger::FATAL,
     unknown: Logger::UNKNOWN
   }
+  REDACTED = "[REDACTED]"
+  private_constant :REDACTED
 
   attr_reader :level, :formatter
 
   # @private
-  attr_reader :dynamic_tags, :dynamic_context
+  attr_reader :dynamic_tags, :dynamic_context, :log_redact_keys
 
   # @private
   attr_reader :external_logger
@@ -132,6 +134,19 @@ class Rage::Logger
     rebuild!
   end
 
+  # @private
+  def log_redact_keys=(log_redact_keys)
+    if log_redact_keys&.any?
+      @log_redact_keys = log_redact_keys
+      @log_redact_keys_matcher = Regexp.union(log_redact_keys.map { |key| Regexp.new(Regexp.escape(key), Regexp::IGNORECASE) })
+    else
+      @log_redact_keys = nil
+      @log_redact_keys_matcher = nil
+    end
+
+    rebuild!
+  end
+
   # Add custom keys to an entry.
   #
   # @param context [Hash] a hash of custom keys
@@ -196,7 +211,7 @@ class Rage::Logger
         RUBY
       elsif @external_logger.is_a?(External::Static)
         # an object that implements Ruby's Logger interface is used as a logger
-        write_call = <<~RUBY
+        write_call = build_redacted_context_call(<<~RUBY)
           @external_logger.wrapped.#{level_name}(
             #{build_formatter_call(level_name, level_val)}
           )
@@ -233,7 +248,7 @@ class Rage::Logger
           request_info: "Fiber[:__rage_logger_final].freeze"
         })
 
-        write_call = <<~RUBY
+        write_call = build_redacted_context_call(<<~RUBY)
           @external_logger.wrapped.call(#{parameters})
         RUBY
 
@@ -253,7 +268,7 @@ class Rage::Logger
           end
         RUBY
       else
-        write_call = <<~RUBY
+        write_call = build_redacted_context_call(<<~RUBY)
           @logdev.write(
             #{build_formatter_call(level_name, level_val)}
           )
@@ -293,6 +308,42 @@ class Rage::Logger
       <<~RUBY
         @formatter.call(#{level_val}, Time.now, nil, block_given? ? yield : msg)
       RUBY
+    end
+  end
+
+  def build_redacted_context_call(write_call)
+    return write_call unless @log_redact_keys
+
+    <<~RUBY
+      with_redacted_context do
+        #{write_call}
+      end
+    RUBY
+  end
+
+  def with_redacted_context
+    context = Fiber[:__rage_logger_context]
+    return yield if context.nil? || context.empty?
+
+    Fiber[:__rage_logger_context] = redact_value(context)
+    yield
+  ensure
+    Fiber[:__rage_logger_context] = context
+  end
+
+  def redact_value(value)
+    if value.is_a?(Hash)
+      value.each_with_object({}) do |(key, nested_value), redacted|
+        redacted[key] = if @log_redact_keys_matcher.match?(key.to_s)
+          REDACTED
+        else
+          redact_value(nested_value)
+        end
+      end
+    elsif value.is_a?(Array)
+      value.map { |item| redact_value(item) }
+    else
+      value
     end
   end
 
