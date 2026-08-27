@@ -302,17 +302,7 @@ class Rage::Cable::Channel
 
     # @private
     def __stream_name_for(streamables)
-      stream_name = Array(streamables).map do |streamable|
-        if streamable.respond_to?(:id)
-          "#{streamable.class.name}:#{streamable.id}"
-        elsif streamable.is_a?(String) || streamable.is_a?(Symbol) || streamable.is_a?(Numeric)
-          streamable
-        else
-          raise ArgumentError, "Unable to generate stream name. Expected an object that responds to `id`, got: #{streamable.class}"
-        end
-      end
-
-      "#{name}:#{stream_name.join(":")}"
+      "#{name}:#{Rage::Internal.stream_name_for(streamables)}"
     end
 
     protected
