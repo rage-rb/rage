@@ -30,7 +30,10 @@ RSpec.describe Rage::Errors do
     end
 
     it "raises an error when adding a duplicate reporter" do
-      reporter = Class.new { def call(_); end }.new
+      reporter = Class.new {
+        def call(_)
+        end
+      }.new
       error_reporters << reporter
 
       expect {
