@@ -501,8 +501,7 @@ class Rage::Router::DSL
     end
 
     def to_singular(str)
-      @active_support_loaded ||= str.respond_to?(:singularize) || :false
-      return str.singularize if @active_support_loaded != :false
+      return str.singularize if str.respond_to?(:singularize)
 
       @endings ||= {
         "ves" => "fe",
@@ -519,8 +518,7 @@ class Rage::Router::DSL
     end
 
     def to_plural(str)
-      @active_support_loaded ||= str.respond_to?(:pluralize) || :false
-      return str.pluralize if @active_support_loaded != :false
+      return str.pluralize if str.respond_to?(:pluralize)
 
       str.end_with?("s") ? str : "#{str}s"
     end
