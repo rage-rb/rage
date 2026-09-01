@@ -883,8 +883,12 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
       end
 
       before do
-        allow_any_instance_of(String).to receive(:respond_to?).and_call_original
-        allow_any_instance_of(String).to receive(:respond_to?).with(:singularize).and_return(false)
+        String.alias_method(:__singularize__, :singularize)
+        String.undef_method(:singularize)
+      end
+
+      after do
+        String.alias_method(:singularize, :__singularize__)
       end
 
       it "falls back to array, since cardinality cannot be determined without singularize" do
@@ -2573,8 +2577,12 @@ RSpec.describe Rage::OpenAPI::Parsers::Ext::Blueprinter do
       end
 
       before do
-        allow_any_instance_of(String).to receive(:respond_to?).and_call_original
-        allow_any_instance_of(String).to receive(:respond_to?).with(:singularize).and_return(false)
+        String.alias_method(:__singularize__, :singularize)
+        String.undef_method(:singularize)
+      end
+
+      after do
+        String.alias_method(:singularize, :__singularize__)
       end
 
       it "falls back to array, since cardinality cannot be determined without singularize" do
