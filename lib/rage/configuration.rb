@@ -471,7 +471,7 @@ class Rage::Configuration
     #   end
     def <<(reporter)
       validate_input!(reporter)
-      return self if @objects.include?(reporter)
+      raise ArgumentError, "#{reporter} is already registered" if @objects.include?(reporter)
 
       @objects << reporter
       Rage::Errors.__send__(:__register_reporter, reporter)
@@ -1202,7 +1202,11 @@ class Rage::Configuration
     #   end
     def <<(daemon)
       validate!(daemon)
+      raise ArgumentError, "#{daemon} is already registered" if @klasses.include?(daemon)
+
       @klasses << daemon
+
+      self
     end
 
     alias_method :push, :<<

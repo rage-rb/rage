@@ -29,6 +29,15 @@ RSpec.describe Rage::Errors do
       }.to raise_error(ArgumentError, "error reporter must respond to #call")
     end
 
+    it "raises an error when adding a duplicate reporter" do
+      reporter = Class.new { def call(_); end }.new
+      error_reporters << reporter
+
+      expect {
+        error_reporters << reporter
+      }.to raise_error(ArgumentError, /is already registered/)
+    end
+
     it "allows removing a registered error reporter" do
       call_count = 0
       reporter = Class.new do

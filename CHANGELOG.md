@@ -9,6 +9,7 @@
 
 - Correctly enqueue deferred tasks with only positional arguments on Ruby < 3.3.4 (#385).
 - Improve restart logs in daemon (#391).
+- Ensure no duplicate daemons or error reporters can be registered (#392).
 
 ## [1.27.0] - 2026-08-06
 
