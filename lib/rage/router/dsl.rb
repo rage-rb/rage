@@ -420,11 +420,11 @@ class Rage::Router::DSL
       at = at.delete_suffix("/") if at.end_with?("/")
 
       http_methods = if via == :all || via.nil?
-        @default_match_methods.map { |method| method.to_s.upcase! }
+        @default_match_methods.map { |method| method.to_s.upcase }
       else
-        Array(via).map! do |method|
+        Array(via).map do |method|
           raise ArgumentError, "Invalid HTTP method: #{method}" unless @default_match_methods.include?(method)
-          method.to_s.upcase!
+          method.to_s.upcase
         end
       end
 
