@@ -174,7 +174,6 @@ class Rage::Daemon
               instance = new
               result = instance.perform
               break if result.equal?(Stop) || @__stopping
-              Rage.logger.warn("Daemon exited, restarting...")
             rescue => e
               break if @__stopping
               Rage.logger.error("Daemon failed with exception: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
@@ -185,7 +184,11 @@ class Rage::Daemon
 
             # reset backoff if ran successfully for a while
             backoff = INITIAL_BACKOFF if Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at > BACKOFF_RESET_INTERVAL
-            sleep(backoff / 2 + rand * backoff / 2)
+
+            interval = (backoff / 2 + rand * backoff / 2).round(2)
+            Rage.logger.warn("Daemon exited, restarting in #{interval}s")
+            sleep(interval)
+
             backoff = (backoff * 2).clamp(INITIAL_BACKOFF, MAX_BACKOFF)
           end
         end
