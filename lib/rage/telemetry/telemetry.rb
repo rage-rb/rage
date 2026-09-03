@@ -36,6 +36,13 @@ module Rage::Telemetry
     __registry.keys
   end
 
+  # Returns the number of established connections currently waiting in the
+  # kernel's accept queue for the server's listening socket(s).
+  # @return [Integer] the accept-queue depth
+  def self.queued_connections
+    Iodine.queued_connections
+  end
+
   # Registers a block to be executed repeatedly at a fixed interval while the server is running.
   # The block is run inside a fiber, so blocking I/O inside it (e.g. flushing metrics to a
   # collector) will not block the server.
