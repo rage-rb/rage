@@ -37,21 +37,17 @@ class Rage::FiberScheduler
     end
 
     while true
-      string = ::Iodine::Scheduler.read(io.fileno, length_to_read, offset)
+      result = ::Iodine::Scheduler.read(io.fileno, buffer, length_to_read, offset)
 
-      if string.nil?
+      if result == 0
         return offset
-      end
-
-      if string.empty?
+      elsif result < 0
+        next if result == -Errno::EINTR::Errno
         return -Errno::EAGAIN::Errno
       end
 
-      buffer.set_string(string, offset)
-
-      size = string.bytesize
-      offset += size
-      return offset if size < length_to_read || size >= buffer.size
+      offset += result
+      return offset if result < length_to_read || result >= buffer.size
 
       Fiber.pause
     end
@@ -63,9 +59,7 @@ class Rage::FiberScheduler
       bytes_to_write = length
       bytes_to_write = buffer.size if length == 0
 
-      ::Iodine::Scheduler.write(io.fileno, buffer.get_string, bytes_to_write, offset)
-
-      bytes_to_write - offset
+      ::Iodine::Scheduler.write_async(io.fileno, buffer, bytes_to_write, offset)
     end
   end
 
