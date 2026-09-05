@@ -3,11 +3,11 @@
 require "resolv"
 
 class Rage::FiberScheduler
+  # @private
   MAX_READ = 65536
-  private_constant :MAX_READ
 
+  # @private
   VERSION = defined?(IO::Buffer::VERSION) && IO::Buffer::VERSION >= 3 ? 4 : 3
-  private_constant :VERSION
 
   # Initialize the scheduler, storing the root fiber and an empty DNS cache.
   def initialize

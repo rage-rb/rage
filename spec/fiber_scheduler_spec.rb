@@ -895,4 +895,320 @@ RSpec.describe Rage::FiberScheduler do
       end
     end
   end
+
+  context "io_read and io_write hooks" do
+    describe "VERSION constant" do
+      subject { Rage::FiberScheduler::VERSION }
+
+      context "with Ruby < 4.1" do
+        before do
+          skip if Gem::Version.create(RUBY_VERSION) >= Gem::Version.create("4.1.0")
+        end
+
+        it do
+          is_expected.to eq(3)
+        end
+      end
+
+      context "with Ruby >= 4.1" do
+        before do
+          skip if Gem::Version.create(RUBY_VERSION) < Gem::Version.create("4.1.0")
+        end
+
+        it do
+          is_expected.to eq(4)
+        end
+      end
+    end
+
+    context "io_read" do
+      it "reads data from a file into a buffer" do
+        within_reactor do
+          content = File.read("spec/fixtures/700b.txt")
+          -> { expect(content.bytesize).to eq(705) }
+        end
+      end
+
+      it "reads data from a pipe" do
+        within_reactor do
+          r, w = IO.pipe
+          w.write("hello from pipe")
+          w.close
+
+          result = r.read
+          -> { expect(result).to eq("hello from pipe") }
+        end
+      end
+
+      it "handles EOF correctly" do
+        within_reactor do
+          r, w = IO.pipe
+          w.close
+
+          result = r.read
+          -> { expect(result).to eq("") }
+        end
+      end
+
+      it "accumulates chunked writes when reading until EOF" do
+        within_reactor do
+          r, w = IO.pipe
+
+          Fiber.schedule do
+            w.write("first")
+            sleep 0.1
+            w.write("second")
+            w.close
+          end
+
+          result = r.read
+          -> { expect(result).to eq("firstsecond") }
+        end
+      end
+
+      it "can read partial data with fixed-length reads" do
+        within_reactor do
+          r, w = IO.pipe
+
+          Fiber.schedule do
+            w.write("hello")
+            sleep 0.1
+            w.write("world")
+            w.close
+          end
+
+          # Give first write time to complete
+          sleep 0.05
+          first = r.read(5)
+          rest = r.read
+
+          -> do
+            expect(first).to eq("hello")
+            expect(rest).to eq("world")
+          end
+        end
+      end
+
+      it "reads large data spanning multiple reads" do
+        within_reactor do
+          content = File.read("spec/fixtures/10kb.txt")
+          -> do
+            expect(content.bytesize).to eq(10585)
+            expect(Digest::SHA2.hexdigest(content)).to eq("ec6f95fa1b9b256aeed3d21c0b982822e642079dabd5a032929a993b614815d8")
+          end
+        end
+      end
+
+      it "handles concurrent reads from multiple pipes" do
+        within_reactor do
+          results = []
+
+          fibers = 3.times.map do |i|
+            Fiber.schedule do
+              r, w = IO.pipe
+              Fiber.schedule { sleep 0.05 * i; w.write("data#{i}"); w.close }
+              results << r.read
+            end
+          end
+
+          Fiber.await(fibers)
+          -> { expect(results.sort).to eq(["data0", "data1", "data2"]) }
+        end
+      end
+
+      context "with IO::Buffer" do
+        it "reads into a buffer with specified length" do
+          within_reactor do
+            r, w = IO.pipe
+            w.write("hello world")
+            w.close
+
+            bytes_read = r.read(11)
+            -> { expect(bytes_read).to eq("hello world") }
+          end
+        end
+      end
+    end
+
+    context "io_write" do
+      it "writes data to a file" do
+        within_reactor do
+          str = "test data for write: #{rand}"
+          File.write("test_io_write", str)
+          result = File.read("test_io_write")
+
+          -> { expect(result).to eq(str) }
+        end
+
+        File.unlink("test_io_write") if File.exist?("test_io_write")
+      end
+
+      it "writes data to a pipe" do
+        within_reactor do
+          r, w = IO.pipe
+          w.write("hello to pipe")
+          w.close
+
+          result = r.read
+          -> { expect(result).to eq("hello to pipe") }
+        end
+      end
+
+      it "writes empty data" do
+        within_reactor do
+          r, w = IO.pipe
+          w.write("")
+          w.close
+
+          result = r.read
+          -> { expect(result).to eq("") }
+        end
+      end
+
+      it "writes large data" do
+        within_reactor do
+          str = 500_000.times.map { rand(1..100) }.join
+          File.write("test_io_write_large", str)
+
+          -> { expect(File.read("test_io_write_large")).to eq(str) }
+        end
+
+        File.unlink("test_io_write_large") if File.exist?("test_io_write_large")
+      end
+
+      it "handles concurrent writes to multiple pipes" do
+        within_reactor do
+          results = []
+
+          fibers = 3.times.map do |i|
+            Fiber.schedule do
+              r, w = IO.pipe
+              data = "concurrent#{i}" * 1000
+              Fiber.schedule { w.write(data); w.close }
+              results << [i, r.read]
+            end
+          end
+
+          Fiber.await(fibers)
+          -> do
+            results.sort_by(&:first).each do |i, data|
+              expect(data).to eq("concurrent#{i}" * 1000)
+            end
+          end
+        end
+      end
+
+      it "writes and reads binary data correctly" do
+        within_reactor do
+          binary_data = (0..255).to_a.pack("C*")
+          File.binwrite("test_io_write_binary", binary_data)
+          result = File.binread("test_io_write_binary")
+
+          -> { expect(result).to eq(binary_data) }
+        end
+
+        File.unlink("test_io_write_binary") if File.exist?("test_io_write_binary")
+      end
+    end
+
+    context "V3 specific behavior" do
+      before do
+        skip("V3 tests only run on scheduler VERSION 3") unless Rage::FiberScheduler::VERSION == 3
+      end
+
+      it "loops internally within io_read until EOF or short read" do
+        within_reactor do
+          r, w = IO.pipe
+
+          writer = Fiber.schedule do
+            3.times do |i|
+              w.write("chunk#{i}")
+              sleep 0.05
+            end
+            w.close
+          end
+
+          result = r.read
+          Fiber.await(writer)
+
+          -> { expect(result).to eq("chunk0chunk1chunk2") }
+        end
+      end
+
+      it "handles length 0 to mean read up to buffer size" do
+        within_reactor do
+          content = File.read("spec/fixtures/2kb.txt")
+          -> { expect(content.bytesize).to eq(2306) }
+        end
+      end
+    end
+
+    context "V4 specific behavior" do
+      before do
+        skip("V4 tests only run on scheduler VERSION 4") unless Rage::FiberScheduler::VERSION == 4
+      end
+
+      it "delegates directly to Iodine (single-operation semantics)" do
+        within_reactor do
+          r, w = IO.pipe
+          w.write("single op")
+          w.close
+
+          result = r.read
+          -> { expect(result).to eq("single op") }
+        end
+      end
+
+      it "io_read returns 0 immediately when length is 0" do
+        within_reactor do
+          r, w = IO.pipe
+          buffer = IO::Buffer.new(100)
+
+          result = Fiber.scheduler.io_read(r, buffer, 0, 0)
+
+          -> { expect(result).to eq(0) }
+        end
+      end
+
+      it "io_write returns 0 immediately when length is 0" do
+        within_reactor do
+          _, w = IO.pipe
+          buffer = IO::Buffer.new(100)
+
+          result = Fiber.scheduler.io_write(w, buffer, 0, 0)
+
+          -> { expect(result).to eq(0) }
+        end
+      end
+    end
+
+    context "error handling" do
+      it "raises appropriate error when reading from closed pipe" do
+        within_reactor do
+          r, w = IO.pipe
+          r.close
+          w.close
+
+          error = begin
+            r.read
+          rescue => e
+            e
+          end
+
+          -> { expect(error).to be_a(IOError) }
+        end
+      end
+
+      it "handles EINTR gracefully" do
+        within_reactor do
+          r, w = IO.pipe
+          w.write("test")
+          w.close
+
+          result = r.read
+          -> { expect(result).to eq("test") }
+        end
+      end
+    end
+  end
 end
