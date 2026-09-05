@@ -4,6 +4,10 @@ require "resolv"
 
 class Rage::FiberScheduler
   MAX_READ = 65536
+  private_constant :MAX_READ
+
+  VERSION = defined?(IO::Buffer::VERSION) && IO::Buffer::VERSION >= 3 ? 4 : 3
+  private_constant :VERSION
 
   # Initialize the scheduler, storing the root fiber and an empty DNS cache.
   def initialize
@@ -29,37 +33,49 @@ class Rage::FiberScheduler
   end
 
   # Read data from an I/O object into a buffer, pausing the fiber between reads.
-  def io_read(io, buffer, length, offset = 0)
-    length_to_read = if length == 0
-      buffer.size > MAX_READ ? MAX_READ : buffer.size
-    else
-      length
+  if VERSION == 4
+    def io_read(io, buffer, offset, length)
+      ::Iodine::Scheduler.read(io.fileno, buffer, length, offset)
     end
-
-    while true
-      result = ::Iodine::Scheduler.read(io.fileno, buffer, length_to_read, offset)
-
-      if result == 0
-        return offset
-      elsif result < 0
-        next if result == -Errno::EINTR::Errno
-        return -Errno::EAGAIN::Errno
+  else
+    def io_read(io, buffer, length, offset = 0)
+      length_to_read = if length == 0
+        buffer.size > MAX_READ ? MAX_READ : buffer.size
+      else
+        length
       end
 
-      offset += result
-      return offset if result < length_to_read || result >= buffer.size
+      while true
+        result = ::Iodine::Scheduler.read(io.fileno, buffer, length_to_read, offset)
 
-      Fiber.pause
+        if result == 0
+          return offset
+        elsif result < 0
+          next if result == -Errno::EINTR::Errno
+          return -Errno::EAGAIN::Errno
+        end
+
+        offset += result
+        return offset if result < length_to_read || result >= buffer.size
+
+        Fiber.pause
+      end
     end
   end
 
   unless ENV["RAGE_DISABLE_IO_WRITE"]
     # Write data from a buffer to an I/O object.
-    def io_write(io, buffer, length, offset = 0)
-      bytes_to_write = length
-      bytes_to_write = buffer.size if length == 0
+    if VERSION == 4
+      def io_write(io, buffer, offset, length)
+        ::Iodine::Scheduler.write(io.fileno, buffer, length, offset)
+      end
+    else
+      def io_write(io, buffer, length, offset = 0)
+        bytes_to_write = length
+        bytes_to_write = buffer.size if length == 0
 
-      ::Iodine::Scheduler.write_async(io.fileno, buffer, bytes_to_write, offset)
+        ::Iodine::Scheduler.write_async(io.fileno, buffer, bytes_to_write, offset)
+      end
     end
   end
 
