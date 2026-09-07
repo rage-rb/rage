@@ -37,7 +37,7 @@ module Rage::Telemetry
       #
       # @return [Integer] the accept-queue depth
       def queued_connections
-        accept_queue_depth = Iodine.queued_connections
+        accept_queue_depth = Iodine::Perf.queued_connections
         raise NotImplementedError if accept_queue_depth.nil?
 
         accept_queue_depth
