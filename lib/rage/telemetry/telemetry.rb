@@ -134,4 +134,5 @@ end
 
 require_relative "tracer"
 require_relative "handler"
+require_relative "capacity"
 Dir["#{__dir__}/spans/*.rb"].each { |span| require_relative span }

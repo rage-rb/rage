@@ -4,6 +4,7 @@
 
 - [OpenAPI] Add `openapi:validate` Rake task for OpenAPI tags validation (#163).
 - [Logger] Add `config.log_redact_keys=` for redacting structured log context.
+- [Telemetry] Add  `Rage::Telemetry::Capacity`  to provide read-only access to metrics describing the server's current load and resource utilization.
 
 ### Fixed
 
