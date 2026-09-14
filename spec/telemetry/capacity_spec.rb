@@ -2,6 +2,10 @@
 
 RSpec.describe Rage::Telemetry::Capacity do
   describe ".queued_connections" do
+    before :all do
+      skip("skipping queued_connections tests on Mac") if RUBY_PLATFORM =~ /darwin/
+    end
+
     before do
       Fiber.set_scheduler(Rage::FiberScheduler.new)
     end
