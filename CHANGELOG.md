@@ -3,8 +3,9 @@
 ### Added
 
 - [OpenAPI] Add `openapi:validate` Rake task for OpenAPI tags validation (#163).
-- [Logger] Add `config.log_redact_keys=` for redacting structured log context.
-- [Telemetry] Add  `Rage::Telemetry::Capacity`  to provide read-only access to metrics describing the server's current load and resource utilization.
+- [Logger] Add `config.log_redact_keys=` for redacting structured log context (#386).
+- [Telemetry] Add  `Rage::Telemetry::Capacity` (#396).
+- [Telemetry] Add `Rage::Telemetry.every` (#381).
 
 ### Fixed
 
@@ -18,7 +19,6 @@
 
 - [OpenAPI] Add support for the `root:` option in Blueprinter response annotations (#343).
 - Add `FiberScheduler#timeout_after` (#374).
-- [Telemetry] Add `Rage::Telemetry.every(interval_ms, &block)`, a generic scheduling primitive for running recurring work on the reactor — e.g. sampling metrics or measuring event loop lag. (#379)
 
 ### Fixed
 
