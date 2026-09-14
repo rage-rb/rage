@@ -45,7 +45,12 @@ module Rage::Telemetry
   #   Rage::Telemetry.every(1000) { MyMetrics.record_gc_stats(GC.stat) }
   def self.every(interval_ms, &block)
     Iodine.run_every(interval_ms) do
-      Fiber.schedule { block.call }
+      Fiber.schedule do
+        block.call
+      rescue => e
+        Rage.logger.error("#{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+        Rage::Errors.report(e)
+      end
     end
   end
 

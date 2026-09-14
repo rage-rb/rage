@@ -89,6 +89,22 @@ RSpec.describe Rage::Telemetry do
       ensure
         Fiber.set_scheduler(nil)
       end
+
+      it "reports errors" do
+        received_block = nil
+        allow(Iodine).to receive(:run_every) { |_, &block| received_block = block }
+
+        Fiber.set_scheduler(Rage::FiberScheduler.new)
+        described_class.every(100) do
+          raise ZeroDivisionError
+        end
+
+        allow(Rage).to receive(:logger).and_return(double(error: nil))
+        expect(Rage::Errors).to receive(:report).with(ZeroDivisionError)
+        received_block.call
+      ensure
+        Fiber.set_scheduler(nil)
+      end
     end
   end
 
