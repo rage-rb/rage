@@ -1430,6 +1430,55 @@ RSpec.describe Rage::Configuration do
     end
   end
 
+  describe "#code_loader" do
+    subject { described_class.new.code_loader }
+
+    describe "#reload_paths" do
+      it "returns empty array by default" do
+        expect(subject.reload_paths).to eq([])
+      end
+
+      it "accepts an array of string paths" do
+        subject.reload_paths = ["app/views/**/*.erb", "app/views/**/*.haml"]
+
+        expect(subject.reload_paths).to eq([
+          Pathname.new("app/views/**/*.erb"),
+          Pathname.new("app/views/**/*.haml")
+        ])
+      end
+
+      it "accepts an array of Pathname objects" do
+        paths = [Pathname.new("app/views/**/*.erb"), Pathname.new("app/views/**/*.haml")]
+        subject.reload_paths = paths
+
+        expect(subject.reload_paths).to eq(paths)
+      end
+
+      it "accepts a single string path" do
+        subject.reload_paths = "app/views/**/*.erb"
+
+        expect(subject.reload_paths).to eq([Pathname.new("app/views/**/*.erb")])
+      end
+
+      it "accepts a single Pathname object" do
+        path = Pathname.new("app/views/**/*.erb")
+        subject.reload_paths = path
+
+        expect(subject.reload_paths).to eq([path])
+      end
+
+      it "accepts mixed string and Pathname objects" do
+        pathname = Pathname.new("app/views/**/*.haml")
+        subject.reload_paths = ["app/views/**/*.erb", pathname]
+
+        expect(subject.reload_paths).to eq([
+          Pathname.new("app/views/**/*.erb"),
+          pathname
+        ])
+      end
+    end
+  end
+
   describe "#daemons" do
     subject { described_class.new.daemons }
 

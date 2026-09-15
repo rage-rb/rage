@@ -6,6 +6,7 @@
 - [Logger] Add `config.log_redact_keys=` for redacting structured log context (#386).
 - [Telemetry] Add  `Rage::Telemetry::Capacity` (#396).
 - [Telemetry] Add `Rage::Telemetry.every` (#381).
+- Add `Rage::Configuration.after_reload` (#398).
 
 ### Fixed
 
