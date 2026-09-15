@@ -314,6 +314,14 @@ class Rage::Configuration
   end
   # @!endgroup
 
+  # @!group Code Loader Configuration
+  # Allows configuring code loader settings.
+  # @return [Rage::Configuration::CodeLoader]
+  def code_loader
+    @code_loader ||= CodeLoader.new
+  end
+  # @!endgroup
+
   # @!group Blocking Operation Pool Configuration
   # Allows configuring the thread pool for offloading native calls.
   # @return [Rage::Configuration::BlockingOperationPool]
@@ -1154,6 +1162,29 @@ class Rage::Configuration
     #       config.router.form_actions = true
     #     end
     attr_accessor :form_actions
+  end
+
+  class CodeLoader
+    # @private
+    def initialize
+      @reload_paths = []
+    end
+
+    # @private
+    attr_reader :reload_paths
+
+    # Specify additional paths to watch for changes in development.
+    #
+    # @param paths [Array<Pathname, String>] glob patterns or directory paths to watch
+    # @example Watch HAML templates
+    #   Rage.configure do
+    #     config.code_loader.reload_paths = ["app/views/**/*.haml"]
+    #   end
+    def reload_paths=(paths)
+      @reload_paths = Array(paths).map do |path|
+        path.is_a?(Pathname) ? path : Pathname.new(path)
+      end
+    end
   end
 
   class BlockingOperationPool

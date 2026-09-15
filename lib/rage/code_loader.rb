@@ -57,6 +57,8 @@ class Rage::CodeLoader
 
   def check_updated!
     current_watched = @autoload_path.glob("**/*.{rb,erb}") + Rage.root.glob("config/routes.rb") + Rage.root.glob("config/openapi_components.*")
+    current_watched += Rage.config.code_loader.reload_paths.flat_map { |pattern| Rage.root.glob(pattern) }
+
     current_update_at = current_watched.max_by { |path| path.exist? ? path.mtime.to_f : 0 }&.mtime.to_f
     return false if !@last_watched && !@last_update_at
 

@@ -133,5 +133,83 @@ RSpec.describe Rage::CodeLoader do
         end
       end
     end
+
+    context "with reload_paths configured" do
+      let(:root_path) { Dir.tmpdir }
+      let(:views_path) { "#{root_path}/app/views" }
+
+      before do
+        allow(Rage).to receive(:root).and_return(Pathname.new(root_path))
+        FileUtils.mkpath(views_path)
+        Rage.config.code_loader.reload_paths = ["app/views/**/*.haml"]
+      end
+
+      after do
+        FileUtils.remove_entry(views_path)
+        Rage.config.code_loader.reload_paths = []
+      end
+
+      context "when a template file is added" do
+        before do
+          subject.check_updated!
+          File.write("#{views_path}/index.html.haml", "%h1 Hello")
+        end
+
+        it "returns true" do
+          expect(subject.check_updated!).to be(true)
+        end
+
+        it "updates internal state" do
+          expect(subject.check_updated!).to be(true)
+          expect(subject.check_updated!).to be(false)
+        end
+      end
+
+      context "when a template file is updated" do
+        before do
+          File.write("#{views_path}/index.html.haml", "%h1 Hello")
+          subject.check_updated!
+          sleep 0.1
+          FileUtils.touch("#{views_path}/index.html.haml")
+        end
+
+        it "returns true" do
+          expect(subject.check_updated!).to be(true)
+        end
+
+        it "updates internal state" do
+          expect(subject.check_updated!).to be(true)
+          expect(subject.check_updated!).to be(false)
+        end
+      end
+
+      context "when a template file is removed" do
+        before do
+          File.write("#{views_path}/index.html.haml", "%h1 Hello")
+          subject.check_updated!
+          FileUtils.rm("#{views_path}/index.html.haml")
+        end
+
+        it "returns true" do
+          expect(subject.check_updated!).to be(true)
+        end
+
+        it "updates internal state" do
+          expect(subject.check_updated!).to be(true)
+          expect(subject.check_updated!).to be(false)
+        end
+      end
+
+      context "when a non-matching file is added" do
+        before do
+          subject.check_updated!
+          File.write("#{views_path}/index.html.slim", "h1 Hello")
+        end
+
+        it "returns false" do
+          expect(subject.check_updated!).to be(false)
+        end
+      end
+    end
   end
 end
