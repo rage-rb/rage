@@ -37,7 +37,7 @@ module Rage::Telemetry
   end
 
   # Registers a block to be executed repeatedly at a fixed interval while the server is running.
-  # The block is run inside a fiber, so blocking I/O inside it (e.g. flushing metrics to a
+  # The block runs inside a fiber, so blocking I/O inside it (e.g. flushing metrics to a
   # collector) will not block the server.
   #
   # @param interval_ms [Integer] the execution interval in milliseconds
