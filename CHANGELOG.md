@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+
+- Add low-level `PubSub` API (#399).
+
 ## [1.28.0] - 2026-09-15
 
 ### Added
