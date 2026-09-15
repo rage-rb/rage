@@ -10,7 +10,7 @@ module Hooks
     hooks[hook_family] << callback if callback.is_a?(Proc)
   end
 
-  def run_hooks_for!(hook_family, context = nil)
+  def run_hooks_for(hook_family, context = nil)
     hooks[hook_family].each do |callback|
       if context
         context.instance_exec(&callback)
@@ -19,6 +19,11 @@ module Hooks
       end
     end
 
+    true
+  end
+
+  def run_hooks_for!(hook_family, context = nil)
+    run_hooks_for(hook_family, context)
     @hooks[hook_family] = []
 
     true

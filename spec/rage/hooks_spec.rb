@@ -17,6 +17,33 @@ RSpec.describe Hooks do
     end
   end
 
+  describe "#run_hooks_for" do
+    let(:hook_proc) { proc { 1 } }
+
+    before do
+      subject.push_hook(hook_proc, :after)
+      allow(hook_proc).to receive(:call).with(no_args)
+    end
+
+    it "runs hooks for the given family" do
+      subject.run_hooks_for(:after)
+      expect(hook_proc).to have_received(:call).with(no_args)
+    end
+
+    it "does not clear hooks after run" do
+      subject.run_hooks_for(:after)
+      hooks = subject.instance_variable_get(:@hooks)
+
+      expect(hooks[:after]).to eq([hook_proc])
+    end
+
+    it "can be called multiple times" do
+      subject.run_hooks_for(:after)
+      subject.run_hooks_for(:after)
+      expect(hook_proc).to have_received(:call).with(no_args).twice
+    end
+  end
+
   describe "#run_hooks_for!" do
     context "hooks families" do
       let(:before_proc) { proc { 2 } }

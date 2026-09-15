@@ -141,6 +141,15 @@ class Rage::Configuration
     push_hook(block, :after_initialize)
   end
 
+  # Schedule a block of code to run after Rage has reloaded the application code in development. Use this to reset state or re-initialize dependencies that cache application-level constants.
+  # @example
+  #   Rage.config.after_reload do
+  #     MyCache.clear
+  #   end
+  def after_reload(&block)
+    push_hook(block, :after_reload)
+  end
+
   # Register a custom renderer that generates overloads `render` on all controllers.
   # The block receives the object passed to `render` together with any additional keyword arguments.
   # The code inside the block is executed in the context of the controller instance, so you can access all usual controller methods in it.

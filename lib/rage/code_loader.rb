@@ -37,6 +37,7 @@ class Rage::CodeLoader
     load("#{Rage.root}/config/routes.rb")
 
     reload_components
+    Rage.config.run_hooks_for(:after_reload)
   end
 
   # in Rails mode - reset the routes; everything else will be done by Rails
@@ -47,6 +48,7 @@ class Rage::CodeLoader
     Rage.__router.reset_routes
 
     reload_components
+    Rage.config.run_hooks_for(:after_reload)
   end
 
   def reloading?
