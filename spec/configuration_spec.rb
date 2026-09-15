@@ -348,7 +348,8 @@ RSpec.describe Rage::Configuration do
       logger = Rage::Logger.new(nil)
       config.logger = logger
 
-      config.log_redact_keys = [:password, ["token"], :password, ""]
+      config.log_redact_keys = [:password, "token", :password, ""]
+      config.__finalize
 
       expect(logger.log_redact_keys).to eq(["password", "token"])
     end
@@ -358,16 +359,9 @@ RSpec.describe Rage::Configuration do
       config.log_redact_keys = [:password, "token"]
 
       config.logger = logger
-
-      expect(logger.log_redact_keys).to eq(["password", "token"])
-    end
-
-    it "passes keys during finalize" do
-      config.log_redact_keys = [:password, "token"]
-
       config.__finalize
 
-      expect(config.logger.log_redact_keys).to eq(["password", "token"])
+      expect(logger.log_redact_keys).to eq(["password", "token"])
     end
 
     it "clears current keys with nil" do
@@ -383,7 +377,28 @@ RSpec.describe Rage::Configuration do
     it "raises an error for invalid objects" do
       expect {
         config.log_redact_keys = [proc {}]
-      }.to raise_error(ArgumentError, "log redact keys have to be strings, symbols, or arrays of strings and symbols")
+      }.to raise_error(ArgumentError, "log redact keys have to be strings or symbols")
+    end
+
+    it "concats keys" do
+      logger = Rage::Logger.new(nil)
+      config.logger = logger
+      config.log_redact_keys = [:password]
+      config.__finalize
+
+      config.log_redact_keys += [:email]
+      config.__finalize
+
+      expect(logger.log_redact_keys).to eq(["password", "email"])
+    end
+
+    it "initializes keys via concatenation" do
+      logger = Rage::Logger.new(nil)
+      config.logger = logger
+      config.log_redact_keys += [:password, :email]
+      config.__finalize
+
+      expect(logger.log_redact_keys).to eq(["password", "email"])
     end
   end
 

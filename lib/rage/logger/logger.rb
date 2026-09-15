@@ -334,7 +334,7 @@ class Rage::Logger
   def redact_value(value)
     if value.is_a?(Hash)
       value.each_with_object({}) do |(key, nested_value), redacted|
-        redacted[key] = if @log_redact_keys_matcher.match?(key.to_s)
+        redacted[key] = if @log_redact_keys_matcher.match?(key)
           REDACTED
         else
           redact_value(nested_value)

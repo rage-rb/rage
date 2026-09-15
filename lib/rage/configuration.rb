@@ -73,8 +73,6 @@ class Rage::Configuration
     else
       raise ArgumentError, "Invalid logger: must be an instance of `Rage::Logger`, respond to `#call`, or implement all standard Ruby Logger methods (`#debug`, `#info`, `#warn`, `#error`, `#fatal`, `#unknown`)"
     end
-
-    @logger.log_redact_keys = @log_redact_keys if @logger && defined?(@log_redact_keys)
   end
 
   # Returns the log formatter used by Rage.
@@ -268,31 +266,20 @@ class Rage::Configuration
   #     config.log_redact_keys = [:password, :token, :secret]
   #   end
   def log_redact_keys=(keys)
-    @log_redact_keys = normalize_log_redact_keys(keys)
-    @logger.log_redact_keys = @log_redact_keys if @logger
+    @log_redact_keys = Array(keys).filter_map { |key|
+      if !key.is_a?(String) && !key.is_a?(Symbol)
+        raise ArgumentError, "log redact keys have to be strings or symbols"
+      elsif !key.empty?
+        key.to_s
+      end
+    }.uniq
+  end
+
+  # @private
+  def log_redact_keys
+    @log_redact_keys || []
   end
   # @!endgroup
-
-  private def normalize_log_redact_keys(keys)
-    return nil if keys.nil?
-
-    validate_log_redact_keys!(keys)
-
-    normalized_keys = Array(keys).flatten.filter_map do |key|
-      key = key.to_s
-      key unless key.empty?
-    end.uniq
-
-    normalized_keys.any? ? normalized_keys.freeze : nil
-  end
-
-  private def validate_log_redact_keys!(keys)
-    if keys.is_a?(Array)
-      keys.each { |key| validate_log_redact_keys!(key) }
-    elsif !keys.is_a?(String) && !keys.is_a?(Symbol)
-      raise ArgumentError, "log redact keys have to be strings, symbols, or arrays of strings and symbols"
-    end
-  end
 
   # @!group Telemetry Configuration
   # Allows configuring telemetry settings.
@@ -1301,12 +1288,14 @@ class Rage::Configuration
     if @logger
       @logger.formatter = @log_formatter if @log_formatter
       @logger.level = @log_level if @log_level
+      @logger.log_redact_keys = @log_redact_keys if @log_redact_keys
     else
       @logger = Rage::Logger.new(nil)
     end
 
-    if @log_formatter && @logger.external_logger.is_a?(Rage::Logger::External::Dynamic)
+    if @log_formatter && @logger.external_logger.is_a?(Rage::Logger::External::Dynamic) && !@log_formatter_warning_shown
       puts "WARNING: changing the log formatter via `config.log_formatter=` has no effect when using a custom external logger."
+      @log_formatter_warning_shown = true
     end
 
     if @log_context
@@ -1317,10 +1306,6 @@ class Rage::Configuration
     if @log_tags
       Rage.__log_processor.add_custom_tags(@log_tags.objects)
       @logger.dynamic_tags = Rage.__log_processor.dynamic_tags
-    end
-
-    if defined?(@log_redact_keys)
-      @logger.log_redact_keys = @log_redact_keys
     end
 
     if before_boot && @blocking_operation_pool&.enabled
