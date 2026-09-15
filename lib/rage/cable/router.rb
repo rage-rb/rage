@@ -10,12 +10,10 @@ class Rage::Cable::Router
 
   # Calls the `connect` method on the `Connection` class to handle authentication.
   #
-  # @param connection [Rage::Cable::WebSocketConnection] the connection object
+  # @param env [Hash] the Rack environment
   # @return [true] if the connection was accepted
   # @return [false] if the connection was rejected
-  def process_connection(connection)
-    env = connection.env
-
+  def process_connection(env)
     cable_connection = @connection_class.new(env)
     Rage::Telemetry.tracer.span_cable_connection_process(connection: cable_connection, action: :connect, env:) do
       cable_connection.connect
@@ -34,6 +32,7 @@ class Rage::Cable::Router
   # Calls the `subscribed` method on the specified channel.
   #
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
+  # @param env [Hash] the Rack environment
   # @param identifier [String] the identifier of the subscription
   # @param channel_name [String] the name of the channel class
   # @param params [Hash] the params hash associated with the subscription
@@ -41,7 +40,7 @@ class Rage::Cable::Router
   # @return [:invalid] if the subscription class does not exist
   # @return [:rejected] if the subscription was rejected
   # @return [:subscribed] if the subscription was accepted
-  def process_subscription(connection, identifier, channel_name, params)
+  def process_subscription(connection, env, identifier, channel_name, params)
     channel_class = @channels_map[channel_name] || begin
       begin
         klass = Object.const_get(channel_name)
@@ -61,7 +60,7 @@ class Rage::Cable::Router
       @channels_map[channel_name] = klass
     end
 
-    channel = channel_class.new(connection, params, connection.env["rage.identified_by"])
+    channel = channel_class.new(connection, params, env["rage.identified_by"])
     channel.__run_action(:subscribed)
 
     if channel.subscription_rejected?
@@ -74,14 +73,14 @@ class Rage::Cable::Router
       :rejected
     else
       Rage.logger.debug { "#{channel_name} is transmitting the subscription confirmation" }
-      connection.env["rage.cable"][identifier] = channel
+      env["rage.cable"][identifier] = channel
       :subscribed
     end
   end
 
   # Calls the handler method on the specified channel.
   #
-  # @param connection [Rage::Cable::WebSocketConnection] the connection object
+  # @param env [Hash] the Rack environment
   # @param identifier [String] the identifier of the subscription
   # @param action_name [Symbol] the name of the handler method
   # @param data [Object] the data sent by the client
@@ -89,8 +88,8 @@ class Rage::Cable::Router
   # @return [:no_subscription] if the client is not subscribed to the specified channel
   # @return [:unknown_action] if the action does not exist on the specified channel
   # @return [:processed] if the message has been successfully processed
-  def process_message(connection, identifier, action_name, data)
-    channel = connection.env["rage.cable"][identifier]
+  def process_message(env, identifier, action_name, data)
+    channel = env["rage.cable"][identifier]
     unless channel
       Rage.logger.debug { "Unable to find the subscription" }
       return :no_subscription
@@ -107,10 +106,8 @@ class Rage::Cable::Router
 
   # Runs the `unsubscribed` methods on all the channels the client is subscribed to.
   #
-  # @param connection [Rage::Cable::WebSocketConnection] the connection object
-  def process_disconnection(connection)
-    env = connection.env
-
+  # @param env [Hash] the Rack environment
+  def process_disconnection(env)
     env["rage.cable"]&.each do |_, channel|
       channel.__run_action(:unsubscribed)
     end

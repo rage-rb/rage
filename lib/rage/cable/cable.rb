@@ -94,17 +94,19 @@ module Rage::Cable
       end
 
       def on_open(connection)
-        schedule_fiber(connection) { @protocol.on_open(connection) }
+        init_connection(connection)
+        schedule_processing(connection) { |env| @protocol.on_open(connection, env) }
       end
 
       def on_message(connection, data)
-        schedule_fiber(connection) { @protocol.on_message(connection, data) }
+        schedule_processing(connection) { |env| @protocol.on_message(connection, env, data) }
       end
 
       if protocol.respond_to?(:on_close)
         def on_close(connection)
           return unless ::Iodine.running?
-          schedule_fiber(connection) { @protocol.on_close(connection) }
+          schedule_processing(connection) { |env| @protocol.on_close(connection, env) }
+          connection.env["rage.cable.queue"] << nil
         end
       end
 
@@ -118,13 +120,31 @@ module Rage::Cable
 
       private
 
-      def schedule_fiber(connection)
-        Fiber.schedule do
-          @log_processor.init_request_logger(connection.env)
-          yield
-        rescue => e
-          log_error(e)
+      def init_connection(connection)
+        queue = Queue.new
+        fiber = Fiber.schedule do
+          # `connection.env` is reset once the connection is closed; since messages are processed asynchronously,
+          # a connection can already be closed by the time the message is processed, so we store `env` separately
+          env = connection.env
+
+          Rage.__log_processor.init_request_logger(env)
+
+          loop do
+            work = queue.shift
+            break unless work
+
+            work.call(env)
+          rescue => e
+            log_error(e)
+          end
         end
+
+        connection.env["rage.cable.fiber"] = fiber
+        connection.env["rage.cable.queue"] = queue
+      end
+
+      def schedule_processing(connection, &block)
+        connection.env["rage.cable.queue"] << block
       end
 
       def log_error(e)

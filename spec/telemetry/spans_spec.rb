@@ -281,7 +281,7 @@ RSpec.describe Rage::Telemetry::Spans do
       end
     end
 
-    let(:ws_connection) { double(env: {}) }
+    let(:ws_env) { {} }
 
     before do
       stub_const("RageCable::Connection", connection_class)
@@ -296,11 +296,11 @@ RSpec.describe Rage::Telemetry::Spans do
           name: "RageCable::Connection#connect",
           connection: instance_of(RageCable::Connection),
           action: :connect,
-          env: equal(ws_connection.env),
+          env: equal(ws_env),
           request: instance_of(Rage::Request)
         })
 
-        router.process_connection(ws_connection)
+        router.process_connection(ws_env)
       end
     end
 
@@ -313,11 +313,11 @@ RSpec.describe Rage::Telemetry::Spans do
           name: "RageCable::Connection#disconnect",
           connection: instance_of(RageCable::Connection),
           action: :disconnect,
-          env: equal(ws_connection.env),
+          env: equal(ws_env),
           request: instance_of(Rage::Request)
         })
 
-        router.process_disconnection(ws_connection)
+        router.process_disconnection(ws_env)
       end
     end
   end

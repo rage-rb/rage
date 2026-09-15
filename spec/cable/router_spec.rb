@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 RSpec.describe Rage::Cable::Router do
-  let(:connection) { instance_double("Iodine::Connection", env: {}) }
+  let(:env) { {} }
+  let(:connection) { instance_double("Iodine::Connection") }
 
   before do
     allow(Rage).to receive_message_chain(:logger, :debug) do |&block|
@@ -10,7 +11,7 @@ RSpec.describe Rage::Cable::Router do
   end
 
   describe "#process_connection" do
-    subject { described_class.new.process_connection(connection) }
+    subject { described_class.new.process_connection(env) }
 
     let(:cable_connection_class) { double }
     let(:cable_connection_instance) { double(connect: nil, __identified_by_map: :test_identified_by) }
@@ -32,8 +33,8 @@ RSpec.describe Rage::Cable::Router do
 
       it "populates the env hash" do
         subject
-        expect(connection.env["rage.identified_by"]).to eq(:test_identified_by)
-        expect(connection.env["rage.cable"]).to eq({})
+        expect(env["rage.identified_by"]).to eq(:test_identified_by)
+        expect(env["rage.cable"]).to eq({})
       end
     end
 
@@ -48,13 +49,13 @@ RSpec.describe Rage::Cable::Router do
 
       it "doesn't populate the env hash" do
         subject
-        expect(connection.env).to be_empty
+        expect(env).to be_empty
       end
     end
   end
 
   describe "#process_subscription" do
-    subject { described_class.new.process_subscription(connection, :test_identifier, channel_name, :test_params) }
+    subject { described_class.new.process_subscription(connection, env, :test_identifier, channel_name, :test_params) }
 
     let(:channel_name) { "TestChannel" }
     let(:cable_channel_class) { double }
@@ -65,8 +66,8 @@ RSpec.describe Rage::Cable::Router do
         stub_const(channel_name, cable_channel_class)
         allow(cable_channel_class).to receive(:ancestors).and_return([Rage::Cable::Channel])
 
-        connection.env["rage.cable"] = {}
-        connection.env["rage.identified_by"] = :test_identified_by
+        env["rage.cable"] = {}
+        env["rage.identified_by"] = :test_identified_by
       end
 
       it "accepts the subscription" do
@@ -77,7 +78,7 @@ RSpec.describe Rage::Cable::Router do
         expect(channel).to receive(:subscription_rejected?).and_return(false)
 
         expect(subject).to eq(:subscribed)
-        expect(connection.env["rage.cable"][:test_identifier]).to eq(channel)
+        expect(env["rage.cable"][:test_identifier]).to eq(channel)
       end
 
       context "with rejection" do
@@ -89,7 +90,7 @@ RSpec.describe Rage::Cable::Router do
           expect(channel).to receive(:subscription_rejected?).and_return(true)
 
           expect(subject).to eq(:rejected)
-          expect(connection.env["rage.cable"]).to be_empty
+          expect(env["rage.cable"]).to be_empty
         end
       end
     end
@@ -99,7 +100,7 @@ RSpec.describe Rage::Cable::Router do
 
       it "rejects the subscription" do
         expect(subject).to eq(:invalid)
-        expect(connection.env).to be_empty
+        expect(env).to be_empty
       end
     end
 
@@ -108,19 +109,19 @@ RSpec.describe Rage::Cable::Router do
 
       it "rejects the subscription" do
         expect(subject).to eq(:invalid)
-        expect(connection.env).to be_empty
+        expect(env).to be_empty
       end
     end
   end
 
   describe "#process_message" do
-    subject { described_class.new.process_message(connection, :test_identifier, :test_action, :test_data) }
+    subject { described_class.new.process_message(env, :test_identifier, :test_action, :test_data) }
 
     context "with existing subscription" do
       let(:channel) { double }
 
       before do
-        connection.env["rage.cable"] = { test_identifier: channel }
+        env["rage.cable"] = { test_identifier: channel }
       end
 
       context "with existing action" do
@@ -142,7 +143,7 @@ RSpec.describe Rage::Cable::Router do
 
     context "with no subscription" do
       before do
-        connection.env["rage.cable"] = {}
+        env["rage.cable"] = {}
       end
 
       it "discards the message" do
@@ -152,13 +153,13 @@ RSpec.describe Rage::Cable::Router do
   end
 
   describe "#process_disconnection" do
-    subject { described_class.new.process_disconnection(connection) }
+    subject { described_class.new.process_disconnection(env) }
 
     context "with existing subscription" do
       let(:channel) { double }
 
       before do
-        connection.env["rage.cable"] = { test_identifier: channel }
+        env["rage.cable"] = { test_identifier: channel }
       end
 
       it "runs the unsubscribed callback" do
@@ -169,7 +170,7 @@ RSpec.describe Rage::Cable::Router do
 
     context "with no subscription" do
       before do
-        connection.env["rage.cable"] = nil
+        env["rage.cable"] = nil
       end
 
       it "runs successfully" do
