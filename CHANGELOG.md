@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.28.0] - 2026-09-15
+
 ### Added
 
 - [OpenAPI] Add `openapi:validate` Rake task for OpenAPI tags validation (#163).
