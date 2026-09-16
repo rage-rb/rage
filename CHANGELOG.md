@@ -3,6 +3,7 @@
 ### Added
 
 - Add low-level `PubSub` API (#399).
+- [Cable] Serialize WS messages per connection (#400).
 
 ## [1.28.0] - 2026-09-15
 

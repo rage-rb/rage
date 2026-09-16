@@ -85,9 +85,10 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
   # It is expected to call {Rage::Cable::Router#process_connection} and handle its return value.
   #
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
+  # @param env [Hash] the Rack environment
   # @see Rage::Cable::Router
-  def self.on_open(connection)
-    accepted = @router.process_connection(connection)
+  def self.on_open(connection, env)
+    accepted = @router.process_connection(env)
 
     if accepted
       connection.subscribe("cable:ping")
@@ -102,9 +103,10 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
   # {Rage::Cable::Router#process_subscription} or {Rage::Cable::Router#process_message}, and handle its return value.
   #
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
+  # @param env [Hash] the Rack environment
   # @param raw_data [String] the message body
   # @see Rage::Cable::Router
-  def self.on_message(connection, raw_data)
+  def self.on_message(connection, env, raw_data)
     parsed_data = Rage::ParamsParser.json_parse(raw_data)
 
     command, identifier = parsed_data[:command], parsed_data[:identifier]
@@ -112,7 +114,7 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
 
     # process subscription messages
     if command == COMMAND::SUBSCRIBE
-      status = @router.process_subscription(connection, identifier, params[:channel], params)
+      status = @router.process_subscription(connection, env, identifier, params[:channel], params)
       if status == :subscribed
         connection.write({ identifier: identifier, type: TYPE::CONFIRM }.to_json)
       elsif status == :rejected
@@ -129,10 +131,10 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
     data = JSON.parse(parsed_data[:data])
 
     message_status = if command == COMMAND::MESSAGE && data.has_key?("action")
-      @router.process_message(connection, identifier, data["action"].to_sym, data)
+      @router.process_message(env, identifier, data["action"].to_sym, data)
 
     elsif command == COMMAND::MESSAGE
-      @router.process_message(connection, identifier, :receive, data)
+      @router.process_message(env, identifier, :receive, data)
     end
 
     unless message_status == :processed
@@ -143,10 +145,10 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
   # The method should process client disconnections and call {Rage::Cable::Router#process_disconnection}.
   #
   # @note This method is optional.
-  # @param connection [Rage::Cable::WebSocketConnection] the connection object
+  # @param env [Hash] the Rack environment
   # @see Rage::Cable::Router
-  def self.on_close(connection)
-    @router.process_disconnection(connection)
+  def self.on_close(_, env)
+    @router.process_disconnection(env)
   end
 
   # Serialize a Ruby object into the format the client would understand.
