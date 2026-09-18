@@ -4,6 +4,7 @@
 
 - Add low-level `PubSub` API (#399).
 - [Cable] Serialize WS messages per connection (#400).
+- Update fiber scheduler to support Ruby 4.1 (#397).
 
 ## [1.28.0] - 2026-09-15
 
