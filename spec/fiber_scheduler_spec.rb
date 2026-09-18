@@ -1161,7 +1161,7 @@ RSpec.describe Rage::FiberScheduler do
 
       it "io_read returns 0 immediately when length is 0" do
         within_reactor do
-          r, w = IO.pipe
+          r, _ = IO.pipe
           buffer = IO::Buffer.new(100)
 
           result = Fiber.scheduler.io_read(r, buffer, 0, 0)
