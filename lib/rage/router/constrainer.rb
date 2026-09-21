@@ -3,7 +3,7 @@
 class Rage::Router::Constrainer
   attr_reader :strategies
 
-  def initialize(custom_strategies)
+  def initialize
     @strategies = {
       host: Rage::Router::Strategies::Host.new
     }
@@ -13,15 +13,6 @@ class Rage::Router::Constrainer
 
   def strategy_used?(strategy_name)
     @strategies_in_use.include?(strategy_name)
-  end
-
-  def has_constraint_strategy(strategy_name)
-    custom_constraint_strategy = @strategies[strategy_name]
-    if custom_constraint_strategy
-      return custom_constraint_strategy.custom? || strategy_used?(strategy_name)
-    end
-
-    false
   end
 
   def derive_constraints(env)
@@ -56,8 +47,8 @@ class Rage::Router::Constrainer
     end
   end
 
-  # Optimization: build a fast function for deriving the constraints for all the strategies at once. We inline the definitions of the version constraint and the host constraint for performance.
-  # If no constraining strategies are in use (no routes constrain on host, or version, or any custom strategies) then we don't need to derive constraints for each route match, so don't do anything special, and just return undefined
+  # Optimization: build a fast function for deriving the constraints for all the strategies at once. We inline the host constraint derivation for performance.
+  # If no constraining strategies are in use, then we don't need to derive constraints for each route match, so don't do anything special, and just return undefined.
   # This allows us to not allocate an object to hold constraint values if no constraints are defined.
   def __build_derive_constraints
     return if @strategies_in_use.empty?

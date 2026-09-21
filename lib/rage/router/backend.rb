@@ -11,7 +11,7 @@ class Rage::Router::Backend
   def initialize
     @routes = []
     @trees = {}
-    @constrainer = Rage::Router::Constrainer.new({})
+    @constrainer = Rage::Router::Constrainer.new
   end
 
   def reset_routes
