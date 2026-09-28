@@ -111,7 +111,7 @@ class Fiber
   end
 
   # @private
-  attr_accessor :__awaited_fileno, :__wait_generation, :__block_channel, :__await_channel
+  attr_accessor :__awaited_fileno, :__wait_generation, :__await_channel
 
   # @private
   # pause a fiber and resume in the next iteration of the event loop

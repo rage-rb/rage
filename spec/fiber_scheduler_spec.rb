@@ -273,19 +273,6 @@ RSpec.describe Rage::FiberScheduler do
     end
   end
 
-  it "correctly blocks and unblocks fibers" do
-    queue = Queue.new
-    Thread.new do
-      sleep 1
-      queue << "unblock_me"
-    end
-
-    within_reactor do
-      result = queue.pop
-      -> { expect(result).to eq("unblock_me") }
-    end
-  end
-
   it "correctly reads files" do
     within_reactor do
       str = File.read("spec/fixtures/700b.txt")
@@ -354,6 +341,126 @@ RSpec.describe Rage::FiberScheduler do
       -> {}
     rescue => e
       -> { raise e }
+    end
+  end
+
+  context "#block" do
+    it "correctly blocks and unblocks fibers" do
+      queue = Queue.new
+      Thread.new do
+        sleep 1
+        queue << "unblock_me"
+      end
+
+      within_reactor do
+        result = queue.pop
+        -> { expect(result).to eq("unblock_me") }
+      end
+    end
+
+    it "prevents stale resume" do
+      within_reactor do
+        results = []
+
+        f = Fiber.schedule do
+          Fiber.scheduler.block(nil, nil)
+          results << :first
+          Fiber.yield
+          results << :second
+        end
+
+        2.times { Fiber.scheduler.unblock(nil, f) }
+
+        -> { expect(results).to eq([:first]) }
+      end
+    end
+
+    it "prevents stale resume with timeout" do
+      within_reactor do
+        results = []
+
+        f = Fiber.schedule do
+          Fiber.scheduler.block(nil, 0.1)
+          results << :first
+          Fiber.yield
+          results << :second
+        end
+
+        sleep 0.3
+        Fiber.scheduler.unblock(nil, f)
+
+        -> { expect(results).to eq([:first]) }
+      end
+    end
+
+    it "prevents stale wake up" do
+      within_reactor do
+        results = []
+
+        f = Fiber.schedule do
+          Fiber.scheduler.block(nil, 0.1)
+          results << :first
+          Fiber.yield
+          results << :second
+        end
+
+        Fiber.scheduler.unblock(nil, f)
+        sleep 0.3
+
+        -> { expect(results).to eq([:first]) }
+      end
+    end
+
+    it "prevents stale generation resume" do
+      within_reactor do
+        results = []
+
+        f = Fiber.schedule do
+          Fiber.scheduler.block(nil, nil)
+        rescue
+          Fiber.yield
+          results << :stale
+        end
+
+        Fiber.scheduler.fiber_interrupt(f, ZeroDivisionError.new)
+        Fiber.scheduler.unblock(nil, f)
+
+        -> { expect(results).to eq([]) }
+      end
+    end
+
+    it "does not let a stale timeout unblock a later wait" do
+      within_reactor do
+        results = []
+
+        fiber = Fiber.schedule do
+          Fiber.scheduler.block(nil, 0.1)
+          results << :first
+          Fiber.scheduler.block(nil, nil)
+          results << :second
+        end
+
+        Fiber.scheduler.unblock(nil, fiber)
+        sleep 0.2
+
+        -> do
+          expect(results).to eq([:first])
+        ensure
+          fiber.kill
+        end
+      end
+    end
+
+    it "doesn't retain interrupted fibers" do
+      within_reactor do
+        fiber = Fiber.schedule do
+          Fiber.scheduler.block(nil, nil)
+        end
+
+        Fiber.scheduler.fiber_interrupt(fiber, ZeroDivisionError.new)
+
+        -> { expect(Fiber.scheduler.instance_variable_get(:@blocked)).to be_empty }
+      end
     end
   end
 
@@ -434,47 +541,6 @@ RSpec.describe Rage::FiberScheduler do
           expect(gen_after_first).to eq(gen_before + 1)
           expect(gen_after_second).to eq(gen_before + 2)
         end
-      end
-    end
-
-    it "prevents stale resume when fiber moves to new wait state" do
-      queue1 = Queue.new
-      queue2 = Queue.new
-      old_channel = nil
-      results = []
-
-      within_reactor do
-        fiber = Fiber.schedule do
-          f = Fiber.current
-
-          # Start a thread that will:
-          # 1. Unblock the first wait
-          # 2. Capture the old channel
-          # 3. Try to publish to the old channel while fiber is in second wait
-          Thread.new do
-            sleep 0.1
-            old_channel = f.__block_channel
-            queue1 << "first"
-
-            sleep 0.2
-            # Try to publish to the old channel (simulating a stale unblock)
-            # This shouldn't resume the fiber because generation has changed
-            Iodine.publish(old_channel, "", Iodine::PubSub::PROCESS)
-          end
-
-          results << queue1.pop
-          results << "starting second wait"
-
-          # Start second unblock thread
-          Thread.new { sleep 0.5; queue2 << "second" }
-
-          # Now block on second queue - stale resume from old_channel should be ignored
-          results << queue2.pop
-          results
-        end
-
-        result = Fiber.await(fiber)
-        -> { expect(result.first).to eq(["first", "starting second wait", "second"]) }
       end
     end
 
