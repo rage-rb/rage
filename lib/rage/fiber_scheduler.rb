@@ -13,6 +13,7 @@ class Rage::FiberScheduler
   def initialize
     @root_fiber = Fiber.current
     @dns_cache = {}
+    @blocked = {}
   end
 
   # Wait for I/O events on a file descriptor, yielding the fiber until ready or timeout.
@@ -116,28 +117,27 @@ class Rage::FiberScheduler
 
   # Block the current fiber until unblocked or timeout.
   def block(_blocker, timeout = nil)
-    f, fulfilled = Fiber.current, false
-
+    f = Fiber.current
     gen = (f.__wait_generation += 1)
-    channel = f.__block_channel = "block:#{f.object_id}:#{gen}"
+    @blocked[f] = gen
 
-    resume_fiber_block = proc do
-      unless fulfilled
-        fulfilled = true
-        ::Iodine.defer { ::Iodine.unsubscribe(channel) }
-        f.resume if f.alive? && gen == f.__wait_generation
-      end
+    if timeout
+      ::Iodine.run_after((timeout * 1000).to_i) { unblock(nil, f) if gen == f.__wait_generation }
     end
 
-    ::Iodine.subscribe(channel) { resume_fiber_block.call }
-    ::Iodine.run_after((timeout * 1000).to_i) { resume_fiber_block.call } if timeout
-
     Fiber.yield
+  ensure
+    @blocked.delete(f)
   end
 
-  # Unblock a fiber by publishing to its block channel.
+  # Unblock a fiber previously blocked by `#block`.
   def unblock(_blocker, fiber)
-    ::Iodine.publish(fiber.__block_channel, "", Iodine::PubSub::PROCESS) if fiber.__block_channel
+    gen = @blocked.delete(fiber)
+    return unless gen
+
+    ::Iodine.defer do
+      fiber.resume if fiber.alive? && gen == fiber.__wait_generation
+    end
   end
 
   # Interrupt a fiber by incrementing its generation and raising an exception.
