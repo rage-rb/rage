@@ -53,7 +53,7 @@ class Rage::FiberScheduler
           return offset
         elsif result < 0
           next if result == -Errno::EINTR::Errno
-          return -Errno::EAGAIN::Errno
+          return result
         end
 
         offset += result
