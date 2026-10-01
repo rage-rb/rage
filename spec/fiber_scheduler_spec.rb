@@ -1207,6 +1207,19 @@ RSpec.describe Rage::FiberScheduler do
           -> { expect(content.bytesize).to eq(2306) }
         end
       end
+
+      it "returns native read errors after Iodine invalidates the connection" do
+        reader, writer = IO.pipe
+        reader.autoclose = false # Iodine owns and closes watched descriptors.
+        buffer = IO::Buffer.new(1)
+
+        within_reactor do
+          Fiber.schedule { Fiber.scheduler.io_wait(reader, IO::READABLE) }
+          -> { expect(Fiber.scheduler.io_read(reader, buffer, 1)).to eq(-Errno::EBADF::Errno) }
+        end
+      ensure
+        writer&.close unless writer&.closed?
+      end
     end
 
     context "V4 specific behavior" do
