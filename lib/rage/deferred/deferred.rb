@@ -51,6 +51,17 @@ module Rage::Deferred
     Rage::Deferred::Proxy.new(instance, delay:, delay_until:)
   end
 
+  # Return the collection of tasks that exhausted or aborted their retries.
+  #
+  # The collection is memoized and shares the deferred queue's backend object.
+  # Obtaining it may initialize that backend, but dead-task snapshot opening,
+  # scanning, and decoding remain deferred until traversal starts.
+  #
+  # @return [Rage::Deferred::DeadTasks]
+  def self.dead_tasks
+    @__dead_tasks ||= Rage::Deferred::DeadTasks.new(__backend)
+  end
+
   # @private
   def self.__backend
     @__backend ||= Rage.config.deferred.backend
@@ -105,6 +116,8 @@ module Rage::Deferred
   end
 end
 
+require_relative "dead_task"
+require_relative "dead_tasks"
 require_relative "task"
 require_relative "scheduler"
 require_relative "queue"

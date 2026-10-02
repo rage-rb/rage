@@ -325,7 +325,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
 
         add_dead_task("2-2-2")
 
-        expect(backend.list_dead_tasks.map { |record| record[:id] }).to eq(["2-2-2", "1-1-1"])
+        expect(backend.enum_for(:each_dead_task).map { |record| record[:id] }).to eq(["1-1-1", "2-2-2"])
       end
 
       it "repairs a file containing only an incomplete entry before appending" do
@@ -334,7 +334,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
 
         add_dead_task("1-1-1")
 
-        expect(backend.list_dead_tasks.map { |record| record[:id] }).to eq(["1-1-1"])
+        expect(backend.enum_for(:each_dead_task).map { |record| record[:id] }).to eq(["1-1-1"])
       end
 
       it "repairs a torn tail longer than one scan chunk" do
@@ -409,13 +409,458 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       end
     end
 
+    describe "#each_dead_task" do
+      def each_dead_task
+        backend.enum_for(:each_dead_task).to_a
+      end
+
+      def finish_external_traversal(iterator)
+        records = []
+        while true
+          records << iterator.next
+        end
+      rescue StopIteration
+        records
+      end
+
+      def append_physical_record(outer_id, record)
+        entry = dead_tasks_storage.send(:build_entry, outer_id, record)
+        dead_tasks_path.open("ab") { |storage| storage.write(entry) }
+      end
+
+      def append_serialized_record(outer_id, serialized_record)
+        payload = "dead_task:#{outer_id}:#{serialized_record}"
+        crc = Zlib.crc32(payload).to_s(16).rjust(8, "0")
+        dead_tasks_path.open("ab") { |storage| storage.write("#{crc}:#{payload}\n") }
+      end
+
+      it "owns internal batching behind an argument-free backend traversal" do
+        stub_const("#{described_class}::DeadTasksStorage::RECORD_BATCH_SIZE", 2)
+        add_dead_task("1700000001-1-1")
+        add_dead_task("1700000002-1-2")
+        add_dead_task("1700000003-1-3")
+
+        expect(backend.method(:each_dead_task).parameters).to eq([[:block, :block]])
+        expect { backend.each_dead_task(batch_size: 1) {} }.to raise_error(ArgumentError)
+        expect(each_dead_task.map { |record| record[:id] }).to eq(
+          ["1700000001-1-1", "1700000002-1-2", "1700000003-1-3"]
+        )
+      end
+
+      it "removes eager reads from storage while retaining removal" do
+        expect(dead_tasks_storage).not_to respond_to(:list, :find)
+        expect(backend).to respond_to(:remove_dead_tasks)
+      end
+
+      it "yields the newest fully valid duplicate" do
+        add_dead_task("1700000001-1-1")
+        older = stored_records.last
+        append_physical_record("1700000001-1-1", older.merge(task_class: "NewTask", failed_at: older[:failed_at] + 1))
+
+        records = each_dead_task
+
+        expect(records.length).to eq(1)
+        expect(records.first[:task_class]).to eq("NewTask")
+      end
+
+      it "orders a duplicate logical task at its winning record's position" do
+        add_dead_task("1700000001-1-1")
+        original = stored_records.last
+        add_dead_task("1700000002-1-2")
+        append_physical_record("1700000001-1-1", original.merge(task_class: "MovedTask"))
+
+        records = each_dead_task
+
+        expect(records.map { |record| record[:id] }).to eq(["1700000002-1-2", "1700000001-1-1"])
+        expect(records.last[:task_class]).to eq("MovedTask")
+      end
+
+      it "falls back to an older valid duplicate when newer records fail validation" do
+        add_dead_task("1700000001-1-1")
+        valid = stored_records.last
+        append_physical_record("1700000001-1-1", valid.merge(id: "different-id"))
+        append_physical_record("1700000001-1-1", valid.merge(attempts: "three"))
+        dead_tasks_path.open("ab") { |storage| storage.write("deadbeef:dead_task:1700000001-1-1:garbage\n") }
+
+        records = each_dead_task
+
+        expect(records.length).to eq(1)
+        expect(records.first[:id]).to eq("1700000001-1-1")
+        expect(records.first[:task_class]).to eq("SendWelcomeEmail")
+      end
+
+      it "falls back past unreadable, non-Hash, missing-field, and mismatched newer duplicates" do
+        add_dead_task("1700000001-1-1")
+        valid = stored_records.last
+        append_physical_record("1700000001-1-1", valid.reject { |key| key == :failed_at })
+        append_serialized_record("1700000001-1-1", Marshal.dump([:not, :a, :hash]).dump)
+        append_serialized_record("1700000001-1-1", "not-a-dumped-string")
+        append_physical_record("1700000001-1-1", valid.merge(id: "different-id"))
+
+        expect(each_dead_task.map { |record| record[:task_class] }).to eq(["SendWelcomeEmail"])
+      end
+
+      it "silently skips malformed frames and an incomplete tail" do
+        add_dead_task("1700000001-1-1")
+        dead_tasks_path.open("ab") do |storage|
+          storage.write("bad\n")
+          storage.write("00000000:not_dead_task:id:payload\n")
+          storage.write("deadbeef:dead_task:1700000002-1-2:secret-payload\n")
+          storage.write("incomplete-secret-tail")
+        end
+
+        expect {
+          expect(each_dead_task.map { |record| record[:id] }).to eq(["1700000001-1-1"])
+        }.not_to output.to_stdout
+        expect { each_dead_task }.not_to output.to_stderr
+      end
+
+      it "requires every summary field and checks backtrace and opaque context types" do
+        add_dead_task("1700000001-1-1")
+        valid = stored_records.last
+        required_types = {
+          id: String, task_class: String, attempts: Integer, enqueued_at: Integer, failed_at: Integer,
+          exception_class: String, exception_message: String, backtrace: Array, context: String
+        }
+        invalid_records = required_types.map do |key, type|
+          invalid_value = type == Integer ? "1" : 1
+          valid.merge(key => invalid_value)
+        end
+        invalid_records << valid.reject { |key| key == :failed_at }
+        invalid_records << valid.merge(backtrace: ["valid", 1])
+        invalid_records.each_with_index do |record, index|
+          id = "1700001#{index.to_s.rjust(3, "0")}-1-1"
+          record = record.merge(id:) unless record[:id].is_a?(Integer)
+          append_physical_record(id, record)
+        end
+
+        expect(each_dead_task.map { |record| record[:id] }).to eq(["1700000001-1-1"])
+      end
+
+      it "does not deserialize opaque context bytes" do
+        add_dead_task("1700000001-1-1")
+        record = stored_records.last.merge(context: "not a Marshal payload")
+        append_physical_record("1700000002-1-2", record.merge(id: "1700000002-1-2"))
+
+        expect(each_dead_task.map { |entry| entry[:id] }).to eq(["1700000001-1-1", "1700000002-1-2"])
+      end
+
+      it "reads physical records larger than the reverse-reader chunk" do
+        add_dead_task("1700000001-1-1")
+        record = stored_records.last
+        append_physical_record(
+          "1700000002-1-2",
+          record.merge(id: "1700000002-1-2", exception_message: "x" * 20_000)
+        )
+
+        expect(each_dead_task.map { |entry| entry[:id] }).to eq(["1700000001-1-1", "1700000002-1-2"])
+      end
+
+      it "returns the oldest 20 winning records" do
+        25.times { |index| add_dead_task("170000#{index.to_s.rjust(4, "0")}-1-1") }
+
+        ids = backend.enum_for(:each_dead_task).first(20).map { |record| record[:id] }
+
+        expect(ids).to eq(20.times.map { |index| "170000#{index.to_s.rjust(4, "0")}-1-1" })
+      end
+
+      it "finishes winner selection before the first yield and validates winners only during selection" do
+        stub_const("#{described_class}::DeadTasksStorage::RECORD_BATCH_SIZE", 2)
+        5.times { |index| add_dead_task("170000000#{index}-1-1") }
+        allow(dead_tasks_storage).to receive(:decode_record).and_call_original
+        allow(Marshal).to receive(:load).and_call_original
+
+        first = backend.enum_for(:each_dead_task).first
+
+        expect(first[:id]).to eq("1700000000-1-1")
+        expect(dead_tasks_storage).to have_received(:decode_record).exactly(5).times
+        # Every record is decoded during selection, then only the current delivery batch is decoded again.
+        expect(Marshal).to have_received(:load).exactly(7).times
+      end
+
+      it "does not open or inspect a snapshot until first advancement" do
+        add_dead_task("1700000001-1-1")
+        allow(dead_tasks_storage).to receive(:with_snapshot).and_call_original
+        allow(dead_tasks_storage).to receive(:decode_record).and_call_original
+
+        iterator = backend.enum_for(:each_dead_task)
+
+        expect(dead_tasks_storage).not_to have_received(:with_snapshot)
+        expect(dead_tasks_storage).not_to have_received(:decode_record)
+
+        iterator.next
+
+        expect(dead_tasks_storage).to have_received(:with_snapshot).once
+        expect(dead_tasks_storage).to have_received(:decode_record).once
+      end
+
+      it "excludes an incomplete tail and records appended after first advancement" do
+        add_dead_task("1700000001-1-1")
+        add_dead_task("1700000002-1-2")
+        dead_tasks_path.open("ab") { |storage| storage.write("deadbeef:dead_task:partial") }
+        iterator = backend.enum_for(:each_dead_task)
+
+        expect(iterator.next[:id]).to eq("1700000001-1-1")
+        add_dead_task("1700000003-1-3")
+
+        expect(finish_external_traversal(iterator).map { |record| record[:id] }).to eq(["1700000002-1-2"])
+        expect(each_dead_task.map { |record| record[:id] }).to eq(
+          ["1700000001-1-1", "1700000002-1-2", "1700000003-1-3"]
+        )
+      end
+
+      it "keeps the captured inode stable across rename-based compaction" do
+        add_dead_task("1700000001-1-1")
+        add_dead_task("1700000002-1-2")
+        add_dead_task("1700000003-1-3")
+        iterator = backend.enum_for(:each_dead_task)
+
+        expect(iterator.next[:id]).to eq("1700000001-1-1")
+        backend.remove_dead_tasks("1700000002-1-2")
+
+        expect(finish_external_traversal(iterator).map { |record| record[:id] }).to eq(
+          ["1700000002-1-2", "1700000003-1-3"]
+        )
+        expect(each_dead_task.map { |record| record[:id] }).to eq(["1700000001-1-1", "1700000003-1-3"])
+      end
+
+      it "releases the permanent lock before decoding and yielding" do
+        add_dead_task("1700000001-1-1")
+        add_dead_task("1700000002-1-2")
+        allow(dead_tasks_storage).to receive(:decode_record).and_wrap_original do |original, *args|
+          expect(dead_tasks_storage.instance_variable_get(:@locked)).to eq(false)
+          original.call(*args)
+        end
+
+        backend.each_dead_task do
+          expect(dead_tasks_storage.instance_variable_get(:@locked)).to eq(false)
+          File.open(lock_path, File::WRONLY) do |lock|
+            expect(lock.flock(File::LOCK_EX | File::LOCK_NB)).to be_truthy
+            lock.flock(File::LOCK_UN)
+          end
+        end
+      end
+
+      it "closes the snapshot after exhaustion, block exit, and terminal Enumerable exits" do
+        add_dead_task("1700000001-1-1")
+        descriptors = []
+        allow(dead_tasks_storage).to receive(:with_snapshot).and_wrap_original do |original, &operation|
+          original.call do |storage, snapshot_end|
+            descriptors << storage
+            operation.call(storage, snapshot_end)
+          end
+        end
+        collection = Rage::Deferred::DeadTasks.new(backend)
+
+        backend.each_dead_task {}
+        backend.each_dead_task { break }
+        collection.find { true }
+        collection.first
+        collection.take(1)
+
+        expect(descriptors.length).to eq(5)
+        expect(descriptors).to all(be_closed)
+      end
+
+      it "keeps a partial external traversal open until it is exhausted" do
+        add_dead_task("1700000001-1-1")
+        add_dead_task("1700000002-1-2")
+        descriptor = nil
+        allow(dead_tasks_storage).to receive(:with_snapshot).and_wrap_original do |original, &operation|
+          original.call do |storage, snapshot_end|
+            descriptor = storage
+            operation.call(storage, snapshot_end)
+          end
+        end
+        iterator = backend.enum_for(:each_dead_task)
+
+        iterator.next
+        expect(descriptor).not_to be_closed
+
+        finish_external_traversal(iterator)
+        expect(descriptor).to be_closed
+      end
+
+      it "does not let cleanup replace an active user exception" do
+        add_dead_task("1700000001-1-1")
+        descriptor = nil
+        allow(dead_tasks_storage).to receive(:with_snapshot).and_wrap_original do |original, &operation|
+          original.call do |storage, snapshot_end|
+            descriptor = storage
+            allow(descriptor).to receive(:close).and_wrap_original do |close|
+              close.call
+              raise Errno::EIO
+            end
+            operation.call(storage, snapshot_end)
+          end
+        end
+
+        expect {
+          backend.each_dead_task { raise "user failure" }
+        }.to raise_error(RuntimeError, "user failure")
+        expect(descriptor).to be_closed
+      end
+
+      it "propagates a descriptor cleanup error when it is the only failure" do
+        add_dead_task("1700000001-1-1")
+        allow(dead_tasks_storage).to receive(:with_snapshot).and_wrap_original do |original, &operation|
+          original.call do |storage, snapshot_end|
+            allow(storage).to receive(:close).and_wrap_original do |close|
+              close.call
+              raise Errno::EIO
+            end
+            operation.call(storage, snapshot_end)
+          end
+        end
+
+        expect {
+          backend.each_dead_task {}
+        }.to raise_error(Errno::EIO)
+      end
+
+      it "propagates a descriptor cleanup error inside an unrelated rescue" do
+        add_dead_task("1700000001-1-1")
+        allow(dead_tasks_storage).to receive(:with_snapshot).and_wrap_original do |original, &operation|
+          original.call do |storage, snapshot_end|
+            allow(storage).to receive(:close).and_wrap_original do |close|
+              close.call
+              raise Errno::EIO
+            end
+            operation.call(storage, snapshot_end)
+          end
+        end
+
+        begin
+          raise "unrelated failure"
+        rescue RuntimeError
+          expect {
+            backend.each_dead_task {}
+          }.to raise_error(Errno::EIO)
+        end
+      end
+
+      it "propagates a lock cleanup error inside an unrelated rescue" do
+        lock_file = dead_tasks_storage.instance_variable_get(:@lock_file)
+        allow(lock_file).to receive(:flock).and_wrap_original do |flock, operation|
+          flock.call(operation).tap do
+            raise Errno::EIO if operation == File::LOCK_UN
+          end
+        end
+
+        begin
+          raise "unrelated failure"
+        rescue RuntimeError
+          expect {
+            backend.each_dead_task {}
+          }.to raise_error(Errno::EIO)
+        end
+      end
+
+      it "propagates lazy snapshot-acquisition failures and closes the opened descriptor" do
+        descriptor = nil
+        allow(dead_tasks_storage).to receive(:find_snapshot_end) do |storage|
+          descriptor = storage
+          raise Errno::EACCES
+        end
+        iterator = backend.enum_for(:each_dead_task)
+
+        expect(descriptor).to be_nil
+        expect { iterator.next }.to raise_error(Errno::EACCES)
+        expect(descriptor).to be_closed
+      end
+
+      it "propagates reverse-read failures and closes the snapshot" do
+        add_dead_task("1700000001-1-1")
+        descriptor = nil
+        allow(dead_tasks_storage).to receive(:with_snapshot).and_wrap_original do |original, &operation|
+          original.call do |storage, snapshot_end|
+            descriptor = storage
+            allow(descriptor).to receive(:seek).and_raise(Errno::EIO)
+            operation.call(storage, snapshot_end)
+          end
+        end
+
+        expect {
+          backend.each_dead_task {}
+        }.to raise_error(Errno::EIO)
+        expect(descriptor).to be_closed
+      end
+
+      it "propagates snapshot lock timeouts on first advancement" do
+        stub_const("#{described_class}::DeadTasksStorage::LOCK_MAX_ATTEMPTS", 1)
+        dead_tasks_storage.instance_variable_set(:@locked, true)
+        iterator = backend.enum_for(:each_dead_task)
+
+        expect { iterator.next }.to raise_error(Rage::Deferred::DeadTasksLockTimeout, /read tasks from/)
+      ensure
+        dead_tasks_storage.instance_variable_set(:@locked, false)
+      end
+
+      it "keeps overlapping and Fiber-interleaved traversals independent" do
+        add_dead_task("1700000001-1-1")
+        add_dead_task("1700000002-1-2")
+        first = backend.enum_for(:each_dead_task)
+        second = backend.enum_for(:each_dead_task)
+        first_fiber = Fiber.new do
+          ids = [first.next[:id]]
+          Fiber.yield(ids.last)
+          ids << first.next[:id]
+          first.next
+        rescue StopIteration
+          ids
+        end
+        second_fiber = Fiber.new do
+          ids = [second.next[:id]]
+          Fiber.yield(ids.last)
+          ids << second.next[:id]
+          second.next
+        rescue StopIteration
+          ids
+        end
+
+        expect(first_fiber.resume).to eq("1700000001-1-1")
+        expect(second_fiber.resume).to eq("1700000001-1-1")
+        expect(first_fiber.resume).to eq(["1700000001-1-1", "1700000002-1-2"])
+        expect(second_fiber.resume).to eq(["1700000001-1-1", "1700000002-1-2"])
+      end
+
+      it "establishes separate snapshots on each traversal's first advancement" do
+        add_dead_task("1700000001-1-1")
+        add_dead_task("1700000002-1-2")
+        first = backend.enum_for(:each_dead_task)
+        second = backend.enum_for(:each_dead_task)
+
+        expect(first.next[:id]).to eq("1700000001-1-1")
+        add_dead_task("1700000003-1-3")
+        expect(finish_external_traversal(second).map { |record| record[:id] }).to eq(
+          ["1700000001-1-1", "1700000002-1-2", "1700000003-1-3"]
+        )
+        expect(finish_external_traversal(first).map { |record| record[:id] }).to eq(["1700000002-1-2"])
+      end
+
+      it "keeps nested traversals independent" do
+        add_dead_task("1700000001-1-1")
+        add_dead_task("1700000002-1-2")
+        outer_ids = []
+        nested_ids = nil
+
+        backend.each_dead_task do |record|
+          outer_ids << record[:id]
+          nested_ids ||= each_dead_task.map { |nested| nested[:id] }
+        end
+
+        expect(outer_ids).to eq(["1700000001-1-1", "1700000002-1-2"])
+        expect(nested_ids).to eq(outer_ids)
+      end
+    end
+
     describe "#remove_dead_tasks" do
       it "removes the given dead tasks and keeps the others" do
         add_dead_task("1-1-1")
         add_dead_task("2-2-2")
 
         expect(backend.remove_dead_tasks("1-1-1")).to eq(1)
-        expect(backend.list_dead_tasks.map { |record| record[:id] }).to eq(["2-2-2"])
+        expect(backend.enum_for(:each_dead_task).map { |record| record[:id] }).to eq(["2-2-2"])
         expect(tmp_storage_path).not_to exist
       end
 
@@ -543,7 +988,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         add_dead_task("1-1-1")
 
         expect(backend.remove_dead_tasks("nope")).to eq(0)
-        expect(backend.list_dead_tasks.map { |record| record[:id] }).to eq(["1-1-1"])
+        expect(backend.enum_for(:each_dead_task).map { |record| record[:id] }).to eq(["1-1-1"])
         expect(tmp_storage_path).not_to exist
       end
 
