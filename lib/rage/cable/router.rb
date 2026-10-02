@@ -2,18 +2,23 @@
 
 class Rage::Cable::Router
   # @private
-  def initialize
+  # @param protocol [Rage::Cable::Protocols::Base]
+  # @param namespace [Module]
+  def initialize(protocol, namespace)
     # Hash<String(channel name) => Proc(new channel instance)>
     @channels_map = {}
+    @protocol = protocol
+    @namespace = namespace
     init_connection_class
   end
 
   # Calls the `connect` method on the `Connection` class to handle authentication.
   #
+  # @param connection [Rage::Cable::WebSocketConnection] the connection object
   # @param env [Hash] the Rack environment
   # @return [true] if the connection was accepted
   # @return [false] if the connection was rejected
-  def process_connection(env)
+  def process_connection(connection, env)
     cable_connection = @connection_class.new(env)
     Rage::Telemetry.tracer.span_cable_connection_process(connection: cable_connection, action: :connect, env:) do
       cable_connection.connect
@@ -43,7 +48,7 @@ class Rage::Cable::Router
   def process_subscription(connection, env, identifier, channel_name, params)
     channel_class = @channels_map[channel_name] || begin
       begin
-        klass = Object.const_get(channel_name)
+        klass = @namespace.const_get(channel_name, false) unless channel_name.start_with?("::")
       rescue NameError
         nil
       end
@@ -53,8 +58,8 @@ class Rage::Cable::Router
         return :invalid
       end
 
-      klass.__register_actions.tap do |available_actions|
-        Rage.logger.debug { "Compiled #{channel_name}. Available remote actions: #{available_actions}." }
+      klass.__register_actions(@protocol).tap do |available_actions|
+        Rage.logger.debug { "Compiled #{klass.name}. Available remote actions: #{available_actions}." }
       end
 
       @channels_map[channel_name] = klass
@@ -64,7 +69,7 @@ class Rage::Cable::Router
     channel.__run_action(:subscribed)
 
     if channel.subscription_rejected?
-      Rage.logger.debug { "#{channel_name} is transmitting the subscription rejection" }
+      Rage.logger.debug { "#{channel_class} is transmitting the subscription rejection" }
       # if the subscription is rejected in the `subscribed` method, ActionCable will additionally run
       # the `unsubscribed` method; this makes little sense to me as the client was never subscribed in
       # the first place; additionally, I don't think this behaviour is documented anywhere;
@@ -72,7 +77,7 @@ class Rage::Cable::Router
       # channel.__run_action(:unsubscribed)
       :rejected
     else
-      Rage.logger.debug { "#{channel_name} is transmitting the subscription confirmation" }
+      Rage.logger.debug { "#{channel_class} is transmitting the subscription confirmation" }
       env["rage.cable"][identifier] = channel
       :subscribed
     end
@@ -88,7 +93,7 @@ class Rage::Cable::Router
   # @return [:no_subscription] if the client is not subscribed to the specified channel
   # @return [:unknown_action] if the action does not exist on the specified channel
   # @return [:processed] if the message has been successfully processed
-  def process_message(env, identifier, action_name, data)
+  def process_message(_, env, identifier, action_name, data)
     channel = env["rage.cable"][identifier]
     unless channel
       Rage.logger.debug { "Unable to find the subscription" }
@@ -107,7 +112,7 @@ class Rage::Cable::Router
   # Runs the `unsubscribed` methods on all the channels the client is subscribed to.
   #
   # @param env [Hash] the Rack environment
-  def process_disconnection(env)
+  def process_disconnection(_, env)
     env["rage.cable"]&.each do |_, channel|
       channel.__run_action(:unsubscribed)
     end
@@ -121,6 +126,7 @@ class Rage::Cable::Router
 
   # @private
   def reset
+    @namespace = Object.const_get(@namespace.name) if @namespace.name
     @channels_map.clear
     init_connection_class
   end
@@ -128,10 +134,10 @@ class Rage::Cable::Router
   private
 
   def init_connection_class
-    @connection_class = if Object.const_defined?("RageCable::Connection")
-      RageCable::Connection
-    elsif Object.const_defined?("ApplicationCable::Connection")
-      ApplicationCable::Connection
+    @connection_class = if @namespace.const_defined?("RageCable::Connection", false)
+      @namespace.const_get("RageCable::Connection", false)
+    elsif @namespace.const_defined?("ApplicationCable::Connection", false)
+      @namespace.const_get("ApplicationCable::Connection", false)
     else
       puts "WARNING: Could not find the RageCable connection class! All connections will be accepted by default."
       Rage::Cable::Connection

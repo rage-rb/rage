@@ -256,11 +256,10 @@ module RageCableHelpers
   end
 
   def subscribe(params = {})
-    __stub_cable_protocol!
     __stub_iodine_defer!
 
     channel_class = __channel_class
-    channel_class.__register_actions
+    channel_class.__register_actions(__cable_test_protocol)
 
     params = (params || {}).each_with_object({}) { |(k, v), memo| memo[k.to_sym] = v }
     params[:channel] = channel_class.name
@@ -353,10 +352,6 @@ module RageCableHelpers
 
   def __cable_cookie_uri
     URI.parse("http://#{default_host}/")
-  end
-
-  def __stub_cable_protocol!
-    allow(Rage.cable).to receive(:__protocol).and_return(__cable_test_protocol)
   end
 
   def __stub_iodine_defer!

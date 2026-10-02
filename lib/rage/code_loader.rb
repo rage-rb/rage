@@ -85,7 +85,7 @@ class Rage::CodeLoader
 
   def reload_components
     unless Rage.autoload?(:Cable) # the `Cable` component is loaded
-      Rage::Cable.__router.reset
+      ObjectSpace.each_object(Rage::Cable::Router).each(&:reset)
     end
 
     unless Rage.autoload?(:OpenAPI) # the `OpenAPI` component is loaded
