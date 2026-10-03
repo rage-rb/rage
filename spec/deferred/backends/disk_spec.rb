@@ -452,7 +452,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         expect(backend).to respond_to(:remove_dead_tasks)
       end
 
-      it "yields the newest fully valid duplicate" do
+      it "yields the newest frame-valid duplicate" do
         add_dead_task("1700000001-1-1")
         older = stored_records.last
         append_physical_record("1700000001-1-1", older.merge(task_class: "NewTask", failed_at: older[:failed_at] + 1))
@@ -475,11 +475,8 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         expect(records.last[:task_class]).to eq("MovedTask")
       end
 
-      it "falls back to an older valid duplicate when newer records fail validation" do
+      it "falls back to an older duplicate only when newer frames are physically invalid" do
         add_dead_task("1700000001-1-1")
-        valid = stored_records.last
-        append_physical_record("1700000001-1-1", valid.merge(id: "different-id"))
-        append_physical_record("1700000001-1-1", valid.merge(attempts: "three"))
         dead_tasks_path.open("ab") { |storage| storage.write("deadbeef:dead_task:1700000001-1-1:garbage\n") }
 
         records = each_dead_task
@@ -489,15 +486,11 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         expect(records.first[:task_class]).to eq("SendWelcomeEmail")
       end
 
-      it "falls back past unreadable, non-Hash, missing-field, and mismatched newer duplicates" do
+      it "does not fall back when the newest frame-valid payload cannot be decoded" do
         add_dead_task("1700000001-1-1")
-        valid = stored_records.last
-        append_physical_record("1700000001-1-1", valid.reject { |key| key == :failed_at })
-        append_serialized_record("1700000001-1-1", Marshal.dump([:not, :a, :hash]).dump)
         append_serialized_record("1700000001-1-1", "not-a-dumped-string")
-        append_physical_record("1700000001-1-1", valid.merge(id: "different-id"))
 
-        expect(each_dead_task.map { |record| record[:task_class] }).to eq(["SendWelcomeEmail"])
+        expect { each_dead_task }.to raise_error(RuntimeError, /dumped string/)
       end
 
       it "silently skips malformed frames and an incomplete tail" do
@@ -517,26 +510,12 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         expect(dead_tasks_path.binread).to eq(snapshot_bytes)
       end
 
-      it "requires every summary field and checks backtrace and opaque context types" do
+      it "does not schema-check frame-valid payloads during selection" do
         add_dead_task("1700000001-1-1")
         valid = stored_records.last
-        required_types = {
-          id: String, task_class: String, attempts: Integer, enqueued_at: Integer, failed_at: Integer,
-          exception_class: String, exception_message: String, backtrace: Array, context: String
-        }
-        invalid_records = required_types.map do |key, type|
-          invalid_value = type == Integer ? "1" : 1
-          valid.merge(key => invalid_value)
-        end
-        invalid_records << valid.reject { |key| key == :failed_at }
-        invalid_records << valid.merge(backtrace: ["valid", 1])
-        invalid_records.each_with_index do |record, index|
-          id = "1700001#{index.to_s.rjust(3, "0")}-1-1"
-          record = record.merge(id:) unless record[:id].is_a?(Integer)
-          append_physical_record(id, record)
-        end
+        append_physical_record("1700000001-1-1", valid.merge(id: "inner-id", attempts: "three"))
 
-        expect(each_dead_task.map { |record| record[:id] }).to eq(["1700000001-1-1"])
+        expect(each_dead_task).to contain_exactly(include(id: "1700000001-1-1", attempts: "three"))
       end
 
       it "does not deserialize opaque context bytes" do
@@ -566,34 +545,35 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         expect(ids).to eq(20.times.map { |index| "170000#{index.to_s.rjust(4, "0")}-1-1" })
       end
 
-      it "finishes winner selection before the first yield and validates winners only during selection" do
+      it "finishes frame-only winner selection before the first yield and decodes only the delivery batch" do
         stub_const("#{described_class}::DeadTasksStorage::RECORD_BATCH_SIZE", 2)
         5.times { |index| add_dead_task("170000000#{index}-1-1") }
-        allow(dead_tasks_storage).to receive(:decode_record).and_call_original
         allow(Marshal).to receive(:load).and_call_original
+        allow(dead_tasks_storage).to receive(:each_record_batch).and_wrap_original do |original, *args, &block|
+          expect(Marshal).not_to have_received(:load)
+          original.call(*args, &block)
+        end
 
         first = backend.enum_for(:each_dead_task).first
 
         expect(first[:id]).to eq("1700000000-1-1")
-        expect(dead_tasks_storage).to have_received(:decode_record).exactly(5).times
-        # Every record is decoded during selection, then only the current delivery batch is decoded again.
-        expect(Marshal).to have_received(:load).exactly(7).times
+        expect(Marshal).to have_received(:load).exactly(2).times
       end
 
       it "does not open or inspect a snapshot until first advancement" do
         add_dead_task("1700000001-1-1")
         allow(dead_tasks_storage).to receive(:with_snapshot).and_call_original
-        allow(dead_tasks_storage).to receive(:decode_record).and_call_original
+        allow(Marshal).to receive(:load).and_call_original
 
         iterator = backend.enum_for(:each_dead_task)
 
         expect(dead_tasks_storage).not_to have_received(:with_snapshot)
-        expect(dead_tasks_storage).not_to have_received(:decode_record)
+        expect(Marshal).not_to have_received(:load)
 
         iterator.next
 
         expect(dead_tasks_storage).to have_received(:with_snapshot).once
-        expect(dead_tasks_storage).to have_received(:decode_record).once
+        expect(Marshal).to have_received(:load).once
       end
 
       it "excludes an incomplete tail and records appended after first advancement" do
@@ -629,7 +609,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       it "releases the permanent lock before decoding and yielding" do
         add_dead_task("1700000001-1-1")
         add_dead_task("1700000002-1-2")
-        allow(dead_tasks_storage).to receive(:decode_record).and_wrap_original do |original, *args|
+        allow(Marshal).to receive(:load).and_wrap_original do |original, *args|
           expect(dead_tasks_storage.instance_variable_get(:@locked)).to eq(false)
           original.call(*args)
         end
@@ -881,29 +861,25 @@ RSpec.describe Rage::Deferred::Backends::Disk do
           original.merge(task_class: "NewestTask", failed_at: original[:failed_at] + 1).tap do |record|
             append_lookup_record(lookup_id, record)
           end
-        when :invalid_newer_duplicate
-          append_lookup_record(lookup_id, original.merge(attempts: "invalid"))
-          original
+        when :schema_incompatible_duplicate
+          original.merge(attempts: "invalid").tap do |record|
+            append_lookup_record(lookup_id, record)
+          end
         end
       end
 
       include_examples "a dead-task exact-lookup backend", empty: false
 
-      it "falls back past the full corrupt-record matrix and uses the outer id authoritatively" do
+      it "falls back past physically corrupt matches and uses the outer id authoritatively" do
         add_dead_task(lookup_id)
         valid = stored_records.last
-        append_lookup_record(lookup_id, valid.reject { |key| key == :failed_at })
-        append_lookup_payload(lookup_id, Marshal.dump([:not, :a, :hash]).dump)
-        append_lookup_payload(lookup_id, "not-a-dumped-string")
-        append_lookup_record(lookup_id, valid.merge(id: "different-id"))
-        append_lookup_record(lookup_id, valid.merge(backtrace: ["valid", 1]))
         dead_tasks_path.open("ab") { |storage| storage.write("deadbeef:dead_task:#{lookup_id}:secret\n") }
 
         expect { expect(backend.find_dead_task(lookup_id)).to eq(valid) }.not_to output.to_stdout
         expect { backend.find_dead_task(lookup_id) }.not_to output.to_stderr
       end
 
-      it "returns nil after invalid matches and excludes an incomplete tail" do
+      it "returns a frame-valid schema-incompatible match and excludes an incomplete tail" do
         backend
         record = {
           id: lookup_id, task_class: "Task", attempts: "invalid",
@@ -914,11 +890,11 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         dead_tasks_path.open("ab") { |storage| storage.write("incomplete-secret-tail") }
         bytes = dead_tasks_path.binread
 
-        expect(backend.find_dead_task(lookup_id)).to be_nil
+        expect(backend.find_dead_task(lookup_id)).to eq(record)
         expect(dead_tasks_path.binread).to eq(bytes)
       end
 
-      it "stops immediately without decoding or reading older untouched records" do
+      it "stops immediately after decoding the newest frame-valid match" do
         backend
         invalid_older = {
           id: lookup_id, task_class: "Task", attempts: "invalid",
@@ -927,10 +903,24 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         }
         append_lookup_record(lookup_id, invalid_older)
         add_dead_task(lookup_id)
-        allow(dead_tasks_storage).to receive(:decode_record).and_call_original
+        allow(Marshal).to receive(:load).and_call_original
 
         expect(backend.find_dead_task(lookup_id)[:exception_message]).to eq("boom")
-        expect(dead_tasks_storage).to have_received(:decode_record).once
+        expect(Marshal).to have_received(:load).once
+      end
+
+      it "propagates the selected payload decoding failure without falling back" do
+        add_dead_task(lookup_id)
+        append_lookup_payload(lookup_id, "not-a-dumped-string")
+
+        expect { backend.find_dead_task(lookup_id) }.to raise_error(RuntimeError, /dumped string/)
+      end
+
+      it "uses the outer framed id when the decoded payload id differs" do
+        add_dead_task(lookup_id)
+        append_lookup_record(lookup_id, stored_records.last.merge(id: "different-id"))
+
+        expect(backend.find_dead_task(lookup_id)[:id]).to eq(lookup_id)
       end
 
       it "finds records with incompatible opaque contexts without loading them" do
@@ -1024,15 +1014,14 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         expect { backend.find_dead_task(lookup_id) }.to raise_error(Errno::EIO)
       end
 
-      it "propagates an operational failure after skipping an invalid match" do
+      it "propagates an operational failure after skipping a physically invalid match" do
         add_dead_task(lookup_id)
-        valid = stored_records.last
-        append_lookup_record(lookup_id, valid.merge(attempts: "invalid"))
         reader_class = described_class::DeadTasksStorage.const_get(:ReverseLineReader, false)
         reader = instance_double(reader_class)
-        newest = dead_tasks_path.binread.each_line.to_a.last.chomp
         allow(reader_class).to receive(:new).and_return(reader)
-        allow(reader).to receive(:next_line).and_return([0, newest.bytesize, newest]).and_raise(Errno::EIO)
+        allow(reader).to receive(:next_line).
+          and_return([0, 42, "deadbeef:dead_task:#{lookup_id}:secret"]).
+          and_raise(Errno::EIO)
 
         expect { backend.find_dead_task(lookup_id) }.to raise_error(Errno::EIO)
       end

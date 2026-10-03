@@ -23,14 +23,14 @@ RSpec.shared_examples "a dead-task exact-lookup backend" do |empty:|
       )
     end
 
-    it "returns the newest fully valid duplicate" do
+    it "returns the newest frame-valid duplicate" do
       expected = store_lookup_record(:duplicate)
 
       expect(backend.find_dead_task(lookup_id)).to eq(expected)
     end
 
-    it "falls back past an invalid newer duplicate" do
-      expected = store_lookup_record(:invalid_newer_duplicate)
+    it "returns a schema-incompatible newer frame without falling back" do
+      expected = store_lookup_record(:schema_incompatible_duplicate)
 
       expect(backend.find_dead_task(lookup_id)).to eq(expected)
     end

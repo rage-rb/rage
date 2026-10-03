@@ -61,9 +61,9 @@ class Rage::Deferred::Backends::Disk
     @dead_tasks_storage.each(&block)
   end
 
-  # Find the newest fully valid dead-task record with the exact id.
+  # Find the newest frame-valid dead-task record with the exact id.
   # @param id [String] persisted task id
-  # @return [Hash, nil] a validated record, or nil
+  # @return [Hash, nil] a decoded record, or nil
   # @private
   def find_dead_task(id)
     @dead_tasks_storage.find_by_id(id)
@@ -371,18 +371,6 @@ class Rage::Deferred::Backends::Disk
     TAIL_SCAN_CHUNK_SIZE = 8_192
     RECORD_BATCH_SIZE = 100
 
-    REQUIRED_RECORD_TYPES = {
-      id: String,
-      task_class: String,
-      attempts: Integer,
-      enqueued_at: Integer,
-      failed_at: Integer,
-      exception_class: String,
-      exception_message: String,
-      backtrace: Array,
-      context: String
-    }.freeze
-
     # Returns complete lines one at a time while moving backward from a fixed
     # file boundary. It scans backward in fixed-size chunks to find the start of
     # each line, avoiding loading the entire preceding file contents into memory.
@@ -429,7 +417,7 @@ class Rage::Deferred::Backends::Disk
         0
       end
     end
-    private_constant :RECORD_BATCH_SIZE, :REQUIRED_RECORD_TYPES, :ReverseLineReader
+    private_constant :RECORD_BATCH_SIZE, :ReverseLineReader
 
     # Open or create the shared dead-tasks store and its stable lock file.
     # @param path [Pathname] directory in which storage files are kept
@@ -491,7 +479,7 @@ class Rage::Deferred::Backends::Disk
     # reads and yields those records oldest-first, keeping only one fixed-size
     # internal batch of decoded records in memory. All state belongs only to this call.
     #
-    # @yieldparam record [Hash] a fully validated dead-task record
+    # @yieldparam record [Hash] a decoded dead-task record
     # @return [self]
     # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
     # @raise [SystemCallError] when snapshot file operations fail
@@ -504,9 +492,9 @@ class Rage::Deferred::Backends::Disk
       end
     end
 
-    # Find the newest fully valid record with the exact authoritative framed id.
+    # Find the newest frame-valid record with the exact authoritative framed id.
     # @param id [String] persisted task id
-    # @return [Hash, nil] a fully validated record, or nil
+    # @return [Hash, nil] a decoded record, or nil
     # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
     # @raise [SystemCallError] when snapshot file operations fail
     def find_by_id(id)
@@ -521,8 +509,7 @@ class Rage::Deferred::Backends::Disk
           framed_id, serialized_record = framed_record(entry)
           next unless framed_id == id
 
-          record = decode_record(framed_id, serialized_record)
-          return record if record
+          return Marshal.load(serialized_record.undump).merge(id: framed_id)
         end
 
         nil
@@ -590,7 +577,6 @@ class Rage::Deferred::Backends::Disk
         framed_id, serialized_record = framed_record(entry)
         next unless framed_id
         next if locations_by_id.key?(framed_id)
-        next unless decode_record(framed_id, serialized_record)
 
         serialized_record_offset = offset + length - serialized_record.bytesize
         locations_by_id[framed_id] = [serialized_record_offset, serialized_record.bytesize].freeze
@@ -604,9 +590,9 @@ class Rage::Deferred::Backends::Disk
     def each_record_batch(storage, records_index)
       batch = []
 
-      records_index.reverse_each do |_framed_id, (offset, length)|
+      records_index.reverse_each do |framed_id, (offset, length)|
         storage.seek(offset, IO::SEEK_SET)
-        batch << Marshal.load(storage.read(length).undump)
+        batch << Marshal.load(storage.read(length).undump).merge(id: framed_id)
         next unless batch.length == RECORD_BATCH_SIZE
 
         batch.each { |batched_record| yield batched_record }
@@ -692,22 +678,6 @@ class Rage::Deferred::Backends::Disk
       return unless separator_index && separator_index > id_start
 
       [payload.byteslice(id_start...separator_index), payload.byteslice((separator_index + 1)..)]
-    end
-
-    # Decode and schema-check a framed record without decoding its opaque context.
-    # @param framed_id [String] authoritative id from the physical frame
-    # @param serialized_record [String] dumped top-level Hash
-    # @return [Hash, nil]
-    def decode_record(framed_id, serialized_record)
-      record = Marshal.load(serialized_record.undump)
-      return unless record.is_a?(Hash)
-      return unless REQUIRED_RECORD_TYPES.all? { |key, type| record.key?(key) && record[key].is_a?(type) }
-      return unless record[:backtrace].all? { |line| line.is_a?(String) }
-      return unless record[:id] == framed_id
-
-      record
-    rescue ArgumentError, EOFError, NameError, RuntimeError, TypeError
-      nil
     end
 
     # Persist changes to the live file's directory entry, including file creation and replacement.

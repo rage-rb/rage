@@ -48,7 +48,7 @@ class Rage::Deferred::DeadTasks
     self
   end
 
-  # Find the newest fully valid dead task with an exact persisted ID.
+  # Find the newest frame-valid dead task with an exact persisted ID.
   #
   # The ID must be a String and is never coerced. Lookup does not resolve the
   # stored task class or deserialize its execution context. On Disk, recoverable
