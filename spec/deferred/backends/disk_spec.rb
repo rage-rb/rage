@@ -508,11 +508,13 @@ RSpec.describe Rage::Deferred::Backends::Disk do
           storage.write("deadbeef:dead_task:1700000002-1-2:secret-payload\n")
           storage.write("incomplete-secret-tail")
         end
+        snapshot_bytes = dead_tasks_path.binread
 
         expect {
           expect(each_dead_task.map { |record| record[:id] }).to eq(["1700000001-1-1"])
         }.not_to output.to_stdout
         expect { each_dead_task }.not_to output.to_stderr
+        expect(dead_tasks_path.binread).to eq(snapshot_bytes)
       end
 
       it "requires every summary field and checks backtrace and opaque context types" do
@@ -758,7 +760,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
 
       it "propagates lazy snapshot-acquisition failures and closes the opened descriptor" do
         descriptor = nil
-        allow(dead_tasks_storage).to receive(:find_snapshot_end) do |storage|
+        allow(dead_tasks_storage).to receive(:complete_record_end) do |storage|
           descriptor = storage
           raise Errno::EACCES
         end

@@ -596,7 +596,7 @@ class Rage::Deferred::Backends::Disk
       begin
         snapshot_end = with_lock("read tasks from") do
           storage = File.open(@storage_path, File::RDONLY | File::BINARY)
-          find_snapshot_end(storage)
+          complete_record_end(storage)
         end
 
         yield storage, snapshot_end
@@ -612,11 +612,11 @@ class Rage::Deferred::Backends::Disk
       end
     end
 
-    # Find the end of the last complete record, excluding any unterminated
-    # bytes after the final newline.
+    # Find the end of the last complete record without modifying the file,
+    # excluding any unterminated bytes after the final newline.
     # @param storage [File] open live dead-task file
     # @return [Integer] fixed complete-record boundary
-    def find_snapshot_end(storage)
+    def complete_record_end(storage)
       storage.seek(0, IO::SEEK_END)
       end_position = storage.pos
       return 0 if end_position == 0
@@ -686,30 +686,8 @@ class Rage::Deferred::Backends::Disk
     # @param storage [File] store opened for reading and writing
     # @return [void]
     def repair_torn_tail(storage)
-      storage.seek(0, IO::SEEK_END)
-      end_position = storage.pos
-      return if end_position == 0
-
-      storage.seek(-1, IO::SEEK_END)
-      return if storage.read(1) == "\n"
-
-      position = end_position
-      truncate_at = 0
-
-      while position > 0
-        chunk_start = [position - TAIL_SCAN_CHUNK_SIZE, 0].max
-        storage.seek(chunk_start, IO::SEEK_SET)
-        chunk = storage.read(position - chunk_start)
-
-        if (newline_index = chunk.rindex("\n"))
-          truncate_at = chunk_start + newline_index + 1
-          break
-        end
-
-        position = chunk_start
-      end
-
-      storage.truncate(truncate_at)
+      truncate_at = complete_record_end(storage)
+      storage.truncate(truncate_at) if truncate_at < storage.size
     end
 
     # Validate a stored entry and extract its task id.
