@@ -17,10 +17,12 @@ class Rage::Deferred::Backends::Nil
   def add_dead_task(_, _, _, **)
   end
 
-  def list_dead_tasks(**)
-    []
+  # @private
+  def each_dead_task
+    self
   end
 
+  # @private
   def find_dead_task(_)
   end
 

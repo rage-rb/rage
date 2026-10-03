@@ -2,6 +2,8 @@
 
 ### Added
 
+- [Deferred] Add stable, oldest-first traversal through `Rage::Deferred.dead_tasks`.
+- [Deferred] Add exact dead-task lookup and detailed inspection.
 - Add low-level `PubSub` API (#399).
 - [Cable] Serialize WS messages per connection (#400).
 - Update fiber scheduler to support Ruby 4.1 (#397).
