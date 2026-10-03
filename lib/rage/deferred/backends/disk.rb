@@ -488,8 +488,8 @@ class Rage::Deferred::Backends::Disk
     # @raise [SystemCallError] when snapshot file operations fail
     def each
       with_snapshot do |storage, snapshot_end|
-        record_locations_index = build_record_location_index(storage, snapshot_end)
-        each_record_batch(storage, record_locations_index) { |record| yield record }
+        records_index = build_records_index(storage, snapshot_end)
+        each_record_batch(storage, records_index) { |record| yield record }
 
         self
       end
@@ -544,7 +544,7 @@ class Rage::Deferred::Backends::Disk
 
     # Retain the newest valid serialized-payload location for every task ID.
     # @return [Hash{String => Array<(Integer, Integer)>}] payload locations in newest-first order
-    def build_record_location_index(storage, snapshot_end)
+    def build_records_index(storage, snapshot_end)
       reader = ReverseLineReader.new(storage, snapshot_end)
       locations_by_id = {}
 
@@ -567,10 +567,10 @@ class Rage::Deferred::Backends::Disk
 
     # Read selected payload locations oldest first and yield decoded records in batches.
     # @return [void]
-    def each_record_batch(storage, record_locations_index)
+    def each_record_batch(storage, records_index)
       batch = []
 
-      record_locations_index.reverse_each do |_framed_id, (offset, length)|
+      records_index.reverse_each do |_framed_id, (offset, length)|
         storage.seek(offset, IO::SEEK_SET)
         batch << Marshal.load(storage.read(length).undump)
         next unless batch.length == RECORD_BATCH_SIZE
