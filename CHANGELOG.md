@@ -6,6 +6,7 @@
 - [Cable] Serialize WS messages per connection (#400).
 - Update fiber scheduler to support Ruby 4.1 (#397).
 - [Deferred] Add stable, oldest-first traversal through `Rage::Deferred.dead_tasks`.
+- [Deferred] Add exact dead-task lookup and detailed inspection.
 
 ## [1.28.0] - 2026-09-15
 

@@ -22,6 +22,10 @@ class Rage::Deferred::Backends::Nil
     self
   end
 
+  # @private
+  def find_dead_task(_)
+  end
+
   def remove_dead_tasks(_)
     0
   end

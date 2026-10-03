@@ -47,4 +47,23 @@ class Rage::Deferred::DeadTasks
 
     self
   end
+
+  # Find the newest fully valid dead task with an exact persisted ID.
+  #
+  # The ID must be a String and is never coerced. Lookup does not resolve the
+  # stored task class or deserialize its execution context. On Disk, recoverable
+  # corrupt records are skipped silently; lock and filesystem errors propagate
+  # unchanged. Backend-specific lookup complexity is not part of this API.
+  #
+  # @param id [String] exact persisted task identifier
+  # @return [Rage::Deferred::DeadTask, nil] the matching task, or nil
+  # @raise [TypeError] when id is not a String
+  # @raise [Rage::Deferred::DeadTasksLockTimeout] when snapshot acquisition cannot obtain the store lock
+  # @raise [SystemCallError] when opening, reading, seeking, or closing the snapshot fails
+  def find_by_id(id)
+    raise TypeError, "dead task id must be a String" unless id.is_a?(String)
+
+    record = @backend.find_dead_task(id)
+    Rage::Deferred::DeadTask.send(:new, record) if record
+  end
 end

@@ -114,6 +114,13 @@ module Rage::Deferred
   # Raised when a dead-tasks store operation cannot acquire the lock within the retry budget.
   class DeadTasksLockTimeout < StandardError
   end
+
+  # Raised when a dead task's stored execution context cannot be decoded.
+  #
+  # The error message identifies the dead task, and `Exception#cause` contains
+  # the original Marshal or context-layout exception.
+  class DeadTaskContextDeserializationError < StandardError
+  end
 end
 
 require_relative "dead_task"

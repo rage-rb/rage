@@ -20,13 +20,20 @@ RSpec.describe Rage::Deferred::DeadTasks do
   let(:backend) do
     stored_records = records
     Class.new do
-      attr_reader :traversal_count
+      attr_reader :traversal_count, :lookup_count
 
-      define_method(:initialize) { @traversal_count = 0 }
+      define_method(:initialize) do
+        @traversal_count = 0
+        @lookup_count = 0
+      end
       define_method(:each_dead_task) do |&block|
         @traversal_count += 1
         stored_records.each(&block)
         self
+      end
+      define_method(:find_dead_task) do |id|
+        @lookup_count += 1
+        stored_records.reverse_each.find { |record| record[:id] == id }
       end
     end.new
   end
@@ -56,7 +63,6 @@ RSpec.describe Rage::Deferred::DeadTasks do
     end
 
     it "yields passive immutable summaries without resolving task classes or contexts" do
-      stub_const("MissingTask", Class.new)
       expect(Object).not_to receive(:const_get)
       expect(Marshal).not_to receive(:load)
 
@@ -70,7 +76,7 @@ RSpec.describe Rage::Deferred::DeadTasks do
       expect(entries.last.id).to be_frozen
       expect(entries.last.task_class).to be_frozen
       expect(entries.last.enqueued_at).to be_frozen
-      expect(entries.last).not_to respond_to(:args)
+      expect(entries.last).to respond_to(:args, :kwargs, :exception_class, :exception_message, :backtrace)
       expect(entries.last).not_to respond_to(:delete)
       expect(entries.last).not_to respond_to(:retry)
       expect(entries.last.instance_variables).not_to include(:@backend, :@dead_tasks, :@operation_delegate)
@@ -78,10 +84,14 @@ RSpec.describe Rage::Deferred::DeadTasks do
 
     it "retains standard Enumerable find and detect behavior" do
       fallback = -> { :missing }
+      unused_fallback = -> { raise "must not run" }
 
       expect(dead_tasks.find { |entry| entry.attempts == 2 }.task_class).to eq("OlderTask")
+      expect(dead_tasks.find(unused_fallback) { |entry| entry.attempts == 2 }.task_class).to eq("OlderTask")
       expect(dead_tasks.detect(fallback) { |entry| entry.attempts == 99 }).to eq(:missing)
       expect(dead_tasks.find).to be_a(Enumerator)
+      expect(dead_tasks.detect).to be_a(Enumerator)
+      expect(described_class.instance_methods(false)).not_to include(:find, :detect)
     end
 
     it "uses independent traversals for separate Enumerable operations" do
@@ -91,6 +101,140 @@ RSpec.describe Rage::Deferred::DeadTasks do
       expect(backend.traversal_count).to eq(2)
       expect(dead_tasks.instance_variables).to eq([:@backend])
       expect(dead_tasks.instance_variable_get(:@backend)).to equal(backend)
+    end
+  end
+
+  describe "#find_by_id" do
+    it "validates an exact String before backend access without coercion" do
+      expect(backend).not_to receive(:find_dead_task)
+
+      expect { dead_tasks.find_by_id(:"1700000001-1-1") }.to raise_error(TypeError, /String/)
+      expect { dead_tasks.find_by_id(1_700_000_001) }.to raise_error(TypeError, /String/)
+      expect(backend.lookup_count).to eq(0)
+    end
+
+    it "delegates polymorphically and wraps a matching record" do
+      entry = dead_tasks.find_by_id("1700000002-1-2")
+
+      expect(entry).to be_a(Rage::Deferred::DeadTask)
+      expect(entry.id).to eq("1700000002-1-2")
+      expect(backend.lookup_count).to eq(1)
+      expect(dead_tasks.find_by_id("missing")).to be_nil
+    end
+
+    it "exposes frozen exception metadata without decoding context or resolving the task class" do
+      expect(Object).not_to receive(:const_get)
+      expect(Marshal).not_to receive(:load)
+
+      entry = dead_tasks.find_by_id("1700000002-1-2")
+
+      expect(entry.exception_class).to eq("RuntimeError")
+      expect(entry.exception_message).to eq("secret failure")
+      expect(entry.backtrace).to eq(["app/task.rb:1"])
+      expect(entry.exception_class).to be_frozen
+      expect(entry.exception_message).to be_frozen
+      expect(entry.backtrace).to be_frozen
+      expect(entry.backtrace.first).to be_frozen
+      expect { entry.backtrace << "changed" }.to raise_error(FrozenError)
+    end
+
+    it "lazily decodes empty, positional, keyword, and mixed arguments with stable frozen identities" do
+      contexts = [
+        ["Task", nil, nil],
+        ["Task", [["nested"]], nil],
+        ["Task", nil, { key: { nested: "value" } }],
+        ["Task", [1], { key: 2 }]
+      ]
+      load_count = 0
+      allow(Marshal).to receive(:load).and_wrap_original do |original, *args, **kwargs|
+        load_count += 1
+        original.call(*args, **kwargs)
+      end
+
+      contexts.each_with_index do |context, index|
+        record = records.first.merge(id: "context-#{index}", context: Marshal.dump(context))
+        records << record
+        entry = dead_tasks.find_by_id(record[:id])
+
+        expect(entry.args).to eq(context[1] || [])
+        expect(entry.kwargs).to eq(context[2] || {})
+        expect(entry.args).to equal(entry.args)
+        expect(entry.kwargs).to equal(entry.kwargs)
+        expect(entry.args).to be_frozen
+        expect(entry.kwargs).to be_frozen
+      end
+
+      expect(load_count).to eq(contexts.length)
+      expect(dead_tasks.find_by_id("context-1").args.dig(0)).to eq(["nested"])
+      expect(dead_tasks.find_by_id("context-2").kwargs.dig(:key, :nested)).to eq("value")
+    end
+
+    it "freezes nested argument graphs defensively" do
+      shared = ["secret"]
+      shared << shared
+      records << records.first.merge(
+        id: "nested", context: Marshal.dump(["Task", [shared], { shared: }])
+      )
+      entry = dead_tasks.find_by_id("nested")
+
+      expect(entry.args.first).to equal(entry.kwargs[:shared])
+      expect(entry.args.first).to equal(entry.args.first.last)
+      expect(entry.args.first).to be_frozen
+      expect(entry.args.first.first).to be_frozen
+      expect { entry.args.first << "changed" }.to raise_error(FrozenError)
+      expect { entry.kwargs[:shared].first.replace("changed") }.to raise_error(FrozenError)
+    end
+
+    it "raises the dedicated error with id and cause, without caching a failed decode" do
+      records << records.first.merge(id: "broken", context: "not Marshal")
+      entry = dead_tasks.find_by_id("broken")
+
+      2.times do
+        expect { entry.args }.to raise_error(Rage::Deferred::DeadTaskContextDeserializationError) { |error|
+          expect(error.message).to include("broken")
+          expect(error.cause).to be_a(TypeError)
+        }
+      end
+      expect(entry.id).to eq("broken")
+      expect(entry.exception_class).to eq("ArgumentError")
+      expect(dead_tasks.find_by_id("broken")).not_to be_nil
+    end
+
+    it "rejects incompatible context layouts through the dedicated error" do
+      [nil, {}, [], ["Task"], ["Task", "not args", {}], ["Task", [], "not kwargs"]].each_with_index do |context, index|
+        records << records.first.merge(id: "bad-layout-#{index}", context: Marshal.dump(context))
+        entry = dead_tasks.find_by_id("bad-layout-#{index}")
+
+        expect { entry.kwargs }.to raise_error(Rage::Deferred::DeadTaskContextDeserializationError) { |error|
+          expect(error.cause).to be_a(TypeError)
+        }
+      end
+    end
+
+    it "keeps missing referenced constants recoverable through metadata" do
+      stub_const("TemporaryDeadTaskArgument", Class.new)
+      dumped = Marshal.dump(["Task", [TemporaryDeadTaskArgument.new], {}])
+      hide_const("TemporaryDeadTaskArgument")
+      records << records.first.merge(id: "missing-constant", context: dumped)
+      entry = dead_tasks.find_by_id("missing-constant")
+
+      expect(entry.task_class).to eq("OlderTask")
+      expect { entry.args }.to raise_error(Rage::Deferred::DeadTaskContextDeserializationError) { |error|
+        expect(error.cause).to be_a(ArgumentError).or be_a(NameError)
+      }
+    end
+
+    it "retries decoding after a missing referenced constant is restored" do
+      stub_const("RestorableDeadTaskArgument", Class.new)
+      dumped = Marshal.dump(["Task", [RestorableDeadTaskArgument.new], {}])
+      hide_const("RestorableDeadTaskArgument")
+      records << records.first.merge(id: "restorable-constant", context: dumped)
+      entry = dead_tasks.find_by_id("restorable-constant")
+
+      expect { entry.args }.to raise_error(Rage::Deferred::DeadTaskContextDeserializationError)
+
+      stub_const("RestorableDeadTaskArgument", Class.new)
+      expect(entry.args.first).to be_a(RestorableDeadTaskArgument)
     end
   end
 end

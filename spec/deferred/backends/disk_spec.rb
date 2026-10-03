@@ -856,6 +856,188 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       end
     end
 
+    describe "#find_dead_task" do
+      let(:lookup_id) { "1700000001-1-1" }
+
+      def append_lookup_record(outer_id, record)
+        entry = dead_tasks_storage.send(:build_entry, outer_id, record)
+        dead_tasks_path.open("ab") { |storage| storage.write(entry) }
+      end
+
+      def append_lookup_payload(outer_id, serialized_record)
+        payload = "dead_task:#{outer_id}:#{serialized_record}"
+        crc = Zlib.crc32(payload).to_s(16).rjust(8, "0")
+        dead_tasks_path.open("ab") { |storage| storage.write("#{crc}:#{payload}\n") }
+      end
+
+      def store_lookup_record(mode)
+        add_dead_task(lookup_id)
+        original = stored_records.last
+
+        case mode
+        when :existing
+          original
+        when :duplicate
+          original.merge(task_class: "NewestTask", failed_at: original[:failed_at] + 1).tap do |record|
+            append_lookup_record(lookup_id, record)
+          end
+        when :invalid_newer_duplicate
+          append_lookup_record(lookup_id, original.merge(attempts: "invalid"))
+          original
+        end
+      end
+
+      include_examples "a dead-task exact-lookup backend", empty: false
+
+      it "falls back past the full corrupt-record matrix and uses the outer id authoritatively" do
+        add_dead_task(lookup_id)
+        valid = stored_records.last
+        append_lookup_record(lookup_id, valid.reject { |key| key == :failed_at })
+        append_lookup_payload(lookup_id, Marshal.dump([:not, :a, :hash]).dump)
+        append_lookup_payload(lookup_id, "not-a-dumped-string")
+        append_lookup_record(lookup_id, valid.merge(id: "different-id"))
+        append_lookup_record(lookup_id, valid.merge(backtrace: ["valid", 1]))
+        dead_tasks_path.open("ab") { |storage| storage.write("deadbeef:dead_task:#{lookup_id}:secret\n") }
+
+        expect { expect(backend.find_dead_task(lookup_id)).to eq(valid) }.not_to output.to_stdout
+        expect { backend.find_dead_task(lookup_id) }.not_to output.to_stderr
+      end
+
+      it "returns nil after invalid matches and excludes an incomplete tail" do
+        backend
+        record = {
+          id: lookup_id, task_class: "Task", attempts: "invalid",
+          enqueued_at: 1, failed_at: 2, exception_class: "RuntimeError",
+          exception_message: "secret", backtrace: [], context: Marshal.dump(["Task", [], {}])
+        }
+        append_lookup_record(lookup_id, record)
+        dead_tasks_path.open("ab") { |storage| storage.write("incomplete-secret-tail") }
+        bytes = dead_tasks_path.binread
+
+        expect(backend.find_dead_task(lookup_id)).to be_nil
+        expect(dead_tasks_path.binread).to eq(bytes)
+      end
+
+      it "stops immediately without decoding or reading older untouched records" do
+        backend
+        invalid_older = {
+          id: lookup_id, task_class: "Task", attempts: "invalid",
+          enqueued_at: 1, failed_at: 2, exception_class: "RuntimeError",
+          exception_message: "older", backtrace: [], context: Marshal.dump(["Task", [], {}])
+        }
+        append_lookup_record(lookup_id, invalid_older)
+        add_dead_task(lookup_id)
+        allow(dead_tasks_storage).to receive(:decode_record).and_call_original
+
+        expect(backend.find_dead_task(lookup_id)[:exception_message]).to eq("boom")
+        expect(dead_tasks_storage).to have_received(:decode_record).once
+      end
+
+      it "finds records with incompatible opaque contexts without loading them" do
+        add_dead_task(lookup_id)
+        record = stored_records.last.merge(context: "not Marshal")
+        append_lookup_record("1700000002-1-2", record.merge(id: "1700000002-1-2"))
+        allow(Marshal).to receive(:load).and_call_original
+
+        found = backend.find_dead_task("1700000002-1-2")
+
+        expect(found[:id]).to eq("1700000002-1-2")
+        expect(Marshal).to have_received(:load).once
+      end
+
+      it "uses an independent snapshot without disturbing a paused enumeration" do
+        add_dead_task(lookup_id)
+        add_dead_task("1700000002-1-2")
+        iterator = backend.enum_for(:each_dead_task)
+
+        expect(iterator.next[:id]).to eq(lookup_id)
+        expect(backend.find_dead_task("1700000002-1-2")[:id]).to eq("1700000002-1-2")
+        expect(iterator.next[:id]).to eq("1700000002-1-2")
+        expect { iterator.next }.to raise_error(StopIteration)
+      end
+
+      it "propagates snapshot lock timeouts unchanged" do
+        stub_const("#{described_class}::DeadTasksStorage::LOCK_MAX_ATTEMPTS", 1)
+        dead_tasks_storage.instance_variable_set(:@locked, true)
+
+        expect {
+          backend.find_dead_task(lookup_id)
+        }.to raise_error(Rage::Deferred::DeadTasksLockTimeout, /read tasks from/)
+      ensure
+        dead_tasks_storage.instance_variable_set(:@locked, false)
+      end
+
+      it "propagates open failures unchanged" do
+        backend
+        allow(File).to receive(:open).and_call_original
+        allow(File).to receive(:open).with(dead_tasks_path, File::RDONLY | File::BINARY).and_raise(Errno::EACCES)
+
+        expect { backend.find_dead_task(lookup_id) }.to raise_error(Errno::EACCES)
+      end
+
+      it "propagates reverse read failures and closes the snapshot" do
+        add_dead_task(lookup_id)
+        descriptor = nil
+        allow(dead_tasks_storage).to receive(:with_snapshot).and_wrap_original do |original, &operation|
+          original.call do |storage, snapshot_end|
+            descriptor = storage
+            allow(descriptor).to receive(:seek).and_raise(Errno::EIO)
+            operation.call(storage, snapshot_end)
+          end
+        end
+
+        expect { backend.find_dead_task(lookup_id) }.to raise_error(Errno::EIO)
+        expect(descriptor).to be_closed
+      end
+
+      it "does not let cleanup replace an active lookup failure" do
+        add_dead_task(lookup_id)
+        descriptor = nil
+        allow(dead_tasks_storage).to receive(:with_snapshot).and_wrap_original do |original, &operation|
+          original.call do |storage, snapshot_end|
+            descriptor = storage
+            allow(descriptor).to receive(:seek).and_raise(Errno::EACCES)
+            allow(descriptor).to receive(:close).and_wrap_original do |close|
+              close.call
+              raise Errno::EIO
+            end
+            operation.call(storage, snapshot_end)
+          end
+        end
+
+        expect { backend.find_dead_task(lookup_id) }.to raise_error(Errno::EACCES)
+        expect(descriptor).to be_closed
+      end
+
+      it "propagates a descriptor cleanup error when it is the only failure" do
+        add_dead_task(lookup_id)
+        allow(dead_tasks_storage).to receive(:with_snapshot).and_wrap_original do |original, &operation|
+          original.call do |storage, snapshot_end|
+            allow(storage).to receive(:close).and_wrap_original do |close|
+              close.call
+              raise Errno::EIO
+            end
+            operation.call(storage, snapshot_end)
+          end
+        end
+
+        expect { backend.find_dead_task(lookup_id) }.to raise_error(Errno::EIO)
+      end
+
+      it "propagates an operational failure after skipping an invalid match" do
+        add_dead_task(lookup_id)
+        valid = stored_records.last
+        append_lookup_record(lookup_id, valid.merge(attempts: "invalid"))
+        reader_class = described_class::DeadTasksStorage.const_get(:ReverseLineReader, false)
+        reader = instance_double(reader_class)
+        newest = dead_tasks_path.binread.each_line.to_a.last.chomp
+        allow(reader_class).to receive(:new).and_return(reader)
+        allow(reader).to receive(:next_line).and_return([0, newest.bytesize, newest]).and_raise(Errno::EIO)
+
+        expect { backend.find_dead_task(lookup_id) }.to raise_error(Errno::EIO)
+      end
+    end
+
     describe "#remove_dead_tasks" do
       it "removes the given dead tasks and keeps the others" do
         add_dead_task("1-1-1")

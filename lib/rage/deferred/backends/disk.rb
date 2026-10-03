@@ -11,6 +11,7 @@ require "zlib"
 # * `pending_tasks` - the method should iterate over the underlying storage and return a list of tasks to replay;
 # * `add_dead_task` - called when a task has exhausted its retries or aborted them;
 # * `each_dead_task` - traverse a stable dead-task snapshot oldest first;
+# * `find_dead_task` - find a dead task by its exact id;
 # * `remove_dead_tasks` - permanently delete dead tasks;
 #
 class Rage::Deferred::Backends::Disk
@@ -58,6 +59,14 @@ class Rage::Deferred::Backends::Disk
   # @private
   def each_dead_task(&block)
     @dead_tasks_storage.each(&block)
+  end
+
+  # Find the newest fully valid dead-task record with the exact id.
+  # @param id [String] persisted task id
+  # @return [Hash, nil] a validated record, or nil
+  # @private
+  def find_dead_task(id)
+    @dead_tasks_storage.find_by_id(id)
   end
 
   # Permanently delete dead-lettered tasks.
@@ -492,6 +501,31 @@ class Rage::Deferred::Backends::Disk
         each_record_batch(storage, records_index) { |record| yield record }
 
         self
+      end
+    end
+
+    # Find the newest fully valid record with the exact authoritative framed id.
+    # @param id [String] persisted task id
+    # @return [Hash, nil] a fully validated record, or nil
+    # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
+    # @raise [SystemCallError] when snapshot file operations fail
+    def find_by_id(id)
+      with_snapshot do |storage, snapshot_end|
+        reader = ReverseLineReader.new(storage, snapshot_end)
+
+        loop do
+          line = reader.next_line
+          break unless line
+
+          _offset, _length, entry = line
+          framed_id, serialized_record = framed_record(entry)
+          next unless framed_id == id
+
+          record = decode_record(framed_id, serialized_record)
+          return record if record
+        end
+
+        nil
       end
     end
 
