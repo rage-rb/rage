@@ -10,8 +10,9 @@ require "zlib"
 # * `remove_task` - called when a task has to be removed from the storage;
 # * `pending_tasks` - the method should iterate over the underlying storage and return a list of tasks to replay;
 # * `add_dead_task` - called when a task has exhausted its retries or aborted them;
-# * `list_dead_tasks` - return a list of dead tasks, newest first;
-# * `find_dead_task` - return a single dead task;
+# * `each_dead_task` - calls the block once for each logical dead task in a fixed snapshot,
+#   ordered by the physical positions of the selected winning records;
+# * `find_dead_task` - returns the newest frame-valid dead-task record with the exact outer ID;
 # * `remove_dead_tasks` - permanently delete dead tasks;
 #
 class Rage::Deferred::Backends::Disk
@@ -53,19 +54,22 @@ class Rage::Deferred::Backends::Disk
     @dead_tasks_storage.add(task_id, context, exception, task_class:, attempts:)
   end
 
-  # Return a list of dead-lettered tasks, newest first.
-  # @param limit [Integer, nil] the maximum number of records to return
-  # @param offset [Integer] the number of records to skip
-  # @return [Array<Hash>]
-  def list_dead_tasks(limit: nil, offset: 0)
-    @dead_tasks_storage.list(limit:, offset:)
+  # Call the block once for each logical dead task in a fixed snapshot.
+  # Selected winners are ordered by their physical positions from oldest to newest.
+  # Changes to the live storage during iteration do not change the selected records.
+  # @yieldparam record [Hash] a decoded selected dead-task record
+  # @return [Rage::Deferred::Backends::Disk::DeadTasksStorage]
+  # @private
+  def each_dead_task(&block)
+    @dead_tasks_storage.each(&block)
   end
 
-  # Return a single dead-lettered task.
-  # @param id [String] the id of the dead-task record
-  # @return [Hash, nil]
+  # Return the newest frame-valid dead-task record with the exact outer ID.
+  # @param id [String] the persisted task ID
+  # @return [Hash, nil] the decoded record, or nil if there is no matching record
+  # @private
   def find_dead_task(id)
-    @dead_tasks_storage.find(id)
+    @dead_tasks_storage.find_by_id(id)
   end
 
   # Permanently delete dead-lettered tasks.
@@ -421,25 +425,55 @@ class Rage::Deferred::Backends::Disk
       end
     end
 
-    # Return dead task records, newest first.
-    # @param limit [Integer, nil] maximum number of records to return, or all records if nil
-    # @param offset [Integer] number of newest records to skip
-    # @return [Array<Hash>] task records that could be read successfully
+    # Call the block once for each selected dead-task record, oldest winning position first.
+    #
+    # The method opens the current file while it holds the lock.
+    # It sets the read limit after the last complete record and then releases the lock.
+    # Records added after this point are not part of the traversal.
+    # After releasing the lock, it scans complete records sequentially forwards and selects
+    # the newest frame-valid record for each authoritative outer task ID. Repeated IDs are
+    # ordered at their winning records' physical positions. It then seeks to, decodes, and
+    # yields one selected payload at a time, without decoding the next winner before control
+    # returns from the current yield.
+    # Each call has separate traversal state.
+    #
+    # @yieldparam record [Hash] a decoded dead-task record
+    # @return [self]
     # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
-    def list(limit: nil, offset: 0)
-      records = read_records.reverse
-      records = records.drop(offset) if offset > 0
-      records = records.first(limit) if limit
+    # @raise [SystemCallError] when an operation on the selected storage file fails
+    def each
+      with_snapshot do |storage, snapshot_end|
+        records_index(storage, snapshot_end).each do |task_id, (offset, length)|
+          storage.seek(offset, IO::SEEK_SET)
+          yield Marshal.load(storage.read(length).undump).merge(id: task_id)
+        end
 
-      records
+        self
+      end
     end
 
-    # Find a dead task by its id.
-    # @param id [String] persisted task id
-    # @return [Hash, nil] the task record, or nil when no record matches
+    # Return the newest frame-valid record with the exact authoritative outer ID.
+    # Scan the fixed complete-record snapshot forwards without decoding candidate payloads.
+    # Decode only the newest matching payload after scanning reaches the snapshot boundary.
+    # @param id [String] the persisted task ID
+    # @return [Hash, nil] the decoded record, or nil if there is no matching record
     # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
-    def find(id)
-      read_records.find { |record| record[:id] == id }
+    # @raise [SystemCallError] when an operation on the selected storage file fails
+    def find_by_id(id)
+      with_snapshot do |storage, snapshot_end|
+        serialized_record_location = nil
+        each_framed_record(storage, snapshot_end) do |task_id, offset, length|
+          next unless task_id == id
+
+          serialized_record_location = [offset, length]
+        end
+
+        next unless serialized_record_location
+
+        offset, length = serialized_record_location
+        storage.seek(offset, IO::SEEK_SET)
+        Marshal.load(storage.read(length).undump).merge(id: id)
+      end
     end
 
     # Permanently delete the records with the given ids.
@@ -459,7 +493,7 @@ class Rage::Deferred::Backends::Disk
         File.open(@tmp_storage_path, File::WRONLY | File::CREAT | File::TRUNC | File::BINARY, 0o644) do |tmp|
           File.open(@storage_path, File::RDONLY | File::BINARY) do |storage|
             storage.each_line do |entry|
-              id = entry_id(entry)
+              id, = framed_record(entry.chomp)
 
               if id.nil?
                 next # drop corrupted records; they can neither be listed nor deleted otherwise
@@ -489,95 +523,145 @@ class Rage::Deferred::Backends::Disk
 
     private
 
-    # Persist changes to the live file's directory entry, including file creation and replacement.
-    # @return [void]
-    def sync_storage_directory
-      File.open(@storage_path.dirname, File::RDONLY, &:fsync)
+    # Index the newest frame-valid serialized-payload location for each authoritative outer ID.
+    # Deleting and reinserting a repeated ID moves it to its winning record's physical position,
+    # so Hash insertion order visits the completed index from oldest winner to newest winner.
+    # @param storage [File] the descriptor for the fixed snapshot
+    # @param snapshot_end [Integer] the byte boundary after its last complete record
+    # @return [Hash{String => Array<(Integer, Integer)>}] ordered serialized-payload locations
+    def records_index(storage, snapshot_end)
+      records_index = {}
+      each_framed_record(storage, snapshot_end) do |task_id, offset, length|
+        records_index.delete(task_id)
+        records_index[task_id] = [offset, length].freeze
+      end
+
+      records_index
     end
 
-    # Remove an incomplete final entry left by an interrupted append.
-    # @param storage [File] store opened for reading and writing
+    # Scan complete physical records forwards through a fixed snapshot boundary.
+    # Silently skip malformed frames and invalid CRCs. Do not decode or inspect serialized payloads.
+    # @param storage [File] the descriptor for the fixed snapshot
+    # @param snapshot_end [Integer] the byte boundary after its last complete record
+    # @yieldparam task_id [String] the authoritative outer task ID
+    # @yieldparam offset [Integer] the serialized payload's byte offset
+    # @yieldparam length [Integer] the serialized payload's byte length
     # @return [void]
-    def repair_torn_tail(storage)
+    # @private
+    def each_framed_record(storage, snapshot_end)
+      position = 0
+      storage.seek(0, IO::SEEK_SET)
+
+      while position < snapshot_end
+        offset = position
+        entry = storage.gets
+        break unless entry
+
+        position += entry.bytesize
+        length = entry.bytesize - 1
+        entry = entry.byteslice(0, length)
+        task_id, serialized_record = framed_record(entry)
+        next unless task_id
+
+        serialized_record_offset = offset + length - serialized_record.bytesize
+        yield task_id, serialized_record_offset, serialized_record.bytesize
+      end
+    end
+
+    # Open the live file and capture its last complete-record boundary under the permanent lock.
+    # Release the lock before scanning, decoding, or yielding. The retained descriptor continues
+    # to identify the same snapshot file if the live path is replaced while the block runs.
+    # Close the descriptor on unwind; a close error does not replace an active exception.
+    # @yieldparam storage [File] the descriptor for the fixed snapshot
+    # @yieldparam snapshot_end [Integer] the fixed end position of the last complete record
+    # @yieldreturn [Object] the result from the read operation
+    # @return [Object] the block result
+    def with_snapshot
+      storage = nil
+      active_exception = nil
+
+      begin
+        snapshot_end = with_lock("read tasks from") do
+          storage = File.open(@storage_path, File::RDONLY | File::BINARY)
+          complete_record_end(storage)
+        end
+
+        yield storage, snapshot_end
+      rescue Exception => e
+        active_exception = e
+        raise
+      ensure
+        begin
+          storage.close if storage && !storage.closed?
+        rescue
+          raise unless active_exception
+        end
+      end
+    end
+
+    # Locate the byte boundary immediately after the last newline-terminated record.
+    # If the file has an incomplete tail, scan backwards in bounded chunks without parsing records.
+    # Do not modify the file; return zero when it contains no complete record.
+    # @param storage [File] an open dead-task file
+    # @return [Integer] the byte boundary after the last complete record
+    def complete_record_end(storage)
       storage.seek(0, IO::SEEK_END)
       end_position = storage.pos
-      return if end_position == 0
+      return 0 if end_position == 0
 
       storage.seek(-1, IO::SEEK_END)
-      return if storage.read(1) == "\n"
+      return end_position if storage.read(1) == "\n"
 
       position = end_position
-      truncate_at = 0
-
       while position > 0
         chunk_start = [position - TAIL_SCAN_CHUNK_SIZE, 0].max
         storage.seek(chunk_start, IO::SEEK_SET)
         chunk = storage.read(position - chunk_start)
 
         if (newline_index = chunk.rindex("\n"))
-          truncate_at = chunk_start + newline_index + 1
-          break
+          return chunk_start + newline_index + 1
         end
 
         position = chunk_start
       end
 
-      storage.truncate(truncate_at)
+      0
     end
 
-    # Read valid records, keeping only the latest entry for each task id.
-    # Corrupted or unreadable records are reported and skipped.
-    # @return [Array<Hash>]
-    # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
-    def read_records
-      entries = with_lock("read tasks from") do
-        result, corrupted_count = {}, 0
+    # Check only the outer storage frame and return its authoritative ID and serialized payload.
+    # Return nil for a malformed frame, invalid CRC, unexpected operation, or empty outer ID.
+    # Do not decode the payload or validate its shape or any ID stored inside it.
+    # @param entry [String] one complete physical record without the newline
+    # @return [Array<(String, String)>, nil]
+    def framed_record(entry)
+      return unless entry.bytesize > ENTRY_CRC_HEX_WIDTH + 1
+      return unless entry.getbyte(ENTRY_CRC_HEX_WIDTH) == 58 # `:`
 
-        File.open(@storage_path, File::RDONLY | File::BINARY) do |storage|
-          storage.each_line(chomp: true) do |entry|
-            id = entry_id(entry)
-
-            if id.nil?
-              corrupted_count += 1
-              next
-            end
-
-            # the same task can be dead-lettered more than once if the worker crashed
-            # before the task was removed from the write-ahead log
-            result.delete(id)
-            result[id] = entry
-          end
-        end
-
-        if corrupted_count != 0
-          puts "WARNING: Detected #{corrupted_count} corrupted dead-lettered task(s)"
-        end
-
-        result
-      end
-
-      entries.filter_map do |id, entry|
-        _, _, _, serialized_record = entry.split(":", 4)
-        Marshal.load(serialized_record.undump)
-      rescue ArgumentError, NameError, TypeError => e
-        puts "ERROR: Can't deserialize the dead-lettered task with id #{id}: (#{e.class}) #{e.message}"
-        nil
-      end
-    end
-
-    # Validate a stored entry and extract its task id.
-    # @param entry [String] serialized entry, optionally ending with a newline
-    # @return [String, nil] task id, or nil if the entry is malformed or corrupted
-    def entry_id(entry)
-      entry = entry.chomp
-
-      signature, payload = entry[0...ENTRY_CRC_HEX_WIDTH], entry[(ENTRY_CRC_HEX_WIDTH + 1)..]
-      return if signature.nil? || payload.nil? || !payload.start_with?("#{ENTRY_OP}:")
+      signature = entry.byteslice(0, ENTRY_CRC_HEX_WIDTH)
+      payload = entry.byteslice((ENTRY_CRC_HEX_WIDTH + 1)..)
+      operation_prefix = "#{ENTRY_OP}:"
+      return unless payload.start_with?(operation_prefix)
       return unless signature == Zlib.crc32(payload).to_s(16).rjust(ENTRY_CRC_HEX_WIDTH, "0")
 
-      id_start = ENTRY_CRC_HEX_WIDTH + 1 + ENTRY_OP.length + 1
-      separator_index = entry.index(":", id_start)
-      entry[id_start...separator_index] if separator_index
+      id_start = operation_prefix.bytesize
+      separator_index = payload.index(":", id_start)
+      return unless separator_index && separator_index > id_start
+
+      [payload.byteslice(id_start...separator_index), payload.byteslice((separator_index + 1)..)]
+    end
+
+    # Call `fsync` on the storage directory after file creation or replacement.
+    # @return [void]
+    def sync_storage_directory
+      File.open(@storage_path.dirname, File::RDONLY, &:fsync)
+    end
+
+    # Remove bytes after the last complete record. An interrupted append can leave these bytes.
+    # @param storage [File] the store opened for reading and writing
+    # @return [void]
+    def repair_torn_tail(storage)
+      truncate_at = complete_record_end(storage)
+      storage.truncate(truncate_at) if truncate_at < storage.size
     end
 
     # Serialize a task record as a checksummed, newline-delimited entry.
@@ -611,12 +695,21 @@ class Rage::Deferred::Backends::Disk
       end
 
       @locked = true
+      active_exception = nil
 
       begin
         yield
+      rescue Exception => e
+        active_exception = e
+        raise
       ensure
-        @lock_file.flock(File::LOCK_UN)
-        @locked = false
+        begin
+          @lock_file.flock(File::LOCK_UN)
+        rescue
+          raise unless active_exception
+        ensure
+          @locked = false
+        end
       end
     end
   end
