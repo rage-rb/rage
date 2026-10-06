@@ -51,12 +51,18 @@ module Rage::Deferred
     Rage::Deferred::Proxy.new(instance, delay:, delay_until:)
   end
 
-  # Return the collection of tasks that used all their retries or stopped retrying.
+  # Return the collection of tasks that Rage no longer retries.
   #
-  # The method returns the same collection for each call.
+  # The method returns the same collection object on each call.
   # The collection uses the same backend object as the deferred queue.
-  # The first call can initialize the backend.
-  # Obtaining the collection does not open, scan, or decode dead-task records.
+  #
+  # @example List dead tasks
+  #   Rage::Deferred.dead_tasks.each do |task|
+  #     puts "#{task.id}: #{task.exception_message}"
+  #   end
+  #
+  # @example Find one dead task
+  #   task = Rage::Deferred.dead_tasks.find_by_id("1735689600-12345-1")
   #
   # @return [Rage::Deferred::DeadTasks]
   def self.dead_tasks
@@ -112,14 +118,14 @@ module Rage::Deferred
   class PushTimeout < StandardError
   end
 
-  # Raised when a dead-task store operation cannot get the lock after all retries.
+  # Raise this error when the dead-task store cannot be locked after all retries.
   class DeadTasksLockTimeout < StandardError
   end
 
-  # Raised when the method cannot decode the stored execution context of a dead task.
+  # Raise this error when a dead task's execution context cannot be deserialized.
   #
   # The error message identifies the dead task.
-  # `Exception#cause` contains the original Marshal error or context-layout error.
+  # `Exception#cause` contains the original deserialization error.
   class DeadTaskContextDeserializationError < StandardError
   end
 end

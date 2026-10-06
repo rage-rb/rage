@@ -1,36 +1,34 @@
 # frozen_string_literal: true
 
 ##
-# A read-only view of a deferred task that used all its retries or stopped retrying.
+# Provides information about one dead task.
 #
-# Values come from trusted local dead-task storage.
-# Reading metadata does not load the task class or deserialize the stored execution context.
-# {#args} and {#kwargs} load the context only when you call them.
-# The context is trusted local Marshal data.
-# Argument data can contain credentials or personal data. Protect this data from unauthorized access.
+# A dead task is a deferred task that is no longer retried.
+# Creating this object does not load the task class.
+# The first call to {#args} or {#kwargs} deserializes the execution context.
 class Rage::Deferred::DeadTask
-  # @return [String] the task's persisted identifier
+  # @return [String] the ID that Rage assigned when it enqueued the task
   attr_reader :id
 
-  # @return [String] the stored task class name
+  # @return [String] the name of the task class
   attr_reader :task_class
 
-  # @return [Integer] the number of attempts to process the task
+  # @return [Integer] the number of processing attempts
   attr_reader :attempts
 
-  # @return [Time] the time encoded in the task's persisted identifier
+  # @return [Time] the time when Rage enqueued the task
   attr_reader :enqueued_at
 
-  # @return [Time] the time when the final attempt failed
+  # @return [Time] the time when the last attempt failed
   attr_reader :failed_at
 
-  # @return [String] the stored class name of the final exception
+  # @return [String] the class name of the last exception
   attr_reader :exception_class
 
-  # @return [String] the stored message of the final exception
+  # @return [String] the message from the last exception
   attr_reader :exception_message
 
-  # @return [Array<String>] the frozen stored backtrace of the final exception
+  # @return [Array<String>] the frozen backtrace from the last exception
   attr_reader :backtrace
 
   # @private
@@ -49,14 +47,10 @@ class Rage::Deferred::DeadTask
 
   # Return the original positional arguments.
   #
-  # The first successful call decodes the trusted local Marshal context.
-  # The method freezes the decoded object graph and returns the same Array on later calls.
-  # Changes to the returned Array cannot change the stored replay input.
-  # A stored `nil` produces an empty Array.
-  # The method does not cache a decoding failure.
-  # You can try again after you restore the application constants.
-  #
-  # Argument data can contain credentials or personal data. Protect this data from unauthorized access.
+  # On the first call, the method deserializes the execution context.
+  # The method freezes all objects in the decoded data.
+  # After a successful call, the method returns the same Array on each later call.
+  # If the stored value is `nil`, the method returns a frozen empty Array.
   #
   # @return [Array] frozen positional arguments
   # @raise [Rage::Deferred::DeadTaskContextDeserializationError] when the context cannot be decoded
@@ -67,15 +61,10 @@ class Rage::Deferred::DeadTask
 
   # Return the original keyword arguments.
   #
-  # The first successful call decodes the trusted local Marshal context.
-  # The method freezes the decoded object graph and returns the same Hash on later calls.
-  # Changes to the returned Hash cannot change the stored replay input.
-  # A stored `nil` produces an empty Hash.
-  # This behavior keeps positional and keyword arguments separate on Ruby 3.3.
-  # The method does not cache a decoding failure.
-  # You can try again after you restore the application constants.
-  #
-  # Argument data can contain credentials or personal data. Protect this data from unauthorized access.
+  # On the first call, the method deserializes the execution context.
+  # The method freezes all objects in the decoded data.
+  # After a successful call, the method returns the same Hash on each later call.
+  # If the stored value is `nil`, the method returns a frozen empty Hash.
   #
   # @return [Hash] frozen keyword arguments
   # @raise [Rage::Deferred::DeadTaskContextDeserializationError] when the context cannot be decoded

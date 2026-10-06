@@ -10,9 +10,10 @@ require "zlib"
 # * `remove_task` - called when a task has to be removed from the storage;
 # * `pending_tasks` - the method should iterate over the underlying storage and return a list of tasks to replay;
 # * `add_dead_task` - called when a task has exhausted its retries or aborted them;
-# * `each_dead_task` - calls the block once for each logical dead task in a fixed snapshot,
-#   ordered by the physical positions of the selected winning records;
-# * `find_dead_task` - returns the newest frame-valid dead-task record with the exact outer ID;
+# * `each_dead_task` - yields one record for each task ID that exists when traversal starts;
+#   if multiple records have the same task ID, it yields the newest record;
+#   records added during traversal are not included;
+# * `find_dead_task` - returns the newest dead-task record with the exact task ID;
 # * `remove_dead_tasks` - permanently delete dead tasks;
 #
 class Rage::Deferred::Backends::Disk
@@ -54,19 +55,20 @@ class Rage::Deferred::Backends::Disk
     @dead_tasks_storage.add(task_id, context, exception, task_class:, attempts:)
   end
 
-  # Call the block once for each logical dead task in a fixed snapshot.
-  # Selected winners are ordered by their physical positions from oldest to newest.
-  # Changes to the live storage during iteration do not change the selected records.
-  # @yieldparam record [Hash] a decoded selected dead-task record
+  # Yield one record for each task ID that exists when traversal starts.
+  # If multiple records have the same task ID, yield the newest record.
+  # Do not include records that Rage adds during traversal.
+  # Yield records from oldest to newest.
+  # @yieldparam record [Hash] a dead-task record
   # @return [Rage::Deferred::Backends::Disk::DeadTasksStorage]
   # @private
   def each_dead_task(&block)
     @dead_tasks_storage.each(&block)
   end
 
-  # Return the newest frame-valid dead-task record with the exact outer ID.
-  # @param id [String] the persisted task ID
-  # @return [Hash, nil] the decoded record, or nil if there is no matching record
+  # Return the newest dead-task record with the exact task ID.
+  # @param id [String] the task ID
+  # @return [Hash, nil] the matching record, or nil if there is no matching record
   # @private
   def find_dead_task(id)
     @dead_tasks_storage.find_by_id(id)
@@ -425,17 +427,19 @@ class Rage::Deferred::Backends::Disk
       end
     end
 
-    # Call the block once for each selected dead-task record, oldest winning position first.
+    # Yield each selected dead-task record from oldest to newest.
     #
-    # The method opens the current file while it holds the lock.
-    # It sets the read limit after the last complete record and then releases the lock.
-    # Records added after this point are not part of the traversal.
-    # After releasing the lock, it scans complete records sequentially forwards and selects
-    # the newest frame-valid record for each authoritative outer task ID. Repeated IDs are
-    # ordered at their winning records' physical positions. It then seeks to, decodes, and
-    # yields one selected payload at a time, without decoding the next winner before control
-    # returns from the current yield.
-    # Each call has separate traversal state.
+    # The method locks the store and opens the current file.
+    # It sets a read boundary after the last complete record.
+    # It then releases the lock.
+    # A record that Rage adds after this step is not part of the traversal.
+    #
+    # The method scans each complete record before it yields the first record.
+    # For each task ID, it selects the newest record that has a valid frame.
+    #
+    # The method decodes one selected record immediately before it yields that record.
+    # It does not decode the next record while the caller processes the current record.
+    # Each call uses independent traversal state.
     #
     # @yieldparam record [Hash] a decoded dead-task record
     # @return [self]
@@ -452,9 +456,11 @@ class Rage::Deferred::Backends::Disk
       end
     end
 
-    # Return the newest frame-valid record with the exact authoritative outer ID.
-    # Scan the fixed complete-record snapshot forwards without decoding candidate payloads.
-    # Decode only the newest matching payload after scanning reaches the snapshot boundary.
+    # Return the newest record with the exact task ID.
+    #
+    # Scan all complete records in the fixed snapshot.
+    # Do not decode a candidate record during the scan.
+    # After the scan, decode only the newest matching record.
     # @param id [String] the persisted task ID
     # @return [Hash, nil] the decoded record, or nil if there is no matching record
     # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
@@ -523,9 +529,10 @@ class Rage::Deferred::Backends::Disk
 
     private
 
-    # Index the newest frame-valid serialized-payload location for each authoritative outer ID.
-    # Deleting and reinserting a repeated ID moves it to its winning record's physical position,
-    # so Hash insertion order visits the completed index from oldest winner to newest winner.
+    # Index the newest valid payload location for each task ID.
+    # If the index contains the duplicate task ID, the method removes the ID before it adds the newer record.
+    # This operation moves the ID to the position of its newest record.
+    # Hash insertion order then gives the required order from oldest to newest.
     # @param storage [File] the descriptor for the fixed snapshot
     # @param snapshot_end [Integer] the byte boundary after its last complete record
     # @return [Hash{String => Array<(Integer, Integer)>}] ordered serialized-payload locations
@@ -539,11 +546,12 @@ class Rage::Deferred::Backends::Disk
       records_index
     end
 
-    # Scan complete physical records forwards through a fixed snapshot boundary.
-    # Silently skip malformed frames and invalid CRCs. Do not decode or inspect serialized payloads.
+    # Scan each complete record up to the fixed snapshot boundary.
+    # Silently skip a malformed frame or an invalid CRC.
+    # Do not decode or inspect a serialized payload.
     # @param storage [File] the descriptor for the fixed snapshot
     # @param snapshot_end [Integer] the byte boundary after its last complete record
-    # @yieldparam task_id [String] the authoritative outer task ID
+    # @yieldparam task_id [String] the task ID from the storage frame
     # @yieldparam offset [Integer] the serialized payload's byte offset
     # @yieldparam length [Integer] the serialized payload's byte length
     # @return [void]
@@ -568,10 +576,12 @@ class Rage::Deferred::Backends::Disk
       end
     end
 
-    # Open the live file and capture its last complete-record boundary under the permanent lock.
-    # Release the lock before scanning, decoding, or yielding. The retained descriptor continues
-    # to identify the same snapshot file if the live path is replaced while the block runs.
-    # Close the descriptor on unwind; a close error does not replace an active exception.
+    # Lock the store, open the live file, and find the last complete record.
+    # Release the lock before the block scans, decodes, or yields a record.
+    # Keep the file descriptor open while the block runs.
+    # The descriptor continues to identify the same file if another operation replaces the live path.
+    # Close the descriptor when the block exits.
+    # If the block and `File#close` both raise exceptions, the method re-raises the block's exception.
     # @yieldparam storage [File] the descriptor for the fixed snapshot
     # @yieldparam snapshot_end [Integer] the fixed end position of the last complete record
     # @yieldreturn [Object] the result from the read operation
@@ -599,9 +609,12 @@ class Rage::Deferred::Backends::Disk
       end
     end
 
-    # Locate the byte boundary immediately after the last newline-terminated record.
-    # If the file has an incomplete tail, scan backwards in bounded chunks without parsing records.
-    # Do not modify the file; return zero when it contains no complete record.
+    # Return the byte position after the last complete record.
+    # A complete record ends with a newline.
+    # If the file has an incomplete tail, scan backwards in fixed-size chunks.
+    # Do not parse a record during this scan.
+    # Do not change the file.
+    # Return zero if the file has no complete record.
     # @param storage [File] an open dead-task file
     # @return [Integer] the byte boundary after the last complete record
     def complete_record_end(storage)
@@ -628,9 +641,10 @@ class Rage::Deferred::Backends::Disk
       0
     end
 
-    # Check only the outer storage frame and return its authoritative ID and serialized payload.
-    # Return nil for a malformed frame, invalid CRC, unexpected operation, or empty outer ID.
-    # Do not decode the payload or validate its shape or any ID stored inside it.
+    # Validate the storage frame.
+    # Return its task ID and serialized payload.
+    # Return `nil` for a malformed frame, invalid CRC, unsupported operation, or empty task ID.
+    # Do not decode the payload.
     # @param entry [String] one complete physical record without the newline
     # @return [Array<(String, String)>, nil]
     def framed_record(entry)

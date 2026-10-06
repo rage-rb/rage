@@ -17,17 +17,10 @@ class Rage::Deferred::Backends::Nil
   def add_dead_task(_, _, _, **)
   end
 
-  # Yield no dead-task records.
-  # @return [self]
-  # @private
   def each_dead_task
     self
   end
 
-  # Return no dead task for an exact ID lookup.
-  # @param _ [String] the persisted task ID
-  # @return [nil]
-  # @private
   def find_dead_task(_)
   end
 
