@@ -449,7 +449,16 @@ class Rage::Deferred::Backends::Disk
       with_snapshot do |storage, snapshot_end|
         records_index(storage, snapshot_end).each do |task_id, (offset, length)|
           storage.seek(offset, IO::SEEK_SET)
-          yield Marshal.load(storage.read(length).undump).merge(id: task_id)
+
+          begin
+            record = Marshal.load(storage.read(length).undump)
+          rescue ArgumentError, NameError, TypeError => e
+            puts "ERROR: Can't deserialize the dead-lettered task with id #{task_id}: (#{e.class}) #{e.message}"
+            next
+          end
+
+          # yield outside the `rescue`, so that an error raised by the caller's block is not swallowed
+          yield record.merge(id: task_id)
         end
 
         self
@@ -478,7 +487,15 @@ class Rage::Deferred::Backends::Disk
 
         offset, length = serialized_record_location
         storage.seek(offset, IO::SEEK_SET)
-        Marshal.load(storage.read(length).undump).merge(id: id)
+
+        begin
+          record = Marshal.load(storage.read(length).undump)
+        rescue ArgumentError, NameError, TypeError => e
+          puts "ERROR: Can't deserialize the dead-lettered task with id #{id}: (#{e.class}) #{e.message}"
+          next
+        end
+
+        record.merge(id: id)
       end
     end
 
