@@ -6,6 +6,9 @@
 - [Cable] Serialize WS messages per connection (#400).
 - Update fiber scheduler to support Ruby 4.1 (#397).
 - Improve blocking mechanism for fibers (#401).
+
+## [1.28.2] - 2026-10-09
+
 - Support `unsubscribe` commands in Action Cable.
 - Gracefully handle requests with no content type.
 
