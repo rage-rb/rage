@@ -13,11 +13,11 @@ class Rage::ParamsParser
       end
     end
 
-    request_params = if content_type.start_with?("application/json")
+    request_params = if content_type&.start_with?("application/json")
       json_parse(env["rack.input"].tap { |io| io.rewind }.read)
-    elsif content_type.start_with?("application/x-www-form-urlencoded")
+    elsif content_type&.start_with?("application/x-www-form-urlencoded") || content_type.nil?
       Iodine::Rack::Utils.parse_urlencoded_nested_query(env["rack.input"].tap { |io| io.rewind }.read)
-    elsif content_type.start_with?("multipart/form-data")
+    elsif content_type&.start_with?("multipart/form-data")
       Iodine::Rack::Utils.parse_multipart(env["rack.input"], content_type)
     end
 
