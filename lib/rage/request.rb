@@ -223,6 +223,14 @@ class Rage::Request
     end
   end
 
+  # Get the request body stream.
+  # @return [IO] the request body stream
+  # @example
+  #   request.body.read # => '{"name":"Rage"}'
+  def body
+    @env["rack.input"].tap(&:rewind)
+  end
+
   private
 
   def rack_request

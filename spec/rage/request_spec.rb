@@ -1,3 +1,7 @@
+# frozen_string_literal: true
+
+require "stringio"
+
 RSpec.describe Rage::Request do
   let(:env) do
     {
@@ -268,6 +272,24 @@ RSpec.describe Rage::Request do
 
   it "handles the format property of a request" do
     expect(request.format).to eq("application/json")
+  end
+
+  describe "#body" do
+    let(:rack_input) { StringIO.new('{"name":"Rage"}') }
+
+    before do
+      env["rack.input"] = rack_input
+    end
+
+    it "returns the Rack request body stream" do
+      expect(request.body).to equal(rack_input)
+    end
+
+    it "rewinds the body before returning it" do
+      rack_input.read
+
+      expect(request.body.read).to eq('{"name":"Rage"}')
+    end
   end
 
   it "returns the correct request ID" do
