@@ -16,4 +16,9 @@ class TimeChannel < RageCable::Channel
     sleep 1
     transmit({ message: "synced from #{data["remote"]}" })
   end
+
+  def unsubscribed
+    stop_stream_from "current_time"
+    transmit({ message: "unsubscribed" })
+  end
 end
