@@ -124,7 +124,7 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
 
       return
     elsif command == COMMAND::UNSUBSCRIBE
-      router.process_disconnection(env)
+      @router.process_disconnection(connection)
       return
     end
 

@@ -1,6 +1,6 @@
 ## [Unreleased]
 
-## [1.28.1] - 2026-10-09
+## [1.28.2] - 2026-10-09
 
 - Support `unsubscribe` commands in Action Cable.
 - Gracefully handle requests with no content type.
