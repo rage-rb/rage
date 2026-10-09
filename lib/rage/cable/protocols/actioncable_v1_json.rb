@@ -49,6 +49,7 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
 
   module COMMAND
     SUBSCRIBE = "subscribe"
+    UNSUBSCRIBE = "unsubscribe"
     MESSAGE = "message"
   end
 
@@ -121,6 +122,9 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
         connection.write(MESSAGES::INVALID)
       end
 
+      return
+    elsif command == COMMAND::UNSUBSCRIBE
+      router.process_disconnection(env)
       return
     end
 

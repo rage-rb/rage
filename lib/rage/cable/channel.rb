@@ -434,10 +434,15 @@ class Rage::Cable::Channel
   #
   # @param stream [String] the name of the stream
   # @raise [ArgumentError] if the stream name is not a String
+  # @note Calling {stop_stream_from} in {unsubscribed} is not strictly required, but is important when clients are dynamically subscribing/unsubscribing from channels on a single connection.
   # @example Subscribe to a stream
   #   class NotificationsChannel < Rage::Cable::Channel
   #     def subscribed
   #       stream_from "notifications"
+  #     end
+  #
+  #     def unsubscribed
+  #       stop_stream_from "notifications"
   #     end
   #   end
   # @example Broadcast to the stream
@@ -451,10 +456,15 @@ class Rage::Cable::Channel
   #
   # @param streamable [#id, String, Symbol, Numeric, Array] an object that will be used to generate the stream name
   # @raise [ArgumentError] if the streamable object does not satisfy the type requirements
+  # @note Calling {stop_stream_for} in {unsubscribed} is not strictly required, but is important when clients are dynamically subscribing/unsubscribing from channels on a single connection.
   # @example Subscribe to a stream
   #   class NotificationsChannel < Rage::Cable::Channel
   #     def subscribed
   #       stream_for current_user
+  #     end
+  #
+  #     def unsubscribed
+  #       stop_stream_for current_user
   #     end
   #   end
   # @example Broadcast to the stream

@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Support `unsubscribe` commands in Action Cable.
+
 ## [1.28.0] - 2026-09-15
 
 ### Added
