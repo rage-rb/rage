@@ -124,6 +124,15 @@ RSpec.describe Rage::ParamsParser do
     end
   end
 
+  context "with no content type" do
+    let(:content_type) { nil }
+    let(:urlencoded_params) { { slug: "SQjG", parent_ids: %w(4 5), valid: "" } }
+
+    it "parses the body as urlencoded params" do
+      expect(subject).to equal(urlencoded_params)
+    end
+  end
+
   context "with malformed urlencoded body" do
     let(:urlencoded_params) { { test: true } }
 
