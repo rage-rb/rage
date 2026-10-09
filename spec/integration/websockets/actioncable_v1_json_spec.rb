@@ -17,6 +17,7 @@ RSpec.describe "Actioncable" do
   let(:get_time_message) { { identifier: { client: "1", channel: "TimeChannel" }.to_json, command: "message", data: { action: "what_time_is_it" }.to_json }.to_json }
   let(:sync_time_message) { { identifier: { client: "1", channel: "TimeChannel" }.to_json, command: "message", data: { action: "sync_time" }.to_json }.to_json }
   let(:remote_sync_time_message) { { identifier: { client: "1", channel: "TimeChannel" }.to_json, command: "message", data: { action: "remote_sync_time", remote: "time.com" }.to_json }.to_json }
+  let(:unsubscribe_message) { { identifier: { client: "1", channel: "TimeChannel" }.to_json, command: "unsubscribe" }.to_json }
 
   it "rejects a connection from unknown origin" do
     with_websocket_connection("ws://localhost:3000/cable") do |client|
@@ -102,6 +103,14 @@ RSpec.describe "Actioncable" do
     threads.each do |thread|
       client = thread.value
       expect(client.messages.last).to include("synced from time.com")
+    end
+  end
+
+  it "unsubscribes from streams" do
+    with_websocket_connection("ws://localhost:3000/cable?user_id=1", headers: { Origin: "localhost:3000" }) do |client|
+      client.send(subscribe_message)
+      client.send(unsubscribe_message)
+      expect(client.messages.last).to include("unsubscribed")
     end
   end
 end
