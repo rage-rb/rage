@@ -85,16 +85,16 @@ RSpec.describe Rage::PubSub do
       expect(result).to be(true)
     end
 
-    it "raises an error when topic does not exist" do
-      expect {
-        described_class.unsubscribe(topic: "unknown", subscription_id: :listener)
-      }.to raise_error(ArgumentError, /No subscription found with topic "unknown" and subscription_id :listener/)
+    it "returns false when topic does not exist" do
+      result = described_class.unsubscribe(topic: "unknown", subscription_id: :listener)
+
+      expect(result).to be(false)
     end
 
-    it "raises an error when subscription_id does not exist" do
-      expect {
-        described_class.unsubscribe(topic: "orders", subscription_id: :unknown)
-      }.to raise_error(ArgumentError, /No subscription found with topic "orders" and subscription_id :unknown/)
+    it "returns false when subscription_id does not exist" do
+      result = described_class.unsubscribe(topic: "orders", subscription_id: :unknown)
+
+      expect(result).to be(false)
     end
 
     it "allows unsubscribing one subscription while keeping others" do
@@ -102,9 +102,8 @@ RSpec.describe Rage::PubSub do
 
       described_class.unsubscribe(topic: "orders", subscription_id: :listener)
 
-      expect {
-        described_class.unsubscribe(topic: "orders", subscription_id: :second)
-      }.not_to raise_error
+      result = described_class.unsubscribe(topic: "orders", subscription_id: :second)
+      expect(result).to be(true)
     end
   end
 

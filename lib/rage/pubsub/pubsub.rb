@@ -84,11 +84,8 @@ module Rage::PubSub
     # @example Unsubscribe from order updates
     #   Rage::PubSub.unsubscribe(topic: "orders", subscription_id: :order_listener)
     def unsubscribe(topic:, subscription_id:)
-      if !subscriptions.has_key?(topic) || !subscriptions[topic].has_key?(subscription_id)
-        raise ArgumentError, "No subscription found with topic #{topic.inspect} and subscription_id #{subscription_id.inspect}"
-      end
-
       topic_subscriptions = subscriptions[topic]
+      return false if topic_subscriptions.nil? || !topic_subscriptions.has_key?(subscription_id)
 
       topic_subscriptions.delete(subscription_id)
       subscriptions.delete(topic) if topic_subscriptions.empty?
