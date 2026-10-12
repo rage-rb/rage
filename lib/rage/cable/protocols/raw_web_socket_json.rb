@@ -44,7 +44,7 @@ class Rage::Cable::Protocols::RawWebSocketJson < Rage::Cable::Protocols::Base
   DEFAULT_PARAMS = {}.freeze
   private_constant :DEFAULT_PARAMS
 
-  def self.init(router)
+  def self.init
     super
 
     @ping_connections = Set.new
@@ -62,8 +62,9 @@ class Rage::Cable::Protocols::RawWebSocketJson < Rage::Cable::Protocols::Base
 
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
   # @param env [Hash] the Rack environment
-  def self.on_open(connection, env)
-    accepted = @router.process_connection(env)
+  # @param router [Rage::Cable::Router] the Cable router
+  def self.on_open(connection, env, router)
+    accepted = router.process_connection(connection, env)
 
     unless accepted
       connection.write(MESSAGES::UNAUTHORIZED)
@@ -90,7 +91,7 @@ class Rage::Cable::Protocols::RawWebSocketJson < Rage::Cable::Protocols::Base
     query_string = env["QUERY_STRING"]
     params = query_string == "" ? DEFAULT_PARAMS : Iodine::Rack::Utils.parse_nested_query(query_string)
 
-    status = @router.process_subscription(connection, env, IDENTIFIER, channel_name, params)
+    status = router.process_subscription(connection, env, IDENTIFIER, channel_name, params)
 
     if status == :rejected
       connection.write(MESSAGES::REJECTED)
@@ -104,7 +105,8 @@ class Rage::Cable::Protocols::RawWebSocketJson < Rage::Cable::Protocols::Base
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
   # @param env [Hash] the Rack environment
   # @param raw_data [String] the message body
-  def self.on_message(connection, env, raw_data)
+  # @param router [Rage::Cable::Router] the Cable router
+  def self.on_message(connection, env, raw_data, router)
     if raw_data == "ping"
       @ping_connections << connection
       return
@@ -112,15 +114,17 @@ class Rage::Cable::Protocols::RawWebSocketJson < Rage::Cable::Protocols::Base
 
     data = JSON.parse(raw_data)
 
-    message_status = @router.process_message(env, IDENTIFIER, :receive, data)
+    message_status = router.process_message(connection, env, IDENTIFIER, :receive, data)
     unless message_status == :processed
       connection.write(MESSAGES::UNKNOWN)
     end
   end
 
+  # @param connection [Rage::Cable::WebSocketConnection] the connection object
   # @param env [Hash] the Rack environment
-  def self.on_close(_, env)
-    @router.process_disconnection(env)
+  # @param router [Rage::Cable::Router] the Cable router
+  def self.on_close(connection, env, router)
+    router.process_disconnection(connection, env)
   end
 
   # @param data [Object] the object to serialize
@@ -131,6 +135,12 @@ class Rage::Cable::Protocols::RawWebSocketJson < Rage::Cable::Protocols::Base
   # @return [Boolean]
   def self.supports_rpc?
     false
+  end
+
+  # A unique identifier of the protocol used in multi-server setups by {Rage::PubSub}.
+  # @return [String]
+  def self.protocol_id
+    "rawjson"
   end
 
   # @private

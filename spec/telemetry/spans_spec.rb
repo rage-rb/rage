@@ -289,7 +289,7 @@ RSpec.describe Rage::Telemetry::Spans do
 
     context "with connect action" do
       it "passes correct arguments" do
-        router = Rage::Cable::Router.new
+        router = Rage::Cable::Router.new(nil, Object)
 
         expect(verifier).to receive(:call).with({
           id: "cable.connection.process",
@@ -300,13 +300,13 @@ RSpec.describe Rage::Telemetry::Spans do
           request: instance_of(Rage::Request)
         })
 
-        router.process_connection(ws_env)
+        router.process_connection(nil, ws_env)
       end
     end
 
     context "with disconnect action" do
       it "passes correct arguments" do
-        router = Rage::Cable::Router.new
+        router = Rage::Cable::Router.new(nil, Object)
 
         expect(verifier).to receive(:call).with({
           id: "cable.connection.process",
@@ -317,7 +317,7 @@ RSpec.describe Rage::Telemetry::Spans do
           request: instance_of(Rage::Request)
         })
 
-        router.process_disconnection(ws_env)
+        router.process_disconnection(nil, ws_env)
       end
     end
   end
@@ -334,7 +334,7 @@ RSpec.describe Rage::Telemetry::Spans do
 
     before do
       stub_const("MyTestChannel", channel_class)
-      channel_class.__register_actions
+      channel_class.__register_actions(Rage::Cable::Protocols::ActioncableV1Json)
     end
 
     it "passes correct arguments" do

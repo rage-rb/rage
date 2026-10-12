@@ -757,16 +757,7 @@ class Rage::Configuration
     #     config.cable.protocol = :raw_websocket_json
     #   end
     def protocol=(protocol)
-      @protocol = case protocol
-      when Class
-        protocol
-      when :actioncable_v1_json
-        Rage::Cable::Protocols::ActioncableV1Json
-      when :raw_websocket_json
-        Rage::Cable::Protocols::RawWebSocketJson
-      else
-        raise ArgumentError, "Unknown protocol. Supported values are `:actioncable_v1_json` and `:raw_websocket_json`."
-      end
+      @protocol = Rage::Cable.__protocol_for(protocol)
     end
 
     # @private

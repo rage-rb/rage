@@ -19,11 +19,11 @@ RSpec.describe Rage::Cable::Channel do
   let(:identified_by) { {} }
 
   before do
-    allow(Rage.cable).to receive(:__protocol).and_return(protocol)
+    klass.__register_actions(protocol)
   end
 
   describe "#stop_stream_from" do
-    subject { klass.tap(&:__register_actions).new(connection, params, identified_by) }
+    subject { klass.new(connection, params, identified_by) }
 
     let(:klass) { CableChannelStopStreamFromSpec::TestChannel }
 

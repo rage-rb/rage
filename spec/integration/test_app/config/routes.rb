@@ -63,4 +63,13 @@ Rage.routes.draw do
       get "session", to: "sessions#show"
     end
   end
+
+  if ENV["ENABLE_ISOLATED_CABLE_APPS"]
+    require_relative "../lib/presence_cable_raw/rage_cable/connection"
+    require_relative "../lib/presence_cable_raw/status_channel"
+    mount Rage::Cable.application(namespace: PresenceCableRaw, protocol: :raw_websocket_json), at: "presence_raw"
+
+    require_relative "../lib/presence_cable_ac/status_channel"
+    mount Rage::Cable.application(namespace: PresenceCableAC, protocol: :actioncable_v1_json), at: "presence_ac"
+  end
 end

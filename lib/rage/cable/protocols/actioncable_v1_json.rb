@@ -67,9 +67,7 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
   end
 
   # This method serves as a constructor to prepare the object or set up recurring tasks (e.g. heartbeats).
-  #
-  # @param router [Rage::Cable::Router]
-  def self.init(router)
+  def self.init
     super
 
     Iodine.on_state(:on_start) do
@@ -87,9 +85,9 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
   #
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
   # @param env [Hash] the Rack environment
-  # @see Rage::Cable::Router
-  def self.on_open(connection, env)
-    accepted = @router.process_connection(env)
+  # @param router [Rage::Cable::Router] the Cable router
+  def self.on_open(connection, env, router)
+    accepted = router.process_connection(connection, env)
 
     if accepted
       connection.subscribe("cable:ping")
@@ -106,8 +104,8 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
   # @param env [Hash] the Rack environment
   # @param raw_data [String] the message body
-  # @see Rage::Cable::Router
-  def self.on_message(connection, env, raw_data)
+  # @param router [Rage::Cable::Router] the Cable router
+  def self.on_message(connection, env, raw_data, router)
     parsed_data = Rage::ParamsParser.json_parse(raw_data)
 
     command, identifier = parsed_data[:command], parsed_data[:identifier]
@@ -115,7 +113,7 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
 
     # process subscription messages
     if command == COMMAND::SUBSCRIBE
-      status = @router.process_subscription(connection, env, identifier, params[:channel], params)
+      status = router.process_subscription(connection, env, identifier, params[:channel], params)
       if status == :subscribed
         connection.write({ identifier: identifier, type: TYPE::CONFIRM }.to_json)
       elsif status == :rejected
@@ -126,7 +124,7 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
 
       return
     elsif command == COMMAND::UNSUBSCRIBE
-      @router.process_disconnection(env)
+      router.process_disconnection(connection, env)
       return
     end
 
@@ -135,10 +133,10 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
     data = JSON.parse(parsed_data[:data])
 
     message_status = if command == COMMAND::MESSAGE && data.has_key?("action")
-      @router.process_message(env, identifier, data["action"].to_sym, data)
+      router.process_message(connection, env, identifier, data["action"].to_sym, data)
 
     elsif command == COMMAND::MESSAGE
-      @router.process_message(env, identifier, :receive, data)
+      router.process_message(connection, env, identifier, :receive, data)
     end
 
     unless message_status == :processed
@@ -149,10 +147,11 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
   # The method should process client disconnections and call {Rage::Cable::Router#process_disconnection}.
   #
   # @note This method is optional.
+  # @param connection [Rage::Cable::WebSocketConnection] the connection object
   # @param env [Hash] the Rack environment
-  # @see Rage::Cable::Router
-  def self.on_close(_, env)
-    @router.process_disconnection(env)
+  # @param router [Rage::Cable::Router] the Cable router
+  def self.on_close(connection, env, router)
+    router.process_disconnection(connection, env)
   end
 
   # Serialize a Ruby object into the format the client would understand.
@@ -161,5 +160,11 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
   # @param data [Object] the object to serialize
   def self.serialize(params, data)
     { identifier: params.to_json, message: data }.to_json
+  end
+
+  # A unique identifier of the protocol used in multi-server setups by {Rage::PubSub}.
+  # @return [String]
+  def self.protocol_id
+    "acv1"
   end
 end

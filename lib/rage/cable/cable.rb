@@ -38,9 +38,21 @@ module Rage::Cable
   #   map "/cable" do
   #     run Rage.cable.application
   #   end
-  def self.application
-    handler = __build_handler(__protocol)
-    accept_response = [0, __protocol.protocol_definition, []]
+  def self.application(namespace: Object, protocol: nil)
+    unless namespace.is_a?(Module)
+      raise ArgumentError, "The `namespace` option must be a Module, got #{namespace.class}."
+    end
+
+    protocol = __protocol_for(protocol || Rage.config.cable.protocol)
+
+    unless __protocols.include?(protocol)
+      __protocols << protocol.tap(&:init)
+      @__adapter&.add_broadcaster(PUBSUB_BROADCASTER_ID, Relay)
+    end
+
+    router = Router.new(protocol, namespace)
+    handler = __build_handler(protocol, router)
+    accept_response = [0, protocol.protocol_definition, []]
 
     application = ->(env) do
       Rage::Telemetry.tracer.span_cable_websocket_handshake(env:) do
@@ -54,8 +66,11 @@ module Rage::Cable
       end
     end
 
+    application.define_singleton_method(:__rage_app_name) do
+      namespace == Object ? "Rage::Cable" : "Rage::Cable(namespace: #{namespace})"
+    end
+
     chain = Rage.with_middlewares(application, Rage.config.cable.middlewares)
-    application.define_singleton_method(:__rage_app_name) { "Rage::Cable" }
     chain.define_singleton_method(:__rage_root_app) { application }
 
     chain
@@ -64,25 +79,35 @@ module Rage::Cable
   # @private
   def self.__initialize
     if (adapter = Rage.config.pubsub.adapter)
-      adapter.add_broadcaster(PUBSUB_BROADCASTER_ID, __protocol)
+      adapter.add_broadcaster(PUBSUB_BROADCASTER_ID, Relay)
       @__adapter = adapter
     end
   end
 
   # @private
-  def self.__router
-    @__router ||= Router.new
+  def self.__protocols
+    @__protocols ||= []
   end
 
   # @private
-  def self.__protocol
-    @__protocol ||= Rage.config.cable.protocol.tap { |protocol| protocol.init(__router) }
+  # @param protocol [:actioncable_v1_json, :raw_websocket_json, Class]
+  def self.__protocol_for(protocol)
+    case protocol
+    when Class
+      protocol
+    when :actioncable_v1_json
+      Protocols::ActioncableV1Json
+    when :raw_websocket_json
+      Protocols::RawWebSocketJson
+    else
+      raise ArgumentError, "Unknown protocol. Supported values are `:actioncable_v1_json` and `:raw_websocket_json`."
+    end
   end
 
   # @private
-  def self.__build_handler(protocol)
+  def self.__build_handler(protocol, router)
     klass = Class.new do
-      def initialize(protocol)
+      def initialize(protocol, router)
         Iodine.on_state(:on_start) do
           unless Fiber.scheduler
             Fiber.set_scheduler(Rage::FiberScheduler.new)
@@ -90,29 +115,30 @@ module Rage::Cable
         end
 
         @protocol = protocol
+        @router = router
         @log_processor = Rage.__log_processor
       end
 
       def on_open(connection)
         init_connection(connection)
-        schedule_processing(connection) { |env| @protocol.on_open(connection, env) }
+        schedule_processing(connection) { |env| @protocol.on_open(connection, env, @router) }
       end
 
       def on_message(connection, data)
-        schedule_processing(connection) { |env| @protocol.on_message(connection, env, data) }
+        schedule_processing(connection) { |env| @protocol.on_message(connection, env, data, @router) }
       end
 
       if protocol.respond_to?(:on_close)
         def on_close(connection)
           return unless ::Iodine.running?
-          schedule_processing(connection) { |env| @protocol.on_close(connection, env) }
+          schedule_processing(connection) { |env| @protocol.on_close(connection, env, @router) }
           connection.env["rage.cable.queue"] << nil
         end
       end
 
       if protocol.respond_to?(:on_shutdown)
         def on_shutdown(connection)
-          @protocol.on_shutdown(connection)
+          @protocol.on_shutdown(connection, @router)
         rescue => e
           log_error(e)
         end
@@ -153,7 +179,7 @@ module Rage::Cable
       end
     end
 
-    klass.new(protocol)
+    klass.new(protocol, router)
   end
 
   # Broadcast data directly to a named stream.
@@ -165,11 +191,20 @@ module Rage::Cable
   #   Rage.cable.broadcast("chat", { message: "A new member has joined!" })
   def self.broadcast(stream, data)
     Rage::Telemetry.tracer.span_cable_stream_broadcast(stream:) do
-      __protocol.broadcast(stream, data)
+      Relay.broadcast(stream, data)
       @__adapter&.publish(PUBSUB_BROADCASTER_ID, stream, data)
     end
 
     true
+  end
+
+  # @private
+  module Relay
+    def self.broadcast(stream, data)
+      Rage::Cable.__protocols.each do |protocol|
+        protocol.broadcast(stream, data)
+      end
+    end
   end
 
   # @!parse [ruby]

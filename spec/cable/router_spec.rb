@@ -11,8 +11,9 @@ RSpec.describe Rage::Cable::Router do
   end
 
   describe "#process_connection" do
-    subject { described_class.new.process_connection(env) }
+    subject { described_class.new(nil, Object).process_connection(connection, env) }
 
+    let(:connection) { double }
     let(:cable_connection_class) { double }
     let(:cable_connection_instance) { double(connect: nil, __identified_by_map: :test_identified_by) }
 
@@ -55,11 +56,15 @@ RSpec.describe Rage::Cable::Router do
   end
 
   describe "#process_subscription" do
-    subject { described_class.new.process_subscription(connection, env, :test_identifier, channel_name, :test_params) }
+    subject { described_class.new(nil, Object).process_subscription(connection, env, :test_identifier, channel_name, :test_params) }
 
     let(:channel_name) { "TestChannel" }
-    let(:cable_channel_class) { double }
-    let(:channel) { instance_double("Rage::Cable::Channel") }
+    let(:cable_channel_class) { double(name: "TestChannel") }
+    let(:channel) { double("Rage::Cable::Channel") }
+
+    before do
+      allow(cable_channel_class).to receive(:__protocol=)
+    end
 
     context "with correct channel name" do
       before do
@@ -115,7 +120,7 @@ RSpec.describe Rage::Cable::Router do
   end
 
   describe "#process_message" do
-    subject { described_class.new.process_message(env, :test_identifier, :test_action, :test_data) }
+    subject { described_class.new(nil, Object).process_message(nil, env, :test_identifier, :test_action, :test_data) }
 
     context "with existing subscription" do
       let(:channel) { double }
@@ -153,7 +158,7 @@ RSpec.describe Rage::Cable::Router do
   end
 
   describe "#process_disconnection" do
-    subject { described_class.new.process_disconnection(env) }
+    subject { described_class.new(nil, Object).process_disconnection(nil, env) }
 
     context "with existing subscription" do
       let(:channel) { double }
@@ -191,6 +196,185 @@ RSpec.describe Rage::Cable::Router do
       it "calls disconnect on the connection class" do
         expect(cable_connection_instance).to receive(:disconnect).once
         subject
+      end
+    end
+  end
+
+  describe "namespace support" do
+    let(:custom_namespace) do
+      Module.new do
+        def self.name
+          "CustomNamespace"
+        end
+      end
+    end
+
+    describe "#process_subscription with namespace" do
+      let(:channel_class) do
+        Class.new(Rage::Cable::Channel) do
+          def self.name
+            "ChatChannel"
+          end
+        end
+      end
+      let(:protocol) { double(supports_rpc?: true) }
+
+      before do
+        env["rage.cable"] = {}
+        env["rage.identified_by"] = {}
+        custom_namespace.const_set(:ChatChannel, channel_class)
+      end
+
+      after do
+        custom_namespace.send(:remove_const, :ChatChannel) if custom_namespace.const_defined?(:ChatChannel)
+      end
+
+      it "looks up channels within the namespace" do
+        router = described_class.new(protocol, custom_namespace)
+        result = router.process_subscription(connection, env, :test_identifier, "ChatChannel", {})
+
+        expect(result).to eq(:subscribed)
+      end
+
+      it "does not find channels outside the namespace" do
+        stub_const("GlobalChannel", Class.new(Rage::Cable::Channel))
+        router = described_class.new(protocol, custom_namespace)
+        result = router.process_subscription(connection, env, :test_identifier, "GlobalChannel", {})
+
+        expect(result).to eq(:invalid)
+      end
+    end
+
+    describe "#init_connection_class with namespace" do
+      let(:namespaced_connection_class) do
+        Class.new(Rage::Cable::Connection)
+      end
+
+      context "with RageCable::Connection in namespace" do
+        before do
+          rage_cable_module = Module.new
+          rage_cable_module.const_set(:Connection, namespaced_connection_class)
+          custom_namespace.const_set(:RageCable, rage_cable_module)
+        end
+
+        after do
+          custom_namespace.send(:remove_const, :RageCable) if custom_namespace.const_defined?(:RageCable)
+        end
+
+        it "uses the namespaced connection class" do
+          router = described_class.new(nil, custom_namespace)
+          cable_connection_instance = double(connect: nil, rejected?: false, __identified_by_map: {})
+          expect(namespaced_connection_class).to receive(:new).and_return(cable_connection_instance)
+
+          router.process_connection(nil, env)
+        end
+      end
+
+      context "with ApplicationCable::Connection in namespace" do
+        let(:app_cable_connection_class) { Class.new(Rage::Cable::Connection) }
+
+        before do
+          app_cable_module = Module.new
+          app_cable_module.const_set(:Connection, app_cable_connection_class)
+          custom_namespace.const_set(:ApplicationCable, app_cable_module)
+        end
+
+        after do
+          custom_namespace.send(:remove_const, :ApplicationCable) if custom_namespace.const_defined?(:ApplicationCable)
+        end
+
+        it "uses the namespaced ApplicationCable connection class" do
+          router = described_class.new(nil, custom_namespace)
+          cable_connection_instance = double(connect: nil, rejected?: false, __identified_by_map: {})
+          expect(app_cable_connection_class).to receive(:new).and_return(cable_connection_instance)
+
+          router.process_connection(nil, env)
+        end
+      end
+
+      context "with no connection class in namespace" do
+        it "falls back to default Rage::Cable::Connection" do
+          expect {
+            described_class.new(nil, custom_namespace)
+          }.to output(/WARNING: Could not find the RageCable connection class/).to_stdout
+        end
+      end
+    end
+
+    describe "#reset with namespace" do
+      let(:protocol) { double(supports_rpc?: true) }
+
+      it "clears the channels map on reset" do
+        # Use a real constant for the namespace so reset can find it
+        reset_namespace = Module.new
+        stub_const("ResetTestNamespace", reset_namespace)
+
+        channel_class = Class.new(Rage::Cable::Channel)
+        stub_const("ResetTestNamespace::ResetTestChannel", channel_class)
+
+        env["rage.cable"] = {}
+        env["rage.identified_by"] = {}
+
+        router = described_class.new(protocol, ResetTestNamespace)
+
+        # Subscribe to cache the channel
+        router.process_subscription(connection, env, :test_identifier, "ResetTestChannel", {})
+
+        # Reset the router
+        router.reset
+
+        # The channel should be re-registered on next subscription
+        expect(channel_class).to receive(:__register_actions).with(protocol).and_call_original
+        router.process_subscription(connection, env, :test_identifier2, "ResetTestChannel", {})
+      end
+
+      it "re-initializes the connection class on reset" do
+        reset_namespace = Module.new
+        stub_const("ResetConnNamespace", reset_namespace)
+
+        connection_class = Class.new(Rage::Cable::Connection)
+        rage_cable_module = Module.new
+        stub_const("ResetConnNamespace::RageCable", rage_cable_module)
+        stub_const("ResetConnNamespace::RageCable::Connection", connection_class)
+
+        env["rage.cable"] = {}
+        env["rage.identified_by"] = {}
+
+        router = described_class.new(protocol, ResetConnNamespace)
+
+        # Verify initial connection class is used
+        cable_connection_instance = double(connect: nil, rejected?: false, __identified_by_map: {})
+        expect(connection_class).to receive(:new).and_return(cable_connection_instance)
+        router.process_connection(nil, env)
+
+        # Create a new connection class and replace the old one
+        new_connection_class = Class.new(Rage::Cable::Connection)
+        ResetConnNamespace::RageCable.send(:remove_const, :Connection)
+        ResetConnNamespace::RageCable.const_set(:Connection, new_connection_class)
+
+        router.reset
+
+        # After reset, the new connection class should be used
+        new_cable_connection_instance = double(connect: nil, rejected?: false, __identified_by_map: {})
+        expect(new_connection_class).to receive(:new).and_return(new_cable_connection_instance)
+
+        router.process_connection(nil, env)
+      end
+
+      it "handles anonymous namespaces without name" do
+        anonymous_namespace = Module.new
+        # Anonymous modules have name = nil
+
+        env["rage.cable"] = {}
+        env["rage.identified_by"] = {}
+
+        channel_class = Class.new(Rage::Cable::Channel)
+        anonymous_namespace.const_set(:TestChannel, channel_class)
+
+        router = described_class.new(protocol, anonymous_namespace)
+
+        # Reset should not raise for anonymous namespace
+        expect { router.reset }.not_to raise_error
       end
     end
   end

@@ -4,19 +4,18 @@ class Rage::Cable::Channel
 
   class << self
     # @private
-    attr_reader :__prepared_actions
-
-    # @private
-    attr_reader :__channels
+    attr_reader :__prepared_actions, :__channels, :__protocol
 
     # @private
     # returns a list of actions that can be called remotely
-    def __register_actions
+    def __register_actions(protocol)
+      @__protocol = protocol
+
       actions = (
         public_instance_methods(true) - Rage::Cable::Channel.public_instance_methods(true)
       ).reject { |m| m.start_with?("__rage_tmp") || m.start_with?("__run") }
 
-      actions.reject! { |m| m != :receive } unless Rage.cable.__protocol.supports_rpc?
+      actions.reject! { |m| m != :receive } unless @__protocol.supports_rpc?
 
       @__prepared_actions = (INTERNAL_ACTIONS + actions).each_with_object({}) do |action_name, memo|
         memo[action_name] = __register_action_proc(action_name)
@@ -417,6 +416,13 @@ class Rage::Cable::Channel
     @__params
   end
 
+  # Get the Rack env hash that is attached to the underlying WebSocket connection.
+  #
+  # @return [Hash]
+  def env
+    @__connection.env
+  end
+
   # Reject the subscription request. The method should only be called during the subscription
   # process (i.e. inside the {subscribed} method or {before_subscribe}/{after_subscribe} hooks).
   def reject
@@ -449,7 +455,7 @@ class Rage::Cable::Channel
   #   Rage::Cable.broadcast("notifications", { message: "A new member has joined!" })
   def stream_from(stream)
     raise ArgumentError, "Stream name must be a String" unless stream.is_a?(String)
-    Rage.cable.__protocol.subscribe(@__connection, stream, @__params)
+    self.class.__protocol.subscribe(@__connection, stream, @__params)
   end
 
   # Subscribe to a local stream. Local streams are associated with a specific channel instance and can be used to send data to the current channel only.
@@ -490,7 +496,7 @@ class Rage::Cable::Channel
   #   end
   def stop_stream_from(stream)
     raise ArgumentError, "Stream name must be a String" unless stream.is_a?(String)
-    Rage.cable.__protocol.unsubscribe(@__connection, stream, @__params)
+    self.class.__protocol.unsubscribe(@__connection, stream, @__params)
   end
 
   # Unsubscribe from a local stream. The counterpart to {stream_for}.
@@ -527,7 +533,7 @@ class Rage::Cable::Channel
   #     transmit({ message: "Hello!" })
   #   end
   def transmit(data)
-    message = Rage.cable.__protocol.serialize(@__params, data)
+    message = self.class.__protocol.serialize(@__params, data)
 
     if @__is_subscribing
       # we expect a confirmation message to be sent as a result of a successful subscribe call;

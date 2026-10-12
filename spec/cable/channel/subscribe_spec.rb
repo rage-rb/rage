@@ -182,11 +182,13 @@ module CableChannelSubscribeSpec
 end
 
 RSpec.describe Rage::Cable::Channel do
-  subject { klass.tap(&:__register_actions).new(nil, nil, nil).__run_action(:subscribed) }
+  subject { klass.new(nil, nil, nil).__run_action(:subscribed) }
 
   let(:verifier) { double }
+  let(:protocol) { double(supports_rpc?: true) }
 
   before do
+    klass.__register_actions(protocol)
     allow_any_instance_of(Rage::Cable::Channel).to receive(:verifier).and_return(verifier)
   end
 

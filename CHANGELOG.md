@@ -6,6 +6,7 @@
 - [Cable] Serialize WS messages per connection (#400).
 - Update fiber scheduler to support Ruby 4.1 (#397).
 - Improve blocking mechanism for fibers (#401).
+- Support multiple isolated cable apps (#406).
 
 ## [1.28.2] - 2026-10-09
 

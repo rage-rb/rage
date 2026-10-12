@@ -49,13 +49,19 @@ module CableChannelActionsSpec
 end
 
 RSpec.describe Rage::Cable::Channel do
-  let(:klass_instance) { klass.tap(&:__register_actions).new(nil, nil, nil) }
+  let(:klass_instance) { klass.new(nil, nil, nil) }
+  let(:protocol) { double(supports_rpc?: true) }
+  let(:registered_actions) { klass.__register_actions(protocol) }
+
+  before do
+    klass.__register_actions(protocol)
+  end
 
   context "with default actions" do
     let(:klass) { CableChannelActionsSpec::TestChannel }
 
     it "correctly registers actions" do
-      expect(klass.__register_actions).to be_empty
+      expect(registered_actions).to be_empty
     end
 
     describe "#__has_action?" do
@@ -70,7 +76,7 @@ RSpec.describe Rage::Cable::Channel do
     let(:klass) { CableChannelActionsSpec::TestChannel1 }
 
     it "correctly registers actions" do
-      expect(klass.__register_actions).to eq(%i(receive))
+      expect(registered_actions).to eq(%i(receive))
     end
 
     describe "#__has_action?" do
@@ -84,7 +90,7 @@ RSpec.describe Rage::Cable::Channel do
     let(:klass) { CableChannelActionsSpec::TestChannel2 }
 
     it "correctly registers actions" do
-      expect(klass.__register_actions).to eq(%i(receive))
+      expect(registered_actions).to eq(%i(receive))
     end
 
     describe "#__has_action?" do
@@ -98,7 +104,7 @@ RSpec.describe Rage::Cable::Channel do
     let(:klass) { CableChannelActionsSpec::TestChannel3 }
 
     it "correctly registers actions" do
-      expect(klass.__register_actions).to match_array(%i(receive connect))
+      expect(registered_actions).to match_array(%i(receive connect))
     end
 
     describe "#__has_action?" do
@@ -113,7 +119,7 @@ RSpec.describe Rage::Cable::Channel do
     let(:klass) { CableChannelActionsSpec::TestChannel4 }
 
     it "correctly registers actions" do
-      expect(klass.__register_actions).to be_empty
+      expect(registered_actions).to be_empty
     end
   end
 
@@ -121,7 +127,7 @@ RSpec.describe Rage::Cable::Channel do
     let(:klass) { CableChannelActionsSpec::TestChannel5 }
 
     it "correctly registers actions" do
-      expect(klass.__register_actions).to eq([:receive])
+      expect(registered_actions).to eq([:receive])
     end
 
     describe "#__has_action?" do
@@ -135,7 +141,7 @@ RSpec.describe Rage::Cable::Channel do
 
       before do
         allow_any_instance_of(Rage::Cable::Channel).to receive(:verifier).and_return(verifier)
-        klass.__register_actions
+        klass.__register_actions(protocol)
       end
 
       it "doesn't call before/after subscribe when calling custom action" do
