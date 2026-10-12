@@ -51,6 +51,24 @@ module Rage::Deferred
     Rage::Deferred::Proxy.new(instance, delay:, delay_until:)
   end
 
+  # Return the collection of tasks that Rage no longer retries.
+  #
+  # The method returns the same collection object on each call.
+  # The collection uses the same backend object as the deferred queue.
+  #
+  # @example List dead tasks
+  #   Rage::Deferred.dead_tasks.each do |task|
+  #     puts "#{task.id}: #{task.exception_message}"
+  #   end
+  #
+  # @example Find one dead task
+  #   task = Rage::Deferred.dead_tasks.find_by_id("1735689600-12345-1")
+  #
+  # @return [Rage::Deferred::DeadTasks]
+  def self.dead_tasks
+    @__dead_tasks ||= Rage::Deferred::DeadTasks.new(__backend)
+  end
+
   # @private
   def self.__backend
     @__backend ||= Rage.config.deferred.backend
@@ -100,11 +118,20 @@ module Rage::Deferred
   class PushTimeout < StandardError
   end
 
-  # Raised when a dead-tasks store operation cannot acquire the lock within the retry budget.
+  # Raise this error when the dead-task store cannot be locked after all retries.
   class DeadTasksLockTimeout < StandardError
+  end
+
+  # Raise this error when a dead task's execution context cannot be deserialized.
+  #
+  # The error message identifies the dead task.
+  # `Exception#cause` contains the original deserialization error.
+  class DeadTaskContextDeserializationError < StandardError
   end
 end
 
+require_relative "dead_task"
+require_relative "dead_tasks"
 require_relative "task"
 require_relative "scheduler"
 require_relative "queue"

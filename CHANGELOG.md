@@ -2,6 +2,7 @@
 
 ### Added
 
+- [Deferred] Add `Rage::Deferred.dead_tasks` for listing and inspecting tasks that exhausted their retries.
 - Add low-level `PubSub` API (#399).
 - [Cable] Serialize WS messages per connection (#400).
 - Update fiber scheduler to support Ruby 4.1 (#397).
