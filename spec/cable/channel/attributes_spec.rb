@@ -21,4 +21,14 @@ RSpec.describe Rage::Cable::Channel do
       expect(subject).to be_subscription_rejected
     end
   end
+
+  describe "#env" do
+    subject { described_class.new(connection, nil, nil) }
+
+    let(:connection) { double(env: :test_env) }
+
+    it "returns connection env" do
+      expect(subject.env).to eq(:test_env)
+    end
+  end
 end

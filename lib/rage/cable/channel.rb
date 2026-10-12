@@ -416,6 +416,13 @@ class Rage::Cable::Channel
     @__params
   end
 
+  # Get the Rack env hash that is attached to the underlying WebSocket connection.
+  #
+  # @return [Hash]
+  def env
+    @__connection.env
+  end
+
   # Reject the subscription request. The method should only be called during the subscription
   # process (i.e. inside the {subscribed} method or {before_subscribe}/{after_subscribe} hooks).
   def reject
