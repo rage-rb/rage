@@ -68,8 +68,10 @@ module Rage::PubSub
         raise ArgumentError, "A subscription with topic #{topic.inspect} and subscription_id #{subscription_id.inspect} already exists"
       end
 
-      subscriptions[topic][subscription_id] = block
-      subscribe_to_topic(topic)
+      serialized_topic = Rage::Internal.stream_name_for(topic)
+
+      subscriptions[serialized_topic][subscription_id] = block
+      subscribe_to_topic(serialized_topic)
 
       true
     end
@@ -84,14 +86,16 @@ module Rage::PubSub
     # @example Unsubscribe from order updates
     #   Rage::PubSub.unsubscribe(topic: "orders", subscription_id: :order_listener)
     def unsubscribe(topic:, subscription_id: nil)
-      topic_subscriptions = subscriptions[topic]
+      serialized_topic = Rage::Internal.stream_name_for(topic)
+      topic_subscriptions = subscriptions[serialized_topic]
+
       return false if topic_subscriptions.nil? || (subscription_id && !topic_subscriptions.has_key?(subscription_id))
 
       if subscription_id
         topic_subscriptions.delete(subscription_id)
-        unsubscribe_from_topic(topic) if topic_subscriptions.empty?
+        unsubscribe_from_topic(serialized_topic) if topic_subscriptions.empty?
       else
-        unsubscribe_from_topic(topic)
+        unsubscribe_from_topic(serialized_topic)
       end
 
       true
@@ -130,14 +134,12 @@ module Rage::PubSub
       @subscriptions ||= Hash.new { |h, k| h[k] = {} }
     end
 
-    def subscribe_to_topic(topic)
-      serialized_topic = Rage::Internal.stream_name_for(topic)
+    def subscribe_to_topic(serialized_topic)
       channel = "pubsub:#{serialized_topic}"
-
       return if Iodine.subscribed?(channel)
 
       Iodine.subscribe(channel) do |_, message|
-        subscriptions[topic].each do |subscription_id, callback|
+        subscriptions[serialized_topic].each do |subscription_id, callback|
           callback.call(message)
         rescue => e
           Rage.logger.error(
@@ -148,12 +150,11 @@ module Rage::PubSub
       end
     end
 
-    def unsubscribe_from_topic(topic)
-      subscriptions.delete(topic)
+    def unsubscribe_from_topic(serialized_topic)
+      subscriptions.delete(serialized_topic)
 
       Iodine.defer do
-        serialized_topic = Rage::Internal.stream_name_for(topic)
-        Iodine.unsubscribe("pubsub:#{serialized_topic}") unless subscriptions.has_key?(topic)
+        Iodine.unsubscribe("pubsub:#{serialized_topic}") unless subscriptions.has_key?(serialized_topic)
       end
     end
   end # class << self

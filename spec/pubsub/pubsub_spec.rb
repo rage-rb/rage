@@ -72,6 +72,19 @@ RSpec.describe Rage::PubSub do
         described_class.subscribe(topic: [user, "notifications"], subscription_id: :listener) { |msg| msg }
       end
     end
+
+    context "with topics matchings in serialized form" do
+      let(:order) { double("Order", id: 123, class: double(name: "Order")) }
+
+      it "doesn't override subscriptions" do
+        described_class.subscribe(topic: order, subscription_id: :listener) { |msg| msg }
+        described_class.subscribe(topic: "Order:123", subscription_id: :second) { |msg| msg }
+
+        subscriptions = described_class.send(:subscriptions)
+
+        expect(subscriptions["Order:123"].size).to eq(2)
+      end
+    end
   end
 
   describe ".unsubscribe" do
@@ -116,6 +129,19 @@ RSpec.describe Rage::PubSub do
 
       expect(result_listener).to be(false)
       expect(result_second).to be(false)
+    end
+
+    it "doesn't unsubscribe from channels that clients have re-subscribed to" do
+      expect(Iodine).not_to receive(:unsubscribe)
+
+      deferred_unsubscribe_callback = nil
+      allow(Iodine).to receive(:defer) do |&block|
+        deferred_unsubscribe_callback = block
+      end
+
+      described_class.unsubscribe(topic: "orders")
+      described_class.subscribe(topic: "orders", subscription_id: :listener) { |msg| msg }
+      deferred_unsubscribe_callback.call
     end
   end
 
