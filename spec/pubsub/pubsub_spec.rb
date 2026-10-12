@@ -7,7 +7,7 @@ RSpec.describe Rage::PubSub do
     allow(Iodine).to receive(:subscribed?).and_return(false)
     allow(Iodine).to receive(:publish)
     allow(Iodine).to receive(:running?).and_return(true)
-    allow(Iodine).to receive(:on_state)
+    allow(Iodine).to receive(:defer)
 
     # Reset subscriptions between tests
     described_class.send(:subscriptions).clear
@@ -104,6 +104,18 @@ RSpec.describe Rage::PubSub do
 
       result = described_class.unsubscribe(topic: "orders", subscription_id: :second)
       expect(result).to be(true)
+    end
+
+    it "allows unsubscribing from all subscriptions" do
+      described_class.subscribe(topic: "orders", subscription_id: :second) { |msg| msg }
+
+      described_class.unsubscribe(topic: "orders")
+
+      result_listener = described_class.unsubscribe(topic: "orders", subscription_id: :listener)
+      result_second = described_class.unsubscribe(topic: "orders", subscription_id: :second)
+
+      expect(result_listener).to be(false)
+      expect(result_second).to be(false)
     end
   end
 
