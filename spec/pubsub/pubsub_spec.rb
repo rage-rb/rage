@@ -4,7 +4,6 @@ RSpec.describe Rage::PubSub do
   before do
     allow(Iodine).to receive(:subscribe)
     allow(Iodine).to receive(:unsubscribe)
-    allow(Iodine).to receive(:subscribed?).and_return(false)
     allow(Iodine).to receive(:publish)
     allow(Iodine).to receive(:running?).and_return(true)
     allow(Iodine).to receive(:defer)
@@ -28,11 +27,18 @@ RSpec.describe Rage::PubSub do
     end
 
     it "only subscribes to Iodine once per topic" do
-      allow(Iodine).to receive(:subscribed?).and_return(false, true)
       expect(Iodine).to receive(:subscribe).once
 
       described_class.subscribe(topic: "orders", subscription_id: :first) { |msg| msg }
       described_class.subscribe(topic: "orders", subscription_id: :second) { |msg| msg }
+    end
+
+    it "re-subscribes to topics" do
+      expect(Iodine).to receive(:subscribe).with("pubsub:orders").twice
+
+      described_class.subscribe(topic: "orders", subscription_id: :default) { |msg| msg }
+      described_class.unsubscribe(topic: "orders", subscription_id: :default)
+      described_class.subscribe(topic: "orders", subscription_id: :default) { |msg| msg }
     end
 
     it "raises an error when subscription already exists" do
@@ -258,7 +264,6 @@ RSpec.describe Rage::PubSub do
       allow(Iodine).to receive(:subscribe) do |_channel, &block|
         iodine_callback = block
       end
-      allow(Iodine).to receive(:subscribed?).and_return(false, true)
 
       described_class.subscribe(topic: "orders", subscription_id: :a) { |msg| messages_a << msg }
       described_class.subscribe(topic: "orders", subscription_id: :b) { |msg| messages_b << msg }
@@ -278,7 +283,6 @@ RSpec.describe Rage::PubSub do
       allow(Iodine).to receive(:subscribe) do |_channel, &block|
         iodine_callback = block
       end
-      allow(Iodine).to receive(:subscribed?).and_return(false, true)
 
       allow(Rage).to receive(:logger).and_return(logger)
 

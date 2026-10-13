@@ -72,7 +72,7 @@ module Rage::PubSub
       end
 
       topic_subscriptions[subscription_id] = block
-      subscribe_to_topic(serialized_topic)
+      subscribe_to_topic(serialized_topic) if topic_subscriptions.size == 1
 
       true
     end
@@ -135,10 +135,7 @@ module Rage::PubSub
     end
 
     def subscribe_to_topic(serialized_topic)
-      channel = "pubsub:#{serialized_topic}"
-      return if Iodine.subscribed?(channel)
-
-      Iodine.subscribe(channel) do |_, message|
+      Iodine.subscribe("pubsub:#{serialized_topic}") do |_, message|
         subscriptions[serialized_topic].each do |subscription_id, callback|
           callback.call(message)
         rescue => e
