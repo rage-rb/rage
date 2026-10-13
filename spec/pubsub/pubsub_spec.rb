@@ -43,6 +43,15 @@ RSpec.describe Rage::PubSub do
       }.to raise_error(ArgumentError, /topic "orders".*subscription_id :listener.*already exists/)
     end
 
+    it "raises when the topic already exists in a different form" do
+      described_class.subscribe(topic: "User:42", subscription_id: :listener) { |msg| msg }
+
+      expect {
+        user = double("User", id: 42, class: double(name: "User"))
+        described_class.subscribe(topic: user, subscription_id: :listener) { |msg| msg }
+      }.to raise_error(ArgumentError, /already exists/)
+    end
+
     it "allows different subscription_ids for the same topic" do
       expect {
         described_class.subscribe(topic: "orders", subscription_id: :first) { |msg| msg }

@@ -64,11 +64,11 @@ module Rage::PubSub
     #     puts "Received order update: #{data}"
     #   end
     def subscribe(topic:, subscription_id:, &block)
-      if subscriptions.has_key?(topic) && subscriptions[topic].has_key?(subscription_id)
+      serialized_topic = Rage::Internal.stream_name_for(topic)
+
+      if subscriptions.has_key?(serialized_topic) && subscriptions[serialized_topic].has_key?(subscription_id)
         raise ArgumentError, "A subscription with topic #{topic.inspect} and subscription_id #{subscription_id.inspect} already exists"
       end
-
-      serialized_topic = Rage::Internal.stream_name_for(topic)
 
       subscriptions[serialized_topic][subscription_id] = block
       subscribe_to_topic(serialized_topic)
