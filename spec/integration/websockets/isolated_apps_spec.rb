@@ -17,42 +17,48 @@ RSpec.describe "Isolated Apps" do
     stop_server
   end
 
-  let(:headers) { { Origin: "localhost:3000" } }
-
   it "rejects a connection with no account_id" do
-    with_websocket_connection("ws://localhost:3000/presence_raw/status", headers:) do |client|
-      expect(client.messages[0]).to include("unauthorized")
+    create_ws_client("ws://localhost:3000/presence_raw/status") do |client|
+      expect(client.receive).to include("unauthorized")
     end
   end
 
   it "opens a connection" do
-    with_websocket_connection("ws://localhost:3000/presence_raw/status?account_id=1", headers:) do |client|
-      expect(client.messages).to be_empty
+    create_ws_client("ws://localhost:3000/presence_raw/status?account_id=1") do |client|
       expect(client).to be_connected
+      expect(client.receive).to include("ok")
     end
   end
 
   it "broadcasts messages to a specific app" do
-    client = with_websocket_connection("ws://localhost:3000/presence_raw/status?account_id=1", headers:)
+    create_ws_client("ws://localhost:3000/presence_raw/status?account_id=1") do |client|
+      Bundler.with_unbundled_env do
+        system({ "ENABLE_REDIS_ADAPTER" => "1" }, "ruby -e 'require_relative(\"config/application\"); Rage.cable.broadcast(\"presence\", { is_present: true })'", chdir: "spec/integration/test_app")
+      end
 
-    Bundler.with_unbundled_env do
-      system({ "ENABLE_REDIS_ADAPTER" => "1" }, "ruby -e 'require_relative(\"config/application\"); Rage.cable.broadcast(\"presence\", { is_present: true })'", chdir: "spec/integration/test_app")
+      2.times { client.receive }
+
+      expect(client.last_message).to include("is_present")
     end
-
-    expect(client.messages.last).to include("is_present")
   end
 
   it "broadcasts messages between apps respecting protocols" do
-    client_raw = with_websocket_connection("ws://localhost:3000/presence_raw/status?account_id=1", headers:)
+    client_raw = create_ws_client("ws://localhost:3000/presence_raw/status?account_id=1")
+    client_raw.receive
 
-    client_ac = with_websocket_connection("ws://localhost:3000/presence_ac/status", headers:)
+    client_ac = create_ws_client("ws://localhost:3000/presence_ac/status")
     client_ac.send({ identifier: { client: "1", channel: "StatusChannel" }.to_json, command: "subscribe" }.to_json)
+    3.times { client_ac.receive }
 
     Bundler.with_unbundled_env do
       system({ "ENABLE_REDIS_ADAPTER" => "1" }, "ruby -e 'require_relative(\"config/application\"); Rage.cable.broadcast(\"presence\", { is_present: true })'", chdir: "spec/integration/test_app")
     end
 
-    expect(client_raw.messages.last).to eq({ is_present: true }.to_json)
-    expect(client_ac.messages.last).to match(/channel\W+StatusChannel\W+message\W+is_present\W+true/)
+    expect(client_raw.receive).to eq({ is_present: true }.to_json)
+    expect(client_ac.receive).to match(/channel\W+StatusChannel\W+message\W+is_present\W+true/)
+
+  ensure
+    client_raw.close
+    client_ac.close
   end
 end

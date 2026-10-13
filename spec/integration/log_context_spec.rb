@@ -51,16 +51,19 @@ RSpec.describe "Global log context" do
 
     context "with cable connection" do
       it "enriches subscription logs" do
-        with_websocket_connection("ws://localhost:3000/cable/logs?user_id=1", headers: { Origin: "localhost:3000" }) do |client|
+        create_ws_client("ws://localhost:3000/cable/logs?user_id=1") do |client|
           expect(client).to be_connected
+          client.receive
+
           expect(logs.last).to match(/^\[\w{16}\]\[development\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info current_time=\d+ message=client subscribed$/)
         end
       end
 
       it "enriches message logs" do
-        with_websocket_connection("ws://localhost:3000/cable/logs?user_id=1", headers: { Origin: "localhost:3000" }) do |client|
+        create_ws_client("ws://localhost:3000/cable/logs?user_id=1") do |client|
           expect(client).to be_connected
           client.send({ message: "test-message" }.to_json)
+          2.times { client.receive }
 
           websocket_logs = logs.last(2)
 
@@ -70,9 +73,10 @@ RSpec.describe "Global log context" do
       end
 
       it "rebuilds log context for every log entry" do
-        with_websocket_connection("ws://localhost:3000/cable/logs?user_id=1", headers: { Origin: "localhost:3000" }) do |client|
+        create_ws_client("ws://localhost:3000/cable/logs?user_id=1") do |client|
           expect(client).to be_connected
           client.send({ message: "test-message" }.to_json)
+          2.times { client.receive }
 
           websocket_logs = logs.last(2)
           current_time_values = websocket_logs.map do |log|
@@ -136,9 +140,10 @@ RSpec.describe "Global log context" do
 
     context "with cable connection" do
       it "uses internal request ID if X-Request-Id is not submitted" do
-        with_websocket_connection("ws://localhost:3000/cable/logs?user_id=1", headers: { Origin: "localhost:3000" }) do |client|
+        create_ws_client("ws://localhost:3000/cable/logs?user_id=1") do |client|
           expect(client).to be_connected
           client.send({ message: "test-message" }.to_json)
+          2.times { client.receive }
 
           websocket_logs = logs.last(2)
           websocket_logs.each do |log|
@@ -151,9 +156,14 @@ RSpec.describe "Global log context" do
       it "uses the X-Request-Id value if it is submitted" do
         x_request_id = "my-test-request-id"
 
-        with_websocket_connection("ws://localhost:3000/cable/logs?user_id=1", headers: { Origin: "localhost:3000", "X-Request-Id" => x_request_id }) do |client|
+        headers = WebSocketHelper::WebSocketClient::DEFAULT_HEADERS.merge({
+          "X-Request-Id" => x_request_id
+        })
+
+        create_ws_client("ws://localhost:3000/cable/logs?user_id=1", headers:) do |client|
           expect(client).to be_connected
           client.send({ message: "test-message" }.to_json)
+          2.times { client.receive }
 
           websocket_logs = logs.last(2)
           websocket_logs.each do |log|
