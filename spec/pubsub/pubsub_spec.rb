@@ -4,10 +4,9 @@ RSpec.describe Rage::PubSub do
   before do
     allow(Iodine).to receive(:subscribe)
     allow(Iodine).to receive(:unsubscribe)
-    allow(Iodine).to receive(:subscribed?).and_return(false)
     allow(Iodine).to receive(:publish)
     allow(Iodine).to receive(:running?).and_return(true)
-    allow(Iodine).to receive(:on_state)
+    allow(Iodine).to receive(:defer)
 
     # Reset subscriptions between tests
     described_class.send(:subscriptions).clear
@@ -28,11 +27,18 @@ RSpec.describe Rage::PubSub do
     end
 
     it "only subscribes to Iodine once per topic" do
-      allow(Iodine).to receive(:subscribed?).and_return(false, true)
       expect(Iodine).to receive(:subscribe).once
 
       described_class.subscribe(topic: "orders", subscription_id: :first) { |msg| msg }
       described_class.subscribe(topic: "orders", subscription_id: :second) { |msg| msg }
+    end
+
+    it "re-subscribes to topics" do
+      expect(Iodine).to receive(:subscribe).with("pubsub:orders").twice
+
+      described_class.subscribe(topic: "orders", subscription_id: :default) { |msg| msg }
+      described_class.unsubscribe(topic: "orders", subscription_id: :default)
+      described_class.subscribe(topic: "orders", subscription_id: :default) { |msg| msg }
     end
 
     it "raises an error when subscription already exists" do
@@ -41,6 +47,15 @@ RSpec.describe Rage::PubSub do
       expect {
         described_class.subscribe(topic: "orders", subscription_id: :listener) { |msg| msg }
       }.to raise_error(ArgumentError, /topic "orders".*subscription_id :listener.*already exists/)
+    end
+
+    it "raises when the topic already exists in a different form" do
+      described_class.subscribe(topic: "User:42", subscription_id: :listener) { |msg| msg }
+
+      expect {
+        user = double("User", id: 42, class: double(name: "User"))
+        described_class.subscribe(topic: user, subscription_id: :listener) { |msg| msg }
+      }.to raise_error(ArgumentError, /already exists/)
     end
 
     it "allows different subscription_ids for the same topic" do
@@ -72,6 +87,19 @@ RSpec.describe Rage::PubSub do
         described_class.subscribe(topic: [user, "notifications"], subscription_id: :listener) { |msg| msg }
       end
     end
+
+    context "with topics matchings in serialized form" do
+      let(:order) { double("Order", id: 123, class: double(name: "Order")) }
+
+      it "doesn't override subscriptions" do
+        described_class.subscribe(topic: order, subscription_id: :listener) { |msg| msg }
+        described_class.subscribe(topic: "Order:123", subscription_id: :second) { |msg| msg }
+
+        subscriptions = described_class.send(:subscriptions)
+
+        expect(subscriptions["Order:123"].size).to eq(2)
+      end
+    end
   end
 
   describe ".unsubscribe" do
@@ -85,16 +113,16 @@ RSpec.describe Rage::PubSub do
       expect(result).to be(true)
     end
 
-    it "raises an error when topic does not exist" do
-      expect {
-        described_class.unsubscribe(topic: "unknown", subscription_id: :listener)
-      }.to raise_error(ArgumentError, /No subscription found with topic "unknown" and subscription_id :listener/)
+    it "returns false when topic does not exist" do
+      result = described_class.unsubscribe(topic: "unknown", subscription_id: :listener)
+
+      expect(result).to be(false)
     end
 
-    it "raises an error when subscription_id does not exist" do
-      expect {
-        described_class.unsubscribe(topic: "orders", subscription_id: :unknown)
-      }.to raise_error(ArgumentError, /No subscription found with topic "orders" and subscription_id :unknown/)
+    it "returns false when subscription_id does not exist" do
+      result = described_class.unsubscribe(topic: "orders", subscription_id: :unknown)
+
+      expect(result).to be(false)
     end
 
     it "allows unsubscribing one subscription while keeping others" do
@@ -102,9 +130,42 @@ RSpec.describe Rage::PubSub do
 
       described_class.unsubscribe(topic: "orders", subscription_id: :listener)
 
-      expect {
-        described_class.unsubscribe(topic: "orders", subscription_id: :second)
-      }.not_to raise_error
+      result = described_class.unsubscribe(topic: "orders", subscription_id: :second)
+      expect(result).to be(true)
+    end
+
+    it "allows unsubscribing from all subscriptions" do
+      described_class.subscribe(topic: "orders", subscription_id: :second) { |msg| msg }
+
+      described_class.unsubscribe(topic: "orders")
+
+      result_listener = described_class.unsubscribe(topic: "orders", subscription_id: :listener)
+      result_second = described_class.unsubscribe(topic: "orders", subscription_id: :second)
+
+      expect(result_listener).to be(false)
+      expect(result_second).to be(false)
+    end
+
+    it "doesn't unsubscribe from channels that clients have re-subscribed to" do
+      expect(Iodine).not_to receive(:unsubscribe)
+
+      deferred_unsubscribe_callback = nil
+      allow(Iodine).to receive(:defer) do |&block|
+        deferred_unsubscribe_callback = block
+      end
+
+      described_class.unsubscribe(topic: "orders")
+      described_class.subscribe(topic: "orders", subscription_id: :listener) { |msg| msg }
+      deferred_unsubscribe_callback.call
+    end
+
+    it "doesn't create entries for unknown subscriptions" do
+      described_class.unsubscribe(topic: "orders")
+      described_class.unsubscribe(topic: "unknown")
+
+      subscriptions = described_class.send(:subscriptions)
+
+      expect(subscriptions).to be_empty
     end
   end
 
@@ -203,7 +264,6 @@ RSpec.describe Rage::PubSub do
       allow(Iodine).to receive(:subscribe) do |_channel, &block|
         iodine_callback = block
       end
-      allow(Iodine).to receive(:subscribed?).and_return(false, true)
 
       described_class.subscribe(topic: "orders", subscription_id: :a) { |msg| messages_a << msg }
       described_class.subscribe(topic: "orders", subscription_id: :b) { |msg| messages_b << msg }
@@ -223,7 +283,6 @@ RSpec.describe Rage::PubSub do
       allow(Iodine).to receive(:subscribe) do |_channel, &block|
         iodine_callback = block
       end
-      allow(Iodine).to receive(:subscribed?).and_return(false, true)
 
       allow(Rage).to receive(:logger).and_return(logger)
 
@@ -238,6 +297,93 @@ RSpec.describe Rage::PubSub do
 
       expect(logger).to have_received(:error).with(/PubSub callback failed.*callback error/, anything)
       expect(messages).to eq(["test"])
+    end
+
+    it "allows removing subscriptions when processing events" do
+      allow(Iodine).to receive(:running?).and_return(true)
+
+      subscriptions_callback = nil
+      allow(Iodine).to receive(:subscribe) do |&block|
+        subscriptions_callback = block
+      end
+
+      allow(Iodine).to receive(:publish) { subscriptions_callback.call }
+
+      described_class.subscribe(topic: "orders", subscription_id: :first) do |_msg|
+        described_class.unsubscribe(topic: "orders", subscription_id: :first)
+      end
+
+      described_class.subscribe(topic: "orders", subscription_id: :second) do |_msg|
+        described_class.unsubscribe(topic: "orders", subscription_id: :second)
+      end
+
+      described_class.publish("", topic: "orders")
+
+      subscriptions = described_class.send(:subscriptions)
+      expect(subscriptions).to be_empty
+    end
+
+    it "allows unsubscribing from topic when processing events" do
+      allow(Iodine).to receive(:running?).and_return(true)
+
+      subscriptions_callback = nil
+      allow(Iodine).to receive(:subscribe) do |&block|
+        subscriptions_callback = block
+      end
+
+      allow(Iodine).to receive(:publish) { subscriptions_callback.call }
+
+      described_class.subscribe(topic: "orders", subscription_id: :first) do |_msg|
+        described_class.unsubscribe(topic: "orders")
+      end
+
+      described_class.subscribe(topic: "orders", subscription_id: :second) do |_msg|
+        described_class.unsubscribe(topic: "orders")
+      end
+
+      described_class.publish("", topic: "orders")
+
+      subscriptions = described_class.send(:subscriptions)
+      expect(subscriptions).to be_empty
+    end
+
+    it "delivers all messages despite unsubscribing" do
+      allow(Iodine).to receive(:running?).and_return(true)
+
+      subscriptions_callback = nil
+      allow(Iodine).to receive(:subscribe) do |&block|
+        subscriptions_callback = block
+      end
+
+      allow(Iodine).to receive(:publish) { subscriptions_callback.call }
+
+      first_run = false
+      described_class.subscribe(topic: "orders", subscription_id: :first) do |_msg|
+        first_run = true
+        described_class.unsubscribe(topic: "orders")
+      end
+
+      second_run = false
+      described_class.subscribe(topic: "orders", subscription_id: :second) do |_msg|
+        second_run = true
+      end
+
+      described_class.publish("", topic: "orders")
+
+      expect(first_run).to be(true)
+      expect(second_run).to be(true)
+    end
+
+    it "doesn't fail if unsubscribing after publishing but before the message is delivered" do
+      subscriptions_callback = nil
+      allow(Iodine).to receive(:subscribe) do |&block|
+        subscriptions_callback = block
+      end
+
+      described_class.subscribe(topic: "orders", subscription_id: :default) { |_msg| }
+      described_class.unsubscribe(topic: "orders")
+
+      expect { subscriptions_callback.call }.not_to raise_error
     end
   end
 end
