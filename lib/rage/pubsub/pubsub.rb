@@ -81,7 +81,6 @@ module Rage::PubSub
     # @param topic [String, Array, #id] The channel name to unsubscribe from. Must match the value
     #   used when calling {subscribe}.
     # @param subscription_id [Object, nil] The identifier of the subscription to remove. Omit the identifier to remove all subscriptions for the topic.
-    # @raise [ArgumentError] If the specified subscription does not exist.
     #
     # @example Unsubscribe from order updates
     #   Rage::PubSub.unsubscribe(topic: "orders", subscription_id: :order_listener)
