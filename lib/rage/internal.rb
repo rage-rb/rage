@@ -56,6 +56,10 @@ class Rage::Internal
           "#{streamable.class.name}:#{streamable.id}"
         elsif streamable.is_a?(String) || streamable.is_a?(Symbol) || streamable.is_a?(Numeric)
           streamable
+        elsif streamable.is_a?(Array)
+          stream_name_for(streamable)
+        elsif streamable.is_a?(Hash)
+          stream_name_for(streamable.sort)
         else
           raise ArgumentError, "Unable to generate stream name. Expected an object that responds to `id`, got: #{streamable.class}"
         end
