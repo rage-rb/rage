@@ -136,7 +136,9 @@ module Rage::PubSub
 
     def subscribe_to_topic(serialized_topic)
       Iodine.subscribe("pubsub:#{serialized_topic}") do |_, message|
-        subscriptions[serialized_topic].each do |subscription_id, callback|
+        topic_subscriptions = subscriptions[serialized_topic]
+
+        topic_subscriptions&.each do |subscription_id, callback|
           callback.call(message)
         rescue => e
           Rage.logger.error(
