@@ -152,6 +152,15 @@ RSpec.describe Rage::PubSub do
       described_class.subscribe(topic: "orders", subscription_id: :listener) { |msg| msg }
       deferred_unsubscribe_callback.call
     end
+
+    it "doesn't create entries for unknown subscriptions" do
+      described_class.unsubscribe(topic: "orders")
+      described_class.unsubscribe(topic: "unknown")
+
+      subscriptions = described_class.send(:subscriptions)
+
+      expect(subscriptions).to be_empty
+    end
   end
 
   describe ".publish" do
