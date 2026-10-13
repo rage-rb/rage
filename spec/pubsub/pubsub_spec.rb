@@ -347,6 +347,33 @@ RSpec.describe Rage::PubSub do
       expect(subscriptions).to be_empty
     end
 
+    it "delivers all messages despite unsubscribing" do
+      allow(Iodine).to receive(:running?).and_return(true)
+
+      subscriptions_callback = nil
+      allow(Iodine).to receive(:subscribe) do |&block|
+        subscriptions_callback = block
+      end
+
+      allow(Iodine).to receive(:publish) { subscriptions_callback.call }
+
+      first_run = false
+      described_class.subscribe(topic: "orders", subscription_id: :first) do |_msg|
+        first_run = true
+        described_class.unsubscribe(topic: "orders")
+      end
+
+      second_run = false
+      described_class.subscribe(topic: "orders", subscription_id: :second) do |_msg|
+        second_run = true
+      end
+
+      described_class.publish("", topic: "orders")
+
+      expect(first_run).to be(true)
+      expect(second_run).to be(true)
+    end
+
     it "doesn't fail if unsubscribing after publishing but before the message is delivered" do
       subscriptions_callback = nil
       allow(Iodine).to receive(:subscribe) do |&block|
