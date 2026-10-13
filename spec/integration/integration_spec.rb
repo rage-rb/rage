@@ -260,16 +260,21 @@ RSpec.describe "End-to-end" do
     end
 
     it "correctly adds cable entries" do
-      with_websocket_connection("ws://localhost:3000/cable/logs?user_id=1", headers: { Origin: "localhost:3000" }) do |client|
+      create_ws_client("ws://localhost:3000/cable/logs?user_id=1") do |client|
         expect(client).to be_connected
+        client.receive
+
         expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info message=client subscribed$/)
       end
     end
 
     it "correctly adds cable entries with custom context" do
-      with_websocket_connection("ws://localhost:3000/cable/logs?user_id=1", headers: { Origin: "localhost:3000" }) do |client|
+      create_ws_client("ws://localhost:3000/cable/logs?user_id=1") do |client|
         expect(client).to be_connected
         client.send({ message: "test-message" }.to_json)
+
+        2.times { client.receive }
+
         expect(logs.last).to match(/^\[\w{16}\] timestamp=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2} pid=\d+ level=info content=test-message message=message received$/)
       end
     end

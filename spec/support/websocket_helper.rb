@@ -1,64 +1,138 @@
 # frozen_string_literal: true
 
-require "websocket-client-simple"
+require "websocket"
+require "socket"
+require "uri"
 
 module WebSocketHelper
-  def with_websocket_connection(url, headers: {})
-    client = WebSocketTestClient.new(url, headers:)
-    yield client if block_given?
+  def create_ws_client(...)
+    client = WebSocketClient.new(...)
+
+    if block_given?
+      yield client
+      client.close
+    end
+
     client
   end
 
-  class WebSocketTestClient
-    def initialize(url, headers: {})
+  class WebSocketClient
+    DEFAULT_TIMEOUT = ENV["GITHUB_ACTIONS"] ? 5 : 2
+    DEFAULT_HEADERS = { Origin: "localhost:3000" }.freeze
+
+    attr_reader :last_message
+
+    def initialize(url, headers: DEFAULT_HEADERS)
       @url = url
       @headers = headers
+      @closed = false
+      @incoming_frame = nil
+      @last_message = nil
 
-      ws_data = { connected: false, closed: false, heartbeats: [], messages: [] }
+      uri = URI.parse(url)
+      @socket = TCPSocket.new(uri.host, uri.port || 80)
 
-      @ws = WebSocket::Client::Simple.connect(@url, headers: @headers) do |ws|
-        ws.on :open do
-          ws_data[:connected] = true
-          ws_data[:closed] = false
-        end
-
-        ws.on :message do |msg|
-          list = msg.to_s.include?("ping") ? ws_data[:heartbeats] : ws_data[:messages]
-          list << msg.to_s
-        end
-
-        ws.on :close do
-          ws_data[:closed] = true
-        end
-      end
-
-      @ws_data = ws_data
-
-      sleep 0.1
+      perform_handshake
     end
 
     def connected?
-      @ws.handshake.valid? && @ws_data[:connected] && !@ws_data[:closed]
+      @handshake.valid? && !@closed
     end
 
     def send(data)
-      2.times do
-        @ws.send(data)
-        break
-      rescue Errno::EBADF
-        puts "Lost websocket connection! Reconnecting..."
-        @ws.connect(@url, headers: @headers)
+      frame = WebSocket::Frame::Outgoing::Client.new(
+        version: @handshake.version,
+        data: data,
+        type: :text
+      )
+      @socket.write(frame.to_s)
+    end
+
+    def receive(timeout: DEFAULT_TIMEOUT, heartbeat: false)
+      message = receive_one(timeout:)
+
+      if message&.include?("ping") && !heartbeat
+        receive(timeout:)
+      elsif message
+        @last_message = message
       end
-
-      sleep 0.1
     end
 
-    def heartbeats
-      @ws_data[:heartbeats]
+    def close
+      return if @closed
+
+      frame = WebSocket::Frame::Outgoing::Client.new(
+        version: @handshake.version,
+        type: :close
+      )
+      @socket.write(frame.to_s) rescue nil
+      @socket.close rescue nil
+      @closed = true
     end
 
-    def messages
-      @ws_data[:messages]
+    private
+
+    def perform_handshake
+      @handshake = WebSocket::Handshake::Client.new(url: @url, headers: @headers)
+      @socket.write(@handshake.to_s)
+
+      loop do
+        if IO.select([@socket], nil, nil, 5)
+          data = @socket.read_nonblock(4096, exception: false)
+          break if data.nil? || data == :wait_readable || data.empty?
+
+          @handshake << data
+          break if @handshake.finished?
+        else
+          raise "Handshake timeout"
+        end
+      end
+    end
+
+    def receive_one(timeout:)
+      @incoming_frame ||= WebSocket::Frame::Incoming::Client.new(version: @handshake.version)
+
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+
+      loop do
+        if (frame = @incoming_frame.next)
+          case frame.type
+          when :text, :binary
+            return frame.to_s
+          when :ping
+            send_pong(frame.data)
+          when :close
+            @closed = true
+            return nil
+          end
+        end
+
+        remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        return nil if remaining <= 0
+
+        if IO.select([@socket], nil, nil, remaining)
+          data = @socket.read_nonblock(4096, exception: false)
+          if data.nil? || data == :wait_readable
+            next
+          elsif data.empty?
+            @closed = true
+            return nil
+          else
+            @incoming_frame << data
+          end
+        else
+          return nil
+        end
+      end
+    end
+
+    def send_pong(data)
+      frame = WebSocket::Frame::Outgoing::Client.new(
+        version: @handshake.version,
+        data: data,
+        type: :pong
+      )
+      @socket.write(frame.to_s)
     end
   end
 end

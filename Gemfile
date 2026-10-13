@@ -22,9 +22,9 @@ group :test do
   gem "connection_pool", "~> 2.0"
   gem "rbnacl"
   gem "domain_name"
-  gem "websocket-client-simple"
   gem "prism"
   gem "redis-client"
   gem "appraisal", "~> 2.5"
   gem "blueprinter"
+  gem "websocket", "~> 1.2"
 end
