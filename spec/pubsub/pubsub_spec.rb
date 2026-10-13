@@ -298,5 +298,53 @@ RSpec.describe Rage::PubSub do
       expect(logger).to have_received(:error).with(/PubSub callback failed.*callback error/, anything)
       expect(messages).to eq(["test"])
     end
+
+    it "allows removing subscriptions when processing events" do
+      allow(Iodine).to receive(:running?).and_return(true)
+
+      subscriptions_callback = nil
+      allow(Iodine).to receive(:subscribe) do |&block|
+        subscriptions_callback = block
+      end
+
+      allow(Iodine).to receive(:publish) { subscriptions_callback.call }
+
+      described_class.subscribe(topic: "orders", subscription_id: :first) do |_msg|
+        described_class.unsubscribe(topic: "orders", subscription_id: :first)
+      end
+
+      described_class.subscribe(topic: "orders", subscription_id: :second) do |_msg|
+        described_class.unsubscribe(topic: "orders", subscription_id: :second)
+      end
+
+      described_class.publish("", topic: "orders")
+
+      subscriptions = described_class.send(:subscriptions)
+      expect(subscriptions).to be_empty
+    end
+
+    it "allows unsubscribing from topic when processing events" do
+      allow(Iodine).to receive(:running?).and_return(true)
+
+      subscriptions_callback = nil
+      allow(Iodine).to receive(:subscribe) do |&block|
+        subscriptions_callback = block
+      end
+
+      allow(Iodine).to receive(:publish) { subscriptions_callback.call }
+
+      described_class.subscribe(topic: "orders", subscription_id: :first) do |_msg|
+        described_class.unsubscribe(topic: "orders")
+      end
+
+      described_class.subscribe(topic: "orders", subscription_id: :second) do |_msg|
+        described_class.unsubscribe(topic: "orders")
+      end
+
+      described_class.publish("", topic: "orders")
+
+      subscriptions = described_class.send(:subscriptions)
+      expect(subscriptions).to be_empty
+    end
   end
 end
