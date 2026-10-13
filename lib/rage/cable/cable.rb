@@ -245,6 +245,7 @@ require_relative "protocols/raw_web_socket_json"
 require_relative "channel"
 require_relative "connection"
 require_relative "router"
+require_relative "remote_disconnect"
 
 if Rage.config.internal.initialized?
   Rage::Cable.__initialize

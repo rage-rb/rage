@@ -20,9 +20,7 @@ class Rage::Cable::Router
   # @return [false] if the connection was rejected
   def process_connection(connection, env)
     cable_connection = @connection_class.new(env)
-    Rage::Telemetry.tracer.span_cable_connection_process(connection: cable_connection, action: :connect, env:) do
-      cable_connection.connect
-    end
+    cable_connection.__connect(connection, @protocol)
 
     if cable_connection.rejected?
       Rage.logger.debug { "An unauthorized connection attempt was rejected" }
@@ -111,17 +109,15 @@ class Rage::Cable::Router
 
   # Runs the `unsubscribed` methods on all the channels the client is subscribed to.
   #
+  # @param connection [Rage::Cable::WebSocketConnection] the connection object
   # @param env [Hash] the Rack environment
-  def process_disconnection(_, env)
+  def process_disconnection(connection, env)
     env["rage.cable"]&.each do |_, channel|
       channel.__run_action(:unsubscribed)
     end
 
     cable_connection = @connection_class.new(env, env["rage.identified_by"])
-
-    Rage::Telemetry.tracer.span_cable_connection_process(connection: cable_connection, action: :disconnect, env:) do
-      cable_connection.disconnect
-    end
+    cable_connection.__disconnect(connection)
   end
 
   # @private
