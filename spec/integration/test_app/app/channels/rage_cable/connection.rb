@@ -1,7 +1,7 @@
 module RageCable
   class Connection < Rage::Cable::Connection
     include Rage::Cable::RemoteDisconnect
-    
+
     identified_by :current_user
 
     def connect
