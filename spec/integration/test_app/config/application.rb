@@ -86,7 +86,7 @@ Rage.configure do
 
   if ENV["ENABLE_DAEMONS"]
     config.after_initialize do
-      config.daemons << RedisListener1 << RedisListener2
+      config.daemons << RedisListener1 << RedisListener2 << SleepDaemon
     end
   end
 end
