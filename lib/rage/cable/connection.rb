@@ -24,7 +24,7 @@ class Rage::Cable::Connection
       end
 
       define_method("#{method_name}=") do |data|
-        @__identified_by_map[method_name] = data
+        @__identified_by_map[method_name] = data if data
       end
 
       Rage::Cable::Channel.__prepare_id_method(method_name)

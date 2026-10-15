@@ -27,6 +27,15 @@ RSpec.describe Rage::Cable::Connection do
         expect(subject.test_user).to eq(:user_2)
       end
     end
+
+    context "with nil value" do
+      it "doesn't set the value" do
+        described_class.identified_by(:test_user)
+        subject.test_user = nil
+
+        expect(subject.__identified_by_map).to be_empty
+      end
+    end
   end
 
   describe "#request" do
