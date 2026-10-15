@@ -156,6 +156,39 @@ RSpec.describe Rage::Cable::Router do
     end
   end
 
+  describe "#process_unsubscription" do
+    subject { described_class.new(nil, Object).process_unsubscription(nil, env, :test_identifier) }
+
+    let(:channel) { double("Rage::Cable::Channel") }
+
+    context "with existing subscription" do
+      before do
+        env["rage.cable"] = { test_identifier: channel }
+      end
+
+      it "runs #unsubscribed" do
+        expect(channel).to receive(:__run_action).with(:unsubscribed)
+        subject
+      end
+
+      it "removes the channel instance" do
+        allow(channel).to receive(:__run_action)
+        subject
+        expect(env["rage.cable"]).to be_empty
+      end
+    end
+
+    context "with invalid subscription" do
+      before do
+        env["rage.cable"] = { new_identifier: channel }
+      end
+
+      it "doesn't raise error" do
+        expect { subject }.not_to raise_error
+      end
+    end
+  end
+
   describe "#process_disconnection" do
     subject { described_class.new(nil, Object).process_disconnection(nil, env) }
 

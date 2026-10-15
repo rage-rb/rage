@@ -107,6 +107,20 @@ class Rage::Cable::Router
     end
   end
 
+  # Runs the `unsubscribed` method on a specific channel without closing the connection.
+  #
+  # @param env [Hash] the Rack environment
+  # @param identifier [String] the identifier of the subscription
+  def process_unsubscription(_, env, identifier)
+    channel = env["rage.cable"].delete(identifier)
+    unless channel
+      Rage.logger.debug { "Unable to find the subscription" }
+      return
+    end
+
+    channel.__run_action(:unsubscribed)
+  end
+
   # Runs the `unsubscribed` methods on all the channels the client is subscribed to.
   #
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
