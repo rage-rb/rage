@@ -9,6 +9,7 @@
 - Improve blocking mechanism for fibers (#401).
 - Support multiple isolated cable apps (#406).
 - [Daemon] Improve cleanup mechanism (#410).
+- [Cable] Support remote disconnect for `Rage::Cable` (#409).
 
 ## [1.28.2] - 2026-10-09
 
