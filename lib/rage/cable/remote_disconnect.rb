@@ -47,7 +47,7 @@ module Rage::Cable::RemoteDisconnect
   def __remote_disconnect_setup(connection, protocol)
     __identified_by_map.each do |identified_by|
       Rage::PubSub.subscribe(topic: ["rage", self.class.name, identified_by], subscription_id: connection) do
-        protocol.on_server_disconnect(connection)
+        protocol.on_remote_disconnect(connection)
         connection.close
       end
     end

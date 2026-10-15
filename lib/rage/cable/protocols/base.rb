@@ -17,7 +17,7 @@ require "digest"
 # * `supports_rpc?`
 # * `on_shutdown`
 # * `on_close`
-# * `on_server_disconnect`
+# * `on_remote_disconnect`
 #
 class Rage::Cable::Protocols::Base
   # @private
@@ -89,10 +89,10 @@ class Rage::Cable::Protocols::Base
       true
     end
 
-    # Close the connection when the server is initiating the disconnect.
+    # Process the disconnect initiated by the server.
     #
     # @param connection [Rage::Cable::WebSocketConnection] the connection object
-    def on_server_disconnect(connection)
+    def on_remote_disconnect(connection)
     end
 
     private

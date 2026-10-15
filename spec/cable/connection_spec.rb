@@ -312,7 +312,7 @@ RSpec.describe Rage::Cable::Connection do
 
         subject
 
-        expect(protocol).to receive(:on_server_disconnect).with(connection)
+        expect(protocol).to receive(:on_remote_disconnect).with(connection)
         expect(connection).to receive(:close)
 
         pubsub_callback.call

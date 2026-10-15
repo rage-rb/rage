@@ -170,10 +170,10 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
     "acv1"
   end
 
-  # Close the connection when the server is initiating the disconnect.
+  # Process the disconnect initiated by the server.
   #
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
-  def self.on_server_disconnect(connection)
+  def self.on_remote_disconnect(connection)
     connection.write(MESSAGES::DISCONNECT)
   end
 end
