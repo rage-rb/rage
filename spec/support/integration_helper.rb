@@ -4,14 +4,14 @@ module IntegrationHelper
   def launch_server(env: {})
     Bundler.with_unbundled_env do
       build_gem
-      @pid = spawn(env, "bundle exec rage s", chdir: "spec/integration/test_app")
+      @test_server_pid = spawn(env, "bundle exec rage s", chdir: "spec/integration/test_app")
       sleep(2)
     end
   end
 
   def stop_server
-    if @pid
-      Process.kill(:SIGTERM, @pid)
+    if @test_server_pid
+      Process.kill(:SIGTERM, @test_server_pid)
       Process.wait
       system("rm -f spec/integration/test_app/Gemfile.lock")
       system("rm -f spec/integration/test_app/log/*.log")

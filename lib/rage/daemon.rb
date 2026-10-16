@@ -159,11 +159,7 @@ class Rage::Daemon
     private
 
     def __execute
-      Iodine.on_state(:start_shutdown) do
-        @__stopping = true
-      end
-
-      Fiber.schedule do
+      f = Fiber.schedule do
         backoff = INITIAL_BACKOFF
 
         Rage.logger.with_context(daemon: name) do
@@ -192,6 +188,11 @@ class Rage::Daemon
             backoff = (backoff * 2).clamp(INITIAL_BACKOFF, MAX_BACKOFF)
           end
         end
+      end
+
+      Iodine.on_state(:start_shutdown) do
+        @__stopping = true
+        f.kill
       end
     end # class << self
 

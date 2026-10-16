@@ -16,5 +16,6 @@ class RedisListener2 < Rage::Daemon
 
   def cleanup
     @redis.close
+    Rage.logger.info "cleanup done"
   end
 end
