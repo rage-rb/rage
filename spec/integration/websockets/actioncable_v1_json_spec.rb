@@ -131,4 +131,27 @@ RSpec.describe "Actioncable" do
       expect(client.last_message).to include("unsubscribed")
     end
   end
+
+  it "unsubscribes from individual streams" do
+    logs_channel_identifier = { client: "1", channel: "LogsChannel" }.to_json
+
+    logs_channel_subscribe_message = { identifier: logs_channel_identifier, command: "subscribe" }.to_json
+    logs_channel_send_message = { identifier: logs_channel_identifier, command: "message", data: "{}" }.to_json
+    logs_channel_unsubscribe_message = { identifier: logs_channel_identifier, command: "unsubscribe" }.to_json
+
+    create_ws_client("ws://localhost:3000/cable?user_id=1") do |client|
+      client.send(subscribe_message)
+      3.times { client.receive }
+
+      client.send(logs_channel_subscribe_message)
+      2.times { client.receive }
+      client.send(logs_channel_unsubscribe_message)
+
+      client.send(logs_channel_send_message)
+      expect(client.receive).to match(/invalid_request/)
+
+      client.send(get_time_message)
+      expect(client.receive).to match(/transmitting_current_time/)
+    end
+  end
 end

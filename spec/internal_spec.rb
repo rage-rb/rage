@@ -70,17 +70,38 @@ RSpec.describe Rage::Internal do
       end
     end
 
+    context "with nested arrays" do
+      let(:user) { double("User", id: 123, class: double(name: "User")) }
+
+      it "handles nested arrays" do
+        expect(described_class.stream_name_for(["pubsub", [user, :mobile]])).to eq("pubsub:User:123:mobile")
+      end
+
+      it "handles deeply nested arrays" do
+        expect(described_class.stream_name_for([user, ["pubsub", [:device, :mobile]]])).to eq("User:123:pubsub:device:mobile")
+      end
+    end
+
+    context "with nested hashes" do
+      let(:user) { double("User", id: 123, class: double(name: "User")) }
+
+      it "handles nested hashes" do
+        expect(described_class.stream_name_for(["pubsub", { device: :mobile, user: }])).to eq("pubsub:device:mobile:user:User:123")
+      end
+
+      it "produces same key for hashes in different order" do
+        result_1 = described_class.stream_name_for(["pubsub", { device: :mobile, user: }])
+        result_2 = described_class.stream_name_for(["pubsub", { user:, device: :mobile }])
+
+        expect(result_1).to eq(result_2)
+      end
+    end
+
     context "with invalid streamables" do
       it "raises ArgumentError for plain objects" do
         expect {
           described_class.stream_name_for(Object.new)
         }.to raise_error(ArgumentError, /Unable to generate stream name.*Object/)
-      end
-
-      it "raises ArgumentError for hash" do
-        expect {
-          described_class.stream_name_for({ key: "value" })
-        }.to raise_error(ArgumentError, /Unable to generate stream name.*Array/)
       end
 
       it "raises ArgumentError for invalid element in array" do

@@ -289,35 +289,35 @@ RSpec.describe Rage::Telemetry::Spans do
 
     context "with connect action" do
       it "passes correct arguments" do
-        router = Rage::Cable::Router.new(nil, Object)
+        cable_connection = connection_class.new(ws_env)
 
         expect(verifier).to receive(:call).with({
           id: "cable.connection.process",
           name: "RageCable::Connection#connect",
-          connection: instance_of(RageCable::Connection),
+          connection: equal(cable_connection),
           action: :connect,
           env: equal(ws_env),
           request: instance_of(Rage::Request)
         })
 
-        router.process_connection(nil, ws_env)
+        cable_connection.__connect(nil, nil)
       end
     end
 
     context "with disconnect action" do
       it "passes correct arguments" do
-        router = Rage::Cable::Router.new(nil, Object)
+        cable_connection = connection_class.new(ws_env)
 
         expect(verifier).to receive(:call).with({
           id: "cable.connection.process",
           name: "RageCable::Connection#disconnect",
-          connection: instance_of(RageCable::Connection),
+          connection: equal(cable_connection),
           action: :disconnect,
           env: equal(ws_env),
           request: instance_of(Rage::Request)
         })
 
-        router.process_disconnection(nil, ws_env)
+        cable_connection.__disconnect(nil)
       end
     end
   end

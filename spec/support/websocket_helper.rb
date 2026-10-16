@@ -51,7 +51,7 @@ module WebSocketHelper
     def receive(timeout: DEFAULT_TIMEOUT, heartbeat: false)
       message = receive_one(timeout:)
 
-      if message&.include?("ping") && !heartbeat
+      if message.to_s.include?("ping") && !heartbeat
         receive(timeout:)
       elsif message
         @last_message = message
@@ -103,7 +103,7 @@ module WebSocketHelper
             send_pong(frame.data)
           when :close
             @closed = true
-            return nil
+            return :closed
           end
         end
 
@@ -116,7 +116,7 @@ module WebSocketHelper
             next
           elsif data.empty?
             @closed = true
-            return nil
+            return :closed
           else
             @incoming_frame << data
           end

@@ -72,4 +72,7 @@ Rage.routes.draw do
     require_relative "../lib/presence_cable_ac/status_channel"
     mount Rage::Cable.application(namespace: PresenceCableAC, protocol: :actioncable_v1_json), at: "presence_ac"
   end
+
+  post "cable_close", to: "cable#close"
+  post "cable_close_raw", to: "cable#close_raw"
 end

@@ -15,11 +15,10 @@ RSpec.describe Rage::Cable::Router do
 
     let(:connection) { double }
     let(:cable_connection_class) { double }
-    let(:cable_connection_instance) { double(connect: nil, __identified_by_map: :test_identified_by) }
+    let(:cable_connection_instance) { double(__connect: nil, __identified_by_map: :test_identified_by) }
 
     before do
       stub_const("RageCable::Connection", cable_connection_class)
-      allow(cable_connection_class).to receive(:method_defined?).with(:disconnect).and_return(true)
       allow(cable_connection_class).to receive(:new).and_return(cable_connection_instance)
     end
 
@@ -157,6 +156,39 @@ RSpec.describe Rage::Cable::Router do
     end
   end
 
+  describe "#process_unsubscription" do
+    subject { described_class.new(nil, Object).process_unsubscription(nil, env, :test_identifier) }
+
+    let(:channel) { double("Rage::Cable::Channel") }
+
+    context "with existing subscription" do
+      before do
+        env["rage.cable"] = { test_identifier: channel }
+      end
+
+      it "runs #unsubscribed" do
+        expect(channel).to receive(:__run_action).with(:unsubscribed)
+        subject
+      end
+
+      it "removes the channel instance" do
+        allow(channel).to receive(:__run_action)
+        subject
+        expect(env["rage.cable"]).to be_empty
+      end
+    end
+
+    context "with invalid subscription" do
+      before do
+        env["rage.cable"] = { new_identifier: channel }
+      end
+
+      it "doesn't raise error" do
+        expect { subject }.not_to raise_error
+      end
+    end
+  end
+
   describe "#process_disconnection" do
     subject { described_class.new(nil, Object).process_disconnection(nil, env) }
 
@@ -185,16 +217,15 @@ RSpec.describe Rage::Cable::Router do
 
     context "with connection" do
       let(:cable_connection_class) { double }
-      let(:cable_connection_instance) { double(connect: nil, __identified_by_map: :test_identified_by) }
+      let(:cable_connection_instance) { double(__connect: nil, __identified_by_map: :test_identified_by) }
 
       before do
         stub_const("RageCable::Connection", cable_connection_class)
-        allow(cable_connection_class).to receive(:method_defined?).with(:disconnect).and_return(true)
         allow(cable_connection_class).to receive(:new).and_return(cable_connection_instance)
       end
 
       it "calls disconnect on the connection class" do
-        expect(cable_connection_instance).to receive(:disconnect).once
+        expect(cable_connection_instance).to receive(:__disconnect).once
         subject
       end
     end
@@ -263,7 +294,7 @@ RSpec.describe Rage::Cable::Router do
 
         it "uses the namespaced connection class" do
           router = described_class.new(nil, custom_namespace)
-          cable_connection_instance = double(connect: nil, rejected?: false, __identified_by_map: {})
+          cable_connection_instance = double(__connect: nil, rejected?: false, __identified_by_map: {})
           expect(namespaced_connection_class).to receive(:new).and_return(cable_connection_instance)
 
           router.process_connection(nil, env)
@@ -285,7 +316,7 @@ RSpec.describe Rage::Cable::Router do
 
         it "uses the namespaced ApplicationCable connection class" do
           router = described_class.new(nil, custom_namespace)
-          cable_connection_instance = double(connect: nil, rejected?: false, __identified_by_map: {})
+          cable_connection_instance = double(__connect: nil, rejected?: false, __identified_by_map: {})
           expect(app_cable_connection_class).to receive(:new).and_return(cable_connection_instance)
 
           router.process_connection(nil, env)
@@ -343,7 +374,7 @@ RSpec.describe Rage::Cable::Router do
         router = described_class.new(protocol, ResetConnNamespace)
 
         # Verify initial connection class is used
-        cable_connection_instance = double(connect: nil, rejected?: false, __identified_by_map: {})
+        cable_connection_instance = double(__connect: nil, rejected?: false, __identified_by_map: {})
         expect(connection_class).to receive(:new).and_return(cable_connection_instance)
         router.process_connection(nil, env)
 
@@ -355,7 +386,7 @@ RSpec.describe Rage::Cable::Router do
         router.reset
 
         # After reset, the new connection class should be used
-        new_cable_connection_instance = double(connect: nil, rejected?: false, __identified_by_map: {})
+        new_cable_connection_instance = double(__connect: nil, rejected?: false, __identified_by_map: {})
         expect(new_connection_class).to receive(:new).and_return(new_cable_connection_instance)
 
         router.process_connection(nil, env)
