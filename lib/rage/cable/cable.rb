@@ -52,7 +52,7 @@ module Rage::Cable
 
     router = Router.new(protocol, namespace)
     handler = __build_handler(protocol, router)
-    accept_response = [0, protocol.protocol_definition, []]
+    accept_response = [101, protocol.protocol_definition, []]
 
     application = ->(env) do
       Rage::Telemetry.tracer.span_cable_websocket_handshake(env:) do
