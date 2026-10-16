@@ -10,6 +10,7 @@
 - Support multiple isolated cable apps (#406).
 - [Daemon] Improve cleanup mechanism (#410).
 - [Cable] Support remote disconnect for `Rage::Cable` (#409).
+- [Cable] Support `allow_same_origin_as_host` (#412).
 
 ## [1.28.2] - 2026-10-09
 

@@ -1479,6 +1479,146 @@ RSpec.describe Rage::Configuration do
     end
   end
 
+  describe "#cable" do
+    describe "#middlewares" do
+      let(:config) { described_class.new }
+      subject { config.cable }
+
+      before do
+        allow(Rage).to receive(:config).and_return(config)
+      end
+
+      context "with default settings" do
+        it "includes OriginValidator with default allowed_request_origins" do
+          middlewares = subject.middlewares
+
+          expect(middlewares).to include([Rage::OriginValidator, [/localhost/], nil])
+        end
+
+        it "includes HTTP middleware excluding FiberWrapper" do
+          config.middleware.use :test_middleware
+
+          middlewares = subject.middlewares
+
+          expect(middlewares).to include([:test_middleware, [], nil])
+          expect(middlewares.flatten).not_to include(Rage::FiberWrapper)
+        end
+      end
+
+      context "with custom allowed_request_origins" do
+        it "includes OriginValidator with string origin" do
+          subject.allowed_request_origins = "example.com"
+
+          middlewares = subject.middlewares
+
+          expect(middlewares).to include([Rage::OriginValidator, ["example.com"], nil])
+        end
+
+        it "includes OriginValidator with array of origins" do
+          subject.allowed_request_origins = [/example\.com/, "myapp.com"]
+
+          middlewares = subject.middlewares
+
+          expect(middlewares).to include([Rage::OriginValidator, [/example\.com/, "myapp.com"], nil])
+        end
+
+        it "includes OriginValidator with nil wrapped in array" do
+          subject.allowed_request_origins = nil
+
+          middlewares = subject.middlewares
+
+          expect(middlewares).to include([Rage::OriginValidator, [], nil])
+        end
+      end
+
+      context "with disable_request_forgery_protection" do
+        before do
+          subject.disable_request_forgery_protection = true
+        end
+
+        it "excludes OriginValidator" do
+          middlewares = subject.middlewares
+
+          expect(middlewares.map(&:first)).not_to include(Rage::OriginValidator)
+        end
+
+        it "includes HTTP middleware" do
+          config.middleware.use :test_middleware
+
+          middlewares = subject.middlewares
+
+          expect(middlewares).to include([:test_middleware, [], nil])
+          expect(middlewares.flatten).not_to include(Rage::FiberWrapper)
+        end
+      end
+
+      context "with include_http_middleware: true" do
+        it "includes HTTP middleware" do
+          config.middleware.use :first_middleware
+          config.middleware.use :second_middleware
+
+          middlewares = subject.middlewares(include_http_middleware: true)
+
+          expect(middlewares).to include([:first_middleware, [], nil])
+          expect(middlewares).to include([:second_middleware, [], nil])
+        end
+
+        it "excludes FiberWrapper from HTTP middleware" do
+          middlewares = subject.middlewares(include_http_middleware: true)
+
+          expect(middlewares.map(&:first)).not_to include(Rage::FiberWrapper)
+        end
+      end
+
+      context "with include_http_middleware: false" do
+        it "excludes HTTP middleware" do
+          config.middleware.use :test_middleware
+
+          middlewares = subject.middlewares(include_http_middleware: false)
+
+          expect(middlewares.map(&:first)).not_to include(:test_middleware)
+        end
+
+        it "includes only cable-specific middleware" do
+          middlewares = subject.middlewares(include_http_middleware: false)
+
+          expect(middlewares).to eq([[Rage::OriginValidator, [/localhost/], nil]])
+        end
+
+        it "returns empty array when forgery protection is disabled" do
+          subject.disable_request_forgery_protection = true
+
+          middlewares = subject.middlewares(include_http_middleware: false)
+
+          expect(middlewares).to eq([])
+        end
+      end
+
+      context "with combined settings" do
+        it "returns only HTTP middleware when forgery protection is disabled" do
+          subject.disable_request_forgery_protection = true
+          config.middleware.use :test_middleware
+
+          middlewares = subject.middlewares
+
+          expect(middlewares.map(&:first)).not_to include(Rage::OriginValidator)
+          expect(middlewares).to include([:test_middleware, [], nil])
+        end
+
+        it "returns correct order with cable middleware first" do
+          config.middleware.use :test_middleware
+
+          middlewares = subject.middlewares
+
+          origin_validator_index = middlewares.index { |m, _, _| m == Rage::OriginValidator }
+          test_middleware_index = middlewares.index { |m, _, _| m == :test_middleware }
+
+          expect(origin_validator_index).to be < test_middleware_index
+        end
+      end
+    end
+  end
+
   describe "#daemons" do
     subject { described_class.new.daemons }
 
