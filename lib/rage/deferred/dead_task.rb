@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 ##
-# Provides information about one dead task.
-#
 # A dead task is a deferred task that is no longer retried.
 # Creating this object does not load the task class.
 # The first call to {#args} or {#kwargs} deserializes the execution context.
@@ -32,7 +30,7 @@ class Rage::Deferred::DeadTask
   attr_reader :backtrace
 
   # @private
-  def initialize(record)
+  def initialize(record, backend)
     @id = record[:id].dup.freeze
     @task_class = record[:task_class].dup.freeze
     @attempts = record[:attempts]
@@ -43,6 +41,20 @@ class Rage::Deferred::DeadTask
     @exception_message = record[:exception_message].dup.freeze
     @backtrace = record[:backtrace].map { |line| line.dup.freeze }.freeze
     @__context = record[:context].dup.freeze
+    @backend = backend
+  end
+
+  # Permanently delete the task.
+  #
+  # The method returns `true` when it deletes the task and `false` when the task no longer exists.
+  # Deleting a task does not change the active enumeration.
+  # The method may raise storage-related errors.
+  #
+  # @return [Boolean] true when the task was removed, otherwise false
+  # @raise [Rage::Deferred::DeadTasksLockTimeout] when the store cannot be locked
+  # @raise [SystemCallError] when a storage operation fails
+  def delete
+    @backend.remove_dead_tasks(@id) == 1
   end
 
   # Return the original positional arguments.
