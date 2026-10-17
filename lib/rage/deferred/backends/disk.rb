@@ -37,6 +37,12 @@ class Rage::Deferred::Backends::Disk
     @tasks_storage.remove(task_id)
   end
 
+  # Synchronize pending writes to disk immediately, without waiting for the periodic sync timer.
+  # @private
+  def flush
+    @tasks_storage.sync!
+  end
+
   # Return a list of pending tasks in the storage.
   # @return [Array<(String, Rage::Deferred::Task, Integer, Integer)>
   def pending_tasks
@@ -258,6 +264,14 @@ class Rage::Deferred::Backends::Disk
         puts "ERROR: Can't deserialize the task with id #{task_id}: (#{e.class}) #{e.message}"
         nil
       end
+    end
+
+    # Synchronize the active WAL, then its directory.
+    # Keep the timer dirty state unchanged.
+    # @private
+    def sync!
+      @storage.fsync
+      File.open(@storage_path, File::RDONLY) { |directory| directory.fsync }
     end
 
     private
