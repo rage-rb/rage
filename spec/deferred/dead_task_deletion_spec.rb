@@ -37,7 +37,7 @@ RSpec.describe Rage::Deferred::DeadTasks, "deletion" do
 
       define_method(:remove_dead_tasks) do |ids|
         @removal_calls << ids
-        selected_ids = ids.to_h { |id| [id, true] }
+        selected_ids = Array(ids).to_h { |id| [id, true] }
         removed_ids = {}
         stored_records.delete_if do |record|
           selected_ids[record[:id]].tap { |selected| removed_ids[record[:id]] = true if selected }
@@ -49,13 +49,14 @@ RSpec.describe Rage::Deferred::DeadTasks, "deletion" do
   subject(:dead_tasks) { described_class.new(backend) }
 
   describe "entry deletion" do
-    it "uses a private action handler without exposing the backend or handler" do
+    it "uses the shared backend privately without an action handler" do
       entry = dead_tasks.find_by_id("1700000001-1-1")
 
       expect(Rage::Deferred::DeadTask.singleton_class.private_method_defined?(:new)).to eq(true)
       expect(entry).to respond_to(:delete)
       expect(entry).not_to respond_to(:actions_handler, :actions_handler=, :backend, :backend=)
-      expect(entry.instance_variables).not_to include(:@backend, :@snapshot)
+      expect(entry.instance_variable_get(:@__backend)).to equal(backend)
+      expect(entry.instance_variables).not_to include(:@actions_handler, :@snapshot, :@collection)
     end
 
     it "returns true for the removal and false when the entry becomes stale" do
@@ -65,8 +66,8 @@ RSpec.describe Rage::Deferred::DeadTasks, "deletion" do
       expect(entry.delete).to eq(false)
       expect(dead_tasks.find_by_id("1700000002-1-2")).not_to be_nil
       expect(backend.removal_calls).to eq([
-        ["1700000001-1-1"],
-        ["1700000001-1-1"]
+        "1700000001-1-1",
+        "1700000001-1-1"
       ])
     end
 
@@ -75,8 +76,8 @@ RSpec.describe Rage::Deferred::DeadTasks, "deletion" do
 
       expect(results).to eq([true, true])
       expect(backend.removal_calls).to eq([
-        ["1700000001-1-1"],
-        ["1700000002-1-2"]
+        "1700000001-1-1",
+        "1700000002-1-2"
       ])
       expect(records).to be_empty
     end

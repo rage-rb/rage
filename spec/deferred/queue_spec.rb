@@ -16,6 +16,7 @@ RSpec.describe Rage::Deferred::Queue do
     allow(task_class).to receive(:new).and_return(task_instance)
     allow(Iodine).to receive(:run_after) { |&block| block.call }
     allow(Iodine).to receive(:stopping?).and_return(false)
+    allow(Iodine).to receive(:running?).and_return(true)
     allow(Iodine).to receive(:task_inc!)
     allow(Iodine).to receive(:task_dec!)
     allow(Fiber).to receive(:schedule) { |&block| block.call }
@@ -80,6 +81,33 @@ RSpec.describe Rage::Deferred::Queue do
   end
 
   describe "#schedule" do
+    context "when Iodine is not running" do
+      before do
+        allow(Iodine).to receive(:running?).and_return(false)
+      end
+
+      it "does no scheduling work for immediate or delayed tasks" do
+        expect(Iodine).not_to receive(:run_after)
+        expect(Iodine).not_to receive(:task_inc!)
+        expect(Iodine).not_to receive(:task_dec!)
+        expect(Fiber).not_to receive(:schedule)
+        expect(Rage::Deferred::Context).not_to receive(:get_task)
+
+        expect {
+          subject.schedule("task-id", task_context)
+          subject.schedule("task-id", task_context, publish_in: 5)
+        }.not_to change { subject.backlog_size }
+      end
+
+      it "still persists tasks through enqueue" do
+        expect(backend).to receive(:add_task).with(task_context, publish_at: nil, task_id: nil).ordered
+        expect(Iodine).to receive(:running?).ordered.and_return(false)
+        expect(Iodine).not_to receive(:run_after)
+
+        expect { subject.enqueue(task_context) }.not_to change { subject.backlog_size }
+      end
+    end
+
     it "increments and decrements iodine task counter" do
       expect(Iodine).to receive(:task_inc!).ordered
       expect(Iodine).to receive(:task_dec!).ordered
