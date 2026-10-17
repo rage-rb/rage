@@ -26,11 +26,11 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       expect(storage_path.glob("#{prefix}0-*").size).to eq(1)
     end
 
-    it "fsyncs the storage directory after ensuring the dead-tasks file exists" do
+    it "fsyncs the storage directory after creating the WAL file and after ensuring the dead-tasks file exists" do
       directory = instance_double(File)
       allow(File).to receive(:open).and_call_original
-      expect(File).to receive(:open).with(storage_path, File::RDONLY).and_yield(directory)
-      expect(directory).to receive(:fsync)
+      expect(File).to receive(:open).with(storage_path, File::RDONLY).twice.and_yield(directory)
+      expect(directory).to receive(:fsync).twice
 
       backend
     end
@@ -59,6 +59,90 @@ RSpec.describe Rage::Deferred::Backends::Disk do
     it "removes a task by its ID" do
       backend.remove_task(task_id)
       expect(backend.pending_tasks.map(&:first)).not_to include(task_id)
+    end
+  end
+
+  describe "#flush_tasks" do
+    let(:sync_callbacks) { {} }
+
+    before do
+      allow(Iodine).to receive(:run_every) { |interval, &block| sync_callbacks[interval] = block }
+    end
+
+    it "synchronizes the active WAL and then its directory without waiting for a timer" do
+      backend.add_task(["pending"])
+      storage = tasks_storage.instance_variable_get(:@storage)
+      directory = instance_double(File)
+      expect(tasks_storage).to receive(:sync!).and_call_original
+      expect(storage).to receive(:fsync).ordered.and_call_original
+      allow(File).to receive(:open).and_call_original
+      expect(File).to receive(:open).with(storage_path, File::RDONLY).ordered.and_yield(directory)
+      expect(directory).to receive(:fsync).ordered
+
+      backend.flush_tasks
+
+      expect(tasks_storage.instance_variable_get(:@storage_has_changes)).to eq(true)
+    end
+
+    it "leaves dirty timer batching intact after explicit synchronization" do
+      backend.add_task(["first"])
+      storage = tasks_storage.instance_variable_get(:@storage)
+      allow(storage).to receive(:fsync).and_call_original
+
+      backend.flush_tasks
+      expect(storage).to have_received(:fsync).once
+      sync_callbacks.fetch(fsync_frequency).call
+      expect(storage).to have_received(:fsync).twice
+      sync_callbacks.fetch(fsync_frequency).call
+      expect(storage).to have_received(:fsync).twice
+      backend.add_task(["second"])
+      sync_callbacks.fetch(fsync_frequency).call
+      expect(storage).to have_received(:fsync).exactly(3).times
+    end
+
+    it "does not mark a clean WAL dirty" do
+      backend
+      expect(tasks_storage.instance_variable_get(:@storage_has_changes)).to eq(false)
+
+      backend.flush_tasks
+
+      expect(tasks_storage.instance_variable_get(:@storage_has_changes)).to eq(false)
+    end
+
+    it "synchronizes the new active WAL after rotation" do
+      id = backend.add_task(["pending"])
+      old_storage = tasks_storage.instance_variable_get(:@storage)
+      tasks_storage.instance_variable_set(:@should_rotate, true)
+      backend.remove_task(id)
+      active_storage = tasks_storage.instance_variable_get(:@storage)
+      expect(active_storage).not_to equal(old_storage)
+      expect(old_storage).not_to receive(:fsync)
+      expect(active_storage).to receive(:fsync).and_call_original
+
+      backend.flush_tasks
+    end
+
+    it "propagates WAL synchronization failure without clearing dirty state" do
+      backend.add_task(["pending"])
+      storage = tasks_storage.instance_variable_get(:@storage)
+      failure = Errno::EIO.new
+      allow(storage).to receive(:fsync).and_raise(failure)
+      expect(File).not_to receive(:open).with(storage_path, File::RDONLY)
+
+      expect { backend.flush_tasks }.to raise_error { |error| expect(error).to equal(failure) }
+      expect(tasks_storage.instance_variable_get(:@storage_has_changes)).to eq(true)
+    end
+
+    it "propagates directory synchronization failure without clearing dirty state" do
+      backend.add_task(["pending"])
+      directory = instance_double(File)
+      failure = Errno::EIO.new
+      allow(File).to receive(:open).and_call_original
+      allow(File).to receive(:open).with(storage_path, File::RDONLY).and_yield(directory)
+      allow(directory).to receive(:fsync).and_raise(failure)
+
+      expect { backend.flush_tasks }.to raise_error { |error| expect(error).to equal(failure) }
+      expect(tasks_storage.instance_variable_get(:@storage_has_changes)).to eq(true)
     end
   end
 
@@ -94,6 +178,16 @@ RSpec.describe Rage::Deferred::Backends::Disk do
     it "rotates the storage when conditions are met" do
       backend.remove_task(task_id)
       expect(storage_path.glob("#{prefix}0-*").size).to eq(2)
+    end
+
+    it "fsyncs the storage directory after creating the new WAL file" do
+      allow(File).to receive(:open).and_call_original
+      expect(File).to receive(:open).with(storage_path, File::RDONLY).and_wrap_original do |original, *args, &block|
+        expect(storage_path.glob("#{prefix}0-*").size).to eq(2)
+        original.call(*args, &block)
+      end
+
+      backend.remove_task(task_id)
     end
 
     it "ignores missing old storage files during async cleanup" do

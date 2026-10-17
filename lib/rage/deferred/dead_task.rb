@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
 ##
-# A dead task is a deferred task that is no longer retried.
+# A dead task is a deferred task that is no longer retried. Use this object to read the stored
+# information about the task, to delete the task with {#delete}, or to enqueue it again with {#retry}.
+#
 # Creating this object does not load the task class.
 # The first call to {#args} or {#kwargs} deserializes the execution context.
+#
 class Rage::Deferred::DeadTask
   # @return [String] the ID that Rage assigned when it enqueued the task
   attr_reader :id
@@ -41,7 +44,7 @@ class Rage::Deferred::DeadTask
     @exception_message = record[:exception_message].dup.freeze
     @backtrace = record[:backtrace].map { |line| line.dup.freeze }.freeze
     @__context = record[:context].dup.freeze
-    @backend = backend
+    @__backend = backend
   end
 
   # Permanently delete the task.
@@ -53,8 +56,58 @@ class Rage::Deferred::DeadTask
   # @return [Boolean] true when the task was removed, otherwise false
   # @raise [Rage::Deferred::DeadTasksLockTimeout] when the store cannot be locked
   # @raise [SystemCallError] when a storage operation fails
+  # @example Delete one task
+  #   Rage::Deferred.dead_tasks.find_by_id("1735689600-12345-1")&.delete
+  # @example Delete the dead tasks of one task class
+  #   Rage::Deferred.dead_tasks.each { |task| task.delete if task.task_class == "SendWelcomeEmail" }
   def delete
-    @backend.remove_dead_tasks(@id) == 1
+    @__backend.remove_dead_tasks(@id) == 1
+  end
+
+  # Enqueue a fresh copy of the task, then remove the dead record.
+  #
+  # Retry checks that the record exists and calls public `enqueue` with the entry's original stored arguments.
+  # The new task starts with a fresh ID and no previous retry attempts.
+  # Retry makes sure pending writes are durable before removing the task from dead-task storage.
+  #
+  # An enqueue middleware or a telemetry handler that does not call `yield` drops the new task without an error.
+  # `retry` still removes the dead record and returns `true`, so the task is then in neither store.
+  #
+  # Tasks must be idempotent, because a retry may be run for a task twice, since it follow at-least-once strategy.
+  # The enqueue middleware runs again for the new task, so it must be safe to run twice on the same arguments.
+  #
+  # Outside a running server (for example, in the console or in a Rake task), the new task is only
+  # written to the pending-task storage and is not run in this process. It runs after a later server boot.
+  #
+  # @return [Boolean] true when the sequence completes; false when lookup returns no record
+  # @raise [Rage::Deferred::DeadTaskRetryError] when class resolution or removal fails
+  # @raise [Rage::Deferred::DeadTaskContextDeserializationError] when the context cannot be decoded
+  # @raise [Rage::Deferred::DeadTasksLockTimeout] when the store cannot be locked
+  # @raise [Rage::Deferred::PushTimeout] when backpressure is enabled and the queue stays full for too long
+  # @raise [SystemCallError] when lookup or synchronization fails
+  # @example Retry every dead task
+  #   Rage::Deferred.dead_tasks.each(&:retry)
+  # @example Retry one task when only its ID is known
+  #   Rage::Deferred.dead_tasks.find_by_id("1735689600-12345-1")&.retry
+  def retry
+    return false unless @__backend.find_dead_task(@id)
+
+    task_class = resolve_task_class
+    args, kwargs = decode_task_arguments
+    task_class.enqueue(*args, **kwargs)
+
+    @__backend.flush_tasks if @__backend.respond_to?(:flush_tasks)
+    warn "Dead task #{@id} was retried; server restart is required." unless Iodine.running?
+
+    begin
+      @__backend.remove_dead_tasks(@id)
+    rescue => e
+      raise Rage::Deferred::DeadTaskRetryError.new(
+        "Could not remove dead task #{@id} after retry; work may exist in both stores"
+      ), cause: e
+    end
+
+    true
   end
 
   # Return the original positional arguments.
@@ -86,6 +139,35 @@ class Rage::Deferred::DeadTask
   end
 
   private
+
+  # @private
+  def resolve_task_class
+    begin
+      task_class = Object.const_get(@task_class, false)
+    rescue NameError => e
+      raise Rage::Deferred::DeadTaskRetryError.new(
+        "Could not resolve task class for dead task #{@id}"
+      ), cause: e
+    end
+
+    unless task_class.is_a?(Class) && task_class.include?(Rage::Deferred::Task)
+      raise Rage::Deferred::DeadTaskRetryError, "Invalid task class for dead task #{@id}"
+    end
+
+    task_class
+  end
+
+  # @private
+  def decode_task_arguments
+    context = Marshal.load(@__context)
+    args = Rage::Deferred::Context.get_args(context)
+    kwargs = Rage::Deferred::Context.get_kwargs(context)
+    [args.nil? ? [] : args, kwargs.nil? ? {} : kwargs]
+  rescue => e
+    raise Rage::Deferred::DeadTaskContextDeserializationError.new(
+      "Could not deserialize execution context for dead task #{@id}"
+    ), cause: e
+  end
 
   # @private
   def decode_context

@@ -68,6 +68,7 @@ class Rage::Deferred::DeadTasks
 
   private
 
+  # @private
   def build_entry(record)
     Rage::Deferred::DeadTask.send(:new, record, @backend)
   end
