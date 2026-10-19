@@ -760,6 +760,7 @@ class Rage::Configuration
       @protocol = Rage::Cable.__protocol_for(protocol)
     end
 
+    # @private
     # Returns the list of middleware to be used with Cable applications.
     #
     # When `include_http_middleware` is `true`, the returned list includes both Cable-specific
