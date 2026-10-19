@@ -761,17 +761,27 @@ class Rage::Configuration
     end
 
     # @private
-    def middlewares
-      @middlewares ||= begin
-        origin_middleware = if @disable_request_forgery_protection
-          []
-        else
-          [[Rage::OriginValidator, Array(@allowed_request_origins), nil]]
-        end
+    # Returns the list of middleware to be used with Cable applications.
+    #
+    # When `include_http_middleware` is `true`, the returned list includes both Cable-specific
+    # middleware and the application's HTTP middleware (excluding {Rage::FiberWrapper}).
+    # When `include_http_middleware` is `false`, only Cable-specific middleware is returned.
+    #
+    # @param include_http_middleware [Boolean] whether to include the application's HTTP middleware.
+    # @return [Array<Array>] an array of middleware definitions, where each definition is an array containing `[middleware_class, args, block]`
+    def middlewares(include_http_middleware: true)
+      cable_middlewares = if @disable_request_forgery_protection
+        []
+      else
+        [[Rage::OriginValidator, Array(@allowed_request_origins), nil]]
+      end
 
-        origin_middleware + Rage.config.middleware.middlewares.reject do |middleware, _, _|
-          middleware == Rage::FiberWrapper
+      if include_http_middleware
+        cable_middlewares + Rage.config.middleware.middlewares.reject do |m, _, _|
+          m == Rage::FiberWrapper
         end
+      else
+        cable_middlewares
       end
     end
   end

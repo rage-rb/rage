@@ -52,7 +52,7 @@ module Rage::Cable
 
     router = Router.new(protocol, namespace)
     handler = __build_handler(protocol, router)
-    accept_response = [0, protocol.protocol_definition, []]
+    accept_response = [101, protocol.protocol_definition, []]
 
     application = ->(env) do
       Rage::Telemetry.tracer.span_cable_websocket_handshake(env:) do
@@ -66,12 +66,16 @@ module Rage::Cable
       end
     end
 
-    application.define_singleton_method(:__rage_app_name) do
-      namespace == Object ? "Rage::Cable" : "Rage::Cable(namespace: #{namespace})"
-    end
-
     chain = Rage.with_middlewares(application, Rage.config.cable.middlewares)
-    chain.define_singleton_method(:__rage_root_app) { application }
+
+    chain.define_singleton_method(:__rage_root_app) do
+      root_app = Rage.with_middlewares(application, Rage.config.cable.middlewares(include_http_middleware: false))
+      root_app.define_singleton_method(:__rage_app_name) do
+        namespace == Object ? "Rage::Cable" : "Rage::Cable(namespace: #{namespace})"
+      end
+
+      root_app
+    end
 
     chain
   end
