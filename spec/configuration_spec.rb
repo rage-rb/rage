@@ -1,5 +1,39 @@
 # frozen_string_literal: true
 
+RSpec.describe Rage do
+  describe ".application" do
+    let(:config) { Rage::Configuration.new }
+
+    before do
+      allow(Rage).to receive(:config).and_return(config)
+    end
+
+    context "when called without a fiber scheduler" do
+      it "includes FiberWrapper in the middleware stack" do
+        allow(Fiber).to receive(:scheduler).and_return(nil)
+        expect(Rage.application).to be_a(Rage::FiberWrapper)
+      end
+    end
+
+    context "when called from the root fiber" do
+      it "includes FiberWrapper in the middleware stack" do
+        allow(Fiber).to receive(:scheduler).and_return(double(root_fiber: Fiber.current))
+        expect(Rage.application).to be_a(Rage::FiberWrapper)
+      end
+    end
+
+    context "when called from a non-root fiber" do
+      it "excludes FiberWrapper from the middleware stack" do
+        allow(Fiber).to receive(:scheduler).and_return(double(root_fiber: Fiber.current))
+
+        Fiber.new {
+          expect(Rage.application).not_to be_a(Rage::FiberWrapper)
+        }.resume
+      end
+    end
+  end
+end
+
 RSpec.describe Rage::Configuration do
   describe "#log_context" do
     subject { described_class.new.log_context }
