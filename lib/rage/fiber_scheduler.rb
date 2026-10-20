@@ -9,6 +9,9 @@ class Rage::FiberScheduler
   # @private
   VERSION = defined?(IO::Buffer::VERSION) && IO::Buffer::VERSION >= 3 ? 4 : 3
 
+  # @private
+  attr_reader :root_fiber
+
   # Initialize the scheduler, storing the root fiber and an empty DNS cache.
   def initialize
     @root_fiber = Fiber.current

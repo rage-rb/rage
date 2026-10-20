@@ -11,6 +11,7 @@
 - [Daemon] Improve cleanup mechanism (#410).
 - [Cable] Support remote disconnect for `Rage::Cable` (#409).
 - [Cable] Support `allow_same_origin_as_host` (#412).
+- Skip FiberWrapper when building application from non-root fiber (#413).
 
 ## [1.28.2] - 2026-10-09
 

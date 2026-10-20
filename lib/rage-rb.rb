@@ -8,7 +8,12 @@ require "pathname"
 module Rage
   # Builds the Rage application with the configured middlewares.
   def self.application
-    with_middlewares(Application.new(__router), config.middleware.middlewares)
+    middleware = config.middleware.middlewares
+    if Fiber.scheduler && Fiber.current != Fiber.scheduler.root_fiber
+      middleware = middleware.reject { |m, _, _| m == Rage::FiberWrapper }
+    end
+
+    with_middlewares(Application.new(__router), middleware)
   end
 
   # Builds the Rage application which delegates Rails requests to `Rails.application`.
