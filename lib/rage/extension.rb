@@ -16,12 +16,20 @@ class Rage::Extension
       Iodine.on_state(:pre_start, &block)
     end
 
+    def routes(&block)
+      __routes << block
+    end
+
     def __initializers
       @@initializers ||= Hash.new { |h, k| h[k] = [] }
     end
 
     def __configurations
       @@configurations ||= []
+    end
+
+    def __routes
+      @@routes ||= []
     end
   end
 end

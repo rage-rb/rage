@@ -11,7 +11,10 @@ class Rage::Router::DSL
   end
 
   def draw(&block)
-    Handler.new(@router).instance_eval(&block)
+    handler = Handler.new(@router)
+    Rage::Extension.__routes.each { |block| handler.instance_eval(&block) }
+    handler.instance_eval(&block)
+
     # propagate route definitions to Rails for `rails routes` to work
     Rails.application.routes.draw(&block) if Rage.config.internal.rails_mode
   end
