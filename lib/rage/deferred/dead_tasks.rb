@@ -15,9 +15,11 @@ class Rage::Deferred::DeadTasks
   # Yield each dead task from oldest to newest.
   #
   # Without a block, the method returns a new Enumerator.
+  # An error raised by the block reaches the caller unchanged.
   #
   # @yieldparam dead_task [Rage::Deferred::DeadTask] information about one dead task
   # @return [Enumerator, self] a new Enumerator without a block, or this collection with a block
+  # @raise [Rage::Deferred::StorageError] when an operation on the dead-tasks store fails
   def each
     return enum_for(__method__) unless block_given?
 
@@ -35,6 +37,7 @@ class Rage::Deferred::DeadTasks
   # @param id [String] the exact persisted task ID
   # @return [Rage::Deferred::DeadTask, nil] the matching task, or nil
   # @raise [TypeError] when the ID is not a String
+  # @raise [Rage::Deferred::StorageError] when an operation on the dead-tasks store fails
   def find_by_id(id)
     raise TypeError, "dead task id must be a String" unless id.is_a?(String)
 
@@ -50,8 +53,7 @@ class Rage::Deferred::DeadTasks
   # @return [Integer] the number of distinct tasks that were removed
   # @raise [ArgumentError] when the call does not contain exactly one argument
   # @raise [TypeError] when the argument is not a String or a flat Array of Strings
-  # @raise [Rage::Deferred::DeadTasksLockTimeout] when the store cannot be locked
-  # @raise [SystemCallError] when a storage operation fails
+  # @raise [Rage::Deferred::StorageError] when an operation on the dead-tasks store fails
   # @example Delete one task
   #   Rage::Deferred.dead_tasks.delete("1735689600-12345-1")
   # @example Delete tasks whose last attempt failed more than 30 days ago

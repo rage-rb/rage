@@ -17,6 +17,14 @@ require "zlib"
 # * `remove_dead_tasks` - permanently delete dead tasks;
 # * `flush_tasks` - optional; makes the `add_task` writes made so far durable at once;
 #
+# Errors:
+#
+# * if the storage itself fails (a file, a lock, a connection), `add_dead_task`, `each_dead_task`, `find_dead_task`,
+#   `remove_dead_tasks`, and `flush_tasks` raise `Rage::Deferred::StorageError` and keep the original error as `cause`;
+#   a subclass of `StorageError` is fine too, as `rescue Rage::Deferred::StorageError` still catches it;
+# * any other error is raised as it is, for example a bug in the storage; an error raised by the block passed to
+#   `each_dead_task` is never wrapped.
+#
 #  @private
 class Rage::Deferred::Backends::Disk
   def initialize(path:, prefix:, fsync_frequency:)
@@ -40,8 +48,11 @@ class Rage::Deferred::Backends::Disk
   end
 
   # Synchronize pending writes to disk immediately, without waiting for the periodic sync timer.
+  # @raise [Rage::Deferred::StorageError] if the storage file or its directory cannot be synchronized
   def flush_tasks
-    @tasks_storage.sync!
+    wrap_store_errors("Could not sync the pending tasks storage") do
+      @tasks_storage.sync!
+    end
   end
 
   # Return a list of pending tasks in the storage.
@@ -57,9 +68,11 @@ class Rage::Deferred::Backends::Disk
   # @param task_class [Class, String] the class of the task
   # @param attempts [Integer] the number of attempts made to process the task
   # @return [String] the id of the dead-task record
-  # @raise [Rage::Deferred::DeadTasksLockTimeout] if the dead-tasks store cannot be locked
+  # @raise [Rage::Deferred::StorageError] if an operation on the dead-tasks store fails
   def add_dead_task(task_id, context, exception, task_class:, attempts:)
-    @dead_tasks_storage.add(task_id, context, exception, task_class:, attempts:)
+    wrap_store_errors("Could not add a task to the dead tasks store") do
+      @dead_tasks_storage.add(task_id, context, exception, task_class:, attempts:)
+    end
   end
 
   # Yield one record for each task ID that exists when traversal starts.
@@ -68,23 +81,40 @@ class Rage::Deferred::Backends::Disk
   # Yield records from oldest to newest.
   # @yieldparam record [Hash] a dead-task record
   # @return [Rage::Deferred::Backends::Disk::DeadTasksStorage]
+  # @raise [Rage::Deferred::StorageError] if an operation on the dead-tasks store fails; an error raised by the block is not wrapped
   def each_dead_task(&block)
-    @dead_tasks_storage.each(&block)
+    block_raised = false
+
+    @dead_tasks_storage.each do |record|
+      yield record
+    rescue Exception
+      # set only when the block raises: after `break`, `return`, or `throw`, a cleanup error of the store is still wrapped
+      block_raised = true
+      raise
+    end
+  rescue SystemCallError, IOError, DeadTasksStorage::LockTimeout => e
+    raise if block_raised
+    raise Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store", cause: e
   end
 
   # Return the newest dead-task record with the exact task ID.
   # @param id [String] the task ID
   # @return [Hash, nil] the matching record, or nil if there is no matching record
+  # @raise [Rage::Deferred::StorageError] if an operation on the dead-tasks store fails
   def find_dead_task(id)
-    @dead_tasks_storage.find_by_id(id)
+    wrap_store_errors("Could not read tasks from the dead tasks store") do
+      @dead_tasks_storage.find_by_id(id)
+    end
   end
 
   # Permanently delete dead-lettered tasks.
   # @param ids [String, Array<String>] the ids of the dead-task records
   # @return [Integer] the number of deleted records
-  # @raise [Rage::Deferred::DeadTasksLockTimeout] if the dead-tasks store cannot be locked
+  # @raise [Rage::Deferred::StorageError] if an operation on the dead-tasks store fails
   def remove_dead_tasks(ids)
-    @dead_tasks_storage.remove(ids)
+    wrap_store_errors("Could not delete tasks from the dead tasks store") do
+      @dead_tasks_storage.remove(ids)
+    end
   end
 
   ##
@@ -385,6 +415,11 @@ class Rage::Deferred::Backends::Disk
   #
   # @private
   class DeadTasksStorage
+    # @private
+    # The dead-tasks store could not be locked after `LOCK_MAX_ATTEMPTS` tries.
+    class LockTimeout < StandardError
+    end
+
     STORAGE_VERSION = "0"
 
     LOCK_MAX_ATTEMPTS = 20
@@ -419,7 +454,8 @@ class Rage::Deferred::Backends::Disk
     # @param task_class [Class, String] task class or its name
     # @param attempts [Integer] number of processing attempts made
     # @return [String] the persisted task id
-    # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
+    # @raise [LockTimeout] if the store cannot be locked
+    # @raise [SystemCallError, IOError] when an operation on the storage file fails
     def add(task_id, context, exception, task_class:, attempts:)
       record = {
         id: task_id,
@@ -465,8 +501,8 @@ class Rage::Deferred::Backends::Disk
     #
     # @yieldparam record [Hash] a decoded dead-task record
     # @return [self]
-    # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
-    # @raise [SystemCallError] when an operation on the selected storage file fails
+    # @raise [LockTimeout] if the store cannot be locked
+    # @raise [SystemCallError, IOError] when an operation on the selected storage file fails
     def each
       with_snapshot do |storage, snapshot_end|
         records_index(storage, snapshot_end).each do |task_id, (offset, length)|
@@ -494,8 +530,8 @@ class Rage::Deferred::Backends::Disk
     # After the scan, decode only the newest matching record.
     # @param id [String] the persisted task ID
     # @return [Hash, nil] the decoded record, or nil if there is no matching record
-    # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
-    # @raise [SystemCallError] when an operation on the selected storage file fails
+    # @raise [LockTimeout] if the store cannot be locked
+    # @raise [SystemCallError, IOError] when an operation on the selected storage file fails
     def find_by_id(id)
       with_snapshot do |storage, snapshot_end|
         serialized_record_location = nil
@@ -524,7 +560,8 @@ class Rage::Deferred::Backends::Disk
     # Permanently delete the records with the given ids.
     # @param ids [String, Array<String>] one or more persisted task ids
     # @return [Integer] number of distinct records deleted
-    # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
+    # @raise [LockTimeout] if the store cannot be locked
+    # @raise [SystemCallError, IOError] when an operation on the storage files fails
     def remove(ids)
       ids = Array(ids)
       return 0 if ids.empty?
@@ -732,7 +769,7 @@ class Rage::Deferred::Backends::Disk
     # @param operation [String] action used to describe a lock timeout
     # @yieldreturn [Object] result returned by the protected operation
     # @return [Object] the block result
-    # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
+    # @raise [LockTimeout] if the store cannot be locked
     def with_lock(operation)
       attempts = 0
 
@@ -740,7 +777,7 @@ class Rage::Deferred::Backends::Disk
         attempts += 1
 
         if attempts == LOCK_MAX_ATTEMPTS
-          raise Rage::Deferred::DeadTasksLockTimeout, "Could not lock the dead tasks store to #{operation} it"
+          raise LockTimeout, "Could not lock the dead tasks store to #{operation} it", cause: nil
         end
 
         # `sleep` is handled by the fiber scheduler and yields the fiber instead of the worker
@@ -765,5 +802,19 @@ class Rage::Deferred::Backends::Disk
         end
       end
     end
+  end
+
+  private
+
+  # Run a block of store calls and raise a store error as `Rage::Deferred::StorageError`, with the error as `cause`.
+  # Only `SystemCallError`, `IOError`, and `DeadTasksStorage::LockTimeout` are store errors.
+  # @param message [String] the message of the `Rage::Deferred::StorageError`
+  # @yieldreturn [Object] result returned by the store calls
+  # @return [Object] the block result
+  # @raise [Rage::Deferred::StorageError] if a store call fails
+  def wrap_store_errors(message)
+    yield
+  rescue SystemCallError, IOError, DeadTasksStorage::LockTimeout => e
+    raise Rage::Deferred::StorageError, message, cause: e
   end
 end

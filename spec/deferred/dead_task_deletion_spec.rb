@@ -313,12 +313,26 @@ RSpec.describe Rage::Deferred::DeadTasks, "Disk deletion" do
     stub_const("Rage::Deferred::Backends::Disk::DeadTasksStorage::LOCK_MAX_ATTEMPTS", 1)
     dead_tasks_storage.instance_variable_set(:@locked, true)
 
-    expect { entry.delete }.to raise_error(Rage::Deferred::DeadTasksLockTimeout, /delete tasks from/)
+    expect { entry.delete }.to raise_error(Rage::Deferred::StorageError, "Could not delete tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Rage::Deferred::Backends::Disk::DeadTasksStorage::LockTimeout) }
   ensure
     dead_tasks_storage.instance_variable_set(:@locked, false) if defined?(dead_tasks_storage)
   end
 
-  it "propagates a temp-file failure without deleting or disclosing the payload" do
+  it "raises StorageError from collection deletion when another open file description holds the lock" do
+    add_dead_task("1-1-1")
+    stub_const("Rage::Deferred::Backends::Disk::DeadTasksStorage::LOCK_MAX_ATTEMPTS", 1)
+    holder = File.open(storage_path.join("#{prefix}dead_tasks.lock"), File::WRONLY)
+    holder.flock(File::LOCK_EX)
+
+    expect {
+      dead_tasks.delete("1-1-1")
+    }.to raise_error(Rage::Deferred::StorageError, /delete tasks from/)
+  ensure
+    holder&.flock(File::LOCK_UN)
+    holder&.close
+  end
+
+  it "raises StorageError for a temp-file failure without deleting or disclosing the payload" do
     add_dead_task("1-1-1")
     allow(File).to receive(:open).and_call_original
     allow(File).to receive(:open).
@@ -329,29 +343,36 @@ RSpec.describe Rage::Deferred::DeadTasks, "Disk deletion" do
     expect {
       begin
         dead_tasks.delete("1-1-1")
-      rescue Errno::EACCES => e
+      rescue => e
         error = e
       end
     }.to output("").to_stdout.and output("").to_stderr
 
+    expect(error).to be_a(Rage::Deferred::StorageError)
+    expect(error.message).to eq("Could not delete tasks from the dead tasks store")
+    expect(error.cause).to be_a(Errno::EACCES)
     expect(error.message).not_to include("secret task payload")
     expect(error.message).not_to include("secret argument")
     expect(stored_ids).to eq(["1-1-1"])
   end
 
-  it "propagates a rename failure without deleting or disclosing the payload" do
+  it "raises StorageError for a rename failure without deleting or disclosing the payload" do
     add_dead_task("1-1-1")
-    allow(File).to receive(:rename).with(tmp_storage_path, dead_tasks_path).and_raise(Errno::EIO)
+    failure = Errno::EIO.new
+    allow(File).to receive(:rename).with(tmp_storage_path, dead_tasks_path).and_raise(failure)
     error = nil
 
     expect {
       begin
         dead_tasks.delete("1-1-1")
-      rescue Errno::EIO => e
+      rescue => e
         error = e
       end
     }.to output("").to_stdout.and output("").to_stderr
 
+    expect(error).to be_a(Rage::Deferred::StorageError)
+    expect(error.message).to eq("Could not delete tasks from the dead tasks store")
+    expect(error.cause).to equal(failure)
     expect(error.message).not_to include("secret task payload")
     expect(error.message).not_to include("secret argument")
     expect(stored_ids).to eq(["1-1-1"])
@@ -361,7 +382,7 @@ RSpec.describe Rage::Deferred::DeadTasks, "Disk deletion" do
     add_dead_task("1-1-1")
     allow(dead_tasks_storage).to receive(:sync_storage_directory).and_raise(Errno::EIO)
 
-    expect { dead_tasks.delete("1-1-1") }.to raise_error(Errno::EIO)
+    expect { dead_tasks.delete("1-1-1") }.to raise_error(Rage::Deferred::StorageError, "Could not delete tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EIO) }
     expect(dead_tasks.find_by_id("1-1-1")).to be_nil
   end
 end

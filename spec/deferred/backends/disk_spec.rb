@@ -122,18 +122,20 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       backend.flush_tasks
     end
 
-    it "propagates WAL synchronization failure without clearing dirty state" do
+    it "raises StorageError for a WAL synchronization failure without clearing dirty state" do
       backend.add_task(["pending"])
       storage = tasks_storage.instance_variable_get(:@storage)
       failure = Errno::EIO.new
       allow(storage).to receive(:fsync).and_raise(failure)
       expect(File).not_to receive(:open).with(storage_path, File::RDONLY)
 
-      expect { backend.flush_tasks }.to raise_error { |error| expect(error).to equal(failure) }
+      expect {
+        backend.flush_tasks
+      }.to raise_error(Rage::Deferred::StorageError, "Could not sync the pending tasks storage") { |error| expect(error.cause).to equal(failure) }
       expect(tasks_storage.instance_variable_get(:@storage_has_changes)).to eq(true)
     end
 
-    it "propagates directory synchronization failure without clearing dirty state" do
+    it "raises StorageError for a directory synchronization failure without clearing dirty state" do
       backend.add_task(["pending"])
       directory = instance_double(File)
       failure = Errno::EIO.new
@@ -141,7 +143,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       allow(File).to receive(:open).with(storage_path, File::RDONLY).and_yield(directory)
       allow(directory).to receive(:fsync).and_raise(failure)
 
-      expect { backend.flush_tasks }.to raise_error { |error| expect(error).to equal(failure) }
+      expect { backend.flush_tasks }.to raise_error(Rage::Deferred::StorageError, "Could not sync the pending tasks storage") { |error| expect(error.cause).to equal(failure) }
       expect(tasks_storage.instance_variable_get(:@storage_has_changes)).to eq(true)
     end
   end
@@ -465,6 +467,16 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         expect(dead_tasks_path.binread).to eq(stored_entries.first[:line])
       end
 
+      it "raises StorageError when the append cannot be synced, with that error as cause" do
+        backend
+        failure = Errno::EIO.new
+        allow_any_instance_of(File).to receive(:fsync).and_raise(failure)
+
+        expect {
+          add_dead_task("1-1-1")
+        }.to raise_error(Rage::Deferred::StorageError, "Could not add a task to the dead tasks store") { |error| expect(error.cause).to equal(failure) }
+      end
+
       it "raises when another open file description holds the lock" do
         stub_const("#{described_class}::DeadTasksStorage::LOCK_MAX_ATTEMPTS", 1)
         backend
@@ -474,7 +486,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         begin
           expect {
             add_dead_task("1-1-1")
-          }.to raise_error(Rage::Deferred::DeadTasksLockTimeout, /add a task to/)
+          }.to raise_error(Rage::Deferred::StorageError, "Could not add a task to the dead tasks store") { |error| expect(error.cause).to be_a(described_class::DeadTasksStorage::LockTimeout) }
           expect(dead_tasks_path.size).to eq(0)
 
           File.open(lock_path, File::WRONLY) do |third|
@@ -495,7 +507,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         allow(dead_tasks_storage).to receive(:sleep) { |interval| intervals << interval }
         dead_tasks_storage.instance_variable_set(:@locked, true)
 
-        expect { add_dead_task("1-1-1") }.to raise_error(Rage::Deferred::DeadTasksLockTimeout)
+        expect { add_dead_task("1-1-1") }.to raise_error(Rage::Deferred::StorageError)
 
         expect(intervals.size).to eq(19)
         expect(intervals).to eq((1..19).map { |attempt| [0.01 * attempt, 0.1].min })
@@ -798,6 +810,15 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         expect(descriptor).to be_closed
       end
 
+      it "lets a SystemCallError raised by the block reach the caller unchanged" do
+        add_dead_task("1700000001-1-1")
+        failure = Errno::EIO.new
+
+        expect {
+          backend.each_dead_task { raise failure }
+        }.to raise_error { |error| expect(error).to equal(failure) }
+      end
+
       it "propagates a descriptor cleanup error when it is the only failure" do
         add_dead_task("1700000001-1-1")
         allow(dead_tasks_storage).to receive(:with_snapshot).and_wrap_original do |original, &operation|
@@ -812,7 +833,28 @@ RSpec.describe Rage::Deferred::Backends::Disk do
 
         expect {
           backend.each_dead_task {}
-        }.to raise_error(Errno::EIO)
+        }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EIO) }
+      end
+
+      it "wraps a descriptor cleanup error after the block leaves early" do
+        add_dead_task("1700000001-1-1")
+        allow(dead_tasks_storage).to receive(:with_snapshot).and_wrap_original do |original, &operation|
+          original.call do |storage, snapshot_end|
+            allow(storage).to receive(:close).and_wrap_original do |close|
+              close.call
+              raise Errno::EIO
+            end
+            operation.call(storage, snapshot_end)
+          end
+        end
+
+        expect {
+          backend.each_dead_task { break }
+        }.to raise_error { |error|
+          expect(error.class.name).to eq("Rage::Deferred::StorageError")
+          expect(error.message).to eq("Could not read tasks from the dead tasks store")
+          expect(error.cause).to be_a(Errno::EIO)
+        }
       end
 
       it "propagates a descriptor cleanup error inside an unrelated rescue" do
@@ -832,7 +874,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         rescue RuntimeError
           expect {
             backend.each_dead_task {}
-          }.to raise_error(Errno::EIO)
+          }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EIO) }
         end
       end
 
@@ -849,7 +891,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         rescue RuntimeError
           expect {
             backend.each_dead_task {}
-          }.to raise_error(Errno::EIO)
+          }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EIO) }
         end
       end
 
@@ -862,7 +904,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         iterator = backend.enum_for(:each_dead_task)
 
         expect(descriptor).to be_nil
-        expect { iterator.next }.to raise_error(Errno::EACCES)
+        expect { iterator.next }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EACCES) }
         expect(descriptor).to be_closed
       end
 
@@ -872,7 +914,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         allow(File).to receive(:open).with(dead_tasks_path, File::RDONLY | File::BINARY).and_raise(Errno::EACCES)
         iterator = backend.enum_for(:each_dead_task)
 
-        expect { iterator.next }.to raise_error(Errno::EACCES)
+        expect { iterator.next }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EACCES) }
       end
 
       it "propagates forward-scan seek failures and closes the snapshot" do
@@ -888,7 +930,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
 
         expect {
           backend.each_dead_task {}
-        }.to raise_error(Errno::EIO)
+        }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EIO) }
         expect(descriptor).to be_closed
       end
 
@@ -905,7 +947,30 @@ RSpec.describe Rage::Deferred::Backends::Disk do
 
         expect {
           backend.each_dead_task {}
-        }.to raise_error(Errno::EIO)
+        }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EIO) }
+        expect(descriptor).to be_closed
+      end
+
+      it "raises StorageError when a record cannot be read after the forward scan" do
+        add_dead_task("1700000001-1-1")
+        failure = Errno::EIO.new
+        descriptor = nil
+        allow_any_instance_of(File).to receive(:seek).and_wrap_original do |original, offset, whence = IO::SEEK_SET|
+          if whence == IO::SEEK_SET && offset > 0
+            descriptor = original.receiver
+            raise failure
+          end
+
+          original.call(offset, whence)
+        end
+
+        expect {
+          backend.each_dead_task {}
+        }.to raise_error { |error|
+          expect(error.class.name).to eq("Rage::Deferred::StorageError")
+          expect(error.message).to eq("Could not read tasks from the dead tasks store")
+          expect(error.cause).to equal(failure)
+        }
         expect(descriptor).to be_closed
       end
 
@@ -914,7 +979,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         dead_tasks_storage.instance_variable_set(:@locked, true)
         iterator = backend.enum_for(:each_dead_task)
 
-        expect { iterator.next }.to raise_error(Rage::Deferred::DeadTasksLockTimeout, /read tasks from/)
+        expect { iterator.next }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(described_class::DeadTasksStorage::LockTimeout) }
       ensure
         dead_tasks_storage.instance_variable_set(:@locked, false)
       end
@@ -1118,23 +1183,23 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         expect(backend.find_dead_task(lookup_id)).to eq(newest)
       end
 
-      it "propagates snapshot lock timeouts unchanged" do
+      it "propagates snapshot lock timeouts as StorageError" do
         stub_const("#{described_class}::DeadTasksStorage::LOCK_MAX_ATTEMPTS", 1)
         dead_tasks_storage.instance_variable_set(:@locked, true)
 
         expect {
           backend.find_dead_task(lookup_id)
-        }.to raise_error(Rage::Deferred::DeadTasksLockTimeout, /read tasks from/)
+        }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(described_class::DeadTasksStorage::LockTimeout) }
       ensure
         dead_tasks_storage.instance_variable_set(:@locked, false)
       end
 
-      it "propagates open failures unchanged" do
+      it "propagates open failures as StorageError" do
         backend
         allow(File).to receive(:open).and_call_original
         allow(File).to receive(:open).with(dead_tasks_path, File::RDONLY | File::BINARY).and_raise(Errno::EACCES)
 
-        expect { backend.find_dead_task(lookup_id) }.to raise_error(Errno::EACCES)
+        expect { backend.find_dead_task(lookup_id) }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EACCES) }
       end
 
       it "propagates forward-scan seek failures and closes the snapshot" do
@@ -1148,7 +1213,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
           end
         end
 
-        expect { backend.find_dead_task(lookup_id) }.to raise_error(Errno::EIO)
+        expect { backend.find_dead_task(lookup_id) }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EIO) }
         expect(descriptor).to be_closed
       end
 
@@ -1163,7 +1228,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
           end
         end
 
-        expect { backend.find_dead_task(lookup_id) }.to raise_error(Errno::EIO)
+        expect { backend.find_dead_task(lookup_id) }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EIO) }
         expect(descriptor).to be_closed
       end
 
@@ -1182,7 +1247,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
           end
         end
 
-        expect { backend.find_dead_task(lookup_id) }.to raise_error(Errno::EACCES)
+        expect { backend.find_dead_task(lookup_id) }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EACCES) }
         expect(descriptor).to be_closed
       end
 
@@ -1198,7 +1263,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
           end
         end
 
-        expect { backend.find_dead_task(lookup_id) }.to raise_error(Errno::EIO)
+        expect { backend.find_dead_task(lookup_id) }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EIO) }
       end
 
       it "propagates an operational failure after corruption and a provisional match" do
@@ -1219,7 +1284,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
           end
         end
 
-        expect { backend.find_dead_task(lookup_id) }.to raise_error(Errno::EIO)
+        expect { backend.find_dead_task(lookup_id) }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::EIO) }
       end
     end
 
@@ -1316,7 +1381,7 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         add_dead_task("1-1-1")
         File.unlink(dead_tasks_path)
 
-        expect { backend.remove_dead_tasks("1-1-1") }.to raise_error(Errno::ENOENT)
+        expect { backend.remove_dead_tasks("1-1-1") }.to raise_error(Rage::Deferred::StorageError, "Could not delete tasks from the dead tasks store") { |error| expect(error.cause).to be_a(Errno::ENOENT) }
 
         File.open(lock_path, File::WRONLY) do |lock|
           expect(lock.flock(File::LOCK_EX | File::LOCK_NB)).to be_truthy
@@ -1367,7 +1432,29 @@ RSpec.describe Rage::Deferred::Backends::Disk do
 
         expect {
           backend.remove_dead_tasks("1-1-1")
-        }.to raise_error(Rage::Deferred::DeadTasksLockTimeout, /delete tasks from/)
+        }.to raise_error(Rage::Deferred::StorageError, "Could not delete tasks from the dead tasks store") { |error| expect(error.cause).to be_a(described_class::DeadTasksStorage::LockTimeout) }
+      end
+
+      it "raises StorageError with a lock timeout cause, not the unrelated error, inside an unrelated rescue" do
+        stub_const("#{described_class}::DeadTasksStorage::LOCK_MAX_ATTEMPTS", 1)
+        backend
+        holder = File.open(lock_path, File::WRONLY)
+        holder.flock(File::LOCK_EX)
+
+        begin
+          raise "unrelated failure"
+        rescue RuntimeError
+          expect {
+            backend.remove_dead_tasks("1-1-1")
+          }.to raise_error(Rage::Deferred::StorageError, "Could not delete tasks from the dead tasks store") { |error|
+            expect(error.cause).to be_a(described_class::DeadTasksStorage::LockTimeout)
+            expect(error.cause.message).to eq("Could not lock the dead tasks store to delete tasks from it")
+            expect(error.cause.cause).to be_nil
+          }
+        end
+      ensure
+        holder&.flock(File::LOCK_UN)
+        holder&.close
       end
     end
 

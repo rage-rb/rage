@@ -139,7 +139,7 @@ RSpec.describe Rage::Deferred::DeadTasks do
 
       expect(entry.task_class).to be_nil
       expect(entry.attempts).to eq("unvalidated")
-      expect { entry.args }.to raise_error(Rage::Deferred::DeadTaskContextDeserializationError)
+      expect { entry.args }.to raise_error(Rage::Deferred::DeadTask::ContextDeserializationError)
     end
 
     it "propagates natural entry-construction failures from the selected backend record" do
@@ -249,7 +249,7 @@ RSpec.describe Rage::Deferred::DeadTasks do
       entry = dead_tasks.find_by_id("broken")
 
       2.times do
-        expect { entry.args }.to raise_error(Rage::Deferred::DeadTaskContextDeserializationError) { |error|
+        expect { entry.args }.to raise_error(Rage::Deferred::DeadTask::ContextDeserializationError) { |error|
           expect(error.message).to include("broken")
           expect(error.cause).to be_a(TypeError)
         }
@@ -276,7 +276,7 @@ RSpec.describe Rage::Deferred::DeadTasks do
         method.call(context)
       end
 
-      expect { entry.args }.to raise_error(Rage::Deferred::DeadTaskContextDeserializationError) { |error|
+      expect { entry.args }.to raise_error(Rage::Deferred::DeadTask::ContextDeserializationError) { |error|
         expect(error.message).to include("accessor-failure")
         expect(error.cause).to be_a(NoMethodError)
       }
@@ -294,7 +294,7 @@ RSpec.describe Rage::Deferred::DeadTasks do
       entry = dead_tasks.find_by_id("missing-constant")
 
       expect(entry.task_class).to eq("OlderTask")
-      expect { entry.args }.to raise_error(Rage::Deferred::DeadTaskContextDeserializationError) { |error|
+      expect { entry.args }.to raise_error(Rage::Deferred::DeadTask::ContextDeserializationError) { |error|
         expect(error.cause).to be_a(ArgumentError).or be_a(NameError)
       }
     end
@@ -306,7 +306,7 @@ RSpec.describe Rage::Deferred::DeadTasks do
       records << records.first.merge(id: "restorable-constant", context: dumped)
       entry = dead_tasks.find_by_id("restorable-constant")
 
-      expect { entry.args }.to raise_error(Rage::Deferred::DeadTaskContextDeserializationError)
+      expect { entry.args }.to raise_error(Rage::Deferred::DeadTask::ContextDeserializationError)
 
       stub_const("RestorableDeadTaskArgument", Class.new)
       expect(entry.args.first).to be_a(RestorableDeadTaskArgument)
@@ -385,5 +385,61 @@ RSpec.describe Rage::Deferred::Backends::Nil, "dead-task traversal" do
 
     expect(backend.method(:each_dead_task).parameters).to eq([])
     expect(collection.to_a).to eq([])
+  end
+end
+
+RSpec.describe Rage::Deferred::DeadTasks, "Disk storage errors" do
+  let(:storage_path) { Pathname.new(Dir.mktmpdir) }
+  let(:prefix) { "dead_tasks_storage_errors" }
+  let(:backend) do
+    Rage::Deferred::Backends::Disk.new(path: storage_path, prefix: prefix, fsync_frequency: 100)
+  end
+  let(:dead_tasks) { described_class.new(backend) }
+  let(:dead_tasks_path) { storage_path.join("#{prefix}dead_tasks-0") }
+  let(:failure) { Errno::EIO.new }
+
+  before do
+    backend.add_dead_task("1-1-1", ["StoredTask", [], {}], RuntimeError.new("boom"), task_class: "StoredTask", attempts: 3)
+    allow(File).to receive(:open).and_wrap_original do |original, path, *args, **kwargs, &block|
+      raise failure if path.to_s == dead_tasks_path.to_s
+      original.call(path, *args, **kwargs, &block)
+    end
+  end
+
+  after do
+    FileUtils.remove_entry(storage_path)
+  end
+
+  it "raises StorageError from each when opening the store fails, with that error as cause" do
+    expect {
+      dead_tasks.each {}
+    }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to equal(failure) }
+  end
+
+  it "raises StorageError from find_by_id when opening the store fails, with that error as cause" do
+    expect {
+      dead_tasks.find_by_id("1-1-1")
+    }.to raise_error(Rage::Deferred::StorageError, "Could not read tasks from the dead tasks store") { |error| expect(error.cause).to equal(failure) }
+  end
+end
+
+RSpec.describe Rage::Deferred::DeadTasks, "Disk block errors" do
+  let(:storage_path) { Pathname.new(Dir.mktmpdir) }
+  let(:backend) do
+    Rage::Deferred::Backends::Disk.new(path: storage_path, prefix: "dead_tasks_block_errors", fsync_frequency: 100)
+  end
+  let(:dead_tasks) { described_class.new(backend) }
+
+  after do
+    FileUtils.remove_entry(storage_path)
+  end
+
+  it "lets a SystemCallError raised by the block of each reach the caller unchanged" do
+    backend.add_dead_task("1-1-1", ["StoredTask", [], {}], RuntimeError.new("boom"), task_class: "StoredTask", attempts: 3)
+    failure = Errno::EIO.new
+
+    expect {
+      dead_tasks.each { raise failure }
+    }.to raise_error { |error| expect(error).to equal(failure) }
   end
 end

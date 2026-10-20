@@ -8,6 +8,21 @@
 # The first call to {#args} or {#kwargs} deserializes the execution context.
 #
 class Rage::Deferred::DeadTask
+  # Raise this error when retry cannot use the stored task class or cannot remove the dead record after enqueue.
+  #
+  # The error message identifies the dead task.
+  # After a removal failure, the task may exist in both pending-task storage and dead-task storage.
+  # `Exception#cause` contains the original error when an operation raised.
+  class RetryError < StandardError
+  end
+
+  # Raise this error when a dead task's execution context cannot be deserialized.
+  #
+  # The error message identifies the dead task.
+  # `Exception#cause` contains the original deserialization error.
+  class ContextDeserializationError < StandardError
+  end
+
   # @return [String] the ID that Rage assigned when it enqueued the task
   attr_reader :id
 
@@ -54,8 +69,7 @@ class Rage::Deferred::DeadTask
   # The method may raise storage-related errors.
   #
   # @return [Boolean] true when the task was removed, otherwise false
-  # @raise [Rage::Deferred::DeadTasksLockTimeout] when the store cannot be locked
-  # @raise [SystemCallError] when a storage operation fails
+  # @raise [Rage::Deferred::StorageError] when an operation on the dead-tasks store fails
   # @example Delete one task
   #   Rage::Deferred.dead_tasks.find_by_id("1735689600-12345-1")&.delete
   # @example Delete the dead tasks of one task class
@@ -79,12 +93,13 @@ class Rage::Deferred::DeadTask
   # Outside a running server (for example, in the console or in a Rake task), the new task is only
   # written to the pending-task storage and is not run in this process. It runs after a later server boot.
   #
+  # Errors raised by `enqueue` reach the caller unchanged, including errors of the pending-task storage.
+  #
   # @return [Boolean] true when the sequence completes; false when lookup returns no record
-  # @raise [Rage::Deferred::DeadTaskRetryError] when class resolution or removal fails
-  # @raise [Rage::Deferred::DeadTaskContextDeserializationError] when the context cannot be decoded
-  # @raise [Rage::Deferred::DeadTasksLockTimeout] when the store cannot be locked
+  # @raise [Rage::Deferred::DeadTask::RetryError] when class resolution or removal fails; after a failed removal, its cause is a Rage::Deferred::StorageError
+  # @raise [Rage::Deferred::DeadTask::ContextDeserializationError] when the context cannot be decoded
+  # @raise [Rage::Deferred::StorageError] when the lookup or the sync of the pending tasks fails
   # @raise [Rage::Deferred::PushTimeout] when backpressure is enabled and the queue stays full for too long
-  # @raise [SystemCallError] when lookup or synchronization fails
   # @example Retry every dead task
   #   Rage::Deferred.dead_tasks.each(&:retry)
   # @example Retry one task when only its ID is known
@@ -102,7 +117,7 @@ class Rage::Deferred::DeadTask
     begin
       @__backend.remove_dead_tasks(@id)
     rescue => e
-      raise Rage::Deferred::DeadTaskRetryError.new(
+      raise RetryError.new(
         "Could not remove dead task #{@id} after retry; work may exist in both stores"
       ), cause: e
     end
@@ -118,7 +133,7 @@ class Rage::Deferred::DeadTask
   # If the stored value is `nil`, the method returns a frozen empty Array.
   #
   # @return [Array] frozen positional arguments
-  # @raise [Rage::Deferred::DeadTaskContextDeserializationError] when the context cannot be decoded
+  # @raise [Rage::Deferred::DeadTask::ContextDeserializationError] when the context cannot be decoded
   def args
     decode_context unless defined?(@__args)
     @__args
@@ -132,7 +147,7 @@ class Rage::Deferred::DeadTask
   # If the stored value is `nil`, the method returns a frozen empty Hash.
   #
   # @return [Hash] frozen keyword arguments
-  # @raise [Rage::Deferred::DeadTaskContextDeserializationError] when the context cannot be decoded
+  # @raise [Rage::Deferred::DeadTask::ContextDeserializationError] when the context cannot be decoded
   def kwargs
     decode_context unless defined?(@__kwargs)
     @__kwargs
@@ -145,13 +160,13 @@ class Rage::Deferred::DeadTask
     begin
       task_class = Object.const_get(@task_class, false)
     rescue NameError => e
-      raise Rage::Deferred::DeadTaskRetryError.new(
+      raise RetryError.new(
         "Could not resolve task class for dead task #{@id}"
       ), cause: e
     end
 
     unless task_class.is_a?(Class) && task_class.include?(Rage::Deferred::Task)
-      raise Rage::Deferred::DeadTaskRetryError, "Invalid task class for dead task #{@id}"
+      raise RetryError, "Invalid task class for dead task #{@id}"
     end
 
     task_class
@@ -164,7 +179,7 @@ class Rage::Deferred::DeadTask
     kwargs = Rage::Deferred::Context.get_kwargs(context)
     [args.nil? ? [] : args, kwargs.nil? ? {} : kwargs]
   rescue => e
-    raise Rage::Deferred::DeadTaskContextDeserializationError.new(
+    raise ContextDeserializationError.new(
       "Could not deserialize execution context for dead task #{@id}"
     ), cause: e
   end
@@ -180,7 +195,7 @@ class Rage::Deferred::DeadTask
     @__args = args
     @__kwargs = kwargs
   rescue => e
-    error = Rage::Deferred::DeadTaskContextDeserializationError.new(
+    error = ContextDeserializationError.new(
       "Could not deserialize execution context for dead task #{@id}"
     )
     raise error, cause: e

@@ -158,7 +158,7 @@ RSpec.describe Rage::Deferred::DeadTask, "retry" do
       expect(backend).not_to receive(:flush_tasks)
       expect(backend).not_to receive(:remove_dead_tasks)
 
-      expect { selected_entry.retry }.to raise_error(Rage::Deferred::DeadTaskRetryError) { |error|
+      expect { selected_entry.retry }.to raise_error(Rage::Deferred::DeadTask::RetryError) { |error|
         expect(error.message).to include(id)
         expect(error.cause).to be_a(NameError) if class_name.start_with?("Missing", "Kernel.")
       }
@@ -269,7 +269,7 @@ RSpec.describe Rage::Deferred::DeadTask, "retry" do
     selected_entry = dead_tasks.find_by_id(id)
     expect(RetryableDeadTask).not_to receive(:enqueue)
 
-    expect { selected_entry.retry }.to raise_error(Rage::Deferred::DeadTaskContextDeserializationError) { |error|
+    expect { selected_entry.retry }.to raise_error(Rage::Deferred::DeadTask::ContextDeserializationError) { |error|
       expect(error.message).to include(id)
       expect(error.cause).to be_a(TypeError)
     }
@@ -289,7 +289,7 @@ RSpec.describe Rage::Deferred::DeadTask, "retry" do
     store_dead_task(id, args: [RetryArgument.new])
     selected_entry = dead_tasks.find_by_id(id)
 
-    expect { selected_entry.retry }.to raise_error(Rage::Deferred::DeadTaskContextDeserializationError) { |error|
+    expect { selected_entry.retry }.to raise_error(Rage::Deferred::DeadTask::ContextDeserializationError) { |error|
       expect(error.message).to include(id)
       expect(error.cause).to equal(failure)
     }
@@ -302,7 +302,7 @@ RSpec.describe Rage::Deferred::DeadTask, "retry" do
       failure = NoMethodError.new("accessor failed")
       allow(Rage::Deferred::Context).to receive(accessor).and_raise(failure)
 
-      expect { selected_entry.retry }.to raise_error(Rage::Deferred::DeadTaskContextDeserializationError) { |error|
+      expect { selected_entry.retry }.to raise_error(Rage::Deferred::DeadTask::ContextDeserializationError) { |error|
         expect(error.message).to include(id)
         expect(error.cause).to equal(failure)
       }
@@ -422,7 +422,11 @@ RSpec.describe Rage::Deferred::DeadTask, "retry" do
       end
       expect(backend).not_to receive(:remove_dead_tasks)
 
-      expect { selected_entry.retry }.to raise_error { |raised| expect(raised).to equal(failure) }
+      expect { selected_entry.retry }.to raise_error { |raised|
+        expect(raised.class.name).to eq("Rage::Deferred::StorageError")
+        expect(raised.message).to eq("Could not sync the pending tasks storage")
+        expect(raised.cause).to equal(failure)
+      }
       expect(dead_tasks.find_by_id(id)).not_to be_nil
       expect(pending_tasks.length).to eq(1)
     end
@@ -435,13 +439,27 @@ RSpec.describe Rage::Deferred::DeadTask, "retry" do
     expect(backend).to receive(:flush_tasks).and_call_original
 
     expect {
-      expect { selected_entry.retry }.to raise_error(Rage::Deferred::DeadTaskRetryError) { |error|
+      expect { selected_entry.retry }.to raise_error(Rage::Deferred::DeadTask::RetryError) { |error|
         expect(error.message).to include(id, "both stores")
         expect(error.cause).to equal(failure)
       }
     }.to output(/server restart is required/).to_stderr
     expect(dead_tasks.find_by_id(id)).not_to be_nil
     expect(pending_tasks.length).to eq(1)
+  end
+
+  it "raises RetryError with a StorageError cause when the Disk removal fails" do
+    selected_entry = entry
+    failure = Errno::EIO.new
+    allow(File).to receive(:rename).and_raise(failure)
+
+    expect {
+      expect { selected_entry.retry }.to raise_error(Rage::Deferred::DeadTask::RetryError) { |error|
+        expect(error.cause).to be_a(Rage::Deferred::StorageError)
+        expect(error.cause.cause).to equal(failure)
+      }
+    }.to output(/server restart is required/).to_stderr
+    expect(dead_tasks.find_by_id(id)).not_to be_nil
   end
 
   it "warns once with the ID and restart requirement without payload disclosure or scheduling" do
@@ -593,7 +611,7 @@ RSpec.describe Rage::Deferred::DeadTask, "retry" do
 
   it "propagates an existence-check lock timeout unchanged" do
     selected_entry = entry
-    failure = Rage::Deferred::DeadTasksLockTimeout.new("lookup lock timeout")
+    failure = Rage::Deferred::StorageError.new("lookup lock timeout")
     allow(backend).to receive(:find_dead_task).with(id).and_raise(failure)
     expect(RetryableDeadTask).not_to receive(:enqueue)
     expect(backend).not_to receive(:remove_dead_tasks)
