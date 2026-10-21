@@ -667,4 +667,48 @@ class RageController::API
   def reset_session
     session.clear
   end
+
+  # Generates a full URL for the specified controller and action.
+  #
+  # @param controller [String] the controller name in path form
+  # @param action [String] the action name
+  # @param host [String] override the host
+  # @param port [Integer] override the port
+  # @param protocol [String] override the protocol
+  # @param only_path [Boolean] if true, return only the path without host and protocol
+  # @param route_params [Hash] route parameters to substitute into the path
+  # @return [String] the generated URL or path
+  # @raise [ArgumentError] if no route is defined for the controller/action pair
+  #
+  # @example
+  #   url_for(controller: "users", action: "show", id: 1)
+  #   # => "https://example.com/users/1"
+  # @example With explicit host and protocol
+  #   url_for(controller: "users", action: "show", id: 1, host: "api.example.com", protocol: "http")
+  #   # => "http://api.example.com/users/1"
+  # @example With non-standard port
+  #   url_for(controller: "users", action: "show", id: 1, port: 3000)
+  #   # => "http://localhost:3000/users/1"
+  # @example Path only
+  #   url_for(controller: "users", action: "show", id: 1, only_path: true)
+  #   # => "/users/1"
+  #
+  # @see Rage::Router::Util.path_for
+  def url_for(controller:, action:, host: request.host, port: request.port, protocol: request.protocol, only_path: false, **route_params)
+    path = Rage::Router::Util.path_for(controller:, action:, **route_params)
+    return path if only_path
+
+    normalized_protocol = protocol.delete_suffix("://")
+    request_protocol = request.protocol.delete_suffix("://")
+
+    port_string = if (normalized_protocol == "http" && port == 80) || (normalized_protocol == "https" && port == 443)
+      ""
+    elsif port == request.port && ((request_protocol == "http" && port == 80) || (request_protocol == "https" && port == 443))
+      ""
+    else
+      ":#{port}"
+    end
+
+    "#{normalized_protocol}://#{host}#{port_string}#{path}"
+  end
 end
