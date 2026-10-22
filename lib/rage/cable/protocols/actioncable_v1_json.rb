@@ -59,6 +59,7 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
     UNAUTHORIZED = { type: TYPE::DISCONNECT, reason: REASON::UNAUTHORIZED, reconnect: false }.to_json
     INVALID = { type: TYPE::DISCONNECT, reason: REASON::INVALID, reconnect: true }.to_json
     DISCONNECT = { type: TYPE::DISCONNECT, reason: REASON::REMOTE, reconnect: true }.to_json
+    DISCONNECT_NO_RECONNECT = { type: TYPE::DISCONNECT, reason: REASON::REMOTE, reconnect: false }.to_json
   end
 
   HANDSHAKE_HEADERS = { "Sec-WebSocket-Protocol" => "actioncable-v1-json" }
@@ -173,7 +174,11 @@ class Rage::Cable::Protocols::ActioncableV1Json < Rage::Cable::Protocols::Base
   # Process the disconnect initiated by the server.
   #
   # @param connection [Rage::Cable::WebSocketConnection] the connection object
-  def self.on_remote_disconnect(connection)
-    connection.write(MESSAGES::DISCONNECT)
+  # @param options [Hash, nil] options passed to the protocol when disconnecting
+  def self.on_remote_disconnect(connection, options)
+    reconnect = options.nil? || options.fetch(:reconnect, true)
+    message = reconnect ? MESSAGES::DISCONNECT : MESSAGES::DISCONNECT_NO_RECONNECT
+
+    connection.write(message)
   end
 end

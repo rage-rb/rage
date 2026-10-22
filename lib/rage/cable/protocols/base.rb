@@ -92,7 +92,8 @@ class Rage::Cable::Protocols::Base
     # Process the disconnect initiated by the server.
     #
     # @param connection [Rage::Cable::WebSocketConnection] the connection object
-    def on_remote_disconnect(connection)
+    # @param options [Hash, nil] options passed to the protocol when disconnecting
+    def on_remote_disconnect(connection, options)
     end
 
     private

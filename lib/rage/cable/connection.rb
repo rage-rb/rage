@@ -133,7 +133,11 @@ class Rage::Cable::Connection
   #   # Disconnect only the user's specific device
   #   RageCable::Connection.disconnect(current_user_device: [user, "device-123"])
   #
+  # @example Using protocol options
+  #   RageCable::Connection.disconnect(current_user: User.find(1), protocol_options: { reconnect: false })
+  #
   # @param identified_by [Hash] a single key-value pair where the key is a declared identifier
+  # @param protocol_options [Hash] options passed to the connection's protocol when disconnecting
   # @raise [ArgumentError] if no identifier, multiple identifiers, or an unknown identifier is provided
-  # @!method self.disconnect(**identified_by)
+  # @!method self.disconnect(protocol_options: nil, **identified_by)
 end

@@ -29,7 +29,7 @@ module Rage::Cable::RemoteDisconnect
     # Disconnect all connections matching the specified identifier.
     # @example Disconnect all connections for a user
     #   RageCable::Connection.disconnect(current_user: User.find(1))
-    def disconnect(**identified_by)
+    def disconnect(protocol_options: nil, **identified_by)
       raise ArgumentError, "An identifier must be provided" if identified_by.empty?
       raise ArgumentError, "Only one identifier can be provided" if identified_by.size > 1
 
@@ -38,7 +38,14 @@ module Rage::Cable::RemoteDisconnect
         raise ArgumentError, "Unknown identifier: #{id_pair[0]}"
       end
 
-      Rage::PubSub.publish("", topic: ["rage", name, id_pair])
+      message = if protocol_options
+        raise ArgumentError, "protocol_options must be a Hash" unless protocol_options.is_a?(Hash)
+        protocol_options.to_json
+      else
+        ""
+      end
+
+      Rage::PubSub.publish(message, topic: ["rage", name, id_pair])
     end
   end
 
@@ -46,8 +53,9 @@ module Rage::Cable::RemoteDisconnect
 
   def __remote_disconnect_setup(connection, protocol)
     __identified_by_map.each do |identified_by|
-      Rage::PubSub.subscribe(topic: ["rage", self.class.name, identified_by], subscription_id: connection) do
-        protocol.on_remote_disconnect(connection)
+      Rage::PubSub.subscribe(topic: ["rage", self.class.name, identified_by], subscription_id: connection) do |message|
+        protocol_options = JSON.parse(message, symbolize_names: true) unless message.empty?
+        protocol.on_remote_disconnect(connection, protocol_options)
         connection.close
       end
     end

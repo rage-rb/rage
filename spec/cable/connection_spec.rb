@@ -223,9 +223,28 @@ RSpec.describe Rage::Cable::Connection do
             "TestCableConnection",
             [:current_user, user]
           ]
-          expect(Rage::PubSub).to receive(:publish).with(anything, topic: expected_topic)
+          expect(Rage::PubSub).to receive(:publish).with("", topic: expected_topic)
 
           cable_connection_class.disconnect(current_user: user)
+        end
+
+        it "publishes protocol_options as JSON" do
+          user = double(id: 1234)
+
+          expected_topic = [
+            "rage",
+            "TestCableConnection",
+            [:current_user, user]
+          ]
+          expect(Rage::PubSub).to receive(:publish).with('{"reconnect":false}', topic: expected_topic)
+
+          cable_connection_class.disconnect(current_user: user, protocol_options: { reconnect: false })
+        end
+
+        it "raises ArgumentError if protocol_options is not a Hash" do
+          expect {
+            cable_connection_class.disconnect(current_user: double, protocol_options: "invalid")
+          }.to raise_error(ArgumentError, /protocol_options must be a Hash/)
         end
       end
 
@@ -312,10 +331,24 @@ RSpec.describe Rage::Cable::Connection do
 
         subject
 
-        expect(protocol).to receive(:on_remote_disconnect).with(connection)
+        expect(protocol).to receive(:on_remote_disconnect).with(connection, nil)
         expect(connection).to receive(:close)
 
-        pubsub_callback.call
+        pubsub_callback.call("")
+      end
+
+      it "passes protocol_options to on_remote_disconnect" do
+        pubsub_callback = nil
+        allow(Rage::PubSub).to receive(:subscribe) do |&block|
+          pubsub_callback = block
+        end
+
+        subject
+
+        expect(protocol).to receive(:on_remote_disconnect).with(connection, { reconnect: false })
+        expect(connection).to receive(:close)
+
+        pubsub_callback.call('{"reconnect":false}')
       end
 
       context "with multiple identifiers" do
