@@ -62,6 +62,7 @@ class Rage::FiberScheduler
         offset += result
         return offset if result < length_to_read || result >= buffer.size
 
+        length_to_read = length_to_read.clamp(nil, buffer.size - offset)
         Fiber.pause
       end
     end
