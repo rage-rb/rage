@@ -273,24 +273,47 @@ RSpec.describe Rage::FiberScheduler do
     end
   end
 
-  it "correctly reads files" do
-    within_reactor do
-      str = File.read("spec/fixtures/700b.txt")
-      -> { expect(Digest::SHA2.hexdigest(str)).to eq("174d893e34d9e551466f9e6808358cebc7fd91c5cf9a07300a18e035abc0c4a9") }
+  context "with 700b files" do
+    it "correctly reads files" do
+      within_reactor do
+        str = File.read("spec/fixtures/700b.txt")
+        -> { expect(Digest::SHA2.hexdigest(str)).to eq("174d893e34d9e551466f9e6808358cebc7fd91c5cf9a07300a18e035abc0c4a9") }
+      end
     end
   end
 
-  it "correctly reads files" do
-    within_reactor do
-      str = File.read("spec/fixtures/2kb.txt")
-      -> { expect(Digest::SHA2.hexdigest(str)).to eq("73ad9fa79f6266fad72c925e5ba197ba296aa433ae5d0f792e87c19e79df798a") }
+  context "with 2kb files" do
+    it "correctly reads files" do
+      within_reactor do
+        str = File.read("spec/fixtures/2kb.txt")
+        -> { expect(Digest::SHA2.hexdigest(str)).to eq("73ad9fa79f6266fad72c925e5ba197ba296aa433ae5d0f792e87c19e79df798a") }
+      end
     end
   end
 
-  it "correctly reads files" do
-    within_reactor do
-      str = File.read("spec/fixtures/10kb.txt")
-      -> { expect(Digest::SHA2.hexdigest(str)).to eq("ec6f95fa1b9b256aeed3d21c0b982822e642079dabd5a032929a993b614815d8") }
+  context "with 10kb files" do
+    it "correctly reads files" do
+      within_reactor do
+        str = File.read("spec/fixtures/10kb.txt")
+        -> { expect(Digest::SHA2.hexdigest(str)).to eq("ec6f95fa1b9b256aeed3d21c0b982822e642079dabd5a032929a993b614815d8") }
+      end
+    end
+  end
+
+  context "with files larger than MAX_READ" do
+    it "correctly reads files" do
+      fixture_size = 103241
+      expect(fixture_size).to be > described_class::MAX_READ
+
+      fixture = Random.bytes(fixture_size)
+      file = Tempfile.create
+      file.write(fixture)
+      file.close
+
+      within_reactor do
+        str = File.read(file.path)
+        -> { expect(str.b).to eq(fixture.b) }
+      end
     end
   end
 
