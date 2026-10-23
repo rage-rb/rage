@@ -118,15 +118,15 @@ module Rage::Deferred
   class PushTimeout < StandardError
   end
 
-  # Raise this error when the dead-task store cannot be locked after all retries.
-  class DeadTasksLockTimeout < StandardError
-  end
-
-  # Raise this error when a dead task's execution context cannot be deserialized.
+  # Raised when an operation on the dead-tasks store fails, or when `DeadTask#retry` cannot sync the pending tasks.
   #
-  # The error message identifies the dead task.
-  # `Exception#cause` contains the original deserialization error.
-  class DeadTaskContextDeserializationError < StandardError
+  # Errors from other operations on the storage of deferred tasks, such as `enqueue`, are not wrapped in this class:
+  # they reach the caller unchanged.
+  #
+  # The error message names the operation that failed.
+  # `Exception#cause` contains the storage's own error, when there is one.
+  # Every storage backend raises this same class, so code that rescues it does not depend on the backend.
+  class StorageError < StandardError
   end
 end
 
