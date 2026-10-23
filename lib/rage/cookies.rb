@@ -1,7 +1,17 @@
 # frozen_string_literal: true
 
-require "base64"
 require "time"
+
+begin
+  require "base64"
+rescue LoadError
+  fail <<~ERR
+
+    Rage depends on `base64` to encode cookies. Ensure the following line is added to your Gemfile:
+    gem "base64"
+
+  ERR
+end
 
 if !defined?(DomainName)
   fail <<~ERR
