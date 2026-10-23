@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.29.0] - 2026-10-23
+
 ### Added
 
 - [Deferred] Add `Rage::Deferred.dead_tasks` for listing and inspecting tasks that exhausted their retries.
