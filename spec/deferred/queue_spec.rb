@@ -33,6 +33,24 @@ RSpec.describe Rage::Deferred::Queue do
       subject.enqueue(task_context)
     end
 
+    context "when Iodine is not running" do
+      before do
+        allow(Iodine).to receive(:running?).and_return(false)
+      end
+
+      it "stores the task without scheduling it" do
+        subject.enqueue(task_context)
+
+        aggregate_failures do
+          expect(backend).to have_received(:add_task).with(task_context, publish_at: nil, task_id: nil)
+          expect(Iodine).not_to have_received(:run_after)
+          expect(Fiber).not_to have_received(:schedule)
+          expect(Iodine).not_to have_received(:task_inc!)
+          expect(subject.backlog_size).to eq(0)
+        end
+      end
+    end
+
     context "with a delay" do
       it "correctly calculates publish_at and publish_in" do
         delay = 60
@@ -81,33 +99,6 @@ RSpec.describe Rage::Deferred::Queue do
   end
 
   describe "#schedule" do
-    context "when Iodine is not running" do
-      before do
-        allow(Iodine).to receive(:running?).and_return(false)
-      end
-
-      it "does no scheduling work for immediate or delayed tasks" do
-        expect(Iodine).not_to receive(:run_after)
-        expect(Iodine).not_to receive(:task_inc!)
-        expect(Iodine).not_to receive(:task_dec!)
-        expect(Fiber).not_to receive(:schedule)
-        expect(Rage::Deferred::Context).not_to receive(:get_task)
-
-        expect {
-          subject.schedule("task-id", task_context)
-          subject.schedule("task-id", task_context, publish_in: 5)
-        }.not_to change { subject.backlog_size }
-      end
-
-      it "still persists tasks through enqueue" do
-        expect(backend).to receive(:add_task).with(task_context, publish_at: nil, task_id: nil).ordered
-        expect(Iodine).to receive(:running?).ordered.and_return(false)
-        expect(Iodine).not_to receive(:run_after)
-
-        expect { subject.enqueue(task_context) }.not_to change { subject.backlog_size }
-      end
-    end
-
     it "increments and decrements iodine task counter" do
       expect(Iodine).to receive(:task_inc!).ordered
       expect(Iodine).to receive(:task_dec!).ordered

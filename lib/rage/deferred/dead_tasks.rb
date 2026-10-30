@@ -28,11 +28,11 @@ class Rage::Deferred::DeadTasks
     self
   end
 
-  # Return the dead task with the exact persisted ID.
+  # Return the dead task with the given ID.
   #
   # The ID must be a String. The method does not convert other values to a String.
   #
-  # @param id [String] the exact persisted task ID
+  # @param id [String] the task ID, as returned by {Rage::Deferred::DeadTask#id}
   # @return [Rage::Deferred::DeadTask, nil] the matching task, or nil
   # @raise [TypeError] when the ID is not a String
   def find_by_id(id)
@@ -45,6 +45,19 @@ class Rage::Deferred::DeadTasks
   # Permanently delete one or more dead tasks.
   #
   # Pass one String ID or one flat Array of String IDs; the method returns the number of deleted tasks.
+  # The method counts each distinct ID once. IDs that do not exist, or that another process has already
+  # deleted, are not errors and are not counted. An empty Array returns `0`.
+  #
+  # If any ID is invalid, the method raises and deletes nothing.
+  # IDs are not converted: pass the exact `id` Strings of the dead tasks.
+  #
+  # To delete many tasks, collect their IDs and pass them in one call, as in the example below,
+  # instead of calling {Rage::Deferred::DeadTask#delete} for each task.
+  #
+  # When two calls name the same ID, only the call that runs first counts it. Deleting a task does not
+  # stop work that a retry of the same task has already enqueued.
+  #
+  # When the method raises, some of the tasks may already be deleted.
   #
   # @param id_or_ids [String, Array<String>] one exact ID or one flat Array of exact IDs
   # @return [Integer] the number of distinct tasks that were removed

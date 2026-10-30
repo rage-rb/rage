@@ -122,7 +122,7 @@ module Rage::Deferred
   class DeadTasksLockTimeout < StandardError
   end
 
-  # Raise this error when a dead task's execution context cannot be deserialized.
+  # Raise this error when a dead task's stored arguments cannot be decoded.
   #
   # The error message identifies the dead task.
   # `Exception#cause` contains the original deserialization error.
