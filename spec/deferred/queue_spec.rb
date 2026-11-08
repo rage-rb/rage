@@ -16,6 +16,7 @@ RSpec.describe Rage::Deferred::Queue do
     allow(task_class).to receive(:new).and_return(task_instance)
     allow(Iodine).to receive(:run_after) { |&block| block.call }
     allow(Iodine).to receive(:stopping?).and_return(false)
+    allow(Iodine).to receive(:running?).and_return(true)
     allow(Iodine).to receive(:task_inc!)
     allow(Iodine).to receive(:task_dec!)
     allow(Fiber).to receive(:schedule) { |&block| block.call }
@@ -30,6 +31,24 @@ RSpec.describe Rage::Deferred::Queue do
     it "schedules the task for execution" do
       expect(subject).to receive(:schedule).with("task-id", task_context, publish_in: nil)
       subject.enqueue(task_context)
+    end
+
+    context "when Iodine is not running" do
+      before do
+        allow(Iodine).to receive(:running?).and_return(false)
+      end
+
+      it "stores the task without scheduling it" do
+        subject.enqueue(task_context)
+
+        aggregate_failures do
+          expect(backend).to have_received(:add_task).with(task_context, publish_at: nil, task_id: nil)
+          expect(Iodine).not_to have_received(:run_after)
+          expect(Fiber).not_to have_received(:schedule)
+          expect(Iodine).not_to have_received(:task_inc!)
+          expect(subject.backlog_size).to eq(0)
+        end
+      end
     end
 
     context "with a delay" do

@@ -14,8 +14,11 @@ require "zlib"
 #   if multiple records have the same task ID, it yields the newest record;
 #   records added during traversal are not included;
 # * `find_dead_task` - returns the newest dead-task record with the exact task ID;
-# * `remove_dead_tasks` - permanently delete dead tasks;
+# * `remove_dead_tasks` - takes one task ID String or an Array of them, permanently deletes every record
+#   with those IDs, and returns the number of distinct IDs removed;
+# * `flush_tasks` - optional; makes the `add_task` writes made so far durable at once;
 #
+# @private
 class Rage::Deferred::Backends::Disk
   def initialize(path:, prefix:, fsync_frequency:)
     @tasks_storage = TasksStorage.new(path:, prefix:, fsync_frequency:)
@@ -35,6 +38,11 @@ class Rage::Deferred::Backends::Disk
   # @param task_id [String]
   def remove_task(task_id)
     @tasks_storage.remove(task_id)
+  end
+
+  # Synchronize pending writes to disk immediately, without waiting for the periodic sync timer.
+  def flush_tasks
+    @tasks_storage.sync!
   end
 
   # Return a list of pending tasks in the storage.
@@ -61,7 +69,6 @@ class Rage::Deferred::Backends::Disk
   # Yield records from oldest to newest.
   # @yieldparam record [Hash] a dead-task record
   # @return [Rage::Deferred::Backends::Disk::DeadTasksStorage]
-  # @private
   def each_dead_task(&block)
     @dead_tasks_storage.each(&block)
   end
@@ -69,14 +76,13 @@ class Rage::Deferred::Backends::Disk
   # Return the newest dead-task record with the exact task ID.
   # @param id [String] the task ID
   # @return [Hash, nil] the matching record, or nil if there is no matching record
-  # @private
   def find_dead_task(id)
     @dead_tasks_storage.find_by_id(id)
   end
 
   # Permanently delete dead-lettered tasks.
   # @param ids [String, Array<String>] the ids of the dead-task records
-  # @return [Integer] the number of deleted records
+  # @return [Integer] the number of distinct ids removed; several records with one id count once
   # @raise [Rage::Deferred::DeadTasksLockTimeout] if the dead-tasks store cannot be locked
   def remove_dead_tasks(ids)
     @dead_tasks_storage.remove(ids)
@@ -260,7 +266,21 @@ class Rage::Deferred::Backends::Disk
       end
     end
 
+    # Synchronize the active WAL, then its directory.
+    # Keep the timer dirty state unchanged.
+    # @private
+    def sync!
+      @storage.fsync
+      sync_storage_directory
+    end
+
     private
+
+    # Call `fsync` on the storage directory, so that the directory entry of a new WAL file is durable.
+    # @return [void]
+    def sync_storage_directory
+      File.open(@storage_path, File::RDONLY) { |directory| directory.fsync }
+    end
 
     def generate_task_id
       @task_id_i += 1
@@ -270,7 +290,10 @@ class Rage::Deferred::Backends::Disk
     def create_storage
       file = @storage_path.join("#{@storage_prefix}-#{Time.now.strftime("%Y%m%d")}-#{Process.pid}-#{rand(0x100000000).to_s(36)}")
 
-      file.open("a+b").tap { |f| f.flock(File::LOCK_EX) }
+      storage = file.open("a+b").tap { |f| f.flock(File::LOCK_EX) }
+      sync_storage_directory
+
+      storage
     end
 
     def write_to_storage(content, adjust_size_limit: false)
@@ -501,7 +524,7 @@ class Rage::Deferred::Backends::Disk
 
     # Permanently delete the records with the given ids.
     # @param ids [String, Array<String>] one or more persisted task ids
-    # @return [Integer] number of distinct records deleted
+    # @return [Integer] the number of distinct ids removed; several records with one id count once
     # @raise [Rage::Deferred::DeadTasksLockTimeout] if the store cannot be locked
     def remove(ids)
       ids = Array(ids)

@@ -26,11 +26,11 @@ RSpec.describe Rage::Deferred::Backends::Disk do
       expect(storage_path.glob("#{prefix}0-*").size).to eq(1)
     end
 
-    it "fsyncs the storage directory after ensuring the dead-tasks file exists" do
+    it "fsyncs the directory after creating both files" do
       directory = instance_double(File)
       allow(File).to receive(:open).and_call_original
-      expect(File).to receive(:open).with(storage_path, File::RDONLY).and_yield(directory)
-      expect(directory).to receive(:fsync)
+      expect(File).to receive(:open).with(storage_path, File::RDONLY).twice.and_yield(directory)
+      expect(directory).to receive(:fsync).twice
 
       backend
     end
@@ -49,6 +49,47 @@ RSpec.describe Rage::Deferred::Backends::Disk do
     it "adds a task with an auto-generated task ID" do
       task_id = backend.add_task(task, publish_at: publish_at)
       expect(backend.pending_tasks.map(&:first)).to include(task_id)
+    end
+  end
+
+  describe "#flush_tasks" do
+    it "syncs the WAL, then its directory" do
+      backend
+      wal_path = storage_path.glob("#{prefix}0-*").first
+      task_id = backend.add_task("buffered-context", publish_at: nil)
+      fsynced = []
+      allow_any_instance_of(File).to receive(:fsync).and_wrap_original do |original|
+        fsynced << original.receiver.path
+        original.call
+      end
+
+      backend.flush_tasks
+
+      aggregate_failures do
+        expect(fsynced).to eq([wal_path.to_s, storage_path.to_s])
+        expect(wal_path.binread).to include(task_id)
+      end
+    end
+
+    context "when the fsync timer runs next" do
+      it "still fsyncs the WAL" do
+        fsync_timer = nil
+        allow(Iodine).to receive(:run_every).and_call_original
+        allow(Iodine).to receive(:run_every).with(fsync_frequency) { |*, &block| fsync_timer = block }
+        backend
+        wal_path = storage_path.glob("#{prefix}0-*").first
+        backend.add_task("buffered-context", publish_at: nil)
+        backend.flush_tasks
+        fsynced = []
+        allow_any_instance_of(File).to receive(:fsync).and_wrap_original do |original|
+          fsynced << original.receiver.path
+          original.call
+        end
+
+        fsync_timer.call
+
+        expect(fsynced).to eq([wal_path.to_s])
+      end
     end
   end
 
@@ -1231,6 +1272,30 @@ RSpec.describe Rage::Deferred::Backends::Disk do
         File.open(dead_tasks_path, File::WRONLY | File::CREAT | File::BINARY, 0o644) {}
         add_dead_task("2-2-2")
         expect(stored_entries.map { |entry| entry[:id] }).to eq(["2-2-2"])
+      end
+
+      context "when the rename fails" do
+        it "raises and keeps the store" do
+          add_dead_task("1-1-1")
+          add_dead_task("2-2-2")
+          bytes = dead_tasks_path.binread
+          allow(File).to receive(:rename).with(tmp_storage_path, dead_tasks_path).and_raise(Errno::EIO)
+
+          expect { backend.remove_dead_tasks("1-1-1") }.to raise_error(Errno::EIO)
+          expect(dead_tasks_path.binread).to eq(bytes)
+        end
+      end
+
+      context "when the directory sync fails" do
+        it "raises after replacing the store" do
+          add_dead_task("1-1-1")
+          add_dead_task("2-2-2")
+          allow(File).to receive(:open).and_call_original
+          allow(File).to receive(:open).with(storage_path, File::RDONLY).and_raise(Errno::EIO)
+
+          expect { backend.remove_dead_tasks("1-1-1") }.to raise_error(Errno::EIO)
+          expect(stored_entries.map { |entry| entry[:id] }).to eq(["2-2-2"])
+        end
       end
 
       it "fsyncs the storage directory after replacing the live file" do

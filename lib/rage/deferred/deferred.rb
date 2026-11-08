@@ -122,11 +122,19 @@ module Rage::Deferred
   class DeadTasksLockTimeout < StandardError
   end
 
-  # Raise this error when a dead task's execution context cannot be deserialized.
+  # Raise this error when a dead task's stored arguments cannot be decoded.
   #
   # The error message identifies the dead task.
   # `Exception#cause` contains the original deserialization error.
   class DeadTaskContextDeserializationError < StandardError
+  end
+
+  # Raise this error when retry cannot use the stored task class or cannot remove the dead record after enqueue.
+  #
+  # The error message identifies the dead task.
+  # After a removal failure, the task may exist in both pending-task storage and dead-task storage.
+  # `Exception#cause` contains the original error when an operation raised.
+  class DeadTaskRetryError < StandardError
   end
 end
 

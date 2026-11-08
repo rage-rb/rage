@@ -20,11 +20,18 @@ RSpec.describe Rage::Deferred::DeadTasks do
   let(:backend) do
     stored_records = records
     Class.new do
-      attr_reader :traversal_count, :lookup_count
+      attr_reader :traversal_count, :lookup_count, :removals
 
       define_method(:initialize) do
         @traversal_count = 0
         @lookup_count = 0
+        @removals = []
+      end
+      define_method(:remove_dead_tasks) do |ids|
+        @removals << ids
+        removed_ids = Array(ids) & stored_records.map { |record| record[:id] }
+        stored_records.reject! { |record| removed_ids.include?(record[:id]) }
+        removed_ids.length
       end
       define_method(:each_dead_task) do |&block|
         @traversal_count += 1
@@ -312,6 +319,314 @@ RSpec.describe Rage::Deferred::DeadTasks do
       expect(entry.args.first).to be_a(RestorableDeadTaskArgument)
     end
   end
+
+  describe "#delete" do
+    context "with a String id" do
+      it "returns the removed count" do
+        expect(dead_tasks.delete("1700000001-1-1")).to eq(1)
+        expect(backend.removals).to eq([["1700000001-1-1"]])
+      end
+    end
+
+    context "with an Array of ids" do
+      it "removes them in one backend call" do
+        expect(dead_tasks.delete(["1700000001-1-1", "1700000002-1-2"])).to eq(2)
+        expect(backend.removals).to eq([["1700000001-1-1", "1700000002-1-2"]])
+      end
+
+      it "passes each id once" do
+        result = dead_tasks.delete(["1700000002-1-2", "missing", "1700000002-1-2"])
+
+        expect(result).to eq(1)
+        expect(backend.removals).to eq([["1700000002-1-2", "missing"]])
+      end
+    end
+
+    context "with an empty Array" do
+      it "returns 0 without a backend call" do
+        expect(dead_tasks.delete([])).to eq(0)
+        expect(backend.removals).to eq([])
+      end
+    end
+
+    context "with an invalid id" do
+      it "raises TypeError for a nested Array without a backend call" do
+        expect { dead_tasks.delete([["1700000001-1-1"]]) }.to raise_error(TypeError)
+        expect(backend.removals).to eq([])
+      end
+
+      it "raises TypeError for a non-String id without a backend call" do
+        expect { dead_tasks.delete(nil) }.to raise_error(TypeError)
+        expect(backend.removals).to eq([])
+      end
+
+      it "removes nothing if one member is invalid" do
+        expect { dead_tasks.delete(["1700000001-1-1", :"1700000002-1-2"]) }.to raise_error(TypeError)
+        expect(backend.removals).to eq([])
+        expect(records.map { |record| record[:id] }).to eq(["1700000001-1-1", "1700000002-1-2"])
+      end
+    end
+  end
+end
+
+RSpec.describe Rage::Deferred::DeadTask do
+  let(:id) { "1700000003-1-3" }
+  let(:task_class_name) { "RetryableTask" }
+  let(:stored_context) { Marshal.dump(["RetryableTask", ["user"], { force: true }]) }
+  let(:record) do
+    {
+      id:, task_class: task_class_name, attempts: 5,
+      enqueued_at: 1_700_000_003, failed_at: 1_700_000_013,
+      exception_class: "RuntimeError", exception_message: "boom",
+      backtrace: [], context: stored_context
+    }
+  end
+  let(:entry) { described_class.send(:new, record, backend) }
+
+  describe "#delete" do
+    let(:backend) { double("backend", remove_dead_tasks: 1) }
+
+    it "returns true without a lookup" do
+      expect(entry.delete).to be(true)
+      expect(backend).to have_received(:remove_dead_tasks).with(id).once
+    end
+
+    context "when the record is already gone" do
+      let(:backend) { double("backend", remove_dead_tasks: 0) }
+
+      it "returns false" do
+        expect(entry.delete).to be(false)
+      end
+    end
+
+    context "with an entry from find_by_id" do
+      let(:backend) { double("backend", find_dead_task: record, remove_dead_tasks: 1) }
+
+      it "deletes through the same backend" do
+        entry = Rage::Deferred::DeadTasks.new(backend).find_by_id(id)
+
+        expect(entry.delete).to be(true)
+        expect(backend).to have_received(:remove_dead_tasks).with(id).once
+      end
+    end
+  end
+
+  describe "#retry" do
+    let(:backend) { double("backend", find_dead_task: record, flush_tasks: nil, remove_dead_tasks: 1) }
+    # A backend that allows only the lookup: a flush or a removal fails the example.
+    let(:lookup_only_backend) { double("backend", find_dead_task: record) }
+
+    let!(:task_class) do
+      stub_const("RetryableTask", Class.new do
+        include Rage::Deferred::Task
+
+        def perform(*, **)
+        end
+      end)
+    end
+
+    before do
+      allow(task_class).to receive(:enqueue)
+      allow(Iodine).to receive(:running?).and_return(true)
+    end
+
+    context "when the record is gone" do
+      let(:backend) { double("backend", find_dead_task: nil) }
+
+      it "returns false without enqueue" do
+        expect(entry.retry).to be(false)
+        expect(task_class).not_to have_received(:enqueue)
+      end
+    end
+
+    context "when the record exists" do
+      it "enqueues, flushes, then removes the record" do
+        expect(backend).to receive(:find_dead_task).with(id).once.ordered.and_return(record)
+        expect(task_class).to receive(:enqueue).with("user", force: true).once.ordered
+        expect(backend).to receive(:flush_tasks).once.ordered
+        expect(backend).to receive(:remove_dead_tasks).with(id).once.ordered.and_return(1)
+
+        expect(entry.retry).to be(true)
+      end
+    end
+
+    context "without stored arguments" do
+      let(:stored_context) { Marshal.dump(["RetryableTask", nil, nil]) }
+
+      it "enqueues with no arguments" do
+        expect(entry.retry).to be(true)
+        expect(task_class).to have_received(:enqueue).with(no_args)
+      end
+    end
+
+    context "when the backend has no flush_tasks" do
+      let(:backend) { double("backend", find_dead_task: record) }
+
+      it "removes the record after enqueue" do
+        expect(task_class).to receive(:enqueue).once.ordered
+        expect(backend).to receive(:remove_dead_tasks).with(id).once.ordered.and_return(1)
+
+        expect(entry.retry).to be(true)
+      end
+    end
+
+    context "when the removal finds no record" do
+      let(:backend) { double("backend", find_dead_task: record, flush_tasks: nil, remove_dead_tasks: 0) }
+
+      it "returns true" do
+        expect(entry.retry).to be(true)
+      end
+    end
+
+    context "when the task class does not exist" do
+      let(:task_class_name) { "MissingRetryableTask" }
+      let(:backend) { lookup_only_backend }
+
+      it "raises DeadTaskRetryError with a NameError cause, no enqueue" do
+        expect { entry.retry }.to raise_error(Rage::Deferred::DeadTaskRetryError) { |error|
+          expect(error.message).to include(id)
+          expect(error.cause).to be_a(NameError)
+        }
+      end
+    end
+
+    context "when the task class is not a deferred task" do
+      let(:task_class_name) { "PlainRetryableClass" }
+      let(:backend) { lookup_only_backend }
+
+      it "raises DeadTaskRetryError without enqueue" do
+        stub_const("PlainRetryableClass", Class.new)
+
+        expect { entry.retry }.to raise_error(Rage::Deferred::DeadTaskRetryError, /#{id}/)
+      end
+    end
+
+    context "when the stored context cannot be decoded" do
+      let(:stored_context) { "not a Marshal dump" }
+      let(:backend) { lookup_only_backend }
+
+      it "raises DeadTaskContextDeserializationError without enqueue" do
+        expect { entry.retry }.to raise_error(Rage::Deferred::DeadTaskContextDeserializationError) { |error|
+          expect(error.message).to include(id)
+          expect(error.cause).to be_a(TypeError)
+        }
+        expect(task_class).not_to have_received(:enqueue)
+      end
+    end
+
+    context "when enqueue raises" do
+      let(:backend) { lookup_only_backend }
+
+      it "re-raises without flush and keeps the record" do
+        error = Rage::Deferred::PushTimeout.new("queue is full")
+        allow(task_class).to receive(:enqueue).and_raise(error)
+
+        expect { entry.retry }.to raise_error { |raised| expect(raised).to equal(error) }
+      end
+    end
+
+    context "when flush_tasks raises" do
+      let(:backend) { lookup_only_backend }
+
+      it "re-raises and keeps the record" do
+        error = Errno::EIO.new("fsync")
+        allow(backend).to receive(:flush_tasks).and_raise(error)
+
+        expect { entry.retry }.to raise_error { |raised| expect(raised).to equal(error) }
+      end
+    end
+
+    context "with shared references and a cycle" do
+      let(:stored_context) do
+        shared = ["nested"]
+        cycle = []
+        cycle << cycle
+        Marshal.dump(["RetryableTask", [shared, cycle], { same: shared }])
+      end
+      let(:replayed) { [] }
+
+      before do
+        received = replayed
+        allow(task_class).to receive(:enqueue) do |*args, **kwargs|
+          received << args << kwargs
+          args[0] << "changed by enqueue"
+        end
+      end
+
+      it "replays a mutable copy of the graph" do
+        entry.retry
+        args, kwargs = replayed
+
+        aggregate_failures do
+          expect(args[0]).to eq(["nested", "changed by enqueue"])
+          expect(args[0]).not_to be_frozen
+          expect(kwargs[:same]).to equal(args[0])
+          expect(args[1][0]).to equal(args[1])
+        end
+      end
+
+      it "keeps the frozen inspection cache" do
+        inspected_args = entry.args
+        inspected_kwargs = entry.kwargs
+
+        entry.retry
+
+        aggregate_failures do
+          expect(entry.args).to equal(inspected_args)
+          expect(entry.kwargs).to equal(inspected_kwargs)
+          expect(entry.args[0]).to eq(["nested"])
+          expect(entry.args[0]).to be_frozen
+          expect(replayed[0][0]).not_to equal(inspected_args[0])
+        end
+      end
+    end
+
+    context "when the record was replaced" do
+      let(:replacement) do
+        record.merge(task_class: "OtherTask", context: Marshal.dump(["OtherTask", ["other"], {}]))
+      end
+      let(:backend) { double("backend", find_dead_task: replacement, flush_tasks: nil, remove_dead_tasks: 1) }
+
+      it "replays the entry's own class and args" do
+        entry.retry
+
+        expect(task_class).to have_received(:enqueue).with("user", force: true).once
+      end
+
+      it "removes the new record" do
+        expect(entry.retry).to be(true)
+        expect(backend).to have_received(:remove_dead_tasks).with(id).once
+      end
+    end
+
+    context "when the server is not running" do
+      it "warns that a restart is needed" do
+        allow(Iodine).to receive(:running?).and_return(false)
+
+        expect { entry.retry }.to output("Dead task #{id} was retried; server restart is required.\n").to_stderr
+      end
+    end
+
+    context "when the server is running" do
+      it "does not warn" do
+        expect { entry.retry }.not_to output.to_stderr
+      end
+    end
+
+    context "when the removal raises" do
+      let(:backend) { double("backend", find_dead_task: record, flush_tasks: nil) }
+
+      it "raises DeadTaskRetryError with the cause" do
+        cause = Errno::EIO.new("rename")
+        allow(backend).to receive(:remove_dead_tasks).and_raise(cause)
+
+        expect { entry.retry }.to raise_error(Rage::Deferred::DeadTaskRetryError) { |error|
+          expect(error.message).to include(id)
+          expect(error.cause).to equal(cause)
+        }
+      end
+    end
+  end
 end
 
 RSpec.describe Rage::Deferred, ".dead_tasks" do
@@ -385,5 +700,12 @@ RSpec.describe Rage::Deferred::Backends::Nil, "dead-task traversal" do
 
     expect(backend.method(:each_dead_task).parameters).to eq([])
     expect(collection.to_a).to eq([])
+  end
+
+  it "returns 0 from DeadTasks#delete" do
+    collection = Rage::Deferred::DeadTasks.new(described_class.new)
+
+    expect(collection.delete("1700000001-1-1")).to eq(0)
+    expect(collection.delete(["1700000001-1-1", "1700000002-1-2"])).to eq(0)
   end
 end

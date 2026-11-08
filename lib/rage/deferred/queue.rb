@@ -27,6 +27,8 @@ class Rage::Deferred::Queue
 
   # Schedule the task for execution.
   def schedule(task_id, context, publish_in: nil)
+    return unless Iodine.running?
+
     publish_in_ms = publish_in.to_i * 1_000 if publish_in && publish_in > 0
     task = Rage::Deferred::Context.get_task(context)
     @backlog_size += 1 unless publish_in_ms
