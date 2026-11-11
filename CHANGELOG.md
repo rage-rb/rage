@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+
+- [Telemetry] Add event loop utilization to `Rage::Telemetry::Capacity` reports how busy the server's event loop was since the previous sample (`0.0` idle → `1.0` saturated).
+
 ## [1.29.0] - 2026-10-23
 
 ### Added
