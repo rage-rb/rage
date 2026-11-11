@@ -98,8 +98,8 @@ RSpec.describe Rage::Telemetry::Capacity do
     it "returns nil when event loop utilization tracking is off" do
       capacity_file = File.join(rage_lib, "rage/telemetry/capacity.rb")
       out = IO.popen([RbConfig.ruby, "-I#{rage_lib}", "-I#{iodine_lib}", "-e",
-                      "require \"iodine\"\nrequire \"#{capacity_file}\"\n" \
-                      "p Rage::Telemetry::Capacity.event_loop_utilization"], &:read).strip
+        "require \"iodine\"\nrequire \"#{capacity_file}\"\n" \
+        "p Rage::Telemetry::Capacity.event_loop_utilization"], &:read).strip
 
       expect(out).to eq("nil")
     end
