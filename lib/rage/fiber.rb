@@ -117,7 +117,8 @@ class Fiber
   # pause a fiber and resume in the next iteration of the event loop
   def self.pause
     f = Fiber.current
-    Iodine.defer { f.resume }
+    # the fiber can be killed while paused, e.g. when a daemon is stopped
+    Iodine.defer { f.resume if f.alive? }
     Fiber.yield
   end
 
