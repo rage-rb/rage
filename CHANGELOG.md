@@ -2,7 +2,7 @@
 
 ### Added
 
-- [Daemon] Reload daemons in development when their source files change (#373).
+- [Daemon] Reload daemons in development when their source files change (#418).
 
 ## [1.29.0] - 2026-10-23
 
