@@ -3,6 +3,9 @@
 require "zeitwerk"
 
 class Rage::CodeLoader
+  BACKGROUND_RELOAD_INTERVAL = 1_000
+  private_constant :BACKGROUND_RELOAD_INTERVAL
+
   def initialize
     @reloading = false
     @autoload_path = Rage.root.join("app")
@@ -31,6 +34,7 @@ class Rage::CodeLoader
     return unless @loader
 
     @reloading = true
+    @reload_in_progress = true
     @loader.reload
 
     Rage.__router.reset_routes
@@ -38,6 +42,42 @@ class Rage::CodeLoader
 
     reload_components
     Rage.config.run_hooks_for(:after_reload)
+  ensure
+    @reload_in_progress = false
+  end
+
+  # @private
+  # Development only. Reload the code when the watched files change, even if the server receives no requests.
+  # If a background reload fails, the request-time change tracking is left as is so that the next request retries the reload and renders the error.
+  # @yieldreturn [Array<String>] the files to watch
+  def reload_in_background(&watched_files)
+    return unless @loader
+
+    snapshot = -> { watched_files.call.to_h { |file| [file, File.exist?(file) ? File.mtime(file) : nil] } }
+    last_snapshot = snapshot.call
+
+    Iodine.run_every(BACKGROUND_RELOAD_INTERVAL) do
+      next if @reload_in_progress
+
+      current_snapshot = snapshot.call
+      next if current_snapshot == last_snapshot
+
+      last_snapshot = current_snapshot
+      reload
+      # the whole application has been reloaded - sync the request-time change tracking
+      check_updated!
+      # the reload could change the list of watched files, e.g. if a daemon's parent class changed
+      last_snapshot = snapshot.call
+    rescue ScriptError, StandardError => e
+      Rage.logger.error("Failed to reload code: #{e.class} (#{e.message})")
+    end
+  end
+
+  # @private
+  # Whether the constant is managed by the code loader and will be reloaded.
+  # @return [Boolean, nil] `nil` if the code loader is not set up (e.g. in Rails mode)
+  def reloadable?(cpath)
+    @loader&.unloadable_cpath?(cpath)
   end
 
   # in Rails mode - reset the routes; everything else will be done by Rails

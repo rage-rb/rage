@@ -212,4 +212,137 @@ RSpec.describe Rage::CodeLoader do
       end
     end
   end
+
+  describe "#reload_in_background" do
+    subject(:code_loader) { described_class.new }
+
+    let(:timer) { [] }
+    let(:logger) { double(error: nil) }
+    let(:daemon_file) { "#{app_path}/test_daemon.rb" }
+    let(:watched_files) { [daemon_file] }
+
+    before do
+      File.write(daemon_file, "")
+      allow(Iodine).to receive(:run_every) { |_, &block| timer << block }
+      allow(Rage).to receive(:logger).and_return(logger)
+    end
+
+    def tick
+      timer.each(&:call)
+    end
+
+    def touch(path)
+      time = Time.now + rand(10..1000)
+      File.write(path, "") unless File.exist?(path)
+      File.utime(time, time, path)
+    end
+
+    context "without a loader" do
+      it "doesn't schedule a timer" do
+        code_loader.reload_in_background { watched_files }
+        expect(Iodine).not_to have_received(:run_every)
+      end
+    end
+
+    context "with a loader" do
+      before do
+        code_loader.instance_variable_set(:@loader, double)
+        code_loader.check_updated!
+        code_loader.reload_in_background { watched_files }
+      end
+
+      it "reloads the code when a watched file changes" do
+        expect(code_loader).to receive(:reload).once
+
+        tick
+        touch(daemon_file)
+        tick
+        tick
+      end
+
+      it "ignores changes to other files" do
+        expect(code_loader).not_to receive(:reload)
+
+        touch("#{app_path}/test_controller.rb")
+        tick
+      end
+
+      it "reloads the code when a watched file is deleted" do
+        expect(code_loader).to receive(:reload).once
+
+        File.unlink(daemon_file)
+        tick
+      end
+
+      it "syncs the request-time change tracking after a successful reload" do
+        allow(code_loader).to receive(:reload)
+
+        touch(daemon_file)
+        tick
+
+        expect(code_loader.check_updated!).to be(false)
+      end
+
+      it "picks up the new list of watched files after a reload" do
+        allow(code_loader).to receive(:reload) { watched_files << "#{app_path}/application_daemon.rb" }
+
+        touch(daemon_file)
+        tick
+        tick
+
+        expect(code_loader).to have_received(:reload).once
+      end
+
+      it "doesn't start a reload while another one is in progress" do
+        code_loader.instance_variable_set(:@reload_in_progress, true)
+        expect(code_loader).not_to receive(:reload)
+
+        touch(daemon_file)
+        tick
+      end
+
+      context "when the reload fails" do
+        before do
+          allow(code_loader).to receive(:reload).and_raise(SyntaxError, "routes.rb: unexpected end-of-input")
+          touch(daemon_file)
+          tick
+        end
+
+        it "logs the error" do
+          expect(logger).to have_received(:error).with(/Failed to reload code: SyntaxError/)
+        end
+
+        it "lets the next request retry the reload" do
+          expect(code_loader.check_updated!).to be(true)
+          expect(code_loader.check_updated!).to be(false)
+        end
+
+        it "doesn't retry the reload in the background until the files change again" do
+          tick
+          tick
+          expect(code_loader).to have_received(:reload).once
+
+          touch(daemon_file)
+          tick
+          expect(code_loader).to have_received(:reload).twice
+        end
+      end
+    end
+  end
+
+  describe "#reloadable?" do
+    subject(:code_loader) { described_class.new }
+
+    it "returns nil without a loader" do
+      expect(code_loader.reloadable?("TestDaemon")).to be_nil
+    end
+
+    it "delegates to the loader" do
+      loader = double
+      allow(loader).to receive(:unloadable_cpath?).with("TestDaemon").and_return(true)
+      code_loader.instance_variable_set(:@loader, loader)
+
+      expect(code_loader.reloadable?("TestDaemon")).to be(true)
+    end
+  end
 end

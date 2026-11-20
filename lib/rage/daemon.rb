@@ -10,6 +10,7 @@
 # - If a daemon exits or crashes, Rage restarts it with exponential backoff
 # - If a worker process dies, Rage restarts the daemon in another worker
 # - On server shutdown, daemons are gracefully stopped
+# - In development, a daemon is restarted with the updated code when its source file changes
 #
 # ## Defining a Daemon
 #
@@ -111,6 +112,9 @@ class Rage::Daemon
   BACKOFF_RESET_INTERVAL = 30
   private_constant :BACKOFF_RESET_INTERVAL
 
+  STARTED_DAEMONS = {}.compare_by_identity
+  private_constant :STARTED_DAEMONS
+
   class << self
     # @private
     attr_accessor :__level
@@ -156,10 +160,124 @@ class Rage::Daemon
       end
     end
 
+    # @private
+    # Development only. Modification times of the files that define the daemon and its parent daemon classes.
+    # @return [Hash{String => Time, nil}]
+    attr_reader :__sources
+
+    # @private
+    # Stop the daemon without restarting it.
+    def __stop
+      @__stopping = true
+      @__fiber&.kill
+    end
+
+    # @private
+    def __started?
+      !@__fiber.nil?
+    end
+
+    # @private
+    def __running?
+      !!@__fiber&.alive?
+    end
+
+    # @private
+    # Stop all daemons started in the current process.
+    def __stop_all
+      STARTED_DAEMONS.each_key(&:__stop)
+      STARTED_DAEMONS.clear
+    end
+
+    # @private
+    # Start the registered daemons. In development, also set up reloading.
+    def __boot
+      klasses = Rage.config.daemons.klasses
+      klasses.each(&:__perform)
+
+      return unless Rage.env.development? && klasses.any?
+
+      klasses.each do |klass|
+        if klass.name && Rage.code_loader.reloadable?(klass.name) == false
+          Rage.logger.info("Daemon #{klass.name} is not managed by the code loader and won't be reloaded; restart the server to apply changes")
+        end
+      end
+
+      Rage.config.after_reload { Rage::Daemon.__reload_changed }
+      Rage.code_loader.reload_in_background { Rage::Daemon.__watched_files }
+    end
+
+    # @private
+    # Development only. The source files of the daemons started in the current process and their parent daemon classes.
+    def __watched_files
+      STARTED_DAEMONS.each_key.flat_map { |klass| klass.__sources&.keys || [] }.uniq
+    end
+
+    # @private
+    # Development only. Restart daemons whose source files or parent daemon classes changed using their reloaded versions.
+    # If the reloaded version fails to load, the previous version keeps running.
+    def __reload_changed
+      klasses = Rage.config.daemons.klasses
+
+      klasses.each_with_index do |klass, i|
+        next if !klass.__started? || !klass.__sources
+
+        current_sources = klass.__sources.to_h { |file, _| [file, __mtime(file)] }
+        next if current_sources == klass.__sources
+
+        # only report a failed attempt or a deleted file once - retry when the files change again
+        klass.__sources.replace(current_sources)
+
+        if current_sources.value?(nil)
+          Rage.logger.warn("A source file of daemon #{klass.name} was deleted, keeping the previous version running")
+          next
+        end
+
+        new_klass = begin
+          Object.const_get(klass.name)
+        rescue ScriptError, StandardError => e
+          Rage.logger.error("Failed to reload daemon #{klass.name}, keeping the previous version running: #{e.class} (#{e.message}):\n#{e.backtrace.join("\n")}")
+          Rage::Errors.report(e)
+          next
+        end
+
+        if !new_klass.is_a?(Class) || !new_klass.ancestors.include?(Rage::Daemon)
+          Rage.logger.error("Failed to reload daemon #{klass.name}, keeping the previous version running: `#{klass.name}` no longer inherits `Rage::Daemon`")
+          next
+        end
+
+        next if new_klass.equal?(klass) # the class wasn't reloaded
+
+        if (new_klass.__level || :node) != (klass.__level || :node)
+          Rage.logger.warn("Scope of daemon #{klass.name} changed; restart the server to apply it")
+        end
+
+        Rage.logger.info("Reloading daemon #{klass.name}")
+        klass.__stop
+        STARTED_DAEMONS.delete(klass)
+        klasses[i] = new_klass
+
+        # call `__execute` directly - the daemon already runs in this process and
+        # `Rage::Internal.pick_a_worker` would fail to re-acquire the lock held by the previous version
+        new_klass.__send__(:__execute)
+      end
+    end
+
     private
 
     def __execute
-      f = Fiber.schedule do
+      if Rage.env.development? && name
+        # watch the daemon's own file and the files of its parent daemon classes, but not included modules
+        files = ancestors.take_while { |ancestor| !ancestor.equal?(Rage::Daemon) }.filter_map do |ancestor|
+          Object.const_source_location(ancestor.name)&.first if ancestor.is_a?(Class) && ancestor.name
+        end
+
+        @__sources = files.uniq.to_h { |file| [file, __mtime(file)] }
+      end
+
+      STARTED_DAEMONS[self] = true
+
+      @__fiber = Fiber.schedule do
         backoff = INITIAL_BACKOFF
 
         Rage.logger.with_context(daemon: name) do
@@ -189,12 +307,11 @@ class Rage::Daemon
           end
         end
       end
-
-      Iodine.on_state(:start_shutdown) do
-        @__stopping = true
-        f.kill
-      end
     end # class << self
+
+    def __mtime(file)
+      File.mtime(file) if File.exist?(file)
+    end
 
     def __cleanup(instance)
       instance.cleanup if instance.respond_to?(:cleanup)
@@ -240,5 +357,9 @@ end
 
 Iodine.on_state(:on_start) do
   Fiber.set_scheduler(Rage::FiberScheduler.new) unless Fiber.scheduler
-  Rage.config.daemons.klasses.each { |klass| klass.__perform }
+  Rage::Daemon.__boot
+end
+
+Iodine.on_state(:start_shutdown) do
+  Rage::Daemon.__stop_all
 end
