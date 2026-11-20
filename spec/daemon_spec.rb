@@ -413,8 +413,7 @@ RSpec.describe Rage::Daemon do
       within_reactor do
         start_daemon
         -> do
-          expect(daemon.__source_file).to eq(source_file.path)
-          expect(daemon.__source_mtime).to eq(File.mtime(source_file.path))
+          expect(daemon.__sources).to eq(source_file.path => File.mtime(source_file.path))
         end
       end
     end
@@ -678,7 +677,7 @@ RSpec.describe Rage::Daemon do
           sleep 0.1
           -> do
             expect(events).to eq([:anonymous])
-            expect(anonymous_daemon.__source_file).to be_nil
+            expect(anonymous_daemon.__sources).to be_nil
           end
         end
       end
@@ -744,11 +743,119 @@ RSpec.describe Rage::Daemon do
           events = $zeitwerk_test_daemon_events.dup
 
           -> do
-            expect(old_klass.__source_file).to eq(file)
+            expect(old_klass.__sources.keys).to eq([file])
             expect(old_running).to be(false)
             expect(new_klass).not_to equal(old_klass)
             expect(new_running).to be(true)
             expect(events).to eq([:v1, :cleanup_v1, :v2])
+          end
+        end
+      end
+
+      context "with a parent daemon class and an included module" do
+        let(:parent_file) { File.join(dir, "zeitwerk_parent_daemon.rb") }
+        let(:module_file) { File.join(dir, "zeitwerk_daemon_helpers.rb") }
+        let(:child_file) { File.join(dir, "zeitwerk_child_daemon.rb") }
+
+        def write_parent(version)
+          File.write(parent_file, <<~RUBY)
+            class ZeitwerkParentDaemon < Rage::Daemon
+              scope :worker
+
+              def label
+                :parent_#{version}
+              end
+            end
+          RUBY
+          bump(parent_file)
+        end
+
+        def write_module(version)
+          File.write(module_file, <<~RUBY)
+            module ZeitwerkDaemonHelpers
+              def helper
+                :helper_#{version}
+              end
+            end
+          RUBY
+          bump(module_file)
+        end
+
+        def bump(path)
+          time = Time.now + rand(10..1000)
+          File.utime(time, time, path)
+        end
+
+        before do
+          File.unlink(file) # the default test daemon isn't used here
+          write_parent(:v1)
+          write_module(:v1)
+          File.write(child_file, <<~RUBY)
+            class ZeitwerkChildDaemon < ZeitwerkParentDaemon
+              include ZeitwerkDaemonHelpers
+
+              def perform
+                $zeitwerk_test_daemon_events << [label, helper]
+                sleep 10
+              end
+            end
+          RUBY
+          loader.reload
+        end
+
+        it "watches the files of the daemon and its parent daemon classes" do
+          within_reactor do
+            klass = ZeitwerkChildDaemon
+            allow(Rage.config.daemons).to receive(:klasses).and_return([klass])
+            klass.__perform
+            sources = klass.__sources.keys
+            watched = Rage::Daemon.__watched_files
+
+            -> do
+              expect(sources).to contain_exactly(child_file, parent_file)
+              expect(watched).to include(child_file, parent_file)
+              expect(watched).not_to include(module_file)
+            end
+          end
+        end
+
+        it "restarts the daemon when its parent class changes" do
+          within_reactor do
+            klasses = [ZeitwerkChildDaemon]
+            allow(Rage.config.daemons).to receive(:klasses).and_return(klasses)
+            klasses[0].__perform
+            sleep 0.1
+
+            write_parent(:v2)
+            loader.reload
+            Rage::Daemon.__reload_changed
+            sleep 0.1
+            events = $zeitwerk_test_daemon_events.dup
+
+            -> { expect(events).to eq([[:parent_v1, :helper_v1], [:parent_v2, :helper_v1]]) }
+          end
+        end
+
+        it "doesn't restart the daemon when an included module changes" do
+          within_reactor do
+            klasses = [ZeitwerkChildDaemon]
+            allow(Rage.config.daemons).to receive(:klasses).and_return(klasses)
+            old_klass = klasses[0]
+            old_klass.__perform
+            sleep 0.1
+
+            write_module(:v2)
+            loader.reload
+            Rage::Daemon.__reload_changed
+            sleep 0.1
+            events = $zeitwerk_test_daemon_events.dup
+            running = old_klass.__running?
+
+            -> do
+              expect(events).to eq([[:parent_v1, :helper_v1]])
+              expect(running).to be(true)
+              expect(klasses).to eq([old_klass])
+            end
           end
         end
       end

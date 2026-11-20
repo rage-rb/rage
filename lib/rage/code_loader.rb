@@ -42,23 +42,34 @@ class Rage::CodeLoader
 
     reload_components
     Rage.config.run_hooks_for(:after_reload)
-    @background_reload_failed = false
   ensure
     @reload_in_progress = false
   end
 
   # @private
-  # Development only. Reload the code when it changes, even if the server receives no requests.
-  # If a background reload fails, the change stays pending so that the next request retries the reload and renders the error.
-  def reload_in_background
+  # Development only. Reload the code when the watched files change, even if the server receives no requests.
+  # If a background reload fails, the request-time change tracking is left as is so that the next request retries the reload and renders the error.
+  # @yieldreturn [Array<String>] the files to watch
+  def reload_in_background(&watched_files)
     return unless @loader
 
+    snapshot = -> { watched_files.call.to_h { |file| [file, File.exist?(file) ? File.mtime(file) : nil] } }
+    last_snapshot = snapshot.call
+
     Iodine.run_every(BACKGROUND_RELOAD_INTERVAL) do
-      # check the files directly - a pending failed reload is left for the next request to retry and render
-      reload if !@reload_in_progress && files_updated?
+      next if @reload_in_progress
+
+      current_snapshot = snapshot.call
+      next if current_snapshot == last_snapshot
+
+      last_snapshot = current_snapshot
+      reload
+      # the whole application has been reloaded - sync the request-time change tracking
+      check_updated!
+      # the reload could change the list of watched files, e.g. if a daemon's parent class changed
+      last_snapshot = snapshot.call
     rescue ScriptError, StandardError => e
-      @background_reload_failed = true
-      Rage.logger.error("Failed to reload code, the next request will retry: #{e.class} (#{e.message})")
+      Rage.logger.error("Failed to reload code: #{e.class} (#{e.message})")
     end
   end
 
@@ -85,23 +96,6 @@ class Rage::CodeLoader
   end
 
   def check_updated!
-    updated = files_updated?
-
-    if @background_reload_failed
-      @background_reload_failed = false
-      return true
-    end
-
-    updated
-  end
-
-  def load_file(path)
-    @loader.load_file(path)
-  end
-
-  private
-
-  def files_updated?
     current_watched = @autoload_path.glob("**/*.{rb,erb}") + Rage.root.glob("config/routes.rb") + Rage.root.glob("config/openapi_components.*")
     current_watched += Rage.config.code_loader.reload_paths.flat_map { |pattern| Rage.root.glob(pattern) }
 
@@ -113,6 +107,12 @@ class Rage::CodeLoader
   ensure
     @last_watched, @last_update_at = current_watched, current_update_at
   end
+
+  def load_file(path)
+    @loader.load_file(path)
+  end
+
+  private
 
   def configure_components
     if Rage.env.development? && (Rage.config.deferred.configured? || Rage.config.deferred.has_default_disk_storage?)

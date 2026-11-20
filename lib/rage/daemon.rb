@@ -161,10 +161,9 @@ class Rage::Daemon
     end
 
     # @private
-    attr_reader :__source_file
-
-    # @private
-    attr_accessor :__source_mtime
+    # Development only. Modification times of the files that define the daemon and its parent daemon classes.
+    # @return [Hash{String => Time, nil}]
+    attr_reader :__sources
 
     # @private
     # Stop the daemon without restarting it.
@@ -205,26 +204,32 @@ class Rage::Daemon
       end
 
       Rage.config.after_reload { Rage::Daemon.__reload_changed }
-      Rage.code_loader.reload_in_background
+      Rage.code_loader.reload_in_background { Rage::Daemon.__watched_files }
     end
 
     # @private
-    # Development only. Restart daemons whose source files changed using their reloaded versions.
+    # Development only. The source files of the daemons started in the current process and their parent daemon classes.
+    def __watched_files
+      STARTED_DAEMONS.each_key.flat_map { |klass| klass.__sources&.keys || [] }.uniq
+    end
+
+    # @private
+    # Development only. Restart daemons whose source files or parent daemon classes changed using their reloaded versions.
     # If the reloaded version fails to load, the previous version keeps running.
     def __reload_changed
       klasses = Rage.config.daemons.klasses
 
       klasses.each_with_index do |klass, i|
-        next if !klass.__started? || !klass.__source_file
+        next if !klass.__started? || !klass.__sources
 
-        current_mtime = File.exist?(klass.__source_file) ? File.mtime(klass.__source_file) : nil
-        next if current_mtime == klass.__source_mtime
+        current_sources = klass.__sources.to_h { |file, _| [file, __mtime(file)] }
+        next if current_sources == klass.__sources
 
-        # only report a failed attempt or a deleted file once - retry when the file changes again
-        klass.__source_mtime = current_mtime
+        # only report a failed attempt or a deleted file once - retry when the files change again
+        klass.__sources.replace(current_sources)
 
-        unless current_mtime
-          Rage.logger.warn("Source file of daemon #{klass.name} was deleted, keeping the previous version running")
+        if current_sources.value?(nil)
+          Rage.logger.warn("A source file of daemon #{klass.name} was deleted, keeping the previous version running")
           next
         end
 
@@ -262,8 +267,12 @@ class Rage::Daemon
 
     def __execute
       if Rage.env.development? && name
-        @__source_file = Object.const_source_location(name)&.first
-        @__source_mtime = File.mtime(@__source_file) if @__source_file && File.exist?(@__source_file)
+        # watch the daemon's own file and the files of its parent daemon classes, but not included modules
+        files = ancestors.take_while { |ancestor| !ancestor.equal?(Rage::Daemon) }.filter_map do |ancestor|
+          Object.const_source_location(ancestor.name)&.first if ancestor.is_a?(Class) && ancestor.name
+        end
+
+        @__sources = files.uniq.to_h { |file| [file, __mtime(file)] }
       end
 
       STARTED_DAEMONS[self] = true
@@ -299,6 +308,10 @@ class Rage::Daemon
         end
       end
     end # class << self
+
+    def __mtime(file)
+      File.mtime(file) if File.exist?(file)
+    end
 
     def __cleanup(instance)
       instance.cleanup if instance.respond_to?(:cleanup)
